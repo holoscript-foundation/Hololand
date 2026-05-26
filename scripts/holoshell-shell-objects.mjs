@@ -26,6 +26,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === '--') continue;
     if (arg === '--tmp-dir') args.tmpDir = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
@@ -1527,7 +1528,7 @@ function agentObjects(lanes, maxAgents) {
 
 function readinessStatusTrust(status) {
   if (status === 'pass') return 'verified';
-  if (status === 'warn' || status === 'skipped' || status === 'reported_fail' || status === 'fail') return 'partial';
+  if (status === 'warn' || status === 'skipped' || status === 'reported_fail' || status === 'fail' || status === 'blocked') return 'partial';
   return 'unknown';
 }
 
@@ -1538,6 +1539,7 @@ function readinessTokenGlyph(token) {
   if (id.includes('webgpu')) return 'WG';
   if (id.includes('wasm')) return 'WA';
   if (id.includes('headset')) return 'VR';
+  if (id.includes('visual') || id.includes('witness')) return 'VW';
   if (id.includes('replay')) return 'RP';
   if (id.includes('graph')) return 'GR';
   if (id.includes('task')) return 'HM';
@@ -1631,9 +1633,9 @@ function readinessObjects(readinessEvidence) {
       sourceRef: token.source || readinessEvidence.source?.evidenceDir || '',
       capabilityFamily: 'readiness_evidence',
       trustState: token.trustState || readinessStatusTrust(token.status),
-      permissionEnvelope: token.status === 'skipped' || token.status === 'warn' ? 'manual_witness' : 'read_only',
+      permissionEnvelope: ['skipped', 'warn', 'blocked', 'fail', 'reported_fail'].includes(token.status) ? 'manual_witness' : 'read_only',
       adapterPath: 'readiness_evidence_ingestion',
-      visualForm: token.status === 'pass' ? 'timeline_node' : 'warning_token',
+      visualForm: token.status === 'pass' ? 'timeline_node' : token.status === 'blocked' ? 'blocked_reason_card' : 'warning_token',
       status: token.status || 'unknown',
       actorLaneId: 'codex-hardware',
       receiptTypes: [token.receiptType || 'readiness_evidence_pack'],

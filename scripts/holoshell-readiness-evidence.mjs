@@ -12,6 +12,7 @@ const SCHEMA_VERSION = 'hololand.holoshell.readiness-evidence.v0.1.0';
 const DEFAULT_OUTPUT = '.tmp/holoshell/readiness-evidence.json';
 const DEFAULT_JS_OUTPUT = '.tmp/holoshell/readiness-evidence.js';
 const DEFAULT_TMP_DIR = path.join('.tmp', 'holoshell');
+const HOLOSCRIPT_RUNNER_EVIDENCE_FILE = 'world-build-readiness-evidence.json';
 const DEFAULT_HOLOSCRIPT_EVIDENCE_ROOT = path.resolve(
   REPO_ROOT,
   '..',
@@ -287,7 +288,11 @@ function latestEvidenceDir(sourceRoot) {
   const datedDirs = readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(root, entry.name))
-    .filter((dir) => existsSync(path.join(dir, 'flagship-readiness-report.md')))
+    .filter(
+      (dir) =>
+        existsSync(path.join(dir, HOLOSCRIPT_RUNNER_EVIDENCE_FILE)) ||
+        existsSync(path.join(dir, 'flagship-readiness-report.md'))
+    )
     .sort((left, right) => right.localeCompare(left));
   return datedDirs[0] || '';
 }
@@ -502,12 +507,266 @@ function makeToken({
   };
 }
 
+function gateStatus(gates, gateId, fallback = 'unknown') {
+  return gates.find((gate) => gate.gateId === gateId)?.status || fallback;
+}
+
+function readinessWarningStatus(status) {
+  return ['warn', 'skipped', 'reported_fail', 'fail', 'failed', 'blocked', 'unknown'].includes(
+    status
+  );
+}
+
+function runnerGateTitle(gateId) {
+  const labels = {
+    'local-source': 'Local source captured',
+    'hardware-reality': 'Hardware reality',
+    'build-custody': 'Build custody',
+    'visual-witness': 'Visual witness',
+    'codebase-graph-trust': 'Codebase graph trust',
+    'task-dirty-tree': 'Task dirty tree',
+    replay: 'Replay command',
+    rollback: 'Rollback path',
+  };
+  return labels[gateId] || gateId.replace(/-/g, ' ');
+}
+
+function runnerGateKind(gateId) {
+  if (gateId === 'hardware-reality') return 'hardware_reality_receipt';
+  if (gateId === 'build-custody') return 'build_custody_receipt';
+  if (gateId === 'visual-witness') return 'visual_witness_receipt';
+  if (gateId === 'codebase-graph-trust') return 'local_codebase_snapshot_receipt';
+  if (gateId === 'task-dirty-tree') return 'git_diff_receipt';
+  if (gateId === 'replay') return 'replay_receipt';
+  if (gateId === 'rollback') return 'rollback_receipt';
+  return 'source_receipt';
+}
+
+function runnerGateReceiptType(gateId, runnerEvidence = {}) {
+  if (gateId === 'hardware-reality') {
+    return runnerEvidence.receipt?.externalReceipts?.hardwareAudit?.summary?.schemaVersion ||
+      'codex_hardware_audit_receipt';
+  }
+  if (gateId === 'build-custody') {
+    return runnerEvidence.buildCustodyReceipt?.schemaVersion ||
+      'holoshell.build-custody.v1';
+  }
+  if (gateId === 'visual-witness') return 'visual_witness_receipt';
+  if (gateId === 'codebase-graph-trust') {
+    return runnerEvidence.receipt?.externalReceipts?.localCodebaseSnapshot?.summary?.schemaVersion ||
+      'LocalCodebaseSnapshotReceipt.v1';
+  }
+  if (gateId === 'task-dirty-tree') return 'git_status_receipt';
+  if (gateId === 'replay') return 'readiness_runner_replay_receipt';
+  if (gateId === 'rollback') return 'readiness_runner_rollback_receipt';
+  return runnerEvidence.schemaVersion || 'holoshell.world-build-readiness-evidence.v1';
+}
+
+function runnerGateSource(gateId, runnerEvidence, runnerEvidencePath) {
+  const external = runnerEvidence.receipt?.externalReceipts || {};
+  if (gateId === 'hardware-reality') return external.hardwareAudit?.displayPath || runnerEvidencePath;
+  if (gateId === 'codebase-graph-trust') {
+    return external.localCodebaseSnapshot?.displayPath || runnerEvidencePath;
+  }
+  if (gateId === 'build-custody') return runnerEvidence.buildCustodyReceipt?.id || runnerEvidencePath;
+  return runnerEvidencePath;
+}
+
+function runnerGateNextAction(gate) {
+  if (gate.status === 'pass') return '';
+  if (gate.gateId === 'hardware-reality') {
+    return 'Attach browser WebGPU or target-device hardware witness if promotion needs full hardware proof.';
+  }
+  if (gate.gateId === 'visual-witness') {
+    return 'Attach a visual or target-device witness receipt and rerun the HoloScript readiness runner.';
+  }
+  if (gate.gateId === 'task-dirty-tree') {
+    return 'Review changed and untracked files before presenting the workspace as promotion-ready.';
+  }
+  if (gate.gateId === 'codebase-graph-trust') {
+    return 'Replay local codebase snapshot generation before trusting codebase graph answers.';
+  }
+  if (gate.gateId === 'replay') return 'Replay the readiness runner and verification command.';
+  return gate.blocker || gate.reason || 'Resolve this readiness gate and rerun the projection.';
+}
+
+function runnerGateToToken(gate, runnerEvidence, runnerEvidencePath) {
+  const label = runnerGateTitle(gate.gateId);
+  const detailParts = [
+    gate.reason || gate.blocker || `${label} gate reported ${gate.status || 'unknown'}.`,
+    gate.authorityProof ? `Authority proof ${gate.authorityProof}.` : '',
+    gate.receiptId ? `Receipt ${gate.receiptId}.` : '',
+  ].filter(Boolean);
+
+  return makeToken({
+    id: `readiness.${gate.gateId}`,
+    kind: runnerGateKind(gate.gateId),
+    title: `${label} ${gate.status || 'unknown'}`,
+    status: gate.status || 'unknown',
+    detail: detailParts.join(' '),
+    source: runnerGateSource(gate.gateId, runnerEvidence, runnerEvidencePath),
+    trustState: gate.status === 'pass' ? 'verified' : 'partial',
+    receiptType: runnerGateReceiptType(gate.gateId, runnerEvidence),
+    nextAction: runnerGateNextAction(gate),
+  });
+}
+
+function createFeedFromRunnerEvidence(
+  runnerEvidence,
+  runnerEvidencePath,
+  evidenceDir,
+  localArtifacts = readLocalArtifacts(DEFAULT_TMP_DIR),
+  liveCoreImport = { status: 'unknown' }
+) {
+  const receipt = runnerEvidence.receipt || {};
+  const runnerToken = runnerEvidence.token || {};
+  const gates = Array.isArray(runnerToken.gates) ? runnerToken.gates : [];
+  const tokens = gates.map((gate) => runnerGateToToken(gate, runnerEvidence, runnerEvidencePath));
+  const localSummary = localArtifactSummary(localArtifacts);
+  const changedFiles = Array.isArray(receipt.gitStatus?.entries)
+    ? receipt.gitStatus.entries.map((entry) => entry.path).filter(Boolean)
+    : [];
+  const warningCount = tokens.filter((token) => readinessWarningStatus(token.status)).length;
+  const blockingTokens = tokens.filter((token) => readinessWarningStatus(token.status));
+  const replayCommand =
+    runnerToken.verificationCommands?.[0]?.command ||
+    receipt.verificationCommands?.[0]?.command ||
+    '';
+  const verifyCommand =
+    runnerToken.verificationCommands?.[1]?.command ||
+    receipt.verificationCommands?.[1]?.command ||
+    '';
+  const scenario = 'Make this computer ready to build a HoloLand world';
+  const nextWorkflow =
+    blockingTokens[0]?.nextAction ||
+    (runnerToken.status === 'ready'
+      ? 'Start a guarded HoloLand world build from the readiness cockpit.'
+      : 'Resolve readiness blockers and replay the HoloScript runner.');
+
+  return redactValue({
+    schemaVersion: SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    readinessId: receipt.id || runnerToken.id || `runner-${shortHash(runnerEvidencePath)}`,
+    source: {
+      evidenceDir,
+      runnerEvidencePath,
+      reportPath: runnerEvidencePath,
+      deviceReceiptPath: runnerEvidencePath,
+      validationsPath: runnerEvidencePath,
+      tasksPath: runnerEvidencePath,
+      buildLogPath: runnerEvidencePath,
+      gitStatusPath: runnerEvidencePath,
+      holoscriptExperimentDir: path.resolve(
+        evidenceDir,
+        '..',
+        '..',
+        '..',
+        'experiments',
+        'holoshell-human-os-frontier'
+      ),
+      provenanceRef: runnerToken.provenance?.ref || '',
+    },
+    summary: {
+      status: receipt.overallStatus || runnerToken.status || 'unknown',
+      scenario,
+      runTime: receipt.startedAt || runnerToken.createdAt || '',
+      automationId: receipt.workflow || 'prepare-computer-for-hololand-world',
+      knowledgeId: '',
+      buildStatus: gateStatus(gates, 'build-custody'),
+      validationStatus: gateStatus(gates, 'replay'),
+      validationPassCount: gates.filter((gate) => gate.status === 'pass').length,
+      validationCount: gates.length,
+      deviceLabStatus: gateStatus(gates, 'visual-witness'),
+      wasmSimdStatus: 'unknown',
+      runtimeInventoryStatus: 'unknown',
+      webgpuStatus: gateStatus(gates, 'hardware-reality'),
+      headsetStatus: gateStatus(gates, 'visual-witness'),
+      replayStatus: gateStatus(gates, 'replay'),
+      graphStatus: gateStatus(gates, 'codebase-graph-trust'),
+      reportGraphStatus: gateStatus(gates, 'codebase-graph-trust'),
+      liveCoreImportStatus: liveCoreImport?.status || 'unknown',
+      liveCoreImportCheckedAt: liveCoreImport?.checkedAt || '',
+      liveCoreImportKeyCount: liveCoreImport?.keyCount || 0,
+      taskCount: 0,
+      warningCount,
+      dirtyLineCount: receipt.gitStatus?.totalEntries || changedFiles.length,
+      changedFileCount: receipt.gitStatus?.totalEntries || changedFiles.length,
+      changedFiles: changedFiles.slice(0, 24),
+      hardwareRealityStatus: gateStatus(gates, 'hardware-reality'),
+      processHealthStatus: localSummary.processHealth.status,
+      mcpCustodyContractStatus: localSummary.mcpCustodyContract.status,
+      mcpCustodyCompatibilityMode: localSummary.mcpCustodyContract.compatibilityMode,
+      nativeMcpCustodySplit: localSummary.mcpCustodyContract.nativeMcpCustodySplit,
+      liveFeedStatus: localSummary.liveFeed.status,
+      buildRunStatus: gateStatus(gates, 'build-custody'),
+      buildRunExitCode: null,
+      stopPlanCount: localSummary.processHealth.stopPlanCount,
+      tokenCount: tokens.length,
+      nextWorkflow,
+      sourceEvidenceSchemaVersion: runnerEvidence.schemaVersion || '',
+      worldBuildReadyStatus: runnerToken.status || 'unknown',
+      worldBuildReadyHash: runnerToken.hash || receipt.worldBuildReadyTokenHash || '',
+      buildCustodyReceiptHash: runnerEvidence.buildCustodyReceipt?.hash || receipt.buildCustodyReceiptHash || '',
+    },
+    tokens,
+    worldBuildReadyToken: {
+      id: 'holoshell.world-build-ready',
+      sourceTokenId: runnerToken.id || '',
+      kind: 'world_build_ready_token',
+      status: runnerToken.status || 'unknown',
+      blockingReasons: blockingTokens.map(
+        (token) =>
+          `${token.id}:${token.status}${token.nextAction ? `(${token.nextAction})` : ''}`
+      ),
+      blockingOwners: blockingTokens.map((token) =>
+        token.id.includes('visual') || token.id.includes('witness') ? 'operator' : 'codex-hardware'
+      ),
+      blockingNextActions: blockingTokens.map((token) => token.nextAction || ''),
+      receiptRequired: true,
+      nextAction: runnerToken.status === 'ready' ? 'start_world_build' : 'resolve_blockers_and_replay',
+      receiptInputs: tokens.map((token) => token.id),
+      replayCommand: redactText(replayCommand),
+      receiptHash: runnerToken.hash || receipt.worldBuildReadyTokenHash || '',
+    },
+    liveCoreImport: redactValue(liveCoreImport),
+    localArtifacts: redactValue(localSummary),
+    commands: {
+      replay: redactText(replayCommand),
+      verify: redactText(verifyCommand),
+      rollback:
+        'Read-only aggregation; delete .tmp/holoshell/readiness-evidence.json and .tmp/holoshell/readiness-evidence.js to clear the projection.',
+      rerunBuild: redactText(replayCommand),
+    },
+    privacy: {
+      redacted: true,
+      rawCommandsIncluded: false,
+      rawSecretsIncluded: false,
+      localPathLabels: ['[hololand-root]', '[holoscript-root]', '[user-home]', '[temp]'],
+    },
+    tasks: [],
+    taskLinks: [],
+    gotchas: Array.isArray(receipt.notes) ? receipt.notes : [],
+  });
+}
+
 function createFeedFromFiles(
   sourceDir,
   localArtifacts = readLocalArtifacts(DEFAULT_TMP_DIR),
   liveCoreImport = { status: 'unknown' }
 ) {
   const evidenceDir = resolveRepoPath(sourceDir);
+  const runnerEvidencePath = path.join(evidenceDir, HOLOSCRIPT_RUNNER_EVIDENCE_FILE);
+  const runnerEvidence = readJson(runnerEvidencePath, null);
+  if (runnerEvidence?.schemaVersion === 'holoshell.world-build-readiness-evidence.v1') {
+    return createFeedFromRunnerEvidence(
+      runnerEvidence,
+      runnerEvidencePath,
+      evidenceDir,
+      localArtifacts,
+      liveCoreImport
+    );
+  }
+
   const reportPath = path.join(evidenceDir, 'flagship-readiness-report.md');
   const deviceReceiptPath = path.join(evidenceDir, 'device-lab-receipt.json');
   const validationsPath = path.join(evidenceDir, 'source-validations.json');
@@ -1085,7 +1344,125 @@ function assertSelfTest(feed) {
   if (feed.privacy?.redacted !== true) failures.push('expected redaction marker');
   if (!feed.summary.nextWorkflow.includes('playable HoloLand shard'))
     failures.push('expected next workflow');
+
+  const runnerFeed = createFeedFromRunnerEvidence(
+    {
+      schemaVersion: 'holoshell.world-build-readiness-evidence.v1',
+      receipt: {
+        schemaVersion: 'holoshell.world-build-readiness-runner-receipt.v1',
+        id: 'runner-fixture-receipt',
+        workflow: 'prepare-computer-for-hololand-world',
+        startedAt: '2026-05-26T00:00:00.000Z',
+        gitStatus: {
+          totalEntries: 2,
+          entries: [
+            { code: ' M', path: 'docs/capability-registry.md' },
+            { code: '??', path: 'scripts/holoshell-world-build-readiness-runner.mjs' },
+          ],
+        },
+        externalReceipts: {
+          hardwareAudit: {
+            displayPath: 'fixture/codex-hardware-audit.json',
+            summary: { schemaVersion: 'codex-hardware-audit/v0.1.0' },
+          },
+          localCodebaseSnapshot: {
+            displayPath: 'fixture/local-codebase-snapshot.json',
+            summary: { schemaVersion: 'LocalCodebaseSnapshotReceipt.v1' },
+          },
+        },
+        overallStatus: 'blocked',
+        buildCustodyReceiptHash: 'sha256:build-custody-fixture',
+        worldBuildReadyTokenHash: 'sha256:world-build-fixture',
+        verificationCommands: [
+          { label: 'replay-readiness-runner', command: 'node scripts/holoshell-world-build-readiness-runner.mjs run' },
+          { label: 'verify-readiness-evidence', command: 'node scripts/holoshell-world-build-readiness-runner.mjs verify' },
+        ],
+      },
+      buildCustodyReceipt: {
+        schemaVersion: 'holoshell.build-custody.v1',
+        id: 'build-custody-fixture',
+        hash: 'sha256:build-custody-fixture',
+      },
+      token: {
+        schemaVersion: 'holoshell.world-build-ready.v1',
+        id: 'world-build-ready-fixture',
+        status: 'blocked',
+        gates: [
+          { gateId: 'local-source', status: 'pass', reason: 'Git repository status captured locally.' },
+          { gateId: 'hardware-reality', status: 'warn', authorityProof: 'sha256:hardware-fixture' },
+          { gateId: 'build-custody', status: 'pass', receiptId: 'build-custody-fixture' },
+          { gateId: 'visual-witness', status: 'blocked', blocker: 'visual-witness receipt was not supplied.' },
+          { gateId: 'codebase-graph-trust', status: 'pass', authorityProof: 'sha256:codebase-fixture' },
+          { gateId: 'task-dirty-tree', status: 'warn', reason: 'Working tree has 2 changed/untracked entries.' },
+          { gateId: 'replay', status: 'pass', reason: 'Replay command embedded.' },
+          { gateId: 'rollback', status: 'pass', reason: 'Delete generated evidence to roll back.' },
+        ],
+        verificationCommands: [
+          { label: 'replay-readiness-runner', command: 'node scripts/holoshell-world-build-readiness-runner.mjs run' },
+          { label: 'verify-readiness-evidence', command: 'node scripts/holoshell-world-build-readiness-runner.mjs verify' },
+        ],
+        hash: 'sha256:world-build-fixture',
+      },
+    },
+    'fixture/world-build-readiness-evidence.json',
+    'fixture',
+    fixtureLocalArtifacts(),
+    fixtureLiveCoreImport()
+  );
+
+  if (runnerFeed.summary.status !== 'blocked') failures.push('expected runner feed blocked');
+  if (runnerFeed.summary.tokenCount !== 8)
+    failures.push(`expected 8 runner tokens, got ${runnerFeed.summary.tokenCount}`);
+  if (!runnerFeed.tokens.find((token) => token.id === 'readiness.visual-witness'))
+    failures.push('expected runner visual witness token');
+  if (!runnerFeed.worldBuildReadyToken?.blockingReasons?.some((reason) => reason.includes('readiness.visual-witness:blocked')))
+    failures.push('expected runner world-build token to block on visual witness');
+  if (!runnerFeed.worldBuildReadyToken?.blockingReasons?.some((reason) => reason.includes('readiness.task-dirty-tree:warn')))
+    failures.push('expected runner world-build token to surface dirty tree warning');
+  if (!runnerFeed.commands?.verify?.includes('verify'))
+    failures.push('expected runner verify command');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
+}
+
+function buildWorldBuildReadyToken(feed) {
+  const criticalNeedles = [
+    'graph',
+    'build',
+    'hardware',
+    'process',
+    'mcp',
+    'repo',
+    'dirty',
+    'liveFeed',
+    'live-feed',
+    'custody',
+    'visual',
+    'witness',
+    'replay',
+  ];
+  const critical = feed.tokens.filter((token) =>
+    criticalNeedles.some((needle) => token.id.includes(needle))
+  );
+  const blocking = critical
+    .filter((token) => readinessWarningStatus(token.status) && token.status !== 'unknown')
+    .map(
+      (token) =>
+        `${token.id}:${token.status}${token.nextAction ? `(${token.nextAction})` : ''}`
+    );
+  const joinedStatus = blocking.length === 0
+    ? 'ready'
+    : critical.some((token) => token.status === 'blocked')
+      ? 'blocked'
+      : 'warn';
+  return {
+    id: 'holoshell.world-build-ready',
+    kind: 'world_build_ready_token',
+    status: joinedStatus,
+    blockingReasons: blocking,
+    receiptRequired: true,
+    nextAction: joinedStatus === 'ready' ? 'start_world_build' : 'resolve_blockers_and_replay',
+    receiptInputs: critical.map((token) => token.id),
+  };
 }
 
 try {
@@ -1122,24 +1499,9 @@ try {
         });
   if (args.selfTest) assertSelfTest(feed);
 
-  // Join all gates into the single deterministic HoloShellWorldBuildReadyToken
-  // (blocks on stale graph, active/high-memory builds, missing device witness, dirty tree, missing replay receipts)
-  const critical = feed.tokens.filter(t =>
-    ['graph', 'build', 'hardware', 'process', 'mcp', 'repo', 'liveFeed', 'custody'].some(k => t.id.includes(k))
-  );
-  const blocking = critical
-    .filter(t => t.status === 'blocked' || t.status === 'warn')
-    .map(t => `${t.id}:${t.status}${t.nextAction ? '(' + t.nextAction + ')' : ''}`);
-  const joinedStatus = blocking.length === 0 ? 'ready' : (critical.some(t => t.status === 'blocked') ? 'blocked' : 'warn');
-  feed.worldBuildReadyToken = {
-    id: 'holoshell.world-build-ready',
-    kind: 'world_build_ready_token',
-    status: joinedStatus,
-    blockingReasons: blocking,
-    receiptRequired: true,
-    nextAction: joinedStatus === 'ready' ? 'start_world_build' : 'resolve_blockers_and_replay',
-    receiptInputs: critical.map(t => t.id)
-  };
+  // Join all gates into the single deterministic HoloShellWorldBuildReadyToken.
+  // HoloScript runner feeds already carry an upstream token, so preserve it.
+  if (!feed.worldBuildReadyToken) feed.worldBuildReadyToken = buildWorldBuildReadyToken(feed);
 
   const output = writeJson(args.output, feed);
   const jsOutput = writeBrowserBootstrap(args.jsOutput, feed);
