@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -564,6 +564,43 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
         generatedAt: readinessEvidence.generatedAt || now,
         receiptType: readinessEvidence.schemaVersion,
         source: readinessEvidence.source?.evidenceDir || readinessEvidence.source?.reportPath || 'scripts/holoshell-readiness-evidence.mjs',
+      });
+    }
+  }
+
+  if (fleetReadiness?.summary) {
+    timeline.push({
+      id: fleetReadiness.fleetReadinessId || 'holoshell-fleet-readiness-evidence',
+      kind: 'fleet_readiness_evidence',
+      title: `Fleet job readiness ${fleetReadiness.summary.status || 'unknown'}`,
+      detail: `job ${fleetReadiness.summary.jobId || 'unknown'}; lane ${fleetReadiness.summary.laneId || 'missing'}; owner ${fleetReadiness.summary.ownerLaneId || 'unknown'}; budget ${fleetReadiness.summary.budgetStatus || 'unknown'}; heartbeat ${fleetReadiness.summary.heartbeatAgeMs ?? 'unknown'}ms; ${fleetReadiness.summary.blockedReasonCount || 0} blocker(s).`,
+      trustState: fleetReadiness.summary.status === 'pass' || fleetReadiness.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: fleetReadiness.generatedAt || now,
+      receiptType: fleetReadiness.schemaVersion,
+      source: fleetReadiness.source?.evidencePath || 'scripts/holoshell-fleet-readiness-evidence.mjs',
+    });
+    for (const token of (fleetReadiness.tokens || []).slice(0, 8)) {
+      timeline.push({
+        id: token.id,
+        kind: `fleet_${token.kind || 'token'}`,
+        title: token.title || 'Fleet readiness token',
+        detail: token.detail || token.nextAction || 'Fleet readiness evidence recorded.',
+        trustState: token.trustState || (token.status === 'pass' ? 'verified' : 'partial'),
+        generatedAt: fleetReadiness.generatedAt || now,
+        receiptType: token.receiptType || fleetReadiness.schemaVersion,
+        source: token.source || fleetReadiness.source?.evidencePath || 'scripts/holoshell-fleet-readiness-evidence.mjs',
+      });
+    }
+    for (const [index, blocker] of (fleetReadiness.blockers || []).slice(0, 6).entries()) {
+      timeline.push({
+        id: `fleet-job-blocker-${index + 1}`,
+        kind: 'fleet_job_blocking_reason',
+        title: `Fleet job blocker ${index + 1}`,
+        detail: `${blocker.raw || blocker.detail || 'Fleet job readiness blocker.'} Launch, stop, and migration remain blocked until this reason is resolved and replayed.`,
+        trustState: 'partial',
+        generatedAt: fleetReadiness.generatedAt || now,
+        receiptType: fleetReadiness.schemaVersion,
+        source: fleetReadiness.source?.evidencePath || 'scripts/holoshell-fleet-readiness-evidence.mjs',
       });
     }
   }
@@ -962,6 +999,7 @@ function createFeed(args) {
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
   const programRegistry = readJson(path.join(tmpDir, 'program-registry.json'), {});
   const readinessEvidence = readJson(path.join(tmpDir, 'readiness-evidence.json'), {});
+  const fleetReadiness = readJson(path.join(tmpDir, 'fleet-readiness-evidence.json'), {});
   const shellObjects = readJson(path.join(tmpDir, 'shell-objects.json'), {});
   const brittneyAvatar = readJson(path.join(tmpDir, 'brittney-avatar.json'), {});
   const brittneyTurn = readJson(path.join(tmpDir, 'brittney-turn-latest.json'), {});
@@ -1023,6 +1061,7 @@ function createFeed(args) {
     osUiCapture,
     programRegistry,
     readinessEvidence,
+    fleetReadiness,
     shellObjects,
     brittneyAvatar,
     brittneyTurn,
@@ -1071,6 +1110,9 @@ function createFeed(args) {
       ? 'pass'
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
+  const fleetRisk = fleetReadiness?.summary?.status === 'blocked'
+    ? 'warn'
+    : riskFromEvidenceStatus(fleetReadiness?.summary?.status || 'unknown');
   const founderHostRisk = founderHost?.summary?.status === 'native_host_present'
     ? 'pass'
     : founderHost?.summary?.status === 'blocked_missing_source'
@@ -1093,7 +1135,7 @@ function createFeed(args) {
         ? 'warn'
         : 'unknown';
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, nativeWrapperRisk, startupIntegrationRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, fleetRisk, founderHostRisk, nativeWrapperRisk, startupIntegrationRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -1117,6 +1159,7 @@ function createFeed(args) {
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
+      fleetReadinessEvidence: 'scripts/holoshell-fleet-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brittneyContext: 'scripts/holoshell-brittney-context.mjs',
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
@@ -1372,6 +1415,21 @@ function createFeed(args) {
       readinessTaskCount: readinessEvidence?.summary?.taskCount || 0,
       readinessNextWorkflow: readinessEvidence?.summary?.nextWorkflow || '',
       worldBuildBlockingReasonCount: readinessEvidence?.worldBuildReadyToken?.blockingReasons?.length || 0,
+      fleetReadinessStatus: fleetReadiness?.summary?.status || 'unknown',
+      fleetReadinessId: fleetReadiness?.fleetReadinessId || '',
+      fleetJobId: fleetReadiness?.summary?.jobId || '',
+      fleetLaneId: fleetReadiness?.summary?.laneId || '',
+      fleetOwnerLaneId: fleetReadiness?.summary?.ownerLaneId || '',
+      fleetBudgetStatus: fleetReadiness?.summary?.budgetStatus || 'unknown',
+      fleetHeartbeatAgeMs: fleetReadiness?.summary?.heartbeatAgeMs ?? null,
+      fleetPermissionEnvelope: fleetReadiness?.summary?.permissionEnvelope || '',
+      fleetBlockedReasonCount: fleetReadiness?.summary?.blockedReasonCount || 0,
+      fleetGateCount: fleetReadiness?.summary?.gateCount || 0,
+      fleetPassGateCount: fleetReadiness?.summary?.passGateCount || 0,
+      fleetBlockedGateCount: fleetReadiness?.summary?.blockedGateCount || 0,
+      fleetLaunchReceiptRequired: Boolean(fleetReadiness?.summary?.launchReceiptRequired),
+      fleetStopReceiptRequired: Boolean(fleetReadiness?.summary?.stopReceiptRequired),
+      fleetMutationPerformed: Boolean(fleetReadiness?.summary?.mutationPerformed),
       shellObjectGraphStatus: shellObjects?.summary?.status || 'unknown',
       shellObjectCount: shellObjects?.summary?.shellObjectCount || 0,
       firstScreenObjectCount: shellObjects?.summary?.firstScreenObjectCount || 0,
@@ -1630,6 +1688,7 @@ function createFeed(args) {
       osUiCapture,
       programRegistry,
       readinessEvidence,
+      fleetReadiness,
       shellObjects,
       brittneyAvatar,
       brittneyTurn,

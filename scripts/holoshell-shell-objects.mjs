@@ -1708,6 +1708,210 @@ function readinessObjects(readinessEvidence) {
   return objects;
 }
 
+function fleetReadinessObjects(fleetReadiness) {
+  if (!fleetReadiness?.summary) return [];
+  const summary = fleetReadiness.summary;
+  const tokens = Array.isArray(fleetReadiness.tokens) ? fleetReadiness.tokens : [];
+  const lanes = Array.isArray(fleetReadiness.lanes) ? fleetReadiness.lanes : [];
+  const jobs = Array.isArray(fleetReadiness.jobs) ? fleetReadiness.jobs : [];
+  const blockers = Array.isArray(fleetReadiness.blockers) ? fleetReadiness.blockers : [];
+  const ownerLaneId = summary.ownerLaneId || summary.createdBy || 'codex-hardware';
+  const objects = [{
+    id: 'room.fleet-readiness',
+    objectKind: 'readiness_room',
+    displayName: 'Fleet Readiness',
+    sourceKind: 'receipt',
+    sourceRef: fleetReadiness.source?.evidencePath || '',
+    capabilityFamily: 'fleet_readiness',
+    trustState: readinessStatusTrust(summary.status),
+    permissionEnvelope: 'read_only',
+    adapterPath: 'fleet_readiness_projection',
+    visualForm: 'room',
+    status: summary.status || 'unknown',
+    actorLaneId: ownerLaneId,
+    receiptTypes: ['fleet_readiness_evidence', 'fleet_job_ready_token'],
+    relationships: {
+      fleetReadinessId: fleetReadiness.fleetReadinessId || '',
+      jobId: summary.jobId || '',
+      laneId: summary.laneId || '',
+      laneProfile: summary.laneProfile || '',
+      ownerLaneId,
+      budgetStatus: summary.budgetStatus || 'unknown',
+      heartbeatAgeMs: summary.heartbeatAgeMs ?? null,
+      permissionEnvelope: summary.permissionEnvelope || '',
+      gateCount: summary.gateCount || 0,
+      blockedReasonCount: summary.blockedReasonCount || 0,
+      launchReceiptRequired: Boolean(summary.launchReceiptRequired),
+      stopReceiptRequired: Boolean(summary.stopReceiptRequired),
+      mutationPerformed: Boolean(summary.mutationPerformed),
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'fleet_readiness_projection',
+    glyph: 'FR',
+    detail: `Fleet job ${summary.jobId || 'unknown'} is ${summary.status || 'unknown'}; lane ${summary.laneId || 'missing'}; ${summary.blockedReasonCount || 0} blocker(s).`,
+    firstScreen: true,
+    layout: { x: 58, y: 15, size: 112 },
+  }];
+
+  const laneSlots = [
+    { x: 62, y: 32, size: 84 },
+    { x: 74, y: 38, size: 80 },
+    { x: 52, y: 41, size: 78 },
+  ];
+  for (const [index, lane] of lanes.slice(0, 3).entries()) {
+    const laneId = lane.id || 'unassigned';
+    objects.push({
+      id: `fleet.lane.${slug(laneId)}`,
+      objectKind: 'fleet_lane',
+      displayName: lane.id ? `Fleet Lane ${lane.id}` : 'Fleet Lane Missing',
+      sourceKind: 'receipt',
+      sourceRef: fleetReadiness.source?.evidencePath || '',
+      capabilityFamily: 'fleet_readiness',
+      trustState: lane.status === 'pass' || lane.status === 'ready' ? 'verified' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'fleet_readiness_projection',
+      visualForm: 'agent_lane',
+      status: lane.status || summary.status || 'unknown',
+      actorLaneId: lane.ownerLaneId || ownerLaneId,
+      receiptTypes: ['fleet_job_ready_token'],
+      relationships: {
+        laneId: lane.id || '',
+        profile: lane.profile || '',
+        ownerLaneId: lane.ownerLaneId || ownerLaneId,
+        heartbeatAgeMs: lane.heartbeatAgeMs ?? null,
+        readinessId: fleetReadiness.fleetReadinessId || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'fleet_lane_readiness',
+      glyph: 'FL',
+      detail: `Fleet lane ${lane.id || 'missing'} profile ${lane.profile || 'unknown'}; heartbeat age ${lane.heartbeatAgeMs ?? 'unknown'}ms.`,
+      firstScreen: true,
+      layout: laneSlots[index] || layout(index + 34, 80),
+    });
+  }
+
+  const jobSlots = [
+    { x: 68, y: 56, size: 88 },
+    { x: 80, y: 49, size: 82 },
+    { x: 54, y: 59, size: 82 },
+  ];
+  for (const [index, job] of jobs.slice(0, 3).entries()) {
+    objects.push({
+      id: `fleet.job.${slug(job.id || `job-${index + 1}`)}`,
+      objectKind: 'fleet_job',
+      displayName: job.id || `Fleet Job ${index + 1}`,
+      sourceKind: 'receipt',
+      sourceRef: fleetReadiness.source?.evidencePath || '',
+      capabilityFamily: 'fleet_readiness',
+      trustState: job.status === 'pass' || job.status === 'ready' ? 'verified' : 'partial',
+      permissionEnvelope: summary.readyForLaunch ? 'read_only' : 'cannot_launch_until_ready',
+      adapterPath: 'fleet_readiness_projection',
+      visualForm: summary.readyForLaunch ? 'timeline_node' : 'blocked_reason_card',
+      status: job.status || summary.status || 'unknown',
+      actorLaneId: ownerLaneId,
+      receiptTypes: ['fleet_job_ready_token'],
+      relationships: {
+        jobId: job.id || '',
+        profile: job.profile || '',
+        paper: job.paper || '',
+        timeBoxSec: job.timeBoxSec ?? null,
+        commandHash: job.commandHash || '',
+        readinessStatus: summary.status || 'unknown',
+        readyForLaunch: Boolean(summary.readyForLaunch),
+        mutationPerformed: Boolean(summary.mutationPerformed),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'fleet_job_readiness',
+      glyph: 'FJ',
+      detail: `${job.label || job.id || 'Fleet job'}; command ${job.commandHash ? 'hashed' : 'missing'}; launch ${summary.readyForLaunch ? 'read-only ready' : 'blocked'}.`,
+      firstScreen: true,
+      layout: jobSlots[index] || layout(index + 38, 82),
+    });
+  }
+
+  const tokenSlots = [
+    { x: 61, y: 72, size: 72 },
+    { x: 72, y: 72, size: 72 },
+    { x: 84, y: 73, size: 72 },
+    { x: 45, y: 73, size: 72 },
+  ];
+  for (const [index, token] of tokens.slice(0, 8).entries()) {
+    objects.push({
+      id: `receipt.${token.id || `fleet-token-${index + 1}`}`,
+      objectKind: 'receipt',
+      displayName: token.title || 'Fleet Readiness Token',
+      sourceKind: 'receipt',
+      sourceRef: token.source || fleetReadiness.source?.evidencePath || '',
+      capabilityFamily: 'fleet_readiness',
+      trustState: token.trustState || readinessStatusTrust(token.status),
+      permissionEnvelope: ['warn', 'blocked', 'fail', 'failed', 'skipped'].includes(token.status) ? 'manual_witness' : 'read_only',
+      adapterPath: 'fleet_readiness_projection',
+      visualForm: token.status === 'pass' ? 'timeline_node' : 'warning_token',
+      status: token.status || 'unknown',
+      actorLaneId: ownerLaneId,
+      receiptTypes: [token.receiptType || fleetReadiness.schemaVersion || 'fleet_readiness_evidence'],
+      relationships: {
+        gateId: token.gateId || '',
+        tokenKind: token.kind || '',
+        nextAction: token.nextAction || '',
+        readinessId: fleetReadiness.fleetReadinessId || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: token.nextAction ? 'attach_missing_fleet_evidence' : 'receipt_memory',
+      glyph: token.gateId ? glyphFor(token.gateId, 'FG') : 'FG',
+      detail: `${token.detail || token.title || 'Fleet readiness token.'}${token.nextAction ? ` Next: ${token.nextAction}` : ''}`,
+      firstScreen: index < 4 || token.status !== 'pass',
+      layout: tokenSlots[index] || layout(index + 42, 72),
+    });
+  }
+
+  const blockerSlots = [
+    { x: 56, y: 83, size: 82 },
+    { x: 68, y: 84, size: 82 },
+    { x: 80, y: 83, size: 82 },
+    { x: 43, y: 84, size: 80 },
+  ];
+  for (const [index, blocker] of blockers.slice(0, 6).entries()) {
+    objects.push({
+      id: `blocker.fleet-job.${shortHash(`${index}:${blocker.raw || blocker.detail}`)}`,
+      objectKind: 'fleet_job_blocker',
+      displayName: `Fleet Blocker ${index + 1}`,
+      sourceKind: 'receipt',
+      sourceRef: fleetReadiness.source?.evidencePath || '',
+      capabilityFamily: 'fleet_readiness',
+      trustState: 'partial',
+      permissionEnvelope: 'cannot_launch_stop_migrate',
+      adapterPath: 'fleet_job_ready_token',
+      visualForm: 'blocked_reason_card',
+      status: blocker.status || summary.status || 'blocked',
+      actorLaneId: ownerLaneId,
+      receiptTypes: [fleetReadiness.schemaVersion || 'fleet_readiness_evidence'],
+      relationships: {
+        fleetJobReadyTokenId: fleetReadiness.fleetJobReadyToken?.id || '',
+        gateId: blocker.gateId || '',
+        blockReason: blocker.raw || blocker.detail || '',
+        receiptTokenId: blocker.receiptTokenId || '',
+        receiptLink: blocker.receiptTokenId ? `receipt.${blocker.receiptTokenId}` : 'room.fleet-readiness',
+        ownerLaneId,
+        safeNextAction: blocker.nextAction || 'Resolve the Fleet blocker and replay readiness.',
+        replayCommand: fleetReadiness.commands?.replay || '',
+        launchBlocked: true,
+        stopBlocked: true,
+        migrateBlocked: true,
+        mutationPerformed: false,
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'resolve_fleet_blocker_then_replay',
+      glyph: 'FB',
+      detail: `${blocker.gateId || 'Fleet gate'} blocks Fleet launch. Next: ${blocker.nextAction || 'replay readiness'}`,
+      firstScreen: true,
+      layout: blockerSlots[index] || layout(index + 46, 80),
+    });
+  }
+
+  return objects;
+}
+
 function mcpCustodyContractObjects(mcpCustodyContract) {
   if (!mcpCustodyContract?.summary) return [];
   const summary = mcpCustodyContract.summary;
@@ -2256,6 +2460,13 @@ function summarize(objects, feeds) {
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     worldBuildBlockingReasonObjectCount: objects.filter((object) => object.objectKind === 'readiness_blocker').length,
+    fleetReadinessObjectCount: objects.filter((object) => object.capabilityFamily === 'fleet_readiness').length,
+    fleetLaneObjectCount: objects.filter((object) => object.objectKind === 'fleet_lane').length,
+    fleetJobObjectCount: objects.filter((object) => object.objectKind === 'fleet_job').length,
+    fleetJobBlockingReasonObjectCount: objects.filter((object) => object.objectKind === 'fleet_job_blocker').length,
+    fleetReadinessStatus: feeds.fleetReadiness?.summary?.status || 'unknown',
+    fleetJobId: feeds.fleetReadiness?.summary?.jobId || '',
+    fleetLaneId: feeds.fleetReadiness?.summary?.laneId || '',
     mcpCustodyContractObjectCount: objects.filter((object) => object.capabilityFamily === 'mcp_custody_contract').length,
     mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
     mcpCustodyCompatibilityMode: feeds.mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
@@ -2436,6 +2647,7 @@ function summarize(objects, feeds) {
       programRegistryStatus: feeds.programRegistry?.summary?.status || 'unknown',
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
+      fleetReadinessStatus: feeds.fleetReadiness?.summary?.status || 'unknown',
       mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
       mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
       serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
@@ -2471,6 +2683,7 @@ function loadFeeds(tmpDir) {
   return {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
+    fleetReadiness: readJson(path.join(dir, 'fleet-readiness-evidence.json'), {}),
     mcpCustodyContract: readJson(path.join(dir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(dir, 'mcp-custody-upstream-handoff.json'), {}),
     serviceSupervisor: readJson(path.join(dir, 'service-supervisor.json'), {}),
@@ -2516,6 +2729,7 @@ function buildGraph(args, fixtures = null) {
     ...userShellProjectionObjects(feeds),
     ...developmentalEnvironmentObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
+    ...fleetReadinessObjects(feeds.fleetReadiness),
     ...mcpCustodyContractObjects(feeds.mcpCustodyContract),
     ...mcpUpstreamHandoffObjects(feeds.mcpUpstreamHandoff),
     ...assetShardObjects(feeds),
@@ -2666,6 +2880,48 @@ function fixtureFeeds() {
       },
       commands: {
         replay: 'node scripts/holoshell-readiness-evidence.mjs --source-dir fixture --tmp-dir fixture/tmp',
+      },
+    },
+    fleetReadiness: {
+      schemaVersion: 'hololand.holoshell.fleet-readiness-evidence.v0.1.0',
+      fleetReadinessId: 'fleet-readiness-fixture',
+      status: 'blocked',
+      source: { evidencePath: 'fixture/fleet-job-readiness-evidence.json' },
+      summary: {
+        status: 'blocked',
+        readyForLaunch: false,
+        laneId: '',
+        laneProfile: 'webgpu-smoke',
+        ownerLaneId: 'codex-hardware',
+        jobId: 'example-snn-smoke',
+        jobLabel: 'PAPER-00 example - replace ids/commands with your experiment',
+        jobProfile: 'webgpu-smoke',
+        budgetStatus: 'missing',
+        heartbeatAgeMs: null,
+        gateCount: 8,
+        passGateCount: 2,
+        blockedGateCount: 6,
+        blockedReasonCount: 6,
+        launchReceiptRequired: true,
+        stopReceiptRequired: true,
+        mutationPerformed: false,
+      },
+      lanes: [{ id: '', profile: 'webgpu-smoke', ownerLaneId: 'codex-hardware', status: 'blocked' }],
+      jobs: [{ id: 'example-snn-smoke', label: 'PAPER-00 example - replace ids/commands with your experiment', profile: 'webgpu-smoke', paper: '00', timeBoxSec: 300, commandHash: 'sha256:fixture-command-hash', status: 'pass' }],
+      tokens: [
+        { id: 'fleet-job-ready.lane-identity', kind: 'fleet_job_ready_gate', gateId: 'lane-identity', title: 'Lane identity', status: 'blocked', detail: 'missing lane id', nextAction: 'Attach a Fleet lane id and replay readiness.', receiptType: 'holoshell.fleet-job-ready.v1' },
+        { id: 'fleet-job-ready.job-command', kind: 'fleet_job_ready_gate', gateId: 'job-command', title: 'Job command', status: 'pass', detail: 'sha256:fixture-command-hash', receiptType: 'holoshell.fleet-job-ready.v1' },
+      ],
+      blockers: [
+        { id: 'fleet-job.lane-identity', gateId: 'lane-identity', status: 'blocked', detail: 'missing lane id', raw: 'lane-identity: missing lane id', receiptTokenId: 'fleet-job-ready.lane-identity', nextAction: 'Attach a Fleet lane id and replay readiness.' },
+      ],
+      fleetJobReadyToken: {
+        id: 'fleet-job-ready-example-snn-smoke',
+        status: 'blocked',
+        blockedReasons: ['lane-identity: missing lane id'],
+      },
+      commands: {
+        replay: 'node scripts/holoshell-fleet-job-readiness-runner.mjs run --queue scripts/gpu-jobs.example.json',
       },
     },
     mcpCustodyContract: {
@@ -3329,6 +3585,13 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.objectKind === 'readiness_blocker' && object.relationships?.promotionBlocked)) failures.push('expected world-build blocker object');
   if (graph.summary.worldBuildBlockingReasonObjectCount !== 2) failures.push('expected two world-build blocker objects');
+  if (!graph.objects.some((object) => object.id === 'room.fleet-readiness')) failures.push('expected Fleet readiness room object');
+  if (!graph.objects.some((object) => object.id === 'fleet.lane.unassigned')) failures.push('expected Fleet lane object');
+  if (!graph.objects.some((object) => object.id === 'fleet.job.example-snn-smoke')) failures.push('expected Fleet job object');
+  if (!graph.objects.some((object) => object.id === 'receipt.fleet-job-ready.lane-identity')) failures.push('expected Fleet readiness receipt object');
+  if (!graph.objects.some((object) => object.objectKind === 'fleet_job_blocker')) failures.push('expected Fleet job blocker object');
+  if (graph.summary.fleetLaneObjectCount !== 1) failures.push('expected one Fleet lane object');
+  if (graph.summary.fleetJobObjectCount !== 1) failures.push('expected one Fleet job object');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-contract')) failures.push('expected MCP custody contract object');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
   if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');
