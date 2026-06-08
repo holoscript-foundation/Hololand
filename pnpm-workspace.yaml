@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/holoshell
   - packages/adapters/*
   - packages/ar/*
   - packages/brittney/*

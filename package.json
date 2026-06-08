@@ -84,6 +84,8 @@
     "holoshell:physical-actuation-plan": "node scripts/holoshell-physical-actuation-plan.mjs",
     "holoshell:legacy-reality": "node scripts/holoshell-legacy-app-reality.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
+    "holoshell:operate-room:compile": "node packages/holoshell/compile.mjs",
+    "holoshell:operate-room:serve": "node packages/holoshell/serve.mjs",
     "holoshell:run": "node scripts/holoshell-run.mjs",
     "holoshell:run-registry-reconcile": "node scripts/holoshell-run.mjs --reconcile-registry",
     "holoshell:run-custody": "node scripts/holoshell-run-custody-actions.mjs",

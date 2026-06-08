@@ -1,0 +1,14 @@
+{
+  "name": "@hololand/holoshell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HoloShell Operate Room — perceivable operate-room dashboard (Phase C)",
+  "scripts": {
+    "compile": "node compile.mjs",
+    "serve": "node serve.mjs"
+  },
+  "dependencies": {
+    "@holoscript/core": "*"
+  }
+}
