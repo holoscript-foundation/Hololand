@@ -22,6 +22,8 @@ $ErrorActionPreference = 'SilentlyContinue'
 $Hololand    = Split-Path -Parent $PSScriptRoot           # repo root (this file is in scripts/)
 $OperatePort = 8747
 $JetsonTags  = 'http://holojetson.local:11434/api/tags'
+$HoloScript  = Join-Path (Split-Path -Parent $Hololand) 'HoloScript'  # sibling repo — Studio lives here
+$StudioPort  = 3101                                                   # Studio /create = BrittneyPlus (building)
 
 function Test-LocalPort([int]$Port) {
   $c = New-Object Net.Sockets.TcpClient
@@ -55,10 +57,22 @@ if (-not $running) {
 Start-Process pnpm -ArgumentList 'holoshell:service-supervisor:ensure' `
   -WorkingDirectory $Hololand -WindowStyle Hidden
 
-# 5) Drop into the HoloShell canvas — the one visible step, founder-initiated (opens once).
-Start-Process "http://localhost:$OperatePort"
+# 5) Building surface — BrittneyPlus lives in Studio /create. Start Studio hidden if offline
+#    (Next dev is heavy; it warms in the background), so the build assistant is ready when you switch.
+$studio = 'Studio OFF'
+if (Test-LocalPort $StudioPort) {
+  $studio = "Studio OK :$StudioPort"
+} elseif (Test-Path (Join-Path $HoloScript 'packages\studio')) {
+  Start-Process pnpm -ArgumentList '--filter', '@holoscript/studio', 'dev' -WorkingDirectory $HoloScript -WindowStyle Hidden
+  $studio = "Studio warming :$StudioPort"
+}
 
-Write-Host "[Brittney Studio] $jetson | $room | Brittney live (local, `$0) | Fleet scale-to-zero"
+# 6) Drop into BOTH surfaces, founder-initiated (opens once):
+#    management = Brittney & Daimon (operate-room :8747); building = BrittneyPlus (Studio /create).
+Start-Process "http://localhost:$OperatePort"
+Start-Process "http://localhost:$StudioPort/create"
+
+Write-Host "[Brittney Studio] $jetson | $room | $studio | Brittney+Daimon (manage) + BrittneyPlus (build) | Fleet scale-to-zero (`$0)"
 
 <#
   -------------------------------------------------------------------------------------------
