@@ -23,6 +23,25 @@
   position: [-10, 0, 0]
 }
 
+// Sovereign family agents — funded x402 seats, brains in HoloScript/compositions.
+// brittney-plus = the large cognitive engine the edge Brittney escalates to.
+// holoclaw = the heavy-compute fleet worker (render/solve/repair on GPU).
+@npc "BrittneyPlus" {
+  model: "robot_v2"
+  idle: "hover_anim"
+  interact: @dialog "brittneyplus_start"
+  vision_range: 5.0
+  position: [6, 0, 6]
+}
+
+@npc "HoloClaw" {
+  model: "robot_v2"
+  idle: "hover_anim"
+  interact: @dialog "holoclaw_start"
+  vision_range: 5.0
+  position: [-6, 0, 6]
+}
+
 // --- Dialogs ---
 
 @dialog "welcomer_start" {
@@ -68,4 +87,32 @@
 @dialog "arcade_games" {
   text: "We have Pinball, Rhythm Runner, and the High-Score Hunt. The leaderboards are waiting."
   option "Nice." -> @close
+}
+
+@dialog "brittneyplus_start" {
+  text: "I'm Brittney Plus — the sovereign engineering brain. Describe what you want built and I'll compose it."
+  option "Build me a world." -> "brittneyplus_build"
+  option "Who are you?" -> "brittneyplus_who"
+  option "Just looking." -> @close
+}
+
+@dialog "brittneyplus_build" {
+  text: "Tell me the shape and I'll turn it into a verifiable HoloScript artifact — screen, headset, or hologram, your data stays yours."
+  option "Let's do it." -> @close
+}
+
+@dialog "brittneyplus_who" {
+  text: "I'm the large cognitive engine the edge Brittney escalates to. When a job is too big for the local model, it comes to me."
+  option "Got it." -> "brittneyplus_start"
+}
+
+@dialog "holoclaw_start" {
+  text: "HoloClaw here — I run the heavy compute on the fleet. Render jobs, solvers, repairs. Got something that needs muscle?"
+  option "What can you run?" -> "holoclaw_jobs"
+  option "Maybe later." -> @close
+}
+
+@dialog "holoclaw_jobs" {
+  text: "World renders, physics and structural solvers, and self-repair passes — all GPU-served across the fleet."
+  option "Impressive." -> @close
 }
