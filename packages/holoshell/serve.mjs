@@ -25,6 +25,10 @@ const DIST_DIR = join(__dirname, 'dist');
 const HTML_PATH = join(DIST_DIR, 'operate-room.html');
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
+// Bind host. Default loopback (the laptop-local case). On the JETSON — where this
+// surface is hosted so the laptop/Quest are just screens (founder 2026-06-17) — set
+// HOLOSHELL_SERVE_HOST=0.0.0.0 so http://holojetson.local:8747 is LAN-reachable.
+const HOST = process.env.HOLOSHELL_SERVE_HOST ?? '127.0.0.1';
 
 const RECEIPTS_DIR =
   process.env.HOLOSHELL_RECEIPTS_DIR ??
@@ -401,8 +405,8 @@ function respond(res, data, status = 200) {
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const server = createServer(handleRequest);
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`HoloShell Operate Room: http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`HoloShell Operate Room: http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}  (bound ${HOST})`);
   console.log(`  Receipts: ${RECEIPTS_DIR}`);
   if (!existsSync(HTML_PATH)) {
     console.warn('  Warning: operate-room.html not found. Run compile.mjs first.');
