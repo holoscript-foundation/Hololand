@@ -115,6 +115,15 @@ const worktreePanel = panel('worktreeSection', 'worktree-health', [
   ]),
 ]);
 
+// Brittney — System Management chat. Front-and-center (full-width, above the data grid).
+// Routes to the HoloShell Brittney operator loop via POST /api/brittney/chat and renders
+// her reply + permission-enveloped action proposals. The interactive DOM (messages/input/
+// send) is built by the injected runtime helper; Native2D renders the panel shell + mount.
+const brittneyPanel = panel('brittneySection', 'brittney-chat', [
+  panelTitle('brittneyTitle', '🛰 Brittney — System Management'),
+  obj('brittneyMount', [t('theme', { tag: 'div', id: 'brittney-chat-mount' })]),
+]);
+
 // ── Composition ───────────────────────────────────────────────────────────────
 
 const composition = {
@@ -138,6 +147,7 @@ const composition = {
         obj('title', [t('text', { variant: 'h1', content: 'HoloShell Operate Room' })]),
         obj('refreshBtn', [t('button', { content: 'Refresh', variant: 'outline', onClick: 'location.reload()' })]),
       ]),
+      brittneyPanel,
       obj('grid', [
         t('theme', { tag: 'main', style: 'display:grid;grid-template-columns:1fr 1fr;gap:16px' }),
       ], [stalePanel, consentsPanel, historyPanel, pressurePanel, worktreePanel]),
@@ -195,6 +205,50 @@ const runtimeScript = `  <script>
       })
       .catch(function(e) { alert('Network error: ' + e.message); });
     }
+
+    /* Brittney — System Management chat (routes to /api/brittney/chat → operator loop) */
+    function _bMsg(who, text, color) {
+      var box = document.getElementById('brittney-messages'); if (!box) return null;
+      var row = document.createElement('div');
+      row.style.cssText = 'margin-bottom:10px;font-size:13px;line-height:1.5;font-family:system-ui,sans-serif';
+      var label = document.createElement('span');
+      label.style.cssText = 'color:' + color + ';font-weight:600'; label.textContent = who + ': ';
+      var span = document.createElement('span');
+      span.style.cssText = 'color:#c9d1d9;white-space:pre-wrap'; span.textContent = text;
+      row.appendChild(label); row.appendChild(span);
+      box.appendChild(row); box.scrollTop = box.scrollHeight; return row;
+    }
+    function sendBrittneyChat() {
+      var inp = document.getElementById('brittney-input'); if (!inp) return;
+      var msg = inp.value.trim(); if (!msg) return;
+      inp.value = ''; _bMsg('You', msg, '#58a6ff');
+      var pending = _bMsg('Brittney', 'thinking…', '#bc8cff');
+      fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
+          if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149'); return; }
+          _bMsg('Brittney', d.reply, '#bc8cff');
+          if (d.proposals && d.proposals.length) {
+            var lines = d.proposals.map(function(x) { return '• ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
+            _bMsg('Proposed actions', lines, '#3fb950');
+          }
+        })
+        .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149'); });
+    }
+    function initBrittneyChat() {
+      var mount = document.getElementById('brittney-chat-mount'); if (!mount) return;
+      mount.innerHTML =
+        '<div id="brittney-messages" style="min-height:120px;max-height:300px;overflow-y:auto;padding:12px;background:#161b22;border-radius:8px;margin-bottom:10px"></div>' +
+        '<div style="display:flex;gap:8px">' +
+        '<input id="brittney-input" placeholder="Ask Brittney to manage the system…" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:13px" />' +
+        '<button id="brittney-send" style="padding:10px 18px;border-radius:8px;border:none;background:#238636;color:#fff;font-weight:600;cursor:pointer">Send</button>' +
+        '</div>';
+      document.getElementById('brittney-send').addEventListener('click', sendBrittneyChat);
+      document.getElementById('brittney-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBrittneyChat(); });
+      _bMsg('Brittney', 'Online. Ask me to manage the system — I propose permission-enveloped actions with receipts (Jetson-routed, $0).', '#bc8cff');
+    }
+    document.addEventListener('DOMContentLoaded', initBrittneyChat);
   </script>`;
 
 html = html.replace('</body>', runtimeScript + '\n</body>');

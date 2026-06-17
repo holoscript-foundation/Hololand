@@ -18,7 +18,7 @@ import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, 'dist');
@@ -236,6 +236,46 @@ async function handleRequest(req, res) {
   // ── GET /api/worktree-health  (stale index.lock + orphan worktrees per repo)
   if (req.method === 'GET' && path === '/api/worktree-health') {
     respond(res, { items: worktreeHealth() });
+    return;
+  }
+
+  // ── POST /api/brittney/chat  — the management chat. Routes the message through the
+  // REAL HoloShell Brittney operator loop (scripts/holoshell-brittney-turn.mjs →
+  // @holoscript/aibrittney, model-policy LOCAL/Jetson by default) and returns Brittney's
+  // reply + permission-enveloped action proposals + receipt. NOT a Studio-only operator.
+  if (req.method === 'POST' && path === '/api/brittney/chat') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const { message, selfTest } = JSON.parse(body || '{}');
+        if (!message || typeof message !== 'string') {
+          respond(res, { error: 'missing message' }, 400);
+          return;
+        }
+        const repoRoot = join(__dirname, '..', '..');
+        const turnScript = join(repoRoot, 'scripts', 'holoshell-brittney-turn.mjs');
+        const args = [turnScript, '--prompt', message, '--json'];
+        if (selfTest) args.push('--self-test');
+        const out = execFileSync('node', args, {
+          cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
+        });
+        const receipt = JSON.parse(out.slice(out.indexOf('{')));
+        const r = receipt.result || {};
+        respond(res, {
+          turnId: receipt.turnId,
+          reply: r.finalText || r.summary || r.text || '(no reply)',
+          proposals: (receipt.proposals || []).map((p) => ({
+            operation: p.operation || p.kind || p.title || 'action',
+            lane: p.lane || p.consentLane || null,
+            receiptRequired: p.receiptRequired ?? null,
+          })),
+          receiptType: receipt.receipt?.receiptType || null,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
+      }
+    });
     return;
   }
 

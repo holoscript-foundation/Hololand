@@ -57,6 +57,23 @@ composition "OperateRoom" {
       }
     }
 
+    // Brittney — System Management chat (front-and-center, full-width above the grid).
+    // Routes to POST /api/brittney/chat → the HoloShell Brittney operator loop
+    // (@holoscript/aibrittney, Jetson-routed $0); renders her reply + permission-enveloped
+    // action proposals. The interactive DOM (messages/input/send) is built by the runtime helper.
+    object "brittneySection" {
+      type: "section"
+      background: "#0d1117"
+      border: "1px solid #30363d"
+      border_radius: 12
+      padding: 20
+      layout: "column"
+      gap: 12
+
+      object "brittneyTitle" { type: "text"; variant: "h3"; content: "🛰 Brittney — System Management" }
+      object "brittneyMount" { type: "container"; id: "brittney-chat-mount" }
+    }
+
     object "grid" {
       type: "main"
       layout: "grid"
