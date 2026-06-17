@@ -186,38 +186,28 @@ function looksLikePlainTextToolCall(text) {
   }
 }
 
-function isBroadShellPrepPrompt(prompt) {
-  const text = String(prompt || '').toLowerCase();
-  return text.includes('prepare') && text.includes('hololand');
-}
-
-function needsOperatorSanitize(prompt, text) {
-  const cleanText = String(text || '').toLowerCase();
-  return (
-    looksLikePlainTextToolCall(text) ||
-    cleanText.includes('could you please specify') ||
-    cleanText.includes('please provide') ||
-    cleanText.includes('code editor shell object') ||
-    cleanText.includes('code editor') ||
-    cleanText.includes('commands to run') ||
-    cleanText.includes('receipt boundary: none') ||
-    /\bholo_[a-z0-9_]+\b/.test(cleanText) ||
-    (isBroadShellPrepPrompt(prompt) && cleanText.includes('install'))
-  );
-}
-
 function userFacingFinalText({ prompt, finalText, resultOk, proposals }) {
   const cleanText = String(finalText || '').trim();
-  if (resultOk && cleanText && !needsOperatorSanitize(prompt, cleanText)) {
+  // HONESTY (edge-and-gap audit 2026-06-17): show the model's REAL reply — including
+  // refusals ("I have no working tool for that"), self-report, and answers that name a
+  // tool. The ONLY thing suppressed is a raw JSON tool-call payload leaking as the final
+  // answer (bad UX, not a reply). We NO LONGER swap honest text for the canned
+  // "I staged <X> ... read_only envelope" template: that masked real failures and falsely
+  // labeled write requests (e.g. a `systemctl restart`) "read_only" — fatal for a
+  // verifiable-claim surface. The old needsOperatorSanitize over-matched (ANY holo_*
+  // mention, ANY clarifying question) and is removed.
+  if (cleanText && !looksLikePlainTextToolCall(cleanText)) {
     return cleanText;
   }
+  // No usable model text (empty / raw JSON dump). Offer the closest real proposal
+  // HONESTLY — never implying an action was taken or inventing a permission envelope.
   const first = proposals[0];
   if (first) {
-    return `I staged ${first.label} as the next shell object with a ${first.permissionEnvelope} envelope and receipt attached.`;
+    return `I can't do that directly in this build. The closest I can stage is "${first.label}" (${first.operation}).`;
   }
   return resultOk
-    ? `I received "${prompt}" and kept it in Brittney's shell turn receipt.`
-    : '';
+    ? cleanText || `I received "${prompt}" but have no working capability for it yet.`
+    : "I don't have a working capability for that yet.";
 }
 
 function createShellContext() {
