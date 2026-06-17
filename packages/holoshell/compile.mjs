@@ -124,6 +124,17 @@ const brittneyPanel = panel('brittneySection', 'brittney-chat', [
   obj('brittneyMount', [t('theme', { tag: 'div', id: 'brittney-chat-mount' })]),
 ]);
 
+// Daimon — the emergent companion (D.053). Sits beside Brittney on the management surface:
+// reads the live ConversationDaemon substrate (/api/daimon/status). NOT granted — it manifests
+// once enough soul-context accumulates, then its turns feed the Brittney rehydration channel.
+const daimonPanel = panel('daimonSection', 'daimon-presence', [
+  panelTitle('daimonTitle', '🜂 Daimon — Emergent Companion'),
+  fetchList('daimonList', '/api/daimon/status', 'daimonStatus', [
+    obj('daimonName', [t('text', { content: '{{label}}', variant: 'body' })]),
+    obj('daimonState', [t('text', { content: '{{status}}', variant: 'caption' })]),
+  ]),
+]);
+
 // ── Composition ───────────────────────────────────────────────────────────────
 
 const composition = {
@@ -150,7 +161,7 @@ const composition = {
       brittneyPanel,
       obj('grid', [
         t('theme', { tag: 'main', style: 'display:grid;grid-template-columns:1fr 1fr;gap:16px' }),
-      ], [stalePanel, consentsPanel, historyPanel, pressurePanel, worktreePanel]),
+      ], [daimonPanel, stalePanel, consentsPanel, historyPanel, pressurePanel, worktreePanel]),
     ]),
   ],
   templates: [],

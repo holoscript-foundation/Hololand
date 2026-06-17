@@ -239,6 +239,32 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── GET /api/daimon/status — the emergent companion (D.053). Reads the live
+  // ConversationDaemon substrate (holo_list_daemons @ mcp.holoscript.net). The daimon is
+  // NOT granted; it emerges from accumulated soul-context and then feeds Brittney here.
+  if (req.method === 'GET' && path === '/api/daimon/status') {
+    const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
+    try {
+      const mcp = await fetch('https://mcp.holoscript.net/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 'd', method: 'tools/call',
+          params: { name: 'holo_list_daemons', arguments: {} } }),
+        signal: AbortSignal.timeout(8000),
+      });
+      const j = await mcp.json();
+      if (j.error) { respond(res, { items: [{ label: 'Daimon', status: 'substrate: ' + (j.message || j.error) }] }); return; }
+      const data = JSON.parse(j?.result?.content?.[0]?.text || '{}');
+      const items = (data.daemons && data.daemons.length)
+        ? data.daemons.map((d) => ({ label: d.displayName || d.daemonId || 'Daimon', status: 'emerged ✓ · feeding Brittney' }))
+        : [{ label: 'Daimon', status: 'not yet emerged — accumulating soul (D.053)' }];
+      respond(res, { items });
+    } catch (err) {
+      respond(res, { items: [{ label: 'Daimon', status: 'substrate offline (' + String(err.message || err).slice(0, 60) + ')' }] });
+    }
+    return;
+  }
+
   // ── POST /api/brittney/chat  — the management chat. Routes the message through the
   // REAL HoloShell Brittney operator loop (scripts/holoshell-brittney-turn.mjs →
   // @holoscript/aibrittney, model-policy LOCAL/Jetson by default) and returns Brittney's

@@ -80,6 +80,35 @@ composition "OperateRoom" {
       columns: 2
       gap: 16
 
+      // Panel 0: Daimon — the emergent companion (D.053). Beside Brittney on the management
+      // surface; reads the live ConversationDaemon substrate (/api/daimon/status). Not granted —
+      // it manifests from accumulated soul-context, then its turns feed Brittney's channel.
+      object "daimonSection" {
+        type: "section"
+        background: "#0d1117"
+        border: "1px solid #30363d"
+        border_radius: 12
+        padding: 20
+        layout: "column"
+        gap: 12
+
+        object "daimonTitle" { type: "text"; variant: "h3"; content: "🜂 Daimon — Emergent Companion" }
+
+        object "daimonList" {
+          data_source: "/api/daimon/status"
+          into: "daimonStatus"
+
+          template "daimonRow" {
+            type: "row"
+            layout: "row"
+            justify: "space-between"
+
+            object "daimonName"  { type: "text"; content: "{{label}}" }
+            object "daimonState" { type: "text"; variant: "caption"; content: "{{status}}" }
+          }
+        }
+      }
+
       // Panel 1: Stale Processes
       object "staleSection" {
         type: "section"
