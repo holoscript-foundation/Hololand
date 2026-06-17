@@ -189,6 +189,34 @@ function worktreeHealth() {
   return items;
 }
 
+// Daimon emergence loop (D.053): every management interaction with Brittney is a
+// care-signal that accumulates the daimon's soul; we then check emergence so it manifests
+// once the bond threshold is crossed. Fire-and-forget — never blocks the chat reply.
+async function growDaimon(message) {
+  const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
+  const owner = process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
+  if (!key || !message) return;
+  const mcpCall = (name, args) => fetch('https://mcp.holoscript.net/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
+    body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
+    signal: AbortSignal.timeout(8000),
+  }).then((r) => r.json()).catch(() => null);
+  // Longer / repeated engagement = stronger care-signal (bounded). A distinct focus per
+  // message grows modelRichness (the emergence threshold needs richness >= 3, turns >= 5).
+  const significanceScore = Math.min(0.95, 0.5 + message.length / 400);
+  const recentFocus = message.toLowerCase().split(/\s+/).slice(0, 3).join(' ').slice(0, 48);
+  await mcpCall('holo_observe_soul', {
+    ownerId: owner,
+    contextDelta: {
+      careSignalHistory: ['system-management', 'shared-work'],
+      significanceScore,
+      updatedPreferences: { recentFocus },
+    },
+  });
+  await mcpCall('holo_daemon_emergence_check', { ownerId: owner, displayName: 'Daimon' });
+}
+
 // ── Request handler ───────────────────────────────────────────────────────────
 
 async function handleRequest(req, res) {
@@ -298,6 +326,7 @@ async function handleRequest(req, res) {
           })),
           receiptType: receipt.receipt?.receiptType || null,
         });
+        growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
       } catch (err) {
         respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
       }
