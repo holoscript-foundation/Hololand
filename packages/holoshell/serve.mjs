@@ -189,32 +189,52 @@ function worktreeHealth() {
   return items;
 }
 
-// Daimon emergence loop (D.053): every management interaction with Brittney is a
-// care-signal that accumulates the daimon's soul; we then check emergence so it manifests
-// once the bond threshold is crossed. Fire-and-forget — never blocks the chat reply.
-async function growDaimon(message) {
-  const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
-  const owner = process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
-  if (!key || !message) return;
-  const mcpCall = (name, args) => fetch('https://mcp.holoscript.net/mcp', {
+// Shared ConversationDaemon (D.053) substrate access (mcp.holoscript.net). Returns the
+// PARSED tool result (e.g. {daemons:[...]} / a turn object), or null on any failure.
+const DAIMON_OWNER = () => process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
+const MCP_KEY = () => process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
+function holoMcp(name, args) {
+  const key = MCP_KEY();
+  if (!key) return Promise.resolve(null);
+  return fetch('https://mcp.holoscript.net/mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
     body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
     signal: AbortSignal.timeout(8000),
-  }).then((r) => r.json()).catch(() => null);
-  // Longer / repeated engagement = stronger care-signal (bounded). A distinct focus per
-  // message grows modelRichness (the emergence threshold needs richness >= 3, turns >= 5).
+  }).then((r) => r.json())
+    .then((j) => { try { return JSON.parse(j?.result?.content?.[0]?.text || 'null'); } catch { return null; } })
+    .catch(() => null);
+}
+
+// Emergence loop: every management turn is a care-signal that accumulates the daimon's
+// soul; emergence_check manifests it at threshold (5 turns + richness 3). Fire-and-forget.
+async function growDaimon(message) {
+  if (!MCP_KEY() || !message) return;
   const significanceScore = Math.min(0.95, 0.5 + message.length / 400);
   const recentFocus = message.toLowerCase().split(/\s+/).slice(0, 3).join(' ').slice(0, 48);
-  await mcpCall('holo_observe_soul', {
-    ownerId: owner,
-    contextDelta: {
-      careSignalHistory: ['system-management', 'shared-work'],
-      significanceScore,
-      updatedPreferences: { recentFocus },
-    },
+  await holoMcp('holo_observe_soul', { ownerId: DAIMON_OWNER(), contextDelta: {
+    careSignalHistory: ['system-management', 'shared-work'], significanceScore, updatedPreferences: { recentFocus } } });
+  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: 'Daimon' });
+}
+
+// Once the daimon has EMERGED, pull its turn (the Brittney rehydration channel, surfaceId
+// 'holoshell') and return a preamble that primes Brittney's prompt with the companion's
+// accumulated context. Empty string until emergence — so this is a no-op cost today.
+async function daimonRehydration() {
+  if (!MCP_KEY()) return '';
+  const list = await holoMcp('holo_list_daemons', {});
+  const daemons = (list && list.daemons) || [];
+  if (!daemons.length) return '';  // not yet emerged
+  const owner = DAIMON_OWNER();
+  const mine = daemons.find((d) => d.ownerId === owner) || daemons[0];
+  const turn = await holoMcp('holo_daemon_turn', {
+    daemonId: mine.daemonId || mine.id, callerId: owner,
+    contextDelta: { careSignalHistory: ['system-management'], significanceScore: 0.6, updatedPreferences: {} },
+    surfaceId: 'holoshell',
   });
-  await mcpCall('holo_daemon_emergence_check', { ownerId: owner, displayName: 'Daimon' });
+  const ctx = turn && (turn.rehydration || turn.context || turn.finalText || turn.summary || turn.text);
+  if (!ctx) return '';
+  return `[${mine.displayName || 'Daimon'} — your emergent companion — offers remembered context: ${String(ctx).slice(0, 600)}]`;
 }
 
 // ── Request handler ───────────────────────────────────────────────────────────
@@ -300,7 +320,7 @@ async function handleRequest(req, res) {
   if (req.method === 'POST' && path === '/api/brittney/chat') {
     let body = '';
     req.on('data', (c) => { body += c; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { message, selfTest } = JSON.parse(body || '{}');
         if (!message || typeof message !== 'string') {
@@ -309,7 +329,10 @@ async function handleRequest(req, res) {
         }
         const repoRoot = join(__dirname, '..', '..');
         const turnScript = join(repoRoot, 'scripts', 'holoshell-brittney-turn.mjs');
-        const args = [turnScript, '--prompt', message, '--json'];
+        // If the daimon has emerged, prime Brittney with its remembered context (rehydration).
+        const preamble = await daimonRehydration();
+        const prompt = preamble ? preamble + '\n\n' + message : message;
+        const args = [turnScript, '--prompt', prompt, '--json'];
         if (selfTest) args.push('--self-test');
         const out = execFileSync('node', args, {
           cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
