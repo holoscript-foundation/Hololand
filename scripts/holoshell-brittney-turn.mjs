@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
@@ -11,6 +11,7 @@ const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 const DEFAULT_TURNS_DIR = path.join(DEFAULT_TMP, 'brittney-turns');
 const DEFAULT_LATEST = path.join(DEFAULT_TMP, 'brittney-turn-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'brittney-turn-latest.js');
+const DEFAULT_EMBED_CACHE = path.join(DEFAULT_TMP, 'turn-embeddings.json');
 
 function parseArgs(argv) {
   const args = {
@@ -366,6 +367,146 @@ async function resolveFleetRoute(holoscriptRoot, selfTest) {
   return fallback;
 }
 
+function loadEmbedCache(cachePath) {
+  const cache = readJson(cachePath, null);
+  if (cache && typeof cache === 'object' && cache.entries && typeof cache.entries === 'object') return cache;
+  return { schema: 'holoshell.turn-embeddings.v0.1.0', model: 'nomic-embed-text', dim: 0, entries: {} };
+}
+
+function saveEmbedCache(cachePath, cache, dim) {
+  try {
+    cache.dim = dim || cache.dim || 0;
+    writeJson(cachePath, cache);
+  } catch {
+    // cache is an optimization; a write failure must never break the turn.
+  }
+}
+
+function truncate(text, max) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+}
+
+/**
+ * Semantic recall over prior HoloShell turns. Embeds the current prompt on the
+ * OWNED fleet (nomic-embed-text → the Jetson, $0) via the same fleet-router the
+ * chat uses, then ranks prior turns by cosine similarity of their prompt
+ * embeddings and returns the top-K most relevant. A sidecar cache keyed by
+ * promptHash means each turn embeds at most itself + a bounded number of new
+ * neighbours, never the whole history.
+ *
+ * ALL best-effort: any miss (no fleet, nomic absent, provider dist unbuilt,
+ * self-test) returns an empty recall and the turn proceeds. The recall ONLY
+ * enriches the model's context window — it is NEVER surfaced as a HoloShell data
+ * panel (F.124: HoloShell is chat; agents process the data in the background).
+ */
+async function recallSemanticContext({
+  prompt,
+  promptHash,
+  turnsDir,
+  holoscriptRoot,
+  selfTest,
+  topK = 3,
+  maxTurns = 40,
+  embedBudget = 12,
+  minSimilarity = 0.6,
+  cachePath = DEFAULT_EMBED_CACHE,
+}) {
+  if (selfTest) return { recalled: [], embedded: 0, considered: 0, source: 'self-test' };
+
+  let embedAcrossFleet;
+  let cosineSimilarity;
+  try {
+    const providerDist = path.join(holoscriptRoot, 'packages', 'llm-provider', 'dist', 'index.js');
+    if (!existsSync(providerDist)) return { recalled: [], embedded: 0, considered: 0, source: 'no-provider-dist' };
+    ({ embedAcrossFleet, cosineSimilarity } = await import(pathToFileURL(providerDist).href));
+    if (typeof embedAcrossFleet !== 'function' || typeof cosineSimilarity !== 'function') {
+      return { recalled: [], embedded: 0, considered: 0, source: 'no-embed-fn' };
+    }
+  } catch {
+    return { recalled: [], embedded: 0, considered: 0, source: 'provider-import-error' };
+  }
+
+  const brainPath = path.join(holoscriptRoot, 'compositions', 'model-fleet.hsplus');
+  const embed = (text) => embedAcrossFleet(text, { brainPath, timeoutMs: 8000 });
+
+  // Load prior turns (skip the current prompt's own prior receipt), newest first.
+  const dir = resolveRepoPath(turnsDir);
+  let files = [];
+  try {
+    files = existsSync(dir) ? readdirSync(dir).filter((file) => file.endsWith('.json')) : [];
+  } catch {
+    files = [];
+  }
+  const priors = [];
+  for (const file of files) {
+    const rec = readJson(path.join(turnsDir, file), null);
+    if (!rec?.prompt || !rec?.promptHash || rec.promptHash === promptHash) continue;
+    priors.push({
+      promptHash: rec.promptHash,
+      prompt: rec.prompt,
+      finalText: rec.result?.finalText || rec.result?.rawFinalText || '',
+      turnId: rec.turnId,
+      generatedAt: rec.generatedAt || '',
+    });
+  }
+  priors.sort((a, b) => String(b.generatedAt).localeCompare(String(a.generatedAt)));
+  const considered = priors.slice(0, maxTurns);
+
+  const cache = loadEmbedCache(cachePath);
+
+  // Embed the current prompt (cache-first). If this fails, nomic is unreachable —
+  // bail so we don't half-rank against a stale query vector.
+  const queryVec = cache.entries[promptHash] ?? (await embed(prompt));
+  if (!Array.isArray(queryVec) || queryVec.length === 0) {
+    return { recalled: [], embedded: 0, considered: considered.length, source: 'embed-unavailable' };
+  }
+  cache.entries[promptHash] = queryVec;
+
+  if (considered.length === 0) {
+    saveEmbedCache(cachePath, cache, queryVec.length);
+    return { recalled: [], embedded: 1, considered: 0, source: 'no-priors' };
+  }
+
+  let embedded = 0;
+  const scored = [];
+  for (const prior of considered) {
+    let vec = cache.entries[prior.promptHash];
+    if ((!Array.isArray(vec) || vec.length === 0) && embedded < embedBudget) {
+      vec = await embed(prior.prompt);
+      if (Array.isArray(vec) && vec.length > 0) {
+        cache.entries[prior.promptHash] = vec;
+        embedded += 1;
+      }
+    }
+    if (Array.isArray(vec) && vec.length > 0) {
+      scored.push({ ...prior, score: cosineSimilarity(queryVec, vec) });
+    }
+  }
+  saveEmbedCache(cachePath, cache, queryVec.length);
+
+  scored.sort((a, b) => b.score - a.score);
+  // Dedupe identical prompts (same promptHash → same vector/score, different turnId)
+  // so the top-K shows distinct prior turns, not the same prompt repeated.
+  const seenHashes = new Set();
+  const recalled = scored
+    .filter((entry) => {
+      if (entry.score < minSimilarity || seenHashes.has(entry.promptHash)) return false;
+      seenHashes.add(entry.promptHash);
+      return true;
+    })
+    .slice(0, topK)
+    .map((entry) => ({
+      prompt: truncate(entry.prompt, 200),
+      response: truncate(entry.finalText, 400),
+      similarity: Number(entry.score.toFixed(4)),
+      turnId: entry.turnId,
+      recalledAt: entry.generatedAt,
+    }));
+
+  return { recalled, embedded, considered: considered.length, source: 'fleet-embed' };
+}
+
 async function runTurn(args) {
   const generatedAt = new Date().toISOString();
   const turnId = stableId('brittney_turn', `${generatedAt}:${args.prompt}`);
@@ -373,6 +514,19 @@ async function runTurn(args) {
   const shellContext = createShellContext();
   const holoscriptRoot = path.resolve(args.holoscriptRoot);
   const events = [];
+  // Semantic recall: pull the most relevant prior turns into context (nomic on the
+  // owned fleet, $0). Best-effort — enriches the model's context only, never a UI
+  // panel (F.124). Attached to shellContext so it flows into the turn prompt below.
+  const recall = await recallSemanticContext({
+    prompt: args.prompt,
+    promptHash,
+    turnsDir: args.turnsDir,
+    holoscriptRoot,
+    selfTest: args.selfTest,
+  });
+  if (recall.recalled.length) {
+    shellContext.recalledContext = recall.recalled;
+  }
   // Route across the owned-GPU fleet (both cards as one); safe single-host fallback.
   const fleet = await resolveFleetRoute(holoscriptRoot, args.selfTest);
   const ollamaHost = fleet.ollamaHost;
@@ -387,6 +541,12 @@ async function runTurn(args) {
     ollamaHostKind: routeClass,
     apiKeyConfigured: Boolean(process.env.OLLAMA_API_KEY),
     secretsExposedToShell: false,
+    semanticRecall: {
+      count: recall.recalled.length,
+      considered: recall.considered,
+      embedded: recall.embedded,
+      source: recall.source,
+    },
   };
 
   let result = {
@@ -420,10 +580,13 @@ Do not print JSON tool-call payloads as your final answer. If you need a tool, u
 Ambient world state: ${tone}.
 ${toneInstruction}`;
     const session = new Session({ model: runtime.model, ollamaHost, systemPrompt });
+    const recallInstruction = recall.recalled.length
+      ? ' shellContext.recalledContext holds your most relevant prior turns (semantic recall) — use them for continuity and do not repeat yourself; ignore any that are not relevant.'
+      : '';
     session.push('user', JSON.stringify({
       userPrompt: args.prompt,
       shellContext,
-      instruction: 'Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.',
+      instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}`,
     }));
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), args.timeoutMs);
@@ -522,6 +685,8 @@ ${toneInstruction}`;
       contextVisibleShellObjectCount: shellContext.visibleShellObjects?.length || 0,
       ambientTone: shellContext.ambientTone?.tone || 'unknown',
       ambientToneScore: shellContext.ambientTone?.score ?? null,
+      semanticRecallCount: runtime.semanticRecall.count,
+      semanticRecallSource: runtime.semanticRecall.source,
     },
   };
 }
