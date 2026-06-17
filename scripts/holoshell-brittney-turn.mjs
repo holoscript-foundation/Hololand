@@ -325,6 +325,47 @@ function createSelfTestHarness() {
   return { fetchImpl, mcp };
 }
 
+/**
+ * Resolve (endpoint, model) for this turn across the OWNED-GPU fleet: the native
+ * `@model_fleet` brain (HoloScript/compositions/model-fleet.hsplus) consumed by
+ * @holoscript/llm-provider's fleet-router picks the least-loaded GPU that holds a
+ * non-blacklisted tool-caller — both the Jetson and the laptop RTX 3060 working as
+ * ONE local tier. Graceful fallback to a SINGLE local host + a SAFE model when no
+ * fleet node is reachable (or the provider dist isn't built).
+ *
+ * The previous default here was qwen2.5-coder:7b — BLACKLISTED (emits prose, not
+ * tool_calls; W.738). The fallback below is the safe local default; an explicit
+ * AIBRITTNEY_MODEL env pin still wins (and is policy-checked downstream).
+ */
+async function resolveFleetRoute(holoscriptRoot, selfTest) {
+  const fallback = {
+    ollamaHost: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
+    model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct',
+    source: process.env.AIBRITTNEY_MODEL ? 'env-pin' : 'fallback',
+    reason: null,
+  };
+  // Self-test uses a deterministic fake fetch — never touch the network/fleet.
+  if (selfTest || process.env.AIBRITTNEY_MODEL) return fallback;
+  try {
+    const providerDist = path.join(holoscriptRoot, 'packages', 'llm-provider', 'dist', 'index.js');
+    if (!existsSync(providerDist)) return fallback;
+    const { resolveLocalFleet } = await import(pathToFileURL(providerDist).href);
+    const brainPath = path.join(holoscriptRoot, 'compositions', 'model-fleet.hsplus');
+    const picked = await resolveLocalFleet({ brainPath, model: 'qwen3:4b-instruct', timeoutMs: 5000 });
+    if (picked?.baseURL && picked?.model) {
+      return {
+        ollamaHost: picked.baseURL,
+        model: picked.model,
+        source: `fleet:${picked.route?.handle ?? '?'}`,
+        reason: picked.route?.reason ?? null,
+      };
+    }
+  } catch {
+    // dist missing / parse error / all nodes unreachable → single-host fallback
+  }
+  return fallback;
+}
+
 async function runTurn(args) {
   const generatedAt = new Date().toISOString();
   const turnId = stableId('brittney_turn', `${generatedAt}:${args.prompt}`);
@@ -332,13 +373,17 @@ async function runTurn(args) {
   const shellContext = createShellContext();
   const holoscriptRoot = path.resolve(args.holoscriptRoot);
   const events = [];
-  const ollamaHost = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+  // Route across the owned-GPU fleet (both cards as one); safe single-host fallback.
+  const fleet = await resolveFleetRoute(holoscriptRoot, args.selfTest);
+  const ollamaHost = fleet.ollamaHost;
   const routeClass = classifyOllamaHost(ollamaHost);
   const runtime = {
     packageName: '@holoscript/aibrittney',
     entrypoint: 'runAgentTurn',
     status: 'unknown',
-    model: process.env.AIBRITTNEY_MODEL || 'qwen2.5-coder:7b',
+    model: fleet.model,
+    modelSource: fleet.source,
+    fleetRoute: fleet.reason,
     ollamaHostKind: routeClass,
     apiKeyConfigured: Boolean(process.env.OLLAMA_API_KEY),
     secretsExposedToShell: false,

@@ -1,19 +1,28 @@
-// HoloShell Operate Room
+// HoloShell — chat surface
 //
-// Perceivable operate-room dashboard — Phase C.
-// Compiled via Native2DCompiler to standalone HTML + hydration-free fetch runtime.
+// Perceivable assistant/management surface. You TALK to Brittney (and the Daimon,
+// D.053, which manifests THROUGH her via the rehydration channel — not as a panel).
+// Founder ruling 2026-06-16: "I don't want data, I just want to chat with the LLM;
+// the data gets processed by the agents." So this surface is ONE full-height chat.
+//
+// The machine-local data (worktree health, stale processes, consents, substrate
+// pressure) is still collected by serve.mjs's /api/* endpoints for AGENTS to
+// process in the background — it is no longer rendered here as dashboard panels.
+//
+// Compiled via Native2DCompiler to standalone HTML + the injected chat runtime.
 // Build: node packages/holoshell/compile.mjs
 // Serve: node packages/holoshell/serve.mjs  → http://localhost:8747
 
 composition "OperateRoom" {
   metadata {
-    title: "HoloShell Operate Room"
+    title: "HoloShell"
     product: "HoloShell"
     sourceLayer: "HoloScript"
     phase: "C"
     schema: "hololand.holoshell.operate-room.v0.1.0"
     compile_target: "Native2DCompiler"
     serve_port: 8747
+    surface: "chat"
   }
 
   environment {
@@ -22,243 +31,44 @@ composition "OperateRoom" {
     render_mode: "desktop_2d"
   }
 
-  state {
-    staleProcesses: []
-    pendingConsents: []
-    executionHistory: []
-    substrateMetrics: []
-    worktreeHealth: []
-    refreshing: false
-  }
+  // No data state — the surface holds a conversation, not dashboards. Brittney's
+  // turn (+ proposals) is rendered by the injected chat runtime into the mount.
+  state {}
 
   object "root" {
     type: "container"
     layout: "column"
-    gap: 20
-    padding: 20
+    gap: 14
+    // full viewport height; centered, readable column
+    style: "height:100vh;max-width:900px;margin:0 auto;padding:20px;box-sizing:border-box"
 
     object "header" {
       type: "header"
       layout: "row"
-      justify: "space-between"
+      align: "baseline"
+      gap: 12
       border_bottom: "1px solid #30363d"
 
-      object "title" {
-        type: "text"
-        variant: "h1"
-        content: "HoloShell Operate Room"
-      }
-
-      object "refreshBtn" {
-        type: "button"
-        content: "Refresh"
-        variant: "outline"
-        action: "location.reload()"
-      }
+      object "title"    { type: "text"; variant: "h1"; content: "HoloShell" }
+      object "subtitle" { type: "text"; variant: "caption"; content: "chat with Brittney & Daimon — agents handle the data" }
     }
 
-    // Brittney — System Management chat (front-and-center, full-width above the grid).
-    // Routes to POST /api/brittney/chat → the HoloShell Brittney operator loop
-    // (@holoscript/aibrittney, Jetson-routed $0); renders her reply + permission-enveloped
-    // action proposals. The interactive DOM (messages/input/send) is built by the runtime helper.
-    object "brittneySection" {
-      type: "section"
-      background: "#0d1117"
-      border: "1px solid #30363d"
-      border_radius: 12
-      padding: 20
-      layout: "column"
-      gap: 12
-
-      object "brittneyTitle" { type: "text"; variant: "h3"; content: "🛰 Brittney — System Management" }
-      object "brittneyMount" { type: "container"; id: "brittney-chat-mount" }
-    }
-
-    object "grid" {
+    // The chat IS the surface. Brittney routes through POST /api/brittney/chat →
+    // the HoloShell operator loop, fleet-routed across both owned GPUs ($0). Her
+    // reply + any permission-enveloped action proposals come back INLINE — she
+    // proposes, you read them in the conversation; there is no dashboard. The
+    // Daimon's remembered context (once emerged) rides along via rehydration.
+    // The interactive DOM (messages / input / send) is built by the runtime helper.
+    object "chat" {
       type: "main"
-      layout: "grid"
-      columns: 2
-      gap: 16
-
-      // Panel 0: Daimon — the emergent companion (D.053). Beside Brittney on the management
-      // surface; reads the live ConversationDaemon substrate (/api/daimon/status). Not granted —
-      // it manifests from accumulated soul-context, then its turns feed Brittney's channel.
-      object "daimonSection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "daimonTitle" { type: "text"; variant: "h3"; content: "🜂 Daimon — Emergent Companion" }
-
-        object "daimonList" {
-          data_source: "/api/daimon/status"
-          into: "daimonStatus"
-
-          template "daimonRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "daimonName"  { type: "text"; content: "{{label}}" }
-            object "daimonState" { type: "text"; variant: "caption"; content: "{{status}}" }
-          }
-        }
-      }
-
-      // Panel 1: Stale Processes
-      object "staleSection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "staleTitle" { type: "text"; variant: "h3"; content: "Stale Processes" }
-
-        object "staleList" {
-          data_source: "/api/stale-processes"
-          into: "staleProcesses"
-
-          template "staleRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "stalePid"  { type: "text"; content: "PID {{pid}} — {{reason}}" }
-            object "staleAge"  { type: "text"; variant: "caption"; content: "{{ageSec}}s" }
-          }
-        }
-      }
-
-      // Panel 2: Pending Consents
-      object "consentsSection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "consentsTitle" { type: "text"; variant: "h3"; content: "Pending Consents" }
-
-        object "consentsList" {
-          data_source: "/api/pending-consents"
-          into: "pendingConsents"
-
-          template "consentRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "consentInfo"    { type: "text"; content: "{{operation}} ({{targetCount}} targets)" }
-            object "consentApprove" {
-              type: "button"
-              content: "Approve"
-              variant: "primary"
-              action: "approveConsent('{{id}}')"
-            }
-          }
-        }
-      }
-
-      // Panel 3: Execution History
-      object "historySection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "historyTitle" { type: "text"; variant: "h3"; content: "Execution History" }
-
-        object "historyList" {
-          data_source: "/api/execution-history"
-          into: "executionHistory"
-
-          template "historyRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "historyOp"   { type: "text"; content: "{{operation}} — killed:{{summary.killed}} err:{{summary.errors}}" }
-            object "historyTime" { type: "text"; variant: "caption"; content: "{{executedAtShort}}" }
-          }
-        }
-      }
-
-      // Panel 4: Substrate Pressure
-      object "pressureSection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "pressureTitle" { type: "text"; variant: "h3"; content: "Substrate Pressure" }
-
-        object "pressureList" {
-          data_source: "/api/substrate-pressure"
-          into: "substrateMetrics"
-
-          template "pressureRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "metricName"  { type: "text"; content: "{{metric}}" }
-            object "metricValue" { type: "text"; variant: "caption"; content: "{{value}}" }
-          }
-        }
-      }
-
-      // Panel 5: Worktree Health — stale .git/index.lock + orphan worktrees per repo.
-      // The #1 recurring local-agent friction (a held index.lock blocks every commit).
-      object "worktreeSection" {
-        type: "section"
-        background: "#0d1117"
-        border: "1px solid #30363d"
-        border_radius: 12
-        padding: 20
-        layout: "column"
-        gap: 12
-
-        object "worktreeTitle" { type: "text"; variant: "h3"; content: "Worktree Health" }
-
-        object "worktreeList" {
-          data_source: "/api/worktree-health"
-          into: "worktreeHealth"
-
-          template "worktreeRow" {
-            type: "row"
-            layout: "row"
-            justify: "space-between"
-
-            object "worktreeRepo"   { type: "text"; content: "{{label}}" }
-            object "worktreeStatus" { type: "text"; variant: "caption"; content: "{{status}}" }
-          }
-        }
-      }
+      id: "brittney-chat-mount"
+      style: "flex:1 1 auto;display:flex;flex-direction:column;min-height:0"
     }
   }
 
   logic {
     on_enter {
-      emit "holoshell_operate_room_loaded"
-    }
-
-    action approve_consent(preflightId) {
-      emit "holoshell_consent_approved" { preflightId }
+      emit "holoshell_chat_loaded"
     }
   }
 }
