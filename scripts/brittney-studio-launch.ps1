@@ -18,6 +18,12 @@
   (Pin a desktop shortcut to that command — see the README block at the bottom.)
 #>
 
+param([switch]$Headless)  # OPTIONAL: boot the stack but don't open the UI surfaces (APIs-only).
+                          # NOTE: opening a browser to actually use a surface is FINE for anyone
+                          # incl. agents (open -> use -> close). The real Desktop anti-pattern is
+                          # FLASHING windows / program-output windows — handled by -WindowStyle
+                          # Hidden on the SERVICE spawns below, not by refusing to open a browser.
+
 $ErrorActionPreference = 'SilentlyContinue'
 $Hololand    = Split-Path -Parent $PSScriptRoot           # repo root (this file is in scripts/)
 $OperatePort = 8747
@@ -28,6 +34,22 @@ $StudioPort  = 3101                                                   # Studio /
 function Test-LocalPort([int]$Port) {
   $c = New-Object Net.Sockets.TcpClient
   try { $c.Connect('127.0.0.1', $Port); $true } catch { $false } finally { $c.Close() }
+}
+
+# 0) Self-install the desktop icon if missing — so running this once (you OR an agent) gives
+#    everyone easy click-access. Idempotent; never overwrites an existing shortcut.
+$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Brittney Studio.lnk'
+if (-not (Test-Path $lnk)) {
+  try {
+    $s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+    $s.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $s.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`""
+    $s.WorkingDirectory = $Hololand
+    $icon = Join-Path $HoloScript 'packages\tauri-app\src-tauri\icons\icon.ico'
+    if (Test-Path $icon) { $s.IconLocation = $icon }
+    $s.Description = 'Brittney & Daimon (manage) + BrittneyPlus (build)'
+    $s.Save()
+  } catch {}
 }
 
 Write-Host '[Brittney Studio] booting the $0 hybrid (Jetson anchor + scale-to-zero fleet)...'
@@ -62,15 +84,17 @@ Start-Process pnpm -ArgumentList 'holoshell:service-supervisor:ensure' `
 $studio = 'Studio OFF'
 if (Test-LocalPort $StudioPort) {
   $studio = "Studio OK :$StudioPort"
-} elseif (Test-Path (Join-Path $HoloScript 'packages\studio')) {
+} elseif (-not $Headless -and (Test-Path (Join-Path $HoloScript 'packages\studio'))) {
   Start-Process pnpm -ArgumentList '--filter', '@holoscript/studio', 'dev' -WorkingDirectory $HoloScript -WindowStyle Hidden
   $studio = "Studio warming :$StudioPort"
 }
 
-# 6) Drop into BOTH surfaces, founder-initiated (opens once):
-#    management = Brittney & Daimon (operate-room :8747); building = BrittneyPlus (Studio /create).
-Start-Process "http://localhost:$OperatePort"
-Start-Process "http://localhost:$StudioPort/create"
+# 6) Open BOTH surfaces (skip only with -Headless / APIs-only): management = Brittney & Daimon
+#    (operate-room :8747, local-by-design); building = BrittneyPlus (Studio /create).
+if (-not $Headless) {
+  Start-Process "http://localhost:$OperatePort"
+  Start-Process "http://localhost:$StudioPort/create"
+}
 
 Write-Host "[Brittney Studio] $jetson | $room | $studio | Brittney+Daimon (manage) + BrittneyPlus (build) | Fleet scale-to-zero (`$0)"
 
