@@ -27,6 +27,7 @@ composition "OperateRoom" {
     pendingConsents: []
     executionHistory: []
     substrateMetrics: []
+    worktreeHealth: []
     refreshing: false
   }
 
@@ -171,6 +172,34 @@ composition "OperateRoom" {
 
             object "metricName"  { type: "text"; content: "{{metric}}" }
             object "metricValue" { type: "text"; variant: "caption"; content: "{{value}}" }
+          }
+        }
+      }
+
+      // Panel 5: Worktree Health — stale .git/index.lock + orphan worktrees per repo.
+      // The #1 recurring local-agent friction (a held index.lock blocks every commit).
+      object "worktreeSection" {
+        type: "section"
+        background: "#0d1117"
+        border: "1px solid #30363d"
+        border_radius: 12
+        padding: 20
+        layout: "column"
+        gap: 12
+
+        object "worktreeTitle" { type: "text"; variant: "h3"; content: "Worktree Health" }
+
+        object "worktreeList" {
+          data_source: "/api/worktree-health"
+          into: "worktreeHealth"
+
+          template "worktreeRow" {
+            type: "row"
+            layout: "row"
+            justify: "space-between"
+
+            object "worktreeRepo"   { type: "text"; content: "{{label}}" }
+            object "worktreeStatus" { type: "text"; variant: "caption"; content: "{{status}}" }
           }
         }
       }

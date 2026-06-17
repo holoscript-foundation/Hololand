@@ -105,6 +105,16 @@ const pressurePanel = panel('pressureSection', 'substrate-pressure', [
   ]),
 ]);
 
+// Worktree Health — the #1 recurring local-agent friction (stale index.lock blocks
+// every commit; orphan worktrees). Surfaced so any agent sees + clears it locally.
+const worktreePanel = panel('worktreeSection', 'worktree-health', [
+  panelTitle('worktreeTitle', 'Worktree Health'),
+  fetchList('worktreeList', '/api/worktree-health', 'worktreeHealth', [
+    obj('worktreeRepo', [t('text', { content: '{{label}}', variant: 'body' })]),
+    obj('worktreeStatus', [t('text', { content: '{{status}}', variant: 'caption' })]),
+  ]),
+]);
+
 // ── Composition ───────────────────────────────────────────────────────────────
 
 const composition = {
@@ -130,7 +140,7 @@ const composition = {
       ]),
       obj('grid', [
         t('theme', { tag: 'main', style: 'display:grid;grid-template-columns:1fr 1fr;gap:16px' }),
-      ], [stalePanel, consentsPanel, historyPanel, pressurePanel]),
+      ], [stalePanel, consentsPanel, historyPanel, pressurePanel, worktreePanel]),
     ]),
   ],
   templates: [],

@@ -15,7 +15,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -156,6 +156,39 @@ function substratePressure() {
   return items;
 }
 
+// Local repos to scan for the #1 recurring local-agent friction: a stale
+// .git/index.lock (blocks every commit) and orphan worktrees. Pure machine-local,
+// no network — exactly the "easier for agents locally" operate signal.
+const SCAN_REPOS = [
+  { label: 'HoloScript', path: join(__dirname, '..', '..', '..', 'HoloScript') },
+  { label: 'Hololand', path: join(__dirname, '..', '..') },
+  { label: 'ai-ecosystem', path: 'C:/Users/Josep/.ai-ecosystem' },
+];
+
+function worktreeHealth() {
+  const items = [];
+  for (const repo of SCAN_REPOS) {
+    if (!existsSync(join(repo.path, '.git'))) continue;
+    const lock = join(repo.path, '.git', 'index.lock');
+    if (existsSync(lock)) {
+      let ageSec = 0;
+      try { ageSec = Math.round((Date.now() - statSync(lock).mtimeMs) / 1000); } catch { /* race */ }
+      items.push({ label: repo.label, status: `index.lock held ${ageSec}s ⚠` });
+      continue;
+    }
+    let worktrees = 1;
+    try {
+      const out = execSync('git worktree list --porcelain', {
+        cwd: repo.path, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      worktrees = (out.match(/^worktree /gm) || []).length;
+    } catch { /* git absent / not a repo */ }
+    items.push({ label: repo.label, status: worktrees > 1 ? `clean ✓ · ${worktrees} worktrees` : 'clean ✓' });
+  }
+  if (items.length === 0) items.push({ label: 'no repos found', status: '—' });
+  return items;
+}
+
 // ── Request handler ───────────────────────────────────────────────────────────
 
 async function handleRequest(req, res) {
@@ -197,6 +230,12 @@ async function handleRequest(req, res) {
   // ── GET /api/substrate-pressure
   if (req.method === 'GET' && path === '/api/substrate-pressure') {
     respond(res, { items: substratePressure() });
+    return;
+  }
+
+  // ── GET /api/worktree-health  (stale index.lock + orphan worktrees per repo)
+  if (req.method === 'GET' && path === '/api/worktree-health') {
+    respond(res, { items: worktreeHealth() });
     return;
   }
 
