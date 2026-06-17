@@ -28,6 +28,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 $Hololand    = Split-Path -Parent $PSScriptRoot           # repo root (this file is in scripts/)
 $OperatePort = 8747
 $JetsonTags  = 'http://holojetson.local:11434/api/tags'
+$JetsonSurface = 'http://holojetson.local:8747'  # Jetson-HOSTED Brittney surface (systemd holoshell-surface)
 $HoloScript  = Join-Path (Split-Path -Parent $Hololand) 'HoloScript'  # sibling repo — Studio lives here
 $StudioPort  = 3101                                                   # Studio /create = BrittneyPlus (building)
 
@@ -52,51 +53,31 @@ if (-not (Test-Path $lnk)) {
   } catch {}
 }
 
-Write-Host '[Brittney Studio] booting the $0 hybrid (Jetson anchor + scale-to-zero fleet)...'
+Write-Host '[Brittney Studio] the laptop is a SCREEN for the Jetson (founder 2026-06-17)...'
 
-# 1) Jetson anchor — the local brain. CHECK only; it runs headless-always-on, never started here.
-$jetson = 'Jetson OFF (LAN) - router falls back to fleet/cloud per model-policy'
-try { if (Invoke-RestMethod -Uri $JetsonTags -TimeoutSec 4) { $jetson = 'Jetson OK (qwen3:4b)' } } catch {}
+# The Jetson is the sovereign node — it HOSTS the Brittney surface itself (systemd
+# holoshell-surface, always-on, $0: brain + agents + surface all on the Jetson). This
+# laptop runs NO local LLM and NO local Brittney serve; it just DISPLAYS the Jetson.
+# (Studio — the heavy Next.js build IDE — is a separate dev tool launched on its own,
+# not part of this screen; it cannot run on the 8GB Jetson alongside the model.)
 
-# 2) HoloShell operate-room (:8747) — compile + serve IF offline (idempotent -> no EADDRINUSE).
-if (-not (Test-LocalPort $OperatePort)) {
-  & node (Join-Path $Hololand 'packages\holoshell\compile.mjs') | Out-Null
-  Start-Process node -ArgumentList 'packages\holoshell\serve.mjs' `
-    -WorkingDirectory $Hololand -WindowStyle Hidden
-  Start-Sleep -Milliseconds 1500
-}
-$room = if (Test-LocalPort $OperatePort) { "operate-room OK :$OperatePort" } else { 'operate-room FAILED' }
+# 1) Jetson brain reachable?
+$jetson = 'Jetson Ollama OFF (LAN)'
+try { if (Invoke-RestMethod -Uri $JetsonTags -TimeoutSec 4) { $jetson = 'Jetson Ollama OK' } } catch {}
 
-# 3) Brittney — native agent (Jetson-routed = $0). Start IF not already running.
-$running = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-  Where-Object { $_.CommandLine -like '*start-brittney*' }
-if (-not $running) {
-  Start-Process pnpm -ArgumentList 'brittney' -WorkingDirectory $Hololand -WindowStyle Hidden
-}
-
-# 4) HoloShell daemons — ENSURE via the existing receipt-anchored supervisor (don't reinvent
-#    process management). Starts-when-offline, PID-tracked, never grants execute by default.
-Start-Process pnpm -ArgumentList 'holoshell:service-supervisor:ensure' `
-  -WorkingDirectory $Hololand -WindowStyle Hidden
-
-# 5) Building surface — BrittneyPlus lives in Studio /create. Start Studio hidden if offline
-#    (Next dev is heavy; it warms in the background), so the build assistant is ready when you switch.
-$studio = 'Studio OFF'
-if (Test-LocalPort $StudioPort) {
-  $studio = "Studio OK :$StudioPort"
-} elseif (-not $Headless -and (Test-Path (Join-Path $HoloScript 'packages\studio'))) {
-  Start-Process pnpm -ArgumentList '--filter', '@holoscript/studio', 'dev' -WorkingDirectory $HoloScript -WindowStyle Hidden
-  $studio = "Studio warming :$StudioPort"
+# 2) Jetson-hosted Brittney surface reachable?
+$surfaceUp = $false
+try { $surfaceUp = (Invoke-WebRequest -Uri "$JetsonSurface/" -TimeoutSec 6 -UseBasicParsing).StatusCode -eq 200 } catch {}
+if (-not $surfaceUp) {
+  Write-Host "[Brittney Studio] Jetson surface UNREACHABLE at $JetsonSurface."
+  Write-Host '  It is a systemd service on the Jetson. If the Jetson is on, restart it:'
+  Write-Host "    ssh -i `$HOME\.ssh\jetson_ed25519 username@holojetson.local 'sudo systemctl restart holoshell-surface'"
 }
 
-# 6) Open BOTH surfaces (skip only with -Headless / APIs-only): management = Brittney & Daimon
-#    (operate-room :8747, local-by-design); building = BrittneyPlus (Studio /create).
-if (-not $Headless) {
-  Start-Process "http://localhost:$OperatePort"
-  Start-Process "http://localhost:$StudioPort/create"
-}
+# 3) Open the screen onto the Jetson (skip with -Headless / APIs-only).
+if (-not $Headless) { Start-Process $JetsonSurface }
 
-Write-Host "[Brittney Studio] $jetson | $room | $studio | Brittney+Daimon (manage) + BrittneyPlus (build) | Fleet scale-to-zero (`$0)"
+Write-Host "[Brittney Studio] surface: $(if($surfaceUp){'OK'}else{'DOWN'}) ($JetsonSurface) | $jetson | brain+agents+surface all on the Jetson (`$0)"
 
 <#
   -------------------------------------------------------------------------------------------
