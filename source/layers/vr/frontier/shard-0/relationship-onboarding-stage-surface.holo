@@ -1,0 +1,55 @@
+composition "Relationship Onboarding Stage Surface" {
+  // Family-facing funnel: no economy language, only measured soul depth.
+  // Creator funnel can show earnings on day one outside this family surface.
+
+  object "family_emergence_bar" {
+    geometry: "panel"
+    scale: [4.8, 1.2, 0.08]
+    position: [0, 2.2, -2.4]
+    color: "#172033"
+    label: "your soul learned this week"
+    @emergence_stage_surface {
+      source: "source/domains/emergence/relationship-onboarding-emergence.hsplus"
+      economy_visible: false
+      display_metric: "threshold_progress"
+      stages: ["S0_DORMANT", "S1_LEARNING", "S2_THRESHOLD", "S3_MANIFESTED_DOWNLOADABLE"]
+    }
+  }
+
+  object "stage_s0_dormant" {
+    geometry: "sphere"
+    scale: [0.18, 0.18, 0.18]
+    position: [-1.8, 1.45, -2.3]
+    color: "#5b6472"
+    @emergence_stage { stage: "S0_DORMANT", economy_visible: false }
+  }
+
+  object "stage_s1_learning" {
+    geometry: "sphere"
+    scale: [0.22, 0.22, 0.22]
+    position: [-0.6, 1.45, -2.3]
+    color: "#4f9cff"
+    @emergence_stage { stage: "S1_LEARNING", economy_visible: false }
+  }
+
+  object "stage_s2_threshold" {
+    geometry: "sphere"
+    scale: [0.26, 0.26, 0.26]
+    position: [0.6, 1.45, -2.3]
+    color: "#67d391"
+    @emergence_stage { stage: "S2_THRESHOLD", economy_visible: false }
+  }
+
+  object "stage_s3_manifested_downloadable" {
+    geometry: "sphere"
+    scale: [0.32, 0.32, 0.32]
+    position: [1.8, 1.45, -2.3]
+    color: "#f4c95d"
+    @custody_export_moment {
+      stage: "S3_MANIFESTED_DOWNLOADABLE"
+      economy_visible: false
+      prompt: "take your daimon with you"
+      requires_custody_score: 1
+    }
+  }
+}

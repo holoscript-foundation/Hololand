@@ -1,0 +1,154 @@
+// Relationship-mediated onboarding emergence contract.
+//
+// Source of truth for the HoloLand family funnel:
+// - credit is held-out learning progress, not volume or raw surprise
+// - family surface never exposes economy
+// - creator surface may expose earnings immediately
+// - session-length similarity to extractive games falsifies the non-extraction claim
+
+module RelationshipOnboardingEmergence {
+  state {
+    family_id: string
+    soul_id: string
+    field_checkpoint_id: string
+    field_checkpoint_frozen_before_interaction: boolean
+    held_out_eval_provenance_independent: boolean
+
+    threshold_progress: number
+    stage: EmergenceStage
+
+    family_surface_economy_visible: boolean
+    creator_surface_economy_visible: boolean
+  }
+
+  action score_interaction(
+    interaction_id: string,
+    qualifying_receipt: QualifyingReceipt,
+    held_out: HeldOutLearningProgress,
+    previous_threshold_progress: number,
+    custody: CustodyExportMoment
+  ) {
+    let learning_progress = max(0, held_out.loss_before - held_out.loss_after)
+    let emergence_credit = qualifying_receipt.verified ? learning_progress : 0
+    let threshold_progress = min(1, max(previous_threshold_progress, previous_threshold_progress + emergence_credit))
+    let stage = choose_stage(threshold_progress, custody)
+
+    emit emergence_credit_receipted(EmergenceCreditReceipt {
+      interaction_id: interaction_id,
+      family_id: family_id,
+      soul_id: soul_id,
+      field_checkpoint_id: held_out.frozen_checkpoint_id,
+      qualifying_receipt: qualifying_receipt,
+      learning_progress: learning_progress,
+      emergence_credit: emergence_credit,
+      threshold_progress: threshold_progress,
+      stage: stage,
+      family_surface: FamilyStageSurface {
+        economy_visible: false,
+        display_number: threshold_progress,
+        copy_lane: "your_soul_learned_this_week",
+        custody_prompt_visible: stage == "S3_MANIFESTED_DOWNLOADABLE"
+      },
+      creator_surface: CreatorSurface {
+        economy_visible: true,
+        earnings_status: "ACCRUED"
+      }
+    })
+  }
+
+  action falsify_non_extraction(
+    hololand_sessions: SessionLengthDistribution,
+    extractive_game_baseline: SessionLengthDistribution,
+    similarity_threshold: number
+  ) {
+    let ks_distance = kolmogorov_smirnov_distance(hololand_sessions.minutes, extractive_game_baseline.minutes)
+    emit compulsive_use_falsifier(CompulsiveUseFalsifierReceipt {
+      claim: "non_extractive_by_construction",
+      metric: "session_length_distribution_similarity",
+      ks_distance: ks_distance,
+      similarity_threshold: similarity_threshold,
+      falsified: ks_distance <= similarity_threshold
+    })
+  }
+}
+
+enum EmergenceStage {
+  S0_DORMANT = "S0_DORMANT"
+  S1_LEARNING = "S1_LEARNING"
+  S2_THRESHOLD = "S2_THRESHOLD"
+  S3_MANIFESTED_DOWNLOADABLE = "S3_MANIFESTED_DOWNLOADABLE"
+}
+
+enum CreatorEarningsStatus {
+  ACCRUED = "ACCRUED"
+  PAYABLE = "PAYABLE"
+  PAID = "PAID"
+  FOUNDER_GATED = "FOUNDER_GATED"
+}
+
+enum SessionPopulation {
+  HOLOLAND_FAMILY = "hololand_family"
+  EXTRACTIVE_GAME_BASELINE = "extractive_game_baseline"
+}
+
+struct QualifyingReceipt {
+  receipt_id: string
+  receipt_hash: string
+  verified: boolean
+  simulation_contract_ref: string
+}
+
+struct HeldOutLearningProgress {
+  frozen_checkpoint_id: string
+  loss_before: number
+  loss_after: number
+  held_out_slice_id: string
+  future_interaction_window: string
+  provenance_independent: boolean
+}
+
+struct CustodyExportMoment {
+  downloadable: boolean
+  export_fidelity: number
+  custody_score: number
+}
+
+struct FamilyStageSurface {
+  economy_visible: boolean
+  display_number: number
+  copy_lane: string
+  custody_prompt_visible: boolean
+}
+
+struct CreatorSurface {
+  economy_visible: boolean
+  earnings_status: CreatorEarningsStatus
+}
+
+struct EmergenceCreditReceipt {
+  interaction_id: string
+  family_id: string
+  soul_id: string
+  field_checkpoint_id: string
+  qualifying_receipt: QualifyingReceipt
+  learning_progress: number
+  emergence_credit: number
+  threshold_progress: number
+  stage: EmergenceStage
+  family_surface: FamilyStageSurface
+  creator_surface: CreatorSurface
+}
+
+struct SessionLengthDistribution {
+  population: SessionPopulation
+  window_id: string
+  minutes: number[]
+}
+
+struct CompulsiveUseFalsifierReceipt {
+  claim: string
+  metric: string
+  ks_distance: number
+  similarity_threshold: number
+  falsified: boolean
+}
