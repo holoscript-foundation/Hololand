@@ -556,7 +556,7 @@ if (isMain()) {
     const server = createLaptopDesktopBridgeServer(args);
     server.listen(args.port, args.host, () => {
       console.log(`HoloShell laptop desktop bridge: http://${args.host}:${args.port}`);
-      console.log('Execution: refused until HoloGate consent-token lane exists');
+      console.log('Execution: consent-token staging enabled; OS mutation waits for an admitted action executor');
     });
   } catch (error) {
     console.error(`holoshell-laptop-desktop-bridge failed: ${error.message}`);
