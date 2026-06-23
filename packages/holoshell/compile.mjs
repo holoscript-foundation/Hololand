@@ -246,16 +246,27 @@ const runtimeScript = `  <script>
           _setDesktopBridgeStatus('Bridge: not reported');
         });
     }
-    function probeLaptopDesktopBridge() {
-      fetch('http://127.0.0.1:8751/api/desktop-control/bridge', { cache: 'no-store' })
+    function _probeLaptopDesktopBridgeAt(urls, index) {
+      if (index >= urls.length) { _loadServerDesktopBridgeStatus(); return; }
+      fetch(urls[index], { cache: 'no-store' })
         .then(function(r) { return r.json(); })
         .then(function(d) {
+          if (d.schemaVersion !== 'hololand.holoshell.laptop-desktop-bridge.v0.1.0') {
+            _probeLaptopDesktopBridgeAt(urls, index + 1);
+            return;
+          }
           _setDesktopBridgeStatus('Bridge: ' + d.status + ' (laptop)');
           _reportLaptopDesktopBridge(d);
         })
         .catch(function() {
-          _loadServerDesktopBridgeStatus();
+          _probeLaptopDesktopBridgeAt(urls, index + 1);
         });
+    }
+    function probeLaptopDesktopBridge() {
+      _probeLaptopDesktopBridgeAt([
+        'http://127.0.0.1:8751/api/desktop-control/bridge',
+        'http://127.0.0.1:8752/api/desktop-control/bridge'
+      ], 0);
     }
     function loadImprovementRuns() {
       fetch('/api/improvement-runs')

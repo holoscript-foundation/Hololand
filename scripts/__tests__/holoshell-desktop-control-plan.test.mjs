@@ -88,3 +88,4 @@ const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'u
 assert.match(compileSource, /Desktop control/);
 assert.match(compileSource, /desktopControl/);
 assert.match(compileSource, /127\.0\.0\.1:8751/);
+assert.match(compileSource, /127\.0\.0\.1:8752/);
