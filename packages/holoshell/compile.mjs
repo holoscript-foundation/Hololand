@@ -182,6 +182,8 @@ let html = compileOperateRoomShell(composition);
 const runtimeScript = `  <script>
     /* HoloShell — Brittney chat (the whole surface) */
     var _lastImprovementRunId = null;
+    var _lastLaptopDesktopBridgeBaseUrl = null;
+    var _laptopDesktopBridgeBases = ['http://127.0.0.1:8751', 'http://127.0.0.1:8752', 'http://127.0.0.1:8753'];
     function _bMsg(who, text, color) {
       var box = document.getElementById('brittney-messages'); if (!box) return null;
       var row = document.createElement('div');
@@ -192,6 +194,122 @@ const runtimeScript = `  <script>
       span.style.cssText = 'color:#c9d1d9;white-space:pre-wrap'; span.textContent = text;
       row.appendChild(label); row.appendChild(span);
       box.appendChild(row); box.scrollTop = box.scrollHeight; return row;
+    }
+    function _bActionButton(row, label, onClick) {
+      if (!row) return null;
+      var spacer = document.createElement('div');
+      spacer.style.cssText = 'height:8px';
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.style.cssText = 'height:34px;padding:0 12px;border-radius:8px;border:1px solid #2ea043;background:#238636;color:#fff;font-weight:700;cursor:pointer';
+      button.onclick = function() {
+        button.disabled = true;
+        button.style.cursor = 'wait';
+        onClick(button);
+      };
+      row.appendChild(spacer);
+      row.appendChild(button);
+      return button;
+    }
+    function _bridgeUrls(path) {
+      var bases = _laptopDesktopBridgeBases.slice();
+      if (_lastLaptopDesktopBridgeBaseUrl) bases.unshift(_lastLaptopDesktopBridgeBaseUrl);
+      var seen = {};
+      return bases.map(function(base) {
+        return String(base).replace(/\\/$/, '') + path;
+      }).filter(function(url) {
+        if (seen[url]) return false;
+        seen[url] = true;
+        return true;
+      });
+    }
+    function _postLaptopBridge(path, body, index) {
+      var urls = _bridgeUrls(path);
+      var offset = index || 0;
+      if (offset >= urls.length) return Promise.reject(new Error('laptop_desktop_bridge_unavailable'));
+      return fetch(urls[offset], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-HoloShell-Bridge': 'browser' },
+        body: JSON.stringify(body || {})
+      }).then(function(r) {
+        return r.text().then(function(text) {
+          var data = {};
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
+          if (r.ok) {
+            _lastLaptopDesktopBridgeBaseUrl = urls[offset].slice(0, -path.length);
+            return data;
+          }
+          if (r.status === 404) return _postLaptopBridge(path, body, offset + 1);
+          var err = new Error(data.error || data.reason || data.blockedReason || ('http_' + r.status));
+          err.holoshellNoRetry = true;
+          throw err;
+        });
+      }).catch(function(e) {
+        if (e && e.holoshellNoRetry) throw e;
+        return _postLaptopBridge(path, body, offset + 1);
+      });
+    }
+    function _extractPublicOpenUrl(text) {
+      var match = String(text || '').match(/https?:\\/\\/[^\\s<>"')]+/i);
+      if (!match) return { status: 'missing_url' };
+      var raw = match[0].replace(/[.,;:!?]+$/, '');
+      var parsed;
+      try { parsed = new URL(raw); } catch (e) { return { status: 'invalid_url' }; }
+      if (!/^https?:$/i.test(parsed.protocol)) return { status: 'blocked_scheme' };
+      var combined = (parsed.hostname + ' ' + parsed.pathname + ' ' + parsed.search).toLowerCase();
+      if (/(checkout|payment|billing|purchase|subscribe|transfer|wallet|bank)/i.test(combined)) return { status: 'break_glass_payment' };
+      if (/(login|signin|sign-in|account|settings|profile|admin|oauth|auth|password|security|2fa|mfa|upload|download|export|import|delete|remove|submit|compose|send)/i.test(combined)) return { status: 'credential_adjacent' };
+      return { status: 'public_web', url: parsed.href, host: parsed.host };
+    }
+    function _offerDesktopOpenUrl(intent, desktopControl) {
+      if (!desktopControl || desktopControl.primaryAction !== 'open_url') return;
+      var target = _extractPublicOpenUrl(String(intent || '') + ' ' + String(desktopControl.intent || ''));
+      if (target.status !== 'public_web') {
+        _bMsg('Desktop execution', 'open_url blocked before approval: ' + target.status, '#f85149');
+        return;
+      }
+      if (desktopControl.permissionEnvelope === 'break_glass') {
+        _bMsg('Desktop execution', 'open_url requires founder review before approval.', '#f85149');
+        return;
+      }
+      var row = _bMsg('Desktop approval', 'Public URL ready: ' + target.url + '\\nRequires fresh click: preflight -> consent token -> execute open_url.', '#d29922');
+      _bActionButton(row, 'Approve open URL', function(button) {
+        var preflightReceipt = null;
+        button.textContent = 'Opening...';
+        _postLaptopBridge('/api/desktop-control/preflight', {
+          intent: desktopControl.intent || intent,
+          actor: 'brittney'
+        }).then(function(preflight) {
+          preflightReceipt = preflight;
+          if (preflight.intent && preflight.intent.primaryAction && preflight.intent.primaryAction !== 'open_url') {
+            throw new Error('preflight_action_mismatch:' + preflight.intent.primaryAction);
+          }
+          return _postLaptopBridge('/api/desktop-control/consent-token', {
+            preflight: preflight,
+            operation: 'open_url',
+            freshUserGesture: true
+          });
+        }).then(function(consentToken) {
+          return _postLaptopBridge('/api/desktop-control/execute', {
+            preflight: preflightReceipt,
+            operation: 'open_url',
+            consentToken: consentToken,
+            url: target.url,
+            executeApprovedAction: true
+          });
+        }).then(function(execution) {
+          button.textContent = 'Opened';
+          button.style.cursor = 'default';
+          var receipt = execution.receiptPath || execution.executionId || 'receipt unavailable';
+          _bMsg('Desktop execution', (execution.status || 'completed') + '\\n' + (execution.executionMode || 'admitted_open_url_executor') + '\\nReceipt: ' + receipt, '#3fb950');
+        }).catch(function(e) {
+          button.disabled = false;
+          button.style.cursor = 'pointer';
+          button.textContent = 'Retry open URL';
+          _bMsg('Desktop execution', 'refused: ' + e.message, '#f85149');
+        });
+      });
     }
     function sendBrittneyChat() {
       var inp = document.getElementById('brittney-input'); if (!inp) return;
@@ -206,6 +324,7 @@ const runtimeScript = `  <script>
           _bMsg('Brittney', d.reply, '#bc8cff');
           if (d.desktopControl) {
             _bMsg('Desktop control', d.desktopControl.status + ' via ' + d.desktopControl.modelLane + ' (' + d.desktopControl.recommendedModel + ')\\n' + d.desktopControl.permissionEnvelope + ' - ' + d.desktopControl.nextSafeStep, '#3fb950');
+            _offerDesktopOpenUrl(msg, d.desktopControl);
           }
           if (d.proposals && d.proposals.length) {
             var lines = d.proposals.map(function(x) { return '• ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
@@ -256,6 +375,7 @@ const runtimeScript = `  <script>
             return;
           }
           _setDesktopBridgeStatus('Bridge: ' + d.status + ' (laptop)');
+          _lastLaptopDesktopBridgeBaseUrl = urls[index].replace('/api/desktop-control/bridge', '');
           _reportLaptopDesktopBridge(d);
         })
         .catch(function() {

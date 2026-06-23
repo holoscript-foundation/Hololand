@@ -31,6 +31,8 @@ composition "OperateRoom" {
     laptop_desktop_bridge_endpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
     laptop_desktop_bridge_fallback_endpoint: "GET http://127.0.0.1:8752/api/desktop-control/bridge"
     laptop_desktop_bridge_tertiary_endpoint: "GET http://127.0.0.1:8753/api/desktop-control/bridge"
+    laptop_desktop_bridge_consent_endpoint: "POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/consent-token"
+    laptop_desktop_bridge_execute_endpoint: "POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/execute"
   }
 
   environment {
@@ -41,6 +43,8 @@ composition "OperateRoom" {
 
   // No data state — the surface holds a conversation, not dashboards. Brittney's
   // turn (+ proposals) is rendered by the injected chat runtime into the mount.
+  // Public open_url desktop actions are surfaced as explicit approval buttons
+  // that use the laptop bridge preflight -> consent-token -> execute chain.
   state {
     last_improvement_run_id: ""
     last_improvement_run_count: 0

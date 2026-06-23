@@ -1695,6 +1695,8 @@ async function handleRequest(req, res) {
           proposals,
           desktopControl: desktopControl ? {
             planId: desktopControl.planId,
+            intent: desktopControl.intent?.raw || message,
+            primaryAction: desktopControl.summary?.primaryAction || desktopControl.intent?.primaryAction || '',
             status: desktopControl.summary?.status,
             modelLane: desktopControl.summary?.modelLane,
             recommendedModel: desktopControl.summary?.recommendedModel,

@@ -37,6 +37,15 @@ assert.equal(readOnlyPlan.summary.status, 'plan_ready');
 assert.equal(readOnlyPlan.summary.permissionEnvelope, 'read_only');
 assert.equal(readOnlyPlan.summary.approvalRequired, false);
 
+const naturalOpenUrlPlan = buildDesktopControlPlan({
+  intent: 'Open https://example.com/status in the default browser.',
+  createdAt: '2026-06-23T00:00:00.000Z',
+});
+
+assert.equal(naturalOpenUrlPlan.summary.primaryAction, 'open_url');
+assert.equal(naturalOpenUrlPlan.summary.permissionEnvelope, 'guarded_execute');
+assert.equal(naturalOpenUrlPlan.summary.approvalRequired, true);
+
 const breakGlassPlan = buildDesktopControlPlan({
   intent: 'Delete files and enter my password in the app.',
   createdAt: '2026-06-23T00:00:00.000Z',
@@ -82,11 +91,14 @@ assert.match(serveSource, /\/api\/desktop-control\/plan/);
 assert.match(serveSource, /holoshell-desktop-control-plan\.mjs/);
 assert.match(serveSource, /\/api\/desktop-control\/bridge\/report/);
 assert.match(serveSource, /desktopControl/);
+assert.match(serveSource, /primaryAction/);
 assert.match(serveSource, /fara_gui_grounding/);
 
 const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
 assert.match(compileSource, /Desktop control/);
 assert.match(compileSource, /desktopControl/);
+assert.match(compileSource, /Approve open URL/);
+assert.match(compileSource, /executeApprovedAction/);
 assert.match(compileSource, /127\.0\.0\.1:8751/);
 assert.match(compileSource, /127\.0\.0\.1:8752/);
 assert.match(compileSource, /127\.0\.0\.1:8753/);

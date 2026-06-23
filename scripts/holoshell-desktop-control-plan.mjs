@@ -122,7 +122,7 @@ function classifyIntent(intent) {
   if (hasAny(text, /\b(click|button|press)\b/u)) primaryAction = 'click_control';
   else if (hasAny(text, /\b(type|enter text|write into|fill)\b/u)) primaryAction = 'type_text';
   else if (hasAny(text, /\b(hotkey|shortcut|ctrl|alt|shift|tab)\b/u)) primaryAction = 'hotkey';
-  else if (hasAny(text, /\b(open|launch|start)\b/u)) primaryAction = hasAny(text, /\b(browser|url|website|youtube|chrome|edge)\b/u) ? 'open_url' : 'launch_app';
+  else if (hasAny(text, /\b(open|launch|start)\b/u)) primaryAction = hasAny(text, /\b(browser|url|website|youtube|chrome|edge)\b|https?:\/\//u) ? 'open_url' : 'launch_app';
   else if (hasAny(text, /\b(focus|activate|switch)\b/u)) primaryAction = 'focus_window';
 
   const permissionEnvelope = breakGlass ? 'break_glass' : readOnly ? 'read_only' : 'guarded_execute';
