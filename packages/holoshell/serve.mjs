@@ -1064,7 +1064,7 @@ function normalizeCodebaseFixEvidence(value, index) {
   if (!value || typeof value !== 'object') return null;
   const changedFiles = normalizeStringList(value.changedFiles || value.files);
   const validationCommands = normalizeStringList(value.validationCommands || value.commands || value.tests);
-  const validationStatus = String(value.validationStatus || value.validation?.status || '').trim() || 'missing';
+  const validationStatus = String(value.validationStatus || value.validation?.status || '').trim().toLowerCase() || 'missing';
   return {
     fixId: String(value.fixId || value.issueId || `codebase_fix_${index + 1}`).slice(0, 120),
     issue: String(value.issue || value.issueTitle || value.title || 'Codebase fix').slice(0, 240),
@@ -1090,7 +1090,7 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
       fix &&
       fix.changedFiles.length > 0 &&
       fix.validationCommands.length > 0 &&
-      fix.validationStatus !== 'missing' &&
+      fix.validationStatus === 'passed' &&
       Boolean(fix.receiptPath || fix.commit) &&
       fix.destructiveActionsTaken === false &&
       fix.desktopAutomationExecuted === false
@@ -1130,7 +1130,8 @@ function buildImprovementRunReceipt(payload = {}) {
     codebaseFixPolicy: {
       requiredBeforeCountedExecution: true,
       requiredEvidence: ['issue', 'changedFiles', 'validationCommands', 'validationStatus'],
-      disallowedEvidence: ['destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
+      requiredValidationStatus: 'passed',
+      disallowedEvidence: ['validationStatus:not-passed', 'destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
       tuningIsNotTheShakedown: true,
     },
     holotuneTracePolicy: {

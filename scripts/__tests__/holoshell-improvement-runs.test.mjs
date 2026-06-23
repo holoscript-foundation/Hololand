@@ -82,6 +82,7 @@ try {
   assert.equal(body.destructiveActionsTaken, false);
   assert.equal(body.approvalRequiredForDesktopAutomation, true);
   assert.equal(body.receipt.codebaseFixPolicy.requiredBeforeCountedExecution, true);
+  assert.equal(body.receipt.codebaseFixPolicy.requiredValidationStatus, 'passed');
   assert.equal(body.receipt.holotuneTracePolicy.mode, 'defer_until_codebase_fix_shakedown_validated');
   assert.equal(body.receipt.holotuneTracePolicy.serverControlledMode, 'server_controlled_after_codebase_fix_review');
   assert.match(body.receipt.holotuneTracePolicy.reason, /client payloads cannot enable tuning/);
@@ -208,6 +209,28 @@ try {
   assert.equal(unsafeExecution.holotuneTrace.emittedRows, 0);
   assert.equal(existsSync(tracePath), false);
 
+  const failedExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      shakedownCount: 1,
+      codebaseFixes: [{ ...codebaseFixes(1, 102)[0], validationStatus: 'failed' }],
+    }),
+    signal: AbortSignal.timeout(80_000),
+  });
+  const failedExecution = await failedExecutionResponse.json();
+  assert.equal(failedExecutionResponse.status, 200, JSON.stringify(failedExecution));
+  assert.equal(failedExecution.status, 'awaiting_codebase_fix_evidence');
+  assert.equal(failedExecution.plannedFixCount, 1);
+  assert.equal(failedExecution.executedRunCount, 0);
+  assert.equal(failedExecution.totalExecutedRunCount, 0);
+  assert.equal(failedExecution.remainingRunCount, 12);
+  assert.equal(failedExecution.runResults.length, 0);
+  assert.equal(failedExecution.aggregate.validationStatus, 'awaiting_codebase_fix_evidence');
+  assert.equal(failedExecution.holotuneTrace.status, 'deferred');
+  assert.equal(failedExecution.holotuneTrace.emittedRows, 0);
+  assert.equal(existsSync(tracePath), false);
+
   const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -235,17 +258,19 @@ try {
   assert.equal(detailResponse.status, 200, JSON.stringify(detail));
   assert.equal(detail.totalExecutedRunCount, 2);
   assert.equal(detail.remainingRunCount, 10);
-  assert.equal(detail.executions.length, 3);
+  assert.equal(detail.executions.length, 4);
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
   assert.match(receiptText, /visionUnderstanding/);
   assert.match(receiptText, /desktopAutomation/);
   assert.match(receiptText, /codebaseFixPolicy/);
+  assert.match(receiptText, /requiredValidationStatus/);
   assert.match(receiptText, /disallowedEvidence/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /holotuneTrace/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
   assert.match(readFileSync(unsafeExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
+  assert.match(readFileSync(failedExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);
