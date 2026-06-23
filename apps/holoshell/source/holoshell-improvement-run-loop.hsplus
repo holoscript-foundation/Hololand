@@ -1,8 +1,9 @@
 // HoloShell Improvement Run Loop
 //
-// Source contract for queueing repeated Brittney-led improvement runs from the
-// desktop HoloShell app. Vision understanding is distinct from Fara: vision
-// models read screens/images, while Fara plans guarded desktop automation.
+// Source contract for queueing repeated Brittney-led codebase-fix shakedowns
+// from the desktop HoloShell app. Vision understanding is distinct from Fara:
+// vision models read screens/images, while Fara plans guarded desktop automation.
+// HoloTune traces are deliberately deferred until actual fixes pass review.
 
 composition "HoloShell Improvement Run Loop" {
   config {
@@ -20,12 +21,13 @@ composition "HoloShell Improvement Run Loop" {
     liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
     modelLibrarySource: ".ai-ecosystem/model-library/library.json"
     holoClawSkillSource: "HoloScript/compositions/skills"
-    holotuneTraceSource: ".ai-ecosystem/scripts/trace-writer.mjs"
+    holotuneTraceSource: "deferred until codebase-fix shakedown validation"
     maxBatchRunCount: 128
     defaultShakedownRunCount: 10
     receiptRequired: true
     destructiveActionsTakenByQueue: false
     destructiveActionsTakenByShakedown: false
+    executionMode: "codebase_fix_shakedown"
   }
 
   state {
@@ -56,13 +58,13 @@ composition "HoloShell Improvement Run Loop" {
   channel "holoshell:improvement:execution" {
     type: "append_only"
     priority: "high"
-    description: "Non-mutating shakedown executions that measure every queued improvement run"
+    description: "Codebase-fix shakedowns that count only after patch and validation evidence is attached"
   }
 
   channel "holoshell:improvement:holotune_trace" {
     type: "append_only"
-    priority: "high"
-    description: "Verified improvement shakedown results emitted as per-identity HoloTune trace rows"
+    priority: "medium"
+    description: "Deferred per-identity HoloTune trace emission after real codebase fixes pass review"
   }
 
   channel "holoshell:improvement:desktop_bridge" {
@@ -90,9 +92,12 @@ composition "HoloShell Improvement Run Loop" {
     schemaVersion: "hololand.holoshell.improvement-execution.v0.1.0"
     executionId: ""
     sourceRunId: ""
-    status: "completed_shakedown"
+    status: "completed_codebase_fix_shakedown"
+    executionMode: "codebase_fix_shakedown"
+    plannedFixCount: 0
     executedRunCount: 0
     remainingRunCount: 0
+    fixEvidenceRequired: true
     gpuBalancePlan: {}
     desktopBridge: {}
     runResults: []
@@ -105,7 +110,8 @@ composition "HoloShell Improvement Run Loop" {
   template "HoloTuneTraceEmission" {
     type: "holotune_trace_emission"
     schemaVersion: "hololand.holoshell.holotune-trace-emission.v0.1.0"
-    status: "emitted"
+    status: "deferred"
+    reason: "actual_codebase_fixes_before_tuning"
     agentId: "agent_brittney"
     emittedRows: 0
     traceFiles: []
@@ -135,16 +141,18 @@ composition "HoloShell Improvement Run Loop" {
     appliesTo: ["improvement_batch", "model_routing", "skill_routing"]
     preferModelLibrary: true
     preferHoloClawSkills: true
-    requiredLanes: ["brittney_operator", "vision_language", "fara_gui_grounding", "holo_sdf_geometry", "semantic_embeddings", "holoclaw_skills", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "vision_language", "fara_gui_grounding", "holo_sdf_geometry", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
     receiptRequired: true
   }
 
   policy "ExponentialImprovementLoop" {
     appliesTo: ["improvement_batch"]
-    loopSteps: ["capture_live_state", "route_to_native_model_or_skill", "plan_guarded_action", "execute_after_receipt", "validate_and_measure", "feed_verified_trace_to_holotune", "feed_lesson_to_brittney"]
+    loopSteps: ["capture_live_state", "select_codebase_fix_candidate", "plan_patch", "apply_codebase_fix", "run_targeted_validation", "record_fix_receipt", "defer_holotune_until_fix_corpus_review", "feed_lesson_to_brittney"]
     requireMeasurementEveryRun: true
     requireReceiptEveryRun: true
-    requireHoloTuneTraceRowEveryRun: true
+    requireCodebaseFixEvidenceEveryCountedRun: true
+    requireHoloTuneTraceRowEveryRun: false
+    holotuneTraceMode: "deferred_until_codebase_fix_review"
     destructiveActionsTakenByQueue: false
     shakedownRunCount: 10
     requireGpuBalanceSnapshot: true
@@ -186,18 +194,20 @@ composition "HoloShell Improvement Run Loop" {
     })
   }
 
-  action execute_improvement_shakedown(receipt) {
+  action execute_codebase_fix_shakedown(receipt) {
     state.lastExecutionId = receipt.executionId
     state.executedRunCount = receipt.totalExecutedRunCount
     state.remainingRunCount = receipt.remainingRunCount
     state.lastStatus = receipt.status
     emit("holoshell:improvement:execution", {
-      action: "improvement_shakedown_executed",
+      action: "codebase_fix_shakedown_evidence_recorded",
       run_id: receipt.sourceRunId,
       execution_id: state.lastExecutionId,
       executed_run_count: receipt.executedRunCount,
       total_executed_run_count: receipt.totalExecutedRunCount,
       remaining_run_count: receipt.remainingRunCount,
+      fix_evidence_required: true,
+      planned_fix_count: receipt.plannedFixCount,
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true
@@ -206,12 +216,13 @@ composition "HoloShell Improvement Run Loop" {
 
   action emit_holotune_trace(receipt) {
     emit("holoshell:improvement:holotune_trace", {
-      action: "holotune_trace_emitted",
+      action: "holotune_trace_deferred",
       run_id: receipt.sourceRunId,
       execution_id: receipt.executionId,
       agent_id: receipt.holotuneTrace.agentId,
       emitted_rows: receipt.holotuneTrace.emittedRows,
       status: receipt.holotuneTrace.status,
+      reason: receipt.holotuneTrace.reason,
       receipt_required: true,
       destructive_actions_taken: false
     })

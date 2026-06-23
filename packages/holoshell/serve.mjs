@@ -913,43 +913,68 @@ function improvementResultTraceRow(receipt, result) {
   const agentId = HOLOTUNE_TRACE_AGENT_ID;
   const routingSummary = receipt.sourceRun?.routingSummary || receipt.routingSummary || '';
   const user = [
-    `Execute a HoloShell improvement shakedown run for objective: ${receipt.objective}`,
+    `Execute a HoloShell codebase-fix shakedown run for objective: ${receipt.objective}`,
     `Run number: ${result.runNumber}`,
+    result.codebaseFix?.summary ? `Fix: ${result.codebaseFix.summary}` : '',
     routingSummary ? `Routing: ${routingSummary}` : '',
   ].filter(Boolean).join('\n');
   const target = [
     `Status: ${result.status}`,
     `Validation: ${result.validation?.status || 'unknown'}`,
+    `Changed files: ${(result.codebaseFix?.changedFiles || []).join(', ') || 'none recorded'}`,
     `GPU assignment: ${result.gpuAssignmentSummary}`,
     `Lesson: ${result.lesson}`,
     `Receipt: ${receipt.receiptPath || receipt.executionId}`,
   ].join('\n');
   return {
-    system: 'You are Brittney operating HoloShell. Execute receipt-backed improvement runs, preserve safety boundaries, measure the result, and return the verified lesson.',
+    system: 'You are Brittney operating HoloShell. Execute receipt-backed codebase-fix shakedowns, preserve safety boundaries, measure validation, and return the verified lesson.',
     user,
     target,
     grader: {
-      kind: 'holoshell_improvement_execution',
+      kind: 'holoshell_codebase_fix_execution',
       passed: validationPassed && receipt.destructiveActionsTaken === false && receipt.desktopAutomationExecuted === false,
       executionId: receipt.executionId,
       sourceRunId: receipt.sourceRunId,
       runNumber: result.runNumber,
+      changedFiles: result.codebaseFix?.changedFiles || [],
+      validationCommands: result.codebaseFix?.validationCommands || [],
       validationSignals: Array.isArray(result.validation?.signals) ? result.validation.signals : [],
       destructiveActionsTaken: receipt.destructiveActionsTaken,
       desktopAutomationExecuted: receipt.desktopAutomationExecuted,
       receipt: receipt.receiptPath || null,
     },
-    grader_key: ['holoshell-improvement', receipt.executionId, String(result.runNumber)],
-    family: 'agentic-improvement',
+    grader_key: ['holoshell-codebase-fix', receipt.executionId, String(result.runNumber)],
+    family: 'codebase-fix-shakedown',
     modality: 'agentic',
-    source: 'holoshell-improvement-run',
+    source: 'holoshell-codebase-fix-shakedown',
     agentId,
     ts: receipt.generatedAt,
   };
 }
 
+function holotuneTraceEmissionEnabled(receipt) {
+  const policy = receipt.holotuneTracePolicy || receipt.sourceRun?.holotuneTracePolicy || {};
+  return process.env.HOLOTUNE_TRACE_MODE === 'emit' || policy.mode === 'emit_after_codebase_fix_validation';
+}
+
+function buildDeferredHolotuneTraceReceipt(reason) {
+  return {
+    schemaVersion: 'hololand.holoshell.holotune-trace-emission.v0.1.0',
+    status: 'deferred',
+    reason,
+    agentId: HOLOTUNE_TRACE_AGENT_ID,
+    emittedRows: 0,
+    traceFiles: [],
+    traceWriter: 'deferred_until_codebase_fix_shakedown_validated',
+    errors: [],
+  };
+}
+
 function emitImprovementHolotuneTraces(receipt) {
   const runResults = Array.isArray(receipt.runResults) ? receipt.runResults : [];
+  if (!holotuneTraceEmissionEnabled(receipt)) {
+    return buildDeferredHolotuneTraceReceipt('actual_codebase_fixes_before_tuning');
+  }
   if (!runResults.length) {
     return {
       schemaVersion: 'hololand.holoshell.holotune-trace-emission.v0.1.0',
@@ -1030,6 +1055,45 @@ function writeDesktopBridgeReport(report) {
   return withPath;
 }
 
+function normalizeStringList(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 20);
+}
+
+function normalizeCodebaseFixEvidence(value, index) {
+  if (!value || typeof value !== 'object') return null;
+  const changedFiles = normalizeStringList(value.changedFiles || value.files);
+  const validationCommands = normalizeStringList(value.validationCommands || value.commands || value.tests);
+  const validationStatus = String(value.validationStatus || value.validation?.status || '').trim() || 'missing';
+  return {
+    fixId: String(value.fixId || value.issueId || `codebase_fix_${index + 1}`).slice(0, 120),
+    issue: String(value.issue || value.issueTitle || value.title || 'Codebase fix').slice(0, 240),
+    summary: String(value.summary || value.description || value.issue || 'Validated codebase fix').slice(0, 500),
+    changedFiles,
+    validationCommands,
+    validationStatus,
+    receiptPath: value.receiptPath ? String(value.receiptPath).slice(0, 500) : '',
+    commit: value.commit ? String(value.commit).slice(0, 80) : '',
+    destructiveActionsTaken: value.destructiveActionsTaken === true,
+  };
+}
+
+function codebaseFixEvidenceFromPayload(payload, limit) {
+  const source = Array.isArray(payload.codebaseFixes)
+    ? payload.codebaseFixes
+    : (Array.isArray(payload.fixEvidence) ? payload.fixEvidence : []);
+  return source
+    .slice(0, limit)
+    .map((item, index) => normalizeCodebaseFixEvidence(item, index))
+    .filter((fix) =>
+      fix &&
+      fix.changedFiles.length > 0 &&
+      fix.validationCommands.length > 0 &&
+      fix.validationStatus !== 'missing' &&
+      Boolean(fix.receiptPath || fix.commit)
+    );
+}
+
 function buildImprovementRunReceipt(payload = {}) {
   const objective = String(payload.objective || payload.message || payload.intent || '').trim();
   const runCount = parseImprovementRunCount(payload.runCount || payload.count || payload.requestedRunCount);
@@ -1039,11 +1103,12 @@ function buildImprovementRunReceipt(payload = {}) {
   const runId = `hir_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const loop = [
     'capture_live_state',
-    'route_to_native_model_or_skill',
-    'plan_guarded_action',
-    'execute_after_receipt',
-    'validate_and_measure',
-    'feed_verified_trace_to_holotune',
+    'select_codebase_fix_candidate',
+    'plan_patch',
+    'apply_codebase_fix',
+    'run_targeted_validation',
+    'record_fix_receipt',
+    'defer_holotune_until_fix_corpus_review',
     'feed_lesson_to_brittney',
   ];
   const receipt = {
@@ -1052,12 +1117,22 @@ function buildImprovementRunReceipt(payload = {}) {
     runId,
     generatedAt,
     status: 'queued',
-    objective: objective || 'Improve HoloShell through a receipt-backed native run loop',
+    objective: objective || 'Land actual codebase fixes through a receipt-backed HoloShell shakedown',
+    executionMode: 'codebase_fix_shakedown',
     requestedRunCount: runCount,
     queuedRunCount: runCount,
     destructiveActionsTaken: false,
     receiptRequired: true,
     approvalRequiredForDesktopAutomation: true,
+    codebaseFixPolicy: {
+      requiredBeforeCountedExecution: true,
+      requiredEvidence: ['issue', 'changedFiles', 'validationCommands', 'validationStatus'],
+      tuningIsNotTheShakedown: true,
+    },
+    holotuneTracePolicy: {
+      mode: payload.enableHolotuneTrace === true ? 'emit_after_codebase_fix_validation' : 'defer_until_codebase_fix_shakedown_validated',
+      reason: 'Actual codebase fixes must pass before any tuning corpus emission.',
+    },
     routing,
     routingSummary: [
       `vision=${routing.visionUnderstanding.models.map((model) => model.model).join(', ')}`,
@@ -1068,10 +1143,10 @@ function buildImprovementRunReceipt(payload = {}) {
     loop,
     measurementPlan: {
       everyRun: true,
-      requiredSignals: ['status_delta', 'validation_result', 'gpu_snapshot', 'receipt_path', 'holotune_trace_row', 'lesson_for_brittney'],
-      firstBatchRecommendation: runCount > 10 ? 'Run a 10-run shakedown before opening the full batch.' : 'Batch size is within shakedown range.',
+      requiredSignals: ['codebase_issue', 'changed_files', 'validation_command', 'validation_result', 'diff_or_receipt_path', 'lesson_for_brittney'],
+      firstBatchRecommendation: runCount > 10 ? 'Land and validate a 10-fix shakedown before opening the full batch.' : 'Batch size is within shakedown range.',
     },
-    nextSafeStep: 'Review the queued receipt, then execute through the guarded lane that matches the task.',
+    nextSafeStep: 'Review the queued receipt, then submit actual codebase-fix evidence before any shakedown run is counted.',
     systemStatus: {
       status: snapshot.status,
       capabilityCount: snapshot.capabilities.length,
@@ -1209,16 +1284,17 @@ function buildGpuBalancePlan(snapshot, routing) {
 function buildImprovementRunStep(step, routing) {
   const laneByStep = {
     capture_live_state: routing.operator.lane,
-    route_to_native_model_or_skill: routing.visionUnderstanding.lane,
-    plan_guarded_action: routing.desktopAutomation.lane,
-    execute_after_receipt: 'receipt_gate',
-    validate_and_measure: 'receipt_gate',
-    feed_verified_trace_to_holotune: 'holotune_trace',
+    select_codebase_fix_candidate: 'codebase_fix',
+    plan_patch: 'codebase_fix',
+    apply_codebase_fix: 'codebase_fix',
+    run_targeted_validation: 'receipt_gate',
+    record_fix_receipt: 'receipt_gate',
+    defer_holotune_until_fix_corpus_review: 'holotune_trace',
     feed_lesson_to_brittney: routing.operator.lane,
   };
-  const stepStatus = step === 'plan_guarded_action'
-    ? 'planned_approval_required'
-    : (step === 'execute_after_receipt' ? 'skipped_non_mutating_shakedown' : 'completed');
+  const stepStatus = step === 'defer_holotune_until_fix_corpus_review'
+    ? 'deferred_until_codebase_fix_corpus_review'
+    : 'completed';
   return {
     step,
     lane: laneByStep[step] || 'receipt_gate',
@@ -1227,28 +1303,32 @@ function buildImprovementRunStep(step, routing) {
   };
 }
 
-function buildImprovementRunResult({ runNumber, sourceRun, snapshot, gpuBalancePlan }) {
+function buildImprovementRunResult({ runNumber, sourceRun, snapshot, gpuBalancePlan, codebaseFix }) {
   const routing = sourceRun.routing;
   const runLoop = Array.isArray(sourceRun.loop) && sourceRun.loop.length
     ? sourceRun.loop
     : [
         'capture_live_state',
-        'route_vision_to_vision_models',
-        'route_desktop_automation_to_fara_bridge',
-        'measure_gpu_balance',
-        'record_lesson',
+        'select_codebase_fix_candidate',
+        'apply_codebase_fix',
+        'run_targeted_validation',
+        'record_fix_receipt',
+        'feed_lesson_to_brittney',
       ];
+  const validationStatus = codebaseFix?.validationStatus === 'passed' ? 'passed' : 'failed';
   const validationSignals = [
-    'routing_receipt_present',
-    'gpu_balance_snapshot_present',
-    'desktop_bridge_boundary_present',
-    'destructive_actions_false',
-    'lesson_recorded',
+    'codebase_issue_recorded',
+    codebaseFix?.changedFiles?.length ? 'changed_files_recorded' : 'changed_files_missing',
+    codebaseFix?.validationCommands?.length ? 'validation_command_recorded' : 'validation_command_missing',
+    `validation_${validationStatus}`,
+    codebaseFix?.receiptPath || codebaseFix?.commit ? 'diff_or_receipt_recorded' : 'diff_or_receipt_missing',
   ];
   return {
     runNumber,
-    status: 'validated_dry_run',
+    status: validationStatus === 'passed' ? 'validated_codebase_fix' : 'failed_codebase_fix',
     objective: sourceRun.objective,
+    executionMode: 'codebase_fix_shakedown',
+    codebaseFix,
     steps: runLoop.map((step) => buildImprovementRunStep(step, routing)),
     gpuSnapshot: {
       status: snapshot.gpu.status,
@@ -1258,11 +1338,11 @@ function buildImprovementRunResult({ runNumber, sourceRun, snapshot, gpuBalanceP
       .map((assignment) => `${assignment.lane}->${assignment.preferredProcessor}`)
       .join('; '),
     validation: {
-      status: 'passed',
+      status: validationStatus,
       signals: validationSignals,
     },
-    lesson: `Run ${runNumber}: keep vision on ${routing.visionUnderstanding.lane}, keep Fara on ${routing.desktopAutomation.lane}, measure before expanding the batch.`,
-    destructiveActionsTaken: false,
+    lesson: `Run ${runNumber}: codebase fix "${codebaseFix?.summary || 'unknown'}" ${validationStatus}; keep Fara on ${routing.desktopAutomation.lane} only for guarded desktop automation.`,
+    destructiveActionsTaken: codebaseFix?.destructiveActionsTaken === true,
     desktopAutomationExecuted: false,
   };
 }
@@ -1283,21 +1363,25 @@ function buildImprovementExecutionReceipt(runId, payload = {}) {
   );
   const allowFullBatch = payload.allowFullBatch === true;
   const shakedownLimit = allowFullBatch ? 128 : 10;
-  const executedRunCount = Math.min(remainingBefore, requestedExecutionCount, shakedownLimit);
+  const plannedFixCount = Math.min(remainingBefore, requestedExecutionCount, shakedownLimit);
+  const codebaseFixes = codebaseFixEvidenceFromPayload(payload, plannedFixCount);
+  const executedRunCount = Math.min(remainingBefore, codebaseFixes.length, shakedownLimit);
   const snapshot = buildLiveStatusSnapshot();
   const gpuBalancePlan = buildGpuBalancePlan(snapshot, sourceRun.routing);
   const generatedAt = new Date().toISOString();
   const executionId = `hie_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  const runResults = Array.from({ length: executedRunCount }, (_, index) =>
+  const runResults = codebaseFixes.slice(0, executedRunCount).map((codebaseFix, index) =>
     buildImprovementRunResult({
       runNumber: priorExecutedRunCount + index + 1,
       sourceRun,
       snapshot,
       gpuBalancePlan,
+      codebaseFix,
     })
   );
   const totalExecutedRunCount = priorExecutedRunCount + executedRunCount;
   const remainingRunCount = Math.max(0, queuedRunCount - totalExecutedRunCount);
+  const failedRunCount = runResults.filter((result) => result.validation.status !== 'passed').length;
   const receipt = {
     schemaVersion: 'hololand.holoshell.improvement-execution.v0.1.0',
     source: 'apps/holoshell/source/holoshell-improvement-run-loop.hsplus',
@@ -1305,10 +1389,12 @@ function buildImprovementExecutionReceipt(runId, payload = {}) {
     sourceRunId: runId,
     generatedAt,
     status: executedRunCount === 0
-      ? 'no_remaining_runs'
-      : (remainingRunCount === 0 ? 'completed' : 'completed_shakedown'),
+      ? (remainingBefore === 0 ? 'no_remaining_runs' : 'awaiting_codebase_fix_evidence')
+      : (remainingRunCount === 0 ? 'completed' : 'completed_codebase_fix_shakedown'),
     objective: sourceRun.objective,
+    executionMode: 'codebase_fix_shakedown',
     requestedExecutionCount,
+    plannedFixCount,
     shakedownLimit,
     allowFullBatch,
     queuedRunCount,
@@ -1320,10 +1406,14 @@ function buildImprovementExecutionReceipt(runId, payload = {}) {
     desktopAutomationExecuted: false,
     approvalRequiredForDesktopAutomation: true,
     receiptRequired: true,
+    fixEvidenceRequired: true,
+    codebaseFixPolicy: sourceRun.codebaseFixPolicy,
+    holotuneTracePolicy: sourceRun.holotuneTracePolicy,
     sourceRun: {
       runId: sourceRun.runId,
       receiptPath: sourceRun.receiptPath,
       routingSummary: sourceRun.routingSummary,
+      holotuneTracePolicy: sourceRun.holotuneTracePolicy,
     },
     routing: sourceRun.routing,
     gpuBalancePlan,
@@ -1331,13 +1421,15 @@ function buildImprovementExecutionReceipt(runId, payload = {}) {
     runResults,
     aggregate: {
       passed: runResults.filter((result) => result.validation.status === 'passed').length,
-      failed: 0,
-      validationStatus: runResults.length ? 'passed' : 'not_applicable',
+      failed: failedRunCount,
+      validationStatus: runResults.length ? (failedRunCount ? 'failed' : 'passed') : 'awaiting_codebase_fix_evidence',
     },
     lessons: runResults.map((result) => result.lesson),
-    nextSafeStep: remainingRunCount > 0
-      ? 'Review this shakedown receipt, then execute the next capped batch or explicitly allow a larger batch.'
-      : 'All queued dry-run improvements for this receipt are measured; queue a new receipt for the next iteration.',
+    nextSafeStep: executedRunCount === 0
+      ? 'Attach actual codebase fix evidence: issue, changed files, validation command, validation result, and receipt or commit.'
+      : (remainingRunCount > 0
+          ? 'Review this codebase-fix shakedown receipt, then land the next capped fix batch.'
+          : 'All queued codebase-fix shakedown items are validated; review before enabling any tuning corpus emission.'),
   };
   const saved = writeImprovementExecutionReceipt(receipt);
   const holotuneTrace = emitImprovementHolotuneTraces(saved);
@@ -1371,7 +1463,7 @@ function buildLiveStatusSnapshot() {
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
-      holotuneTraceSource: 'scripts/trace-writer.mjs',
+      holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
     },
     avatar: {
       name: 'Brittney',
@@ -1391,7 +1483,8 @@ function buildLiveStatusSnapshot() {
       'vision_model_routing',
       'improvement_run_queue',
       'improvement_run_execution',
-      'holotune_trace_emit',
+      'codebase_fix_shakedown',
+      'holotune_trace_deferred',
       'gpu_lane_balance',
       'desktop_bridge_status',
       'desktop_bridge_browser_report',
@@ -1403,8 +1496,9 @@ function buildLiveStatusSnapshot() {
       { id: 'vision_language', model: 'qwen3-vl:4b', role: 'vision model stack for screen and image understanding' },
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
+      { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
-      { id: 'holotune_trace', model: 'HoloTune trace writer', role: 'verified improvement receipts to per-identity corpus rows' },
+      { id: 'holotune_trace', model: 'HoloTune trace writer', role: 'deferred corpus sink after real codebase fixes pass review' },
     ],
     modelLibrary,
     nativeResources,
@@ -1480,14 +1574,14 @@ function buildGroundedStatusReply(snapshot, message) {
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara stays the guarded desktop automation lane at ${snapshot.route.desktopControlEndpoint}.`,
-      `3. Queue improvement batches through ${snapshot.route.improvementRunEndpoint}, then execute capped shakedowns through ${snapshot.route.improvementRunExecuteEndpoint}.`,
+      `3. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
       `4. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
       `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
       `6. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `7. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
+      `7. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
       `8. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
-      'No cube/test object is needed here. The next move is live data -> native vision/skill/model route -> capped shakedown execution -> GPU/bridge measurement -> Fara only when desktop automation is needed -> feed the improvement back into Brittney.',
+      'No cube/test object is needed here. The next move is real repo issue -> patch -> targeted validation -> receipt/commit evidence -> GPU/bridge measurement -> feed the verified fix back into Brittney. Tuning waits.',
     ].join('\n');
   }
 
@@ -1497,7 +1591,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
-    `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, execute shakedowns through ${snapshot.route.improvementRunExecuteEndpoint}; vision understanding is separate from Fara desktop automation.`,
+    `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, count codebase-fix shakedowns through ${snapshot.route.improvementRunExecuteEndpoint} only after patch and validation evidence; HoloTune is deferred.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
     `GPU balance: ${snapshot.gpu.summary}.`,
@@ -1530,12 +1624,12 @@ function liveStatusProposals(snapshot, message) {
       receiptRequired: true,
     },
     {
-      operation: 'queue_improvement_run_batch',
+      operation: 'queue_codebase_fix_shakedown_batch',
       lane: 'improvement_run_queue',
       receiptRequired: true,
     },
     {
-      operation: 'execute_improvement_shakedown',
+      operation: 'execute_codebase_fix_shakedown',
       lane: 'improvement_run_execution',
       receiptRequired: true,
     },
@@ -1547,7 +1641,7 @@ function liveStatusProposals(snapshot, message) {
   ];
   if (looksLikeNextStepsIntent(message)) {
     proposals.push({
-      operation: 'plan_receipt_backed_improvement_batch',
+      operation: 'plan_receipt_backed_codebase_fix_batch',
       lane: 'brittney_app_route',
       receiptRequired: true,
     });
@@ -1885,7 +1979,9 @@ async function handleRequest(req, res) {
           status: receipt.status,
           executionId: receipt.executionId,
           sourceRunId: receipt.sourceRunId,
+          executionMode: receipt.executionMode,
           requestedExecutionCount: receipt.requestedExecutionCount,
+          plannedFixCount: receipt.plannedFixCount,
           executedRunCount: receipt.executedRunCount,
           totalExecutedRunCount: receipt.totalExecutedRunCount,
           remainingRunCount: receipt.remainingRunCount,
@@ -1902,13 +1998,13 @@ async function handleRequest(req, res) {
           receipt,
           proposals: [
             {
-              operation: 'review_improvement_execution_receipt',
+              operation: 'review_codebase_fix_shakedown_receipt',
               lane: 'receipt_gate',
               receiptRequired: true,
               executionId: receipt.executionId,
             },
             {
-              operation: receipt.remainingRunCount > 0 ? 'execute_next_shakedown_batch' : 'queue_next_improvement_batch',
+              operation: receipt.remainingRunCount > 0 ? 'land_next_codebase_fix_batch' : 'queue_next_codebase_fix_batch',
               lane: 'improvement_run_queue',
               receiptRequired: true,
               runId: receipt.sourceRunId,
@@ -1934,10 +2030,13 @@ async function handleRequest(req, res) {
           status: receipt.status,
           runId: receipt.runId,
           objective: receipt.objective,
+          executionMode: receipt.executionMode,
           requestedRunCount: receipt.requestedRunCount,
           queuedRunCount: receipt.queuedRunCount,
           destructiveActionsTaken: receipt.destructiveActionsTaken,
           approvalRequiredForDesktopAutomation: receipt.approvalRequiredForDesktopAutomation,
+          codebaseFixPolicy: receipt.codebaseFixPolicy,
+          holotuneTracePolicy: receipt.holotuneTracePolicy,
           routing: receipt.routing,
           routingSummary: receipt.routingSummary,
           loop: receipt.loop,
@@ -1946,13 +2045,13 @@ async function handleRequest(req, res) {
           receipt,
           proposals: [
             {
-              operation: 'review_improvement_run_receipt',
+              operation: 'review_codebase_fix_shakedown_queue_receipt',
               lane: 'receipt_gate',
               receiptRequired: true,
               runId: receipt.runId,
             },
             {
-              operation: 'execute_shakedown_batch',
+              operation: 'attach_codebase_fix_evidence',
               lane: 'improvement_run_queue',
               receiptRequired: true,
               runId: receipt.runId,

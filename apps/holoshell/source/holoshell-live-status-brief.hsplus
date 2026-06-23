@@ -96,9 +96,10 @@ composition "HoloShell Live Status Brief" {
 
   policy "NextStepsUseOperatingLanes" {
     appliesTo: ["next_steps", "improvement_batch", "desktop_app_control"]
-    requiredLanes: ["brittney_operator", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
     requirePlanBeforeExecution: true
-    improvementLoop: ["live_data", "fara_grounded_plan", "guarded_execution_receipt", "measure_run", "feed_back_to_brittney"]
+    improvementLoop: ["repo_issue", "patch", "targeted_validation", "receipt_or_commit_evidence", "feed_back_to_brittney"]
+    holotuneDeferredUntilActualFixesPass: true
     receiptRequired: true
   }
 

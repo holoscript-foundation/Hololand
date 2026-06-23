@@ -70,7 +70,12 @@ try {
   assert.equal(status.systemStatus.route.desktopBridgeReportEndpoint, 'POST /api/desktop-control/bridge/report');
   assert.ok(status.systemStatus.capabilities.includes('vision_model_routing'));
   assert.ok(status.systemStatus.capabilities.includes('improvement_run_queue'));
+  assert.ok(status.systemStatus.capabilities.includes('codebase_fix_shakedown'));
+  assert.ok(status.systemStatus.capabilities.includes('holotune_trace_deferred'));
   assert.ok(status.systemStatus.capabilities.includes('desktop_bridge_browser_report'));
+  assert.ok(status.systemStatus.lanes.some((lane) =>
+    lane.id === 'codebase_fix' && /actual patch|validation/i.test(lane.role)
+  ));
   assert.ok(status.systemStatus.lanes.some((lane) =>
     lane.id === 'vision_language' && /screen and image|vision model stack/i.test(lane.role)
   ));
@@ -84,7 +89,7 @@ try {
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_gpu_lane_balance'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_model_library'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_holoclaw_skill_shelf'));
-  assert.ok(status.proposals.some((proposal) => proposal.operation === 'queue_improvement_run_batch'));
+  assert.ok(status.proposals.some((proposal) => proposal.operation === 'queue_codebase_fix_shakedown_batch'));
 
   const next = await postChat('what are our next steps?');
   assert.match(next.reply, /Next steps, grounded in live HoloShell state/);
@@ -94,10 +99,12 @@ try {
   assert.match(next.reply, /No cube\/test object is needed/);
   assert.doesNotMatch(next.reply, /Begin with a minimal test object/i);
   assert.doesNotMatch(next.reply, /NaN/);
-  assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_receipt_backed_improvement_batch'));
+  assert.match(next.reply, /patch.*targeted validation/i);
+  assert.match(next.reply, /Tuning waits/i);
+  assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_receipt_backed_codebase_fix_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_desktop_control_with_fara'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'route_task_to_native_model_or_skill'));
-  assert.ok(next.proposals.some((proposal) => proposal.operation === 'queue_improvement_run_batch'));
+  assert.ok(next.proposals.some((proposal) => proposal.operation === 'queue_codebase_fix_shakedown_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'separate_vision_from_desktop_automation'));
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');

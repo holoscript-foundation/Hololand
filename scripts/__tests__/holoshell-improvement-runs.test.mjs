@@ -46,6 +46,21 @@ async function waitForServer() {
   throw new Error(`Timed out waiting for HoloShell server\n${stdout}\n${stderr}`);
 }
 
+function codebaseFixes(count, start = 1) {
+  return Array.from({ length: count }, (_, index) => {
+    const runNumber = start + index;
+    return {
+      fixId: `holoshell_fix_${runNumber}`,
+      issue: `HoloShell codebase fix ${runNumber}`,
+      summary: `Validated codebase fix ${runNumber}`,
+      changedFiles: ['packages/holoshell/serve.mjs', 'apps/holoshell/source/holoshell-improvement-run-loop.hsplus'],
+      validationCommands: ['pnpm run test:holoshell-improvement-runs'],
+      validationStatus: 'passed',
+      receiptPath: join(receiptsDir, `codebase-fix-${runNumber}.json`),
+    };
+  });
+}
+
 try {
   await waitForServer();
 
@@ -53,7 +68,7 @@ try {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      objective: 'Improve HoloShell screen understanding and desktop automation routing',
+      objective: 'Land codebase fixes for HoloShell screen understanding and desktop automation routing',
       runCount: 12,
     }),
     signal: AbortSignal.timeout(80_000),
@@ -62,8 +77,11 @@ try {
   assert.equal(queued.status, 200, JSON.stringify(body));
   assert.equal(body.status, 'queued');
   assert.equal(body.queuedRunCount, 12);
+  assert.equal(body.executionMode, 'codebase_fix_shakedown');
   assert.equal(body.destructiveActionsTaken, false);
   assert.equal(body.approvalRequiredForDesktopAutomation, true);
+  assert.equal(body.receipt.codebaseFixPolicy.requiredBeforeCountedExecution, true);
+  assert.equal(body.receipt.holotuneTracePolicy.mode, 'defer_until_codebase_fix_shakedown_validated');
   assert.equal(body.routing.visionUnderstanding.lane, 'vision_language');
   assert.equal(body.routing.desktopAutomation.lane, 'fara_gui_grounding');
   assert.match(body.routing.visionUnderstanding.role, /no desktop actuation/);
@@ -139,10 +157,12 @@ try {
   });
   const firstExecution = await firstExecutionResponse.json();
   assert.equal(firstExecutionResponse.status, 200, JSON.stringify(firstExecution));
-  assert.equal(firstExecution.status, 'completed_shakedown');
-  assert.equal(firstExecution.executedRunCount, 10);
-  assert.equal(firstExecution.totalExecutedRunCount, 10);
-  assert.equal(firstExecution.remainingRunCount, 2);
+  assert.equal(firstExecution.status, 'awaiting_codebase_fix_evidence');
+  assert.equal(firstExecution.executionMode, 'codebase_fix_shakedown');
+  assert.equal(firstExecution.plannedFixCount, 10);
+  assert.equal(firstExecution.executedRunCount, 0);
+  assert.equal(firstExecution.totalExecutedRunCount, 0);
+  assert.equal(firstExecution.remainingRunCount, 12);
   assert.equal(firstExecution.destructiveActionsTaken, false);
   assert.equal(firstExecution.desktopAutomationExecuted, false);
   assert.equal(firstExecution.approvalRequiredForDesktopAutomation, true);
@@ -150,62 +170,62 @@ try {
   assert.equal(firstExecution.desktopBridge.hostRole, 'laptop_desktop_bridge');
   assert.equal(firstExecution.desktopBridge.destructiveActionsTaken, false);
   assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, true);
-  assert.equal(firstExecution.holotuneTrace.status, 'emitted');
+  assert.equal(firstExecution.holotuneTrace.status, 'deferred');
+  assert.equal(firstExecution.holotuneTrace.reason, 'actual_codebase_fixes_before_tuning');
   assert.equal(firstExecution.holotuneTrace.agentId, 'agent_brittney');
-  assert.equal(firstExecution.holotuneTrace.emittedRows, 10);
+  assert.equal(firstExecution.holotuneTrace.emittedRows, 0);
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'vision_language'));
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'fara_gui_grounding' && assignment.preferredProcessor === 'laptop_desktop_bridge'));
-  assert.equal(firstExecution.runResults.length, 10);
-  assert.ok(firstExecution.runResults.every((result) => result.validation.status === 'passed'));
-  assert.ok(firstExecution.runResults.every((result) => result.destructiveActionsTaken === false));
+  assert.equal(firstExecution.runResults.length, 0);
   assert.ok(existsSync(firstExecution.receipt.receiptPath));
   const tracePath = join(traceRoot, 'traces', 'agent_brittney', 'trace.jsonl');
-  assert.ok(existsSync(tracePath));
-  const firstTraceRows = readFileSync(tracePath, 'utf8').trim().split(/\r?\n/u).map((line) => JSON.parse(line));
-  assert.equal(firstTraceRows.length, 10);
-  assert.ok(firstTraceRows.every((row) => row.source === 'holoshell-improvement-run'));
-  assert.ok(firstTraceRows.every((row) => row.grader?.kind === 'holoshell_improvement_execution'));
-  assert.ok(firstTraceRows.every((row) => row.grader?.passed === true));
+  assert.equal(existsSync(tracePath), false);
 
   const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shakedownCount: 10 }),
+    body: JSON.stringify({ shakedownCount: 10, codebaseFixes: codebaseFixes(2) }),
     signal: AbortSignal.timeout(80_000),
   });
   const secondExecution = await secondExecutionResponse.json();
   assert.equal(secondExecutionResponse.status, 200, JSON.stringify(secondExecution));
-  assert.equal(secondExecution.status, 'completed');
+  assert.equal(secondExecution.status, 'completed_codebase_fix_shakedown');
   assert.equal(secondExecution.executedRunCount, 2);
-  assert.equal(secondExecution.totalExecutedRunCount, 12);
-  assert.equal(secondExecution.remainingRunCount, 0);
-  assert.equal(secondExecution.holotuneTrace.status, 'emitted');
-  assert.equal(secondExecution.holotuneTrace.emittedRows, 2);
-  const allTraceRows = readFileSync(tracePath, 'utf8').trim().split(/\r?\n/u);
-  assert.equal(allTraceRows.length, 12);
+  assert.equal(secondExecution.totalExecutedRunCount, 2);
+  assert.equal(secondExecution.remainingRunCount, 10);
+  assert.equal(secondExecution.holotuneTrace.status, 'deferred');
+  assert.equal(secondExecution.holotuneTrace.emittedRows, 0);
+  assert.equal(existsSync(tracePath), false);
+  assert.equal(secondExecution.runResults.length, 2);
+  assert.ok(secondExecution.runResults.every((result) => result.status === 'validated_codebase_fix'));
+  assert.ok(secondExecution.runResults.every((result) => result.validation.status === 'passed'));
+  assert.ok(secondExecution.runResults.every((result) => result.codebaseFix.changedFiles.includes('packages/holoshell/serve.mjs')));
 
   const detailResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}`, {
     signal: AbortSignal.timeout(10_000),
   });
   const detail = await detailResponse.json();
   assert.equal(detailResponse.status, 200, JSON.stringify(detail));
-  assert.equal(detail.totalExecutedRunCount, 12);
-  assert.equal(detail.remainingRunCount, 0);
+  assert.equal(detail.totalExecutedRunCount, 2);
+  assert.equal(detail.remainingRunCount, 10);
   assert.equal(detail.executions.length, 2);
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
   assert.match(receiptText, /visionUnderstanding/);
   assert.match(receiptText, /desktopAutomation/);
+  assert.match(receiptText, /codebaseFixPolicy/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /holotuneTrace/);
+  assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);
   assert.match(serveSource, /buildImprovementExecutionReceipt/);
   assert.match(serveSource, /desktopBridgeStatusSnapshot/);
   assert.match(serveSource, /buildGpuBalancePlan/);
+  assert.match(serveSource, /codebaseFixEvidenceFromPayload/);
   assert.match(serveSource, /emitImprovementHolotuneTraces/);
-  assert.match(serveSource, /trace-writer\.mjs/);
+  assert.match(serveSource, /actual_codebase_fixes_before_tuning/);
   assert.match(serveSource, /desktop-bridge-report/);
   assert.match(serveSource, /approvalRequiredForDesktopAutomation/);
 
@@ -213,7 +233,8 @@ try {
   assert.match(compileSource, /improvement-run-panel/);
   assert.match(compileSource, /api\/improvement-runs/);
   assert.match(compileSource, /executeLatestImprovementRun/);
-  assert.match(compileSource, /HoloTune traces/);
+  assert.match(compileSource, /Codebase-fix shakedown/);
+  assert.match(compileSource, /HoloTune:/);
   assert.match(compileSource, /improvement-history/);
   assert.match(compileSource, /127\.0\.0\.1:8751/);
   assert.match(compileSource, /127\.0\.0\.1:8752/);

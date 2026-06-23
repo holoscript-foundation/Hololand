@@ -73,9 +73,10 @@ composition "OperateRoom" {
     // reply + any permission-enveloped action proposals come back INLINE — she
     // proposes, you read them in the conversation; there is no dashboard. The
     // Daimon's remembered context (once emerged) rides along via rehydration.
-    // Improvement batches use POST /api/improvement-runs, then capped shakedown
-    // execution through POST /api/improvement-runs/:runId/execute. Vision models
-    // read screens/images; Fara is reserved for guarded desktop automation planning.
+    // Improvement batches use POST /api/improvement-runs, then capped codebase-fix
+    // shakedowns through POST /api/improvement-runs/:runId/execute. Counted runs
+    // require patch + validation evidence; HoloTune waits until fixes pass review.
+    // Vision models read screens/images; Fara is reserved for guarded desktop automation planning.
     // The browser probes the laptop bridge at 127.0.0.1:8751, 8752, then 8753
     // when needed, and reports status back to the Jetson surface; desktop mutation
     // remains consent-token gated.
