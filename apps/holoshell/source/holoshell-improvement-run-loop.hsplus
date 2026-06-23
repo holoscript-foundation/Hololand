@@ -153,6 +153,8 @@ composition "HoloShell Improvement Run Loop" {
     requireCodebaseFixEvidenceEveryCountedRun: true
     requireHoloTuneTraceRowEveryRun: false
     holotuneTraceMode: "deferred_until_codebase_fix_review"
+    holotuneTraceClientEnableAllowed: false
+    holotuneTraceServerControlledMode: "server_controlled_after_codebase_fix_review"
     destructiveActionsTakenByQueue: false
     shakedownRunCount: 10
     requireGpuBalanceSnapshot: true

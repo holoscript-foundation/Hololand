@@ -70,6 +70,7 @@ try {
     body: JSON.stringify({
       objective: 'Land codebase fixes for HoloShell screen understanding and desktop automation routing',
       runCount: 12,
+      enableHolotuneTrace: true,
     }),
     signal: AbortSignal.timeout(80_000),
   });
@@ -82,6 +83,8 @@ try {
   assert.equal(body.approvalRequiredForDesktopAutomation, true);
   assert.equal(body.receipt.codebaseFixPolicy.requiredBeforeCountedExecution, true);
   assert.equal(body.receipt.holotuneTracePolicy.mode, 'defer_until_codebase_fix_shakedown_validated');
+  assert.equal(body.receipt.holotuneTracePolicy.serverControlledMode, 'server_controlled_after_codebase_fix_review');
+  assert.match(body.receipt.holotuneTracePolicy.reason, /client payloads cannot enable tuning/);
   assert.equal(body.routing.visionUnderstanding.lane, 'vision_language');
   assert.equal(body.routing.desktopAutomation.lane, 'fara_gui_grounding');
   assert.match(body.routing.visionUnderstanding.role, /no desktop actuation/);

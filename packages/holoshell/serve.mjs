@@ -954,7 +954,7 @@ function improvementResultTraceRow(receipt, result) {
 
 function holotuneTraceEmissionEnabled(receipt) {
   const policy = receipt.holotuneTracePolicy || receipt.sourceRun?.holotuneTracePolicy || {};
-  return process.env.HOLOTUNE_TRACE_MODE === 'emit' || policy.mode === 'emit_after_codebase_fix_validation';
+  return process.env.HOLOTUNE_TRACE_MODE === 'emit' && policy.mode === 'server_controlled_after_codebase_fix_review';
 }
 
 function buildDeferredHolotuneTraceReceipt(reason) {
@@ -1130,8 +1130,9 @@ function buildImprovementRunReceipt(payload = {}) {
       tuningIsNotTheShakedown: true,
     },
     holotuneTracePolicy: {
-      mode: payload.enableHolotuneTrace === true ? 'emit_after_codebase_fix_validation' : 'defer_until_codebase_fix_shakedown_validated',
-      reason: 'Actual codebase fixes must pass before any tuning corpus emission.',
+      mode: 'defer_until_codebase_fix_shakedown_validated',
+      reason: 'Actual codebase fixes must pass before any tuning corpus emission; client payloads cannot enable tuning.',
+      serverControlledMode: 'server_controlled_after_codebase_fix_review',
     },
     routing,
     routingSummary: [
