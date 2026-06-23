@@ -32,6 +32,7 @@
     "test:holoshell-agent-lanes": "node scripts/holoshell-agent-lanes.mjs --self-test",
     "test:holoshell-agent-dispatch": "node scripts/__tests__/holoshell-agent-dispatch.test.mjs",
     "test:holoshell-desktop-control": "node scripts/__tests__/holoshell-desktop-control-plan.test.mjs",
+    "test:holoshell-live-status": "node scripts/__tests__/holoshell-live-status.test.mjs",
     "test:holoshell-grok-build": "node scripts/holoshell-grok-build-workflow.mjs --self-test",
     "test:holoshell-grok-heartbeat": "node scripts/__tests__/holoshell-grok-heartbeat.test.mjs",
     "test:holoshell-hardware-action-boundary": "node scripts/__tests__/holoshell-hardware-action-boundary.test.mjs",

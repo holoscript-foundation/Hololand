@@ -16,6 +16,7 @@ composition "HoloShell Brittney Runtime Bridge" {
     presenceSource: "apps/holoshell/source/holoshell-brittney-presence.hsplus"
     hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
     contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
+    liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
     turnBridgeScript: "scripts/holoshell-brittney-turn.mjs"
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"

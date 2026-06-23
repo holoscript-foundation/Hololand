@@ -1,0 +1,131 @@
+// HoloShell Live Status Brief
+//
+// Source contract for grounding Brittney's "system status" and "next steps"
+// answers in the live local HoloShell server state. The runtime bridge must not
+// answer "unknown" when the server has already measured the route, lanes,
+// receipts, GPU telemetry boundary, or local guardrails.
+
+composition "HoloShell Live Status Brief" {
+  config {
+    title: "HoloShell Live Status Brief"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    serverModule: "packages/holoshell/serve.mjs"
+    chatEndpoint: "POST /api/brittney/chat"
+    statusEnvelope: "systemStatus"
+    bridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
+    primaryOperator: "brittney"
+    visualGroundingLane: "fara_gui_grounding"
+    receiptRequired: true
+  }
+
+  state {
+    systemStatus: "online"
+    avatarStatus: "online"
+    capabilityCount: 0
+    laneCount: 0
+    pendingConsentCount: 0
+    staleProcessCount: 0
+    recentExecutionCount: 0
+    gpuTelemetryStatus: "not_reported"
+    statusBriefGeneratedAt: ""
+    lastReplyMode: "live_status"
+  }
+
+  channel "holoshell:live-status:snapshot" {
+    type: "request_response"
+    priority: "critical"
+    description: "Live local HoloShell status snapshot assembled before status or next-step replies"
+  }
+
+  channel "holoshell:live-status:reply" {
+    type: "append_only"
+    priority: "critical"
+    description: "Deterministic Brittney reply derived from measured HoloShell status"
+  }
+
+  template "LiveStatusSnapshot" {
+    type: "live_status_snapshot"
+    status: "online"
+    route: {}
+    avatar: {}
+    capabilities: []
+    lanes: []
+    gpu: {}
+    substratePressure: []
+    worktreeHealth: []
+    gitStatus: []
+    pendingConsentCount: 0
+    staleProcessCount: 0
+    recentExecutionCount: 0
+    receiptsDir: ""
+    receiptRequired: true
+  }
+
+  template "GroundedStatusReply" {
+    type: "brittney_reply"
+    replyMode: "live_status"
+    forbidsUnknownWhenMeasured: true
+    includesSystemStatusEnvelope: true
+    includesCapabilityCount: true
+    includesLaneCount: true
+    includesGpuTelemetryBoundary: true
+    includesReceiptGuardrails: true
+  }
+
+  policy "StatusBeforeModelGuess" {
+    appliesTo: ["system_status", "next_steps", "gpu_balance", "capability_summary"]
+    requiredInput: "live_status_snapshot"
+    answerMayNotSayUnknownWhenMeasured: true
+    deterministicReplyAllowed: true
+    modelReplyMayBeOverridden: true
+    receiptRequired: true
+  }
+
+  policy "NextStepsUseOperatingLanes" {
+    appliesTo: ["next_steps", "improvement_batch", "desktop_app_control"]
+    requiredLanes: ["brittney_operator", "fara_gui_grounding", "receipt_gate"]
+    requirePlanBeforeExecution: true
+    improvementLoop: ["live_data", "fara_grounded_plan", "guarded_execution_receipt", "measure_run", "feed_back_to_brittney"]
+    receiptRequired: true
+  }
+
+  action assemble_live_status(snapshot) {
+    state.systemStatus = snapshot.status
+    state.avatarStatus = snapshot.avatar.status
+    state.capabilityCount = snapshot.capabilities.length
+    state.laneCount = snapshot.lanes.length
+    state.pendingConsentCount = snapshot.pendingConsentCount
+    state.staleProcessCount = snapshot.staleProcessCount
+    state.recentExecutionCount = snapshot.recentExecutionCount
+    state.gpuTelemetryStatus = snapshot.gpu.status
+    state.statusBriefGeneratedAt = snapshot.generatedAt
+    emit("holoshell:live-status:snapshot", {
+      action: "live_status_snapshot_assembled",
+      system_status: state.systemStatus,
+      avatar_status: state.avatarStatus,
+      capability_count: state.capabilityCount,
+      lane_count: state.laneCount,
+      pending_consents: state.pendingConsentCount,
+      stale_processes: state.staleProcessCount,
+      recent_executions: state.recentExecutionCount,
+      gpu_telemetry_status: state.gpuTelemetryStatus,
+      receipt_required: true
+    })
+  }
+
+  action answer_from_live_status(snapshot, intent) {
+    state.lastReplyMode = intent == "next_steps" ? "live_next_steps" : "live_status"
+    emit("holoshell:live-status:reply", {
+      action: "grounded_status_reply_created",
+      reply_mode: state.lastReplyMode,
+      system_status: snapshot.status,
+      avatar_status: snapshot.avatar.status,
+      capability_count: snapshot.capabilities.length,
+      lane_count: snapshot.lanes.length,
+      model_reply_overridden_when_needed: true,
+      receipt_required: true
+    })
+  }
+}

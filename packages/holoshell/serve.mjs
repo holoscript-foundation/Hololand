@@ -239,6 +239,280 @@ function worktreeHealth() {
   return items;
 }
 
+function looksLikeStatusIntent(message) {
+  return /\b(status|health|state|online|offline|running|system|system'?s|gpu|gpus|utilization|utilisation|lane|lanes|capabilit(?:y|ies)|receipt|receipts|avatar|daimon|brittney)\b/iu.test(String(message || ''));
+}
+
+function looksLikeNextStepsIntent(message) {
+  return /\b(next\s+steps?|what\s+(now|next)|where\s+do\s+we\s+go|what\s+should\s+we\s+do|plan|roadmap|priority|priorities|improve|improvement|marathon|100\+?|hundred)\b/iu.test(String(message || ''));
+}
+
+function gpuStatusSnapshot() {
+  try {
+    const raw = execFileSync('nvidia-smi', [
+      '--query-gpu=name,utilization.gpu,memory.used,memory.total',
+      '--format=csv,noheader,nounits',
+    ], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5_000,
+    }).trim();
+    const items = raw
+      ? raw.split(/\r?\n/)
+        .map((line) => line.split(',').map((part) => part.trim()))
+        .filter((parts) => parts.length >= 4)
+        .map(([name, utilization, memoryUsed, memoryTotal]) => ({
+          name,
+          utilizationPercent: Number.parseInt(utilization, 10),
+          memoryUsedMiB: Number.parseInt(memoryUsed, 10),
+          memoryTotalMiB: Number.parseInt(memoryTotal, 10),
+        }))
+      : [];
+    if (items.length === 0) {
+      return {
+        status: 'not_reported',
+        items: [],
+        summary: 'GPU telemetry was not reported by nvidia-smi on this host',
+      };
+    }
+    return {
+      status: 'reported',
+      items,
+      summary: items
+        .map((gpu) => `${gpu.name}: ${gpu.utilizationPercent}% GPU, ${gpu.memoryUsedMiB}/${gpu.memoryTotalMiB} MiB`)
+        .join('; '),
+    };
+  } catch {
+    return {
+      status: 'not_reported',
+      items: [],
+      summary: 'GPU telemetry was not reported by nvidia-smi on this host',
+    };
+  }
+}
+
+function gitStatusSnapshot() {
+  return SCAN_REPOS
+    .filter((repo) => existsSync(join(repo.path, '.git')))
+    .map((repo) => {
+      try {
+        const branch = execSync('git branch --show-current', {
+          cwd: repo.path,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 5_000,
+        }).trim() || 'detached';
+        const raw = execSync('git status --short --untracked-files=normal', {
+          cwd: repo.path,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 8_000,
+        }).trim();
+        const lines = raw ? raw.split(/\r?\n/).filter(Boolean) : [];
+        const untrackedCount = lines.filter((line) => line.startsWith('??')).length;
+        return {
+          label: repo.label,
+          branch,
+          status: lines.length ? 'dirty' : 'clean',
+          changedCount: lines.length,
+          untrackedCount,
+        };
+      } catch {
+        return {
+          label: repo.label,
+          branch: 'not_reported',
+          status: 'not_reported',
+          changedCount: null,
+          untrackedCount: null,
+        };
+      }
+    });
+}
+
+function publicShellUrl() {
+  return `http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}`;
+}
+
+function buildLiveStatusSnapshot() {
+  const pending = pendingConsents();
+  const executions = executionHistory();
+  const stale = staleProcesses();
+  return {
+    schemaVersion: 'hololand.holoshell.live-status.v0.1.0',
+    generatedAt: new Date().toISOString(),
+    status: 'online',
+    route: {
+      surface: 'HoloShell Operate Room',
+      url: publicShellUrl(),
+      host: HOST,
+      port: PORT,
+      chatEndpoint: 'POST /api/brittney/chat',
+      desktopControlEndpoint: 'POST /api/desktop-control/plan',
+    },
+    avatar: {
+      name: 'Brittney',
+      status: 'online',
+      runtime: '@holoscript/aibrittney',
+      daimonContext: 'attached when D.053 has emerged',
+    },
+    capabilities: [
+      'brittney_chat',
+      'receipt_backed_status',
+      'desktop_control_plan',
+      'fara_gui_grounding',
+      'daimon_rehydration',
+    ],
+    lanes: [
+      { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
+      { id: 'fara_gui_grounding', model: 'fara:7b', role: 'desktop app visual grounding' },
+      { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
+    ],
+    gpu: gpuStatusSnapshot(),
+    substratePressure: substratePressure(),
+    worktreeHealth: worktreeHealth(),
+    gitStatus: gitStatusSnapshot(),
+    pendingConsentCount: pending.length,
+    pendingConsents: pending.slice(0, 5),
+    staleProcessCount: stale.length,
+    staleProcesses: stale.slice(0, 5),
+    recentExecutionCount: executions.length,
+    recentExecutions: executions.slice(0, 5),
+    receiptsDir: RECEIPTS_DIR,
+  };
+}
+
+function metricSummary(items) {
+  return items
+    .map((item) => `${item.metric}: ${item.value}`)
+    .join('; ');
+}
+
+function gitSummary(items) {
+  if (!items.length) return 'no tracked local repos reported';
+  return items
+    .map((repo) => {
+      if (repo.status === 'not_reported') return `${repo.label}: not reported`;
+      return `${repo.label}: ${repo.status} on ${repo.branch} (${repo.changedCount} changed, ${repo.untrackedCount} untracked)`;
+    })
+    .join('; ');
+}
+
+function laneSummary(snapshot) {
+  return snapshot.lanes
+    .map((lane) => `${lane.id} -> ${lane.model}`)
+    .join('; ');
+}
+
+function formatLiveStatusBrief(snapshot) {
+  return [
+    '[Live HoloShell status context - answer from these fields; do not answer "unknown" when a field is present.]',
+    `System status: ${snapshot.status}`,
+    `HoloShell route: ${snapshot.route.url} (${snapshot.route.chatEndpoint})`,
+    `Brittney avatar: ${snapshot.avatar.status}; runtime ${snapshot.avatar.runtime}; Daimon context ${snapshot.avatar.daimonContext}`,
+    `Capabilities: ${snapshot.capabilities.join(', ')}`,
+    `Lanes: ${laneSummary(snapshot)}`,
+    `GPU telemetry: ${snapshot.gpu.summary}`,
+    `Substrate pressure: ${metricSummary(snapshot.substratePressure)}`,
+    `Worktrees: ${gitSummary(snapshot.gitStatus)}`,
+    `Pending consent receipts: ${snapshot.pendingConsentCount}`,
+    `Stale git processes: ${snapshot.staleProcessCount}`,
+    `Recent executions visible: ${snapshot.recentExecutionCount}`,
+    `Receipts directory: ${snapshot.receiptsDir}`,
+  ].join('\n');
+}
+
+function buildGroundedStatusReply(snapshot, message) {
+  const wantsNextSteps = looksLikeNextStepsIntent(message);
+  const baseGuardrails = `${snapshot.pendingConsentCount} pending consent(s), ${snapshot.staleProcessCount} stale git process(es), ${snapshot.recentExecutionCount} recent execution receipt(s) visible`;
+  if (wantsNextSteps) {
+    return [
+      'Next steps, grounded in live HoloShell state:',
+      `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
+      `2. Route desktop app work through Fara: ${snapshot.route.desktopControlEndpoint} uses the fara_gui_grounding lane and stays plan-only until guarded approval.`,
+      `3. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
+      `4. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
+      `5. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      '',
+      'No cube/test object is needed here. The next move is live data -> Fara-grounded desktop plan -> guarded execution receipt -> measure the run -> feed the improvement back into Brittney.',
+    ].join('\n');
+  }
+
+  return [
+    'System status: online.',
+    `Brittney chat is live at ${snapshot.route.url} through ${snapshot.route.chatEndpoint}; receipts are enabled.`,
+    `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
+    `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
+    `Active lanes: ${laneSummary(snapshot)}.`,
+    `GPU balance: ${snapshot.gpu.summary}.`,
+    `Local guardrails: ${baseGuardrails}.`,
+    `Worktrees: ${gitSummary(snapshot.gitStatus)}.`,
+    `Substrate pressure: ${metricSummary(snapshot.substratePressure)}.`,
+  ].join('\n');
+}
+
+function liveStatusProposals(snapshot, message) {
+  const proposals = [
+    {
+      operation: 'summarize_live_system_status',
+      lane: 'brittney_operator',
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_gpu_lane_balance',
+      lane: 'owned_gpu_fleet',
+      receiptRequired: true,
+    },
+  ];
+  if (looksLikeNextStepsIntent(message)) {
+    proposals.push({
+      operation: 'plan_receipt_backed_improvement_batch',
+      lane: 'brittney_app_route',
+      receiptRequired: true,
+    });
+    proposals.push({
+      operation: 'plan_desktop_control_with_fara',
+      lane: 'fara_gui_grounding',
+      receiptRequired: true,
+      approvalRequired: true,
+    });
+  }
+  if (snapshot.pendingConsentCount > 0) {
+    proposals.push({
+      operation: 'review_pending_consent_receipts',
+      lane: 'receipt_gate',
+      receiptRequired: true,
+    });
+  }
+  return proposals;
+}
+
+function mergeProposals(primary, secondary) {
+  const seen = new Set();
+  return [...primary, ...secondary].filter((proposal) => {
+    const key = `${proposal.operation || 'action'}:${proposal.lane || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function liveStatusResponseEnvelope(snapshot) {
+  return {
+    schemaVersion: snapshot.schemaVersion,
+    status: snapshot.status,
+    generatedAt: snapshot.generatedAt,
+    route: snapshot.route,
+    avatar: snapshot.avatar,
+    capabilityCount: snapshot.capabilities.length,
+    laneCount: snapshot.lanes.length,
+    gpu: snapshot.gpu,
+    pendingConsentCount: snapshot.pendingConsentCount,
+    staleProcessCount: snapshot.staleProcessCount,
+    recentExecutionCount: snapshot.recentExecutionCount,
+    gitStatus: snapshot.gitStatus,
+  };
+}
+
 // Shared ConversationDaemon (D.053) substrate access (mcp.holoscript.net). Returns the
 // PARSED tool result (e.g. {daemons:[...]} / a turn object), or null on any failure.
 const DAIMON_OWNER = () => process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
@@ -379,9 +653,14 @@ async function handleRequest(req, res) {
         }
         const repoRoot = join(__dirname, '..', '..');
         const turnScript = join(repoRoot, 'scripts', 'holoshell-brittney-turn.mjs');
+        const liveStatus = looksLikeStatusIntent(message) || looksLikeNextStepsIntent(message)
+          ? buildLiveStatusSnapshot()
+          : null;
         // If the daimon has emerged, prime Brittney with its remembered context (rehydration).
         const preamble = await daimonRehydration();
-        const prompt = preamble ? preamble + '\n\n' + message : message;
+        const prompt = [preamble, liveStatus ? formatLiveStatusBrief(liveStatus) : '', message]
+          .filter(Boolean)
+          .join('\n\n');
         const args = [turnScript, '--prompt', prompt, '--json'];
         if (selfTest) args.push('--self-test');
         const out = execFileSync('node', args, {
@@ -389,19 +668,26 @@ async function handleRequest(req, res) {
         });
         const receipt = JSON.parse(out.slice(out.indexOf('{')));
         const r = receipt.result || {};
+        const modelReply = r.finalText || r.summary || r.text || '(no reply)';
+        const reply = liveStatus
+          ? buildGroundedStatusReply(liveStatus, message)
+          : modelReply;
         const desktopControl = looksLikeDesktopControlIntent(message)
           ? desktopControlPlanFor(message, { actor: 'brittney' })
           : null;
         const controlProposal = desktopControlProposal(desktopControl);
-        const proposals = (receipt.proposals || []).map((p) => ({
+        const receiptProposals = (receipt.proposals || []).map((p) => ({
           operation: p.operation || p.kind || p.title || 'action',
           lane: p.lane || p.consentLane || null,
           receiptRequired: p.receiptRequired ?? null,
         }));
-        if (controlProposal) proposals.push(controlProposal);
+        if (controlProposal) receiptProposals.push(controlProposal);
+        const proposals = liveStatus
+          ? mergeProposals(liveStatusProposals(liveStatus, message), receiptProposals)
+          : receiptProposals;
         respond(res, {
           turnId: receipt.turnId,
-          reply: r.finalText || r.summary || r.text || '(no reply)',
+          reply,
           proposals,
           desktopControl: desktopControl ? {
             planId: desktopControl.planId,
@@ -412,6 +698,7 @@ async function handleRequest(req, res) {
             approvalRequired: desktopControl.summary?.approvalRequired,
             nextSafeStep: desktopControl.summary?.nextSafeStep,
           } : null,
+          systemStatus: liveStatus ? liveStatusResponseEnvelope(liveStatus) : null,
           receiptType: receipt.receipt?.receiptType || null,
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
