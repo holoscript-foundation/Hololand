@@ -265,7 +265,8 @@ const runtimeScript = `  <script>
     function probeLaptopDesktopBridge() {
       _probeLaptopDesktopBridgeAt([
         'http://127.0.0.1:8751/api/desktop-control/bridge',
-        'http://127.0.0.1:8752/api/desktop-control/bridge'
+        'http://127.0.0.1:8752/api/desktop-control/bridge',
+        'http://127.0.0.1:8753/api/desktop-control/bridge'
       ], 0);
     }
     function loadImprovementRuns() {

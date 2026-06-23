@@ -196,6 +196,7 @@ try {
   assert.match(compileSource, /improvement-history/);
   assert.match(compileSource, /127\.0\.0\.1:8751/);
   assert.match(compileSource, /127\.0\.0\.1:8752/);
+  assert.match(compileSource, /127\.0\.0\.1:8753/);
   assert.match(compileSource, /desktop-control\/bridge\/report/);
 } finally {
   if (server.exitCode === null) server.kill();
