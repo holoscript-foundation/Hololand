@@ -78,7 +78,64 @@ try {
   const history = await historyResponse.json();
   assert.equal(historyResponse.status, 200, JSON.stringify(history));
   assert.equal(history.items[0].runId, body.runId);
+  assert.equal(history.items[0].totalExecutedRunCount, 0);
+  assert.equal(history.items[0].remainingRunCount, 12);
   assert.ok(history.items.some((item) => item.runId === body.runId));
+
+  const bridgeResponse = await fetch(`${baseUrl}/api/desktop-control/bridge`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const bridge = await bridgeResponse.json();
+  assert.equal(bridgeResponse.status, 200, JSON.stringify(bridge));
+  assert.equal(bridge.destructiveActionsTaken, false);
+  assert.equal(bridge.approvalRequiredForDesktopAutomation, true);
+  assert.ok(bridge.capabilities.includes('gpu_telemetry_report'));
+
+  const firstExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shakedownCount: 10 }),
+    signal: AbortSignal.timeout(80_000),
+  });
+  const firstExecution = await firstExecutionResponse.json();
+  assert.equal(firstExecutionResponse.status, 200, JSON.stringify(firstExecution));
+  assert.equal(firstExecution.status, 'completed_shakedown');
+  assert.equal(firstExecution.executedRunCount, 10);
+  assert.equal(firstExecution.totalExecutedRunCount, 10);
+  assert.equal(firstExecution.remainingRunCount, 2);
+  assert.equal(firstExecution.destructiveActionsTaken, false);
+  assert.equal(firstExecution.desktopAutomationExecuted, false);
+  assert.equal(firstExecution.approvalRequiredForDesktopAutomation, true);
+  assert.equal(firstExecution.desktopBridge.destructiveActionsTaken, false);
+  assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, true);
+  assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'vision_language'));
+  assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'fara_gui_grounding' && assignment.preferredProcessor === 'laptop_desktop_bridge'));
+  assert.equal(firstExecution.runResults.length, 10);
+  assert.ok(firstExecution.runResults.every((result) => result.validation.status === 'passed'));
+  assert.ok(firstExecution.runResults.every((result) => result.destructiveActionsTaken === false));
+  assert.ok(existsSync(firstExecution.receipt.receiptPath));
+
+  const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shakedownCount: 10 }),
+    signal: AbortSignal.timeout(80_000),
+  });
+  const secondExecution = await secondExecutionResponse.json();
+  assert.equal(secondExecutionResponse.status, 200, JSON.stringify(secondExecution));
+  assert.equal(secondExecution.status, 'completed');
+  assert.equal(secondExecution.executedRunCount, 2);
+  assert.equal(secondExecution.totalExecutedRunCount, 12);
+  assert.equal(secondExecution.remainingRunCount, 0);
+
+  const detailResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const detail = await detailResponse.json();
+  assert.equal(detailResponse.status, 200, JSON.stringify(detail));
+  assert.equal(detail.totalExecutedRunCount, 12);
+  assert.equal(detail.remainingRunCount, 0);
+  assert.equal(detail.executions.length, 2);
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
@@ -87,11 +144,16 @@ try {
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);
+  assert.match(serveSource, /buildImprovementExecutionReceipt/);
+  assert.match(serveSource, /desktopBridgeStatusSnapshot/);
+  assert.match(serveSource, /buildGpuBalancePlan/);
   assert.match(serveSource, /approvalRequiredForDesktopAutomation/);
 
   const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
   assert.match(compileSource, /improvement-run-panel/);
   assert.match(compileSource, /api\/improvement-runs/);
+  assert.match(compileSource, /executeLatestImprovementRun/);
+  assert.match(compileSource, /improvement-history/);
 } finally {
   if (server.exitCode === null) server.kill();
   rmSync(receiptsDir, { recursive: true, force: true });

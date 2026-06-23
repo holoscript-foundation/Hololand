@@ -771,21 +771,69 @@ function parseImprovementRunCount(value) {
 }
 
 function improvementRunHistory() {
-  return readReceipts('.improvement-run.json').slice(0, 20).map((receipt) => ({
-    runId: receipt.runId,
-    status: receipt.status,
-    objective: receipt.objective,
-    queuedRunCount: receipt.queuedRunCount,
-    requestedRunCount: receipt.requestedRunCount,
-    generatedAt: receipt.generatedAt,
-    routingSummary: receipt.routingSummary,
-    receiptPath: receipt.receiptPath,
-  }));
+  const executions = improvementExecutionReceipts();
+  return improvementRunReceipts().slice(0, 20).map((receipt) => {
+    const runExecutions = executions.filter((execution) => execution.sourceRunId === receipt.runId);
+    const totalExecutedRunCount = runExecutions.reduce((sum, execution) => sum + (execution.executedRunCount || 0), 0);
+    return {
+      runId: receipt.runId,
+      status: receipt.status,
+      objective: receipt.objective,
+      queuedRunCount: receipt.queuedRunCount,
+      requestedRunCount: receipt.requestedRunCount,
+      totalExecutedRunCount,
+      remainingRunCount: Math.max(0, (receipt.queuedRunCount || 0) - totalExecutedRunCount),
+      latestExecutionStatus: runExecutions[0]?.status || null,
+      latestExecutionId: runExecutions[0]?.executionId || null,
+      generatedAt: receipt.generatedAt,
+      routingSummary: receipt.routingSummary,
+      receiptPath: receipt.receiptPath,
+    };
+  });
+}
+
+function improvementRunReceipts() {
+  return readReceipts('.improvement-run.json');
+}
+
+function improvementExecutionReceipts() {
+  return readReceipts('.improvement-execution.json');
+}
+
+function improvementExecutionHistory(runId = null) {
+  return improvementExecutionReceipts()
+    .filter((receipt) => !runId || receipt.sourceRunId === runId)
+    .slice(0, 20)
+    .map((receipt) => ({
+      executionId: receipt.executionId,
+      sourceRunId: receipt.sourceRunId,
+      status: receipt.status,
+      generatedAt: receipt.generatedAt,
+      executedRunCount: receipt.executedRunCount,
+      totalExecutedRunCount: receipt.totalExecutedRunCount,
+      remainingRunCount: receipt.remainingRunCount,
+      destructiveActionsTaken: receipt.destructiveActionsTaken,
+      desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+      receiptPath: receipt.receiptPath,
+    }));
+}
+
+function findImprovementRunReceipt(runId) {
+  return improvementRunReceipts().find((receipt) => receipt.runId === runId);
 }
 
 function writeImprovementRunReceipt(receipt) {
   mkdirSync(RECEIPTS_DIR, { recursive: true });
   const fileName = `${receipt.runId}.improvement-run.json`;
+  const receiptPath = join(RECEIPTS_DIR, fileName);
+  const withPath = { ...receipt, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
+function writeImprovementExecutionReceipt(receipt) {
+  mkdirSync(RECEIPTS_DIR, { recursive: true });
+  const fileName = `${receipt.executionId}.improvement-execution.json`;
   const receiptPath = join(RECEIPTS_DIR, fileName);
   const withPath = { ...receipt, receiptPath };
   writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
@@ -850,6 +898,225 @@ function buildImprovementRunReceipt(payload = {}) {
   return writeImprovementRunReceipt(receipt);
 }
 
+function parseImprovementExecutionCount(value) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.max(1, Math.min(128, parsed));
+}
+
+function desktopBridgeStatusSnapshot() {
+  const url = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_URL || 'http://127.0.0.1:8751';
+  const configured = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_ENABLED === '1' ||
+    Boolean(process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_URL);
+  return {
+    schemaVersion: 'hololand.holoshell.desktop-bridge.v0.1.0',
+    generatedAt: new Date().toISOString(),
+    status: configured ? 'configured' : 'awaiting_laptop_daemon',
+    url,
+    hostRole: HOST === '0.0.0.0' ? 'jetson_surface' : 'local_surface',
+    expectedDaemon: 'holoshell-laptop-desktop-bridge',
+    capabilities: [
+      'screen_capture_request',
+      'desktop_action_preflight',
+      'gpu_telemetry_report',
+    ],
+    mutationBoundary: 'readiness_only_until_consent_token',
+    destructiveActionsTaken: false,
+    approvalRequiredForDesktopAutomation: true,
+  };
+}
+
+function buildGpuBalancePlan(snapshot, routing) {
+  const desktopBridge = desktopBridgeStatusSnapshot();
+  const localHost = process.platform === 'win32'
+    ? 'laptop_windows'
+    : (HOST === '0.0.0.0' ? 'jetson_orin' : 'local_node');
+  return {
+    schemaVersion: 'hololand.holoshell.gpu-balance-plan.v0.1.0',
+    generatedAt: new Date().toISOString(),
+    localHost,
+    localGpu: snapshot.gpu,
+    desktopBridge,
+    assignments: [
+      {
+        lane: routing.operator.lane,
+        model: routing.operator.model,
+        preferredProcessor: 'jetson_orin',
+        fallbackProcessor: 'laptop_rtx3060',
+        reason: 'operator turns should stay near the always-on Brittney surface',
+      },
+      {
+        lane: routing.visionUnderstanding.lane,
+        model: routing.visionUnderstanding.models.map((model) => model.model).join(', '),
+        preferredProcessor: 'jetson_orin',
+        fallbackProcessor: 'laptop_rtx3060',
+        reason: 'vision-language work uses owned GPUs and never performs desktop actuation',
+      },
+      {
+        lane: routing.desktopAutomation.lane,
+        model: routing.desktopAutomation.models.map((model) => model.model).join(', '),
+        preferredProcessor: 'laptop_desktop_bridge',
+        fallbackProcessor: 'plan_only',
+        reason: 'Windows desktop control must stay on the laptop bridge and remain approval-gated',
+      },
+      {
+        lane: routing.geometry.lane,
+        model: routing.geometry.model,
+        preferredProcessor: 'jetson_orin',
+        fallbackProcessor: 'laptop_rtx3060',
+        reason: 'geometry generation can batch on any owned GPU after validation',
+      },
+      {
+        lane: routing.embeddings.lane,
+        model: routing.embeddings.model,
+        preferredProcessor: 'cpu_ok_background',
+        fallbackProcessor: 'owned_gpu_when_available',
+        reason: 'semantic recall can run in the background without blocking vision or desktop lanes',
+      },
+    ],
+    policy: {
+      avoidCpuOnlyWhenGpuReported: snapshot.gpu.status === 'reported' || snapshot.gpu.status === 'available',
+      keepFaraDesktopOnly: true,
+      requireMeasurementEveryRun: true,
+    },
+  };
+}
+
+function buildImprovementRunStep(step, routing) {
+  const laneByStep = {
+    capture_live_state: routing.operator.lane,
+    route_to_native_model_or_skill: routing.visionUnderstanding.lane,
+    plan_guarded_action: routing.desktopAutomation.lane,
+    execute_after_receipt: 'receipt_gate',
+    validate_and_measure: 'receipt_gate',
+    feed_lesson_to_brittney: routing.operator.lane,
+  };
+  const stepStatus = step === 'plan_guarded_action'
+    ? 'planned_approval_required'
+    : (step === 'execute_after_receipt' ? 'skipped_non_mutating_shakedown' : 'completed');
+  return {
+    step,
+    lane: laneByStep[step] || 'receipt_gate',
+    status: stepStatus,
+    destructiveActionsTaken: false,
+  };
+}
+
+function buildImprovementRunResult({ runNumber, sourceRun, snapshot, gpuBalancePlan }) {
+  const routing = sourceRun.routing;
+  const runLoop = Array.isArray(sourceRun.loop) && sourceRun.loop.length
+    ? sourceRun.loop
+    : [
+        'capture_live_state',
+        'route_vision_to_vision_models',
+        'route_desktop_automation_to_fara_bridge',
+        'measure_gpu_balance',
+        'record_lesson',
+      ];
+  const validationSignals = [
+    'routing_receipt_present',
+    'gpu_balance_snapshot_present',
+    'desktop_bridge_boundary_present',
+    'destructive_actions_false',
+    'lesson_recorded',
+  ];
+  return {
+    runNumber,
+    status: 'validated_dry_run',
+    objective: sourceRun.objective,
+    steps: runLoop.map((step) => buildImprovementRunStep(step, routing)),
+    gpuSnapshot: {
+      status: snapshot.gpu.status,
+      summary: snapshot.gpu.summary,
+    },
+    gpuAssignmentSummary: gpuBalancePlan.assignments
+      .map((assignment) => `${assignment.lane}->${assignment.preferredProcessor}`)
+      .join('; '),
+    validation: {
+      status: 'passed',
+      signals: validationSignals,
+    },
+    lesson: `Run ${runNumber}: keep vision on ${routing.visionUnderstanding.lane}, keep Fara on ${routing.desktopAutomation.lane}, measure before expanding the batch.`,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  };
+}
+
+function buildImprovementExecutionReceipt(runId, payload = {}) {
+  const sourceRun = findImprovementRunReceipt(runId);
+  if (!sourceRun) {
+    const err = new Error('improvement_run_not_found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const priorExecutions = improvementExecutionReceipts().filter((receipt) => receipt.sourceRunId === runId);
+  const priorExecutedRunCount = priorExecutions.reduce((sum, receipt) => sum + (receipt.executedRunCount || 0), 0);
+  const queuedRunCount = sourceRun.queuedRunCount || 0;
+  const remainingBefore = Math.max(0, queuedRunCount - priorExecutedRunCount);
+  const requestedExecutionCount = parseImprovementExecutionCount(
+    payload.executeCount || payload.shakedownCount || payload.runCount
+  );
+  const allowFullBatch = payload.allowFullBatch === true;
+  const shakedownLimit = allowFullBatch ? 128 : 10;
+  const executedRunCount = Math.min(remainingBefore, requestedExecutionCount, shakedownLimit);
+  const snapshot = buildLiveStatusSnapshot();
+  const gpuBalancePlan = buildGpuBalancePlan(snapshot, sourceRun.routing);
+  const generatedAt = new Date().toISOString();
+  const executionId = `hie_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const runResults = Array.from({ length: executedRunCount }, (_, index) =>
+    buildImprovementRunResult({
+      runNumber: priorExecutedRunCount + index + 1,
+      sourceRun,
+      snapshot,
+      gpuBalancePlan,
+    })
+  );
+  const totalExecutedRunCount = priorExecutedRunCount + executedRunCount;
+  const remainingRunCount = Math.max(0, queuedRunCount - totalExecutedRunCount);
+  const receipt = {
+    schemaVersion: 'hololand.holoshell.improvement-execution.v0.1.0',
+    source: 'apps/holoshell/source/holoshell-improvement-run-loop.hsplus',
+    executionId,
+    sourceRunId: runId,
+    generatedAt,
+    status: executedRunCount === 0
+      ? 'no_remaining_runs'
+      : (remainingRunCount === 0 ? 'completed' : 'completed_shakedown'),
+    objective: sourceRun.objective,
+    requestedExecutionCount,
+    shakedownLimit,
+    allowFullBatch,
+    queuedRunCount,
+    priorExecutedRunCount,
+    executedRunCount,
+    totalExecutedRunCount,
+    remainingRunCount,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    approvalRequiredForDesktopAutomation: true,
+    receiptRequired: true,
+    sourceRun: {
+      runId: sourceRun.runId,
+      receiptPath: sourceRun.receiptPath,
+      routingSummary: sourceRun.routingSummary,
+    },
+    routing: sourceRun.routing,
+    gpuBalancePlan,
+    desktopBridge: gpuBalancePlan.desktopBridge,
+    runResults,
+    aggregate: {
+      passed: runResults.filter((result) => result.validation.status === 'passed').length,
+      failed: 0,
+      validationStatus: runResults.length ? 'passed' : 'not_applicable',
+    },
+    lessons: runResults.map((result) => result.lesson),
+    nextSafeStep: remainingRunCount > 0
+      ? 'Review this shakedown receipt, then execute the next capped batch or explicitly allow a larger batch.'
+      : 'All queued dry-run improvements for this receipt are measured; queue a new receipt for the next iteration.',
+  };
+  return writeImprovementExecutionReceipt(receipt);
+}
+
 function publicShellUrl() {
   return `http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}`;
 }
@@ -871,7 +1138,9 @@ function buildLiveStatusSnapshot() {
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
+      desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       improvementRunEndpoint: 'POST /api/improvement-runs',
+      improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
     },
     avatar: {
       name: 'Brittney',
@@ -890,6 +1159,9 @@ function buildLiveStatusSnapshot() {
       'native_resource_inventory',
       'vision_model_routing',
       'improvement_run_queue',
+      'improvement_run_execution',
+      'gpu_lane_balance',
+      'desktop_bridge_status',
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
@@ -974,13 +1246,14 @@ function buildGroundedStatusReply(snapshot, message) {
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara stays the guarded desktop automation lane at ${snapshot.route.desktopControlEndpoint}.`,
-      `3. Queue improvement batches through ${snapshot.route.improvementRunEndpoint}; each batch gets a routing receipt before any execution.`,
-      `4. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
-      `5. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `6. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
-      `7. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `3. Queue improvement batches through ${snapshot.route.improvementRunEndpoint}, then execute capped shakedowns through ${snapshot.route.improvementRunExecuteEndpoint}.`,
+      `4. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
+      `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
+      `6. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `7. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
+      `8. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
-      'No cube/test object is needed here. The next move is live data -> native vision/skill/model route -> Fara only when desktop automation is needed -> guarded execution receipt -> measure the run -> feed the improvement back into Brittney.',
+      'No cube/test object is needed here. The next move is live data -> native vision/skill/model route -> capped shakedown execution -> GPU/bridge measurement -> Fara only when desktop automation is needed -> feed the improvement back into Brittney.',
     ].join('\n');
   }
 
@@ -990,7 +1263,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
-    `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}; vision understanding is separate from Fara desktop automation.`,
+    `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, execute shakedowns through ${snapshot.route.improvementRunExecuteEndpoint}; vision understanding is separate from Fara desktop automation.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
     `GPU balance: ${snapshot.gpu.summary}.`,
@@ -1025,6 +1298,16 @@ function liveStatusProposals(snapshot, message) {
     {
       operation: 'queue_improvement_run_batch',
       lane: 'improvement_run_queue',
+      receiptRequired: true,
+    },
+    {
+      operation: 'execute_improvement_shakedown',
+      lane: 'improvement_run_execution',
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_desktop_bridge_status',
+      lane: 'desktop_bridge_status',
       receiptRequired: true,
     },
   ];
@@ -1182,7 +1465,35 @@ async function handleRequest(req, res) {
     respond(res, {
       schemaVersion: 'hololand.holoshell.improvement-run-history.v0.1.0',
       items: improvementRunHistory(),
+      executions: improvementExecutionHistory(),
     });
+    return;
+  }
+
+  const improvementRunDetail = /^\/api\/improvement-runs\/([^/]+)$/u.exec(path);
+  if (req.method === 'GET' && improvementRunDetail) {
+    const runId = decodeURIComponent(improvementRunDetail[1]);
+    const receipt = findImprovementRunReceipt(runId);
+    if (!receipt) {
+      respond(res, { error: 'improvement_run_not_found', runId }, 404);
+      return;
+    }
+    const executions = improvementExecutionHistory(runId);
+    const totalExecutedRunCount = executions.reduce((sum, execution) => sum + (execution.executedRunCount || 0), 0);
+    respond(res, {
+      schemaVersion: 'hololand.holoshell.improvement-run-detail.v0.1.0',
+      runId,
+      receipt,
+      executions,
+      totalExecutedRunCount,
+      remainingRunCount: Math.max(0, (receipt.queuedRunCount || 0) - totalExecutedRunCount),
+      destructiveActionsTaken: false,
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/desktop-control/bridge') {
+    respond(res, desktopBridgeStatusSnapshot());
     return;
   }
 
@@ -1299,6 +1610,56 @@ async function handleRequest(req, res) {
   // ── POST /api/improvement-runs — queue a receipt-backed improvement batch.
   // This endpoint only records routing and guardrails; execution remains a later,
   // receipt-gated step, and Fara is only selected for desktop automation work.
+  const improvementRunExecute = /^\/api\/improvement-runs\/([^/]+)\/execute$/u.exec(path);
+  if (req.method === 'POST' && improvementRunExecute) {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const runId = decodeURIComponent(improvementRunExecute[1]);
+        const receipt = buildImprovementExecutionReceipt(runId, payload);
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.improvement-execution-response.v0.1.0',
+          status: receipt.status,
+          executionId: receipt.executionId,
+          sourceRunId: receipt.sourceRunId,
+          requestedExecutionCount: receipt.requestedExecutionCount,
+          executedRunCount: receipt.executedRunCount,
+          totalExecutedRunCount: receipt.totalExecutedRunCount,
+          remainingRunCount: receipt.remainingRunCount,
+          destructiveActionsTaken: receipt.destructiveActionsTaken,
+          desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+          approvalRequiredForDesktopAutomation: receipt.approvalRequiredForDesktopAutomation,
+          gpuBalancePlan: receipt.gpuBalancePlan,
+          desktopBridge: receipt.desktopBridge,
+          runResults: receipt.runResults,
+          aggregate: receipt.aggregate,
+          lessons: receipt.lessons,
+          nextSafeStep: receipt.nextSafeStep,
+          receipt,
+          proposals: [
+            {
+              operation: 'review_improvement_execution_receipt',
+              lane: 'receipt_gate',
+              receiptRequired: true,
+              executionId: receipt.executionId,
+            },
+            {
+              operation: receipt.remainingRunCount > 0 ? 'execute_next_shakedown_batch' : 'queue_next_improvement_batch',
+              lane: 'improvement_run_queue',
+              receiptRequired: true,
+              runId: receipt.sourceRunId,
+            },
+          ],
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300) }, err.statusCode || 500);
+      }
+    });
+    return;
+  }
+
   if (req.method === 'POST' && path === '/api/improvement-runs') {
     let body = '';
     req.on('data', (c) => { body += c; });

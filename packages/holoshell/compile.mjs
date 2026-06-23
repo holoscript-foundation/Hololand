@@ -181,6 +181,7 @@ let html = compileOperateRoomShell(composition);
 // you read them in the conversation; no dashboard.
 const runtimeScript = `  <script>
     /* HoloShell — Brittney chat (the whole surface) */
+    var _lastImprovementRunId = null;
     function _bMsg(who, text, color) {
       var box = document.getElementById('brittney-messages'); if (!box) return null;
       var row = document.createElement('div');
@@ -217,6 +218,50 @@ const runtimeScript = `  <script>
       var el = document.getElementById('improvement-status'); if (!el) return;
       el.textContent = text; el.style.color = color || '#8b949e';
     }
+    function _renderImprovementHistory(items) {
+      var box = document.getElementById('improvement-history'); if (!box) return;
+      if (!items || !items.length) { box.textContent = 'No runs yet'; return; }
+      box.textContent = items.slice(0, 3).map(function(item) {
+        return item.runId + ' - ' + item.totalExecutedRunCount + '/' + item.queuedRunCount + ' measured' + (item.remainingRunCount ? ' (' + item.remainingRunCount + ' left)' : '');
+      }).join('\\n');
+    }
+    function loadImprovementRuns() {
+      fetch('/api/improvement-runs')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.error) { _setImprovementStatus('History error: ' + d.error, '#f85149'); return; }
+          if (d.items && d.items.length) _lastImprovementRunId = d.items[0].runId;
+          _renderImprovementHistory(d.items || []);
+        })
+        .catch(function(e) { _setImprovementStatus('History network error: ' + e.message, '#f85149'); });
+      fetch('/api/desktop-control/bridge')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var el = document.getElementById('desktop-bridge-status'); if (!el) return;
+          el.textContent = 'Bridge: ' + d.status;
+        })
+        .catch(function() {
+          var el = document.getElementById('desktop-bridge-status'); if (el) el.textContent = 'Bridge: not reported';
+        });
+    }
+    function executeLatestImprovementRun() {
+      if (!_lastImprovementRunId) { _setImprovementStatus('Queue or refresh a run first', '#d29922'); return; }
+      _setImprovementStatus('Executing shakedown...', '#d29922');
+      fetch('/api/improvement-runs/' + encodeURIComponent(_lastImprovementRunId) + '/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shakedownCount: 10 })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.error) { _setImprovementStatus('Execute error: ' + d.error, '#f85149'); return; }
+          _setImprovementStatus('Measured ' + d.totalExecutedRunCount + ' run(s); ' + d.remainingRunCount + ' left', '#3fb950');
+          _bMsg('Improvement execution', d.status + ' - ' + d.executedRunCount + ' measured in this batch; ' + d.remainingRunCount + ' left\\nVision/GPU: ' + d.gpuBalancePlan.localGpu.summary + '\\nDesktop bridge: ' + d.desktopBridge.status + '\\nNext: ' + d.nextSafeStep, '#3fb950');
+          if (d.lessons && d.lessons.length) _bMsg('Lessons', d.lessons.slice(0, 4).join('\\n'), '#3fb950');
+          loadImprovementRuns();
+        })
+        .catch(function(e) { _setImprovementStatus('Execute network error: ' + e.message, '#f85149'); });
+    }
     function queueImprovementRun() {
       var objectiveInput = document.getElementById('improvement-objective');
       var countInput = document.getElementById('improvement-count');
@@ -234,12 +279,14 @@ const runtimeScript = `  <script>
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (d.error) { _setImprovementStatus('Error: ' + d.error, '#f85149'); return; }
+          _lastImprovementRunId = d.runId;
           _setImprovementStatus('Queued ' + d.queuedRunCount + ' run(s): ' + d.runId, '#3fb950');
           _bMsg('Improvement run', 'Queued ' + d.queuedRunCount + ' run(s) for: ' + d.objective + '\\n' + d.routingSummary + '\\nNext: ' + d.nextSafeStep, '#3fb950');
           if (d.proposals && d.proposals.length) {
             var lines = d.proposals.map(function(x) { return '- ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
             _bMsg('Run proposals', lines, '#3fb950');
           }
+          loadImprovementRuns();
         })
         .catch(function(e) { _setImprovementStatus('Network error: ' + e.message, '#f85149'); });
     }
@@ -251,11 +298,15 @@ const runtimeScript = `  <script>
         '<strong style="font-size:13px;color:#c9d1d9;font-weight:650">Improvement Runs</strong>' +
         '<span id="improvement-status" style="font-size:12px;color:#8b949e;text-align:right">Idle</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:minmax(0,1fr) 78px 86px;gap:8px">' +
+        '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 78px 86px 86px 78px;gap:8px">' +
         '<input id="improvement-objective" placeholder="Objective" style="min-width:0;padding:10px 11px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
         '<input id="improvement-count" type="number" min="1" max="128" value="10" aria-label="Run count" style="width:78px;padding:10px 9px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
         '<button id="improvement-queue" style="min-width:86px;padding:10px 12px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-weight:650;cursor:pointer">Queue</button>' +
+        '<button id="improvement-execute" style="min-width:86px;padding:10px 12px;border-radius:8px;border:none;background:#238636;color:#fff;font-weight:650;cursor:pointer">Run 10</button>' +
+        '<button id="improvement-refresh" style="min-width:78px;padding:10px 10px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-weight:650;cursor:pointer">Refresh</button>' +
         '</div>' +
+        '<div id="desktop-bridge-status" style="margin-top:8px;font-size:12px;color:#8b949e">Bridge: checking...</div>' +
+        '<pre id="improvement-history" style="margin:8px 0 0 0;min-height:36px;white-space:pre-wrap;color:#8b949e;font-size:12px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace">No runs yet</pre>' +
         '</div>' +
         '<div id="brittney-messages" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:12px;margin:14px 0"></div>' +
         '<div style="display:flex;gap:8px;flex:0 0 auto">' +
@@ -264,10 +315,13 @@ const runtimeScript = `  <script>
         '</div>';
       document.getElementById('brittney-send').addEventListener('click', sendBrittneyChat);
       document.getElementById('improvement-queue').addEventListener('click', queueImprovementRun);
+      document.getElementById('improvement-execute').addEventListener('click', executeLatestImprovementRun);
+      document.getElementById('improvement-refresh').addEventListener('click', loadImprovementRuns);
       document.getElementById('brittney-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBrittneyChat(); });
       document.getElementById('improvement-objective').addEventListener('keydown', function(e) { if (e.key === 'Enter') queueImprovementRun(); });
       document.getElementById('brittney-input').focus();
       _bMsg('Brittney', 'Online — routed across both owned GPUs ($0). Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
+      loadImprovementRuns();
     }
     document.addEventListener('DOMContentLoaded', initBrittneyChat);
   </script>`;

@@ -12,19 +12,27 @@ composition "HoloShell Improvement Run Loop" {
     serverModule: "packages/holoshell/serve.mjs"
     queueEndpoint: "POST /api/improvement-runs"
     historyEndpoint: "GET /api/improvement-runs"
+    detailEndpoint: "GET /api/improvement-runs/:runId"
+    executeEndpoint: "POST /api/improvement-runs/:runId/execute"
+    desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
     surfaceSource: "packages/holoshell/scenes/operate-room.holo"
     desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
     liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
     modelLibrarySource: ".ai-ecosystem/model-library/library.json"
     holoClawSkillSource: "HoloScript/compositions/skills"
     maxBatchRunCount: 128
+    defaultShakedownRunCount: 10
     receiptRequired: true
     destructiveActionsTakenByQueue: false
+    destructiveActionsTakenByShakedown: false
   }
 
   state {
     lastRunId: ""
+    lastExecutionId: ""
     queuedRunCount: 0
+    executedRunCount: 0
+    remainingRunCount: 0
     requestedRunCount: 0
     visionModelCount: 0
     desktopAutomationModelCount: 0
@@ -44,6 +52,18 @@ composition "HoloShell Improvement Run Loop" {
     description: "Native model and skill routing selected for each improvement batch"
   }
 
+  channel "holoshell:improvement:execution" {
+    type: "append_only"
+    priority: "high"
+    description: "Non-mutating shakedown executions that measure every queued improvement run"
+  }
+
+  channel "holoshell:improvement:desktop_bridge" {
+    type: "snapshot"
+    priority: "medium"
+    description: "Laptop desktop-control bridge readiness, separate from Fara planning"
+  }
+
   template "ImprovementRunReceipt" {
     type: "improvement_run_receipt"
     schemaVersion: "hololand.holoshell.improvement-run.v0.1.0"
@@ -58,6 +78,23 @@ composition "HoloShell Improvement Run Loop" {
     destructiveActionsTaken: false
   }
 
+  template "ImprovementExecutionReceipt" {
+    type: "improvement_execution_receipt"
+    schemaVersion: "hololand.holoshell.improvement-execution.v0.1.0"
+    executionId: ""
+    sourceRunId: ""
+    status: "completed_shakedown"
+    executedRunCount: 0
+    remainingRunCount: 0
+    gpuBalancePlan: {}
+    desktopBridge: {}
+    runResults: []
+    lessons: []
+    receiptRequired: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
   policy "VisionIsNotFara" {
     appliesTo: ["screen_understanding", "image_understanding", "desktop_automation"]
     visionUnderstandingLane: "vision_language"
@@ -65,6 +102,15 @@ composition "HoloShell Improvement Run Loop" {
     visionModelsReadOnly: true
     faraPlansDesktopActions: true
     faraRequiresApprovalBeforeMutation: true
+    receiptRequired: true
+  }
+
+  policy "DesktopBridgeIsNotDesktopMutation" {
+    appliesTo: ["desktop_bridge_status", "desktop_automation"]
+    bridgeReportsReadOnly: true
+    faraPlansDesktopActions: true
+    laptopBridgeExecutesOnlyAfterConsent: true
+    desktopAutomationExecutedByShakedown: false
     receiptRequired: true
   }
 
@@ -82,6 +128,9 @@ composition "HoloShell Improvement Run Loop" {
     requireMeasurementEveryRun: true
     requireReceiptEveryRun: true
     destructiveActionsTakenByQueue: false
+    shakedownRunCount: 10
+    requireGpuBalanceSnapshot: true
+    requireDesktopBridgeStatus: true
   }
 
   action queue_improvement_run(receipt) {
@@ -116,6 +165,34 @@ composition "HoloShell Improvement Run Loop" {
       fara_role: "desktop_automation",
       vision_role: "screen_image_understanding",
       receipt_required: true
+    })
+  }
+
+  action execute_improvement_shakedown(receipt) {
+    state.lastExecutionId = receipt.executionId
+    state.executedRunCount = receipt.totalExecutedRunCount
+    state.remainingRunCount = receipt.remainingRunCount
+    state.lastStatus = receipt.status
+    emit("holoshell:improvement:execution", {
+      action: "improvement_shakedown_executed",
+      run_id: receipt.sourceRunId,
+      execution_id: state.lastExecutionId,
+      executed_run_count: receipt.executedRunCount,
+      total_executed_run_count: receipt.totalExecutedRunCount,
+      remaining_run_count: receipt.remainingRunCount,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action report_desktop_bridge_status(receipt) {
+    emit("holoshell:improvement:desktop_bridge", {
+      action: "desktop_bridge_status_reported",
+      status: receipt.desktopBridge.status,
+      bridge_url: receipt.desktopBridge.url,
+      approval_required_for_desktop_automation: true,
+      destructive_actions_taken: false
     })
   }
 }
