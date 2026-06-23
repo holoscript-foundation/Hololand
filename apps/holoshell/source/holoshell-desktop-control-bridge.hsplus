@@ -3,7 +3,8 @@
 // Source contract for desktop-app control planning. Brittney remains the user
 // facing operator; Fara provides GUI/visual grounding when a screenshot or
 // coordinate-bearing control step is needed. This bridge supports preflight and
-// HoloGate consent-token staging; host mutation still requires a later admitted
+// HoloGate consent-token staging. Public open_url is the first admitted action
+// executor lane; every other host mutation still requires a later admitted
 // action executor receipt.
 
 composition "HoloShell Desktop Control Bridge" {
@@ -30,6 +31,8 @@ composition "HoloShell Desktop Control Bridge" {
     chatEndpoint: "POST /api/brittney/chat"
     bridgeScript: "scripts/holoshell-desktop-control-plan.mjs"
     daemonScript: "scripts/holoshell-laptop-desktop-bridge.mjs"
+    hardwareActionExecutorScript: "scripts/holoshell-action-executor.mjs"
+    admittedExecutorActions: ["open_url"]
     latestPlanReceipt: ".tmp/holoshell/desktop-control-latest.json"
     latestPlanBootstrap: ".tmp/holoshell/desktop-control-latest.js"
     latestBridgeReport: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
@@ -53,6 +56,7 @@ composition "HoloShell Desktop Control Bridge" {
     lastPreflightId: ""
     lastConsentTokenId: ""
     lastExecutionId: ""
+    lastHardwareActionId: ""
     screenshotRequired: true
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
@@ -102,6 +106,12 @@ composition "HoloShell Desktop Control Bridge" {
     description: "Approved execution staging receipts that still do not mutate the OS"
   }
 
+  channel "holoshell:desktop-control:open-url-execution" {
+    type: "append_only"
+    priority: "critical"
+    description: "Admitted public open_url executions through the hardware action executor"
+  }
+
   template "DesktopControlPlan" {
     type: "desktop_control_plan"
     actor: "brittney"
@@ -123,7 +133,7 @@ composition "HoloShell Desktop Control Bridge" {
     url: "http://127.0.0.1:8751"
     hostRole: "laptop_desktop_bridge"
     modelLane: "fara_gui_grounding"
-    capabilities: ["bridge_status", "desktop_action_preflight", "consent_token_issue", "consent_token_verify", "approved_execution_staging", "execution_refusal", "receipt_write"]
+    capabilities: ["bridge_status", "desktop_action_preflight", "consent_token_issue", "consent_token_verify", "approved_execution_staging", "admitted_open_url_executor", "execution_refusal", "receipt_write"]
     destructiveActionsTaken: false
     approvalRequiredForDesktopAutomation: true
   }
@@ -170,6 +180,21 @@ composition "HoloShell Desktop Control Bridge" {
     executionMode: "staged_receipt_only_until_action_executor"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "DesktopControlOpenUrlExecution" {
+    type: "desktop_control_open_url_execution"
+    schemaVersion: "hololand.holoshell.desktop-control-execution.v0.1.0"
+    executionId: ""
+    preflightId: ""
+    consentTokenId: ""
+    operation: "open_url"
+    urlClassification: "public_web"
+    executionMode: "admitted_open_url_executor"
+    hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
+    desktopAutomationExecuted: true
+    destructiveActionsTaken: false
     receiptRequired: true
   }
 
@@ -235,6 +260,20 @@ composition "HoloShell Desktop Control Bridge" {
     executionAllowedWithValidToken: true
     osMutationAllowedByThisLane: false
     desktopAutomationExecutedByDaemonDefault: false
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  policy "AdmittedOpenUrlExecutor" {
+    appliesTo: ["open_url"]
+    hostRole: "laptop_desktop_bridge"
+    hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
+    requiresExactPreflightReceipt: true
+    requiresFreshUserGesture: true
+    requiresValidConsentToken: true
+    allowedUrlClassification: "public_web"
+    blockedUrlClassifications: ["credential_adjacent", "break_glass_payment", "blocked_scheme", "invalid_url"]
+    executionMode: "admitted_open_url_executor"
     destructiveActionsTaken: false
     receiptRequired: true
   }
@@ -344,6 +383,23 @@ composition "HoloShell Desktop Control Bridge" {
       execution_mode: "staged_receipt_only_until_action_executor",
       destructive_actions_taken: false,
       desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action execute_open_url_after_consent(execution) {
+    state.lastExecutionId = execution.executionId
+    state.lastHardwareActionId = execution.hardwareAction.actionId
+    emit("holoshell:desktop-control:open-url-execution", {
+      action: "desktop_control_open_url_executed",
+      execution_id: state.lastExecutionId,
+      preflight_id: execution.preflightId,
+      consent_token_id: execution.consentTokenId,
+      hardware_action_id: state.lastHardwareActionId,
+      target_url_host: execution.hardwareAction.targetUrlHost,
+      execution_mode: "admitted_open_url_executor",
+      desktop_automation_executed: true,
+      destructive_actions_taken: false,
       receipt_required: true
     })
   }

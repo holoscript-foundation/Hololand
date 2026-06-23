@@ -11,6 +11,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,6 +30,7 @@ const DEFAULT_HOST = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_HOST || '127.0.
 const DEFAULT_PORT = Number(process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_PORT || 8751);
 const DEFAULT_RECEIPT_DIR = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_RECEIPTS ||
   '.tmp/holoshell/desktop-control-bridge';
+const ADMITTED_EXECUTOR_ACTIONS = new Set(['open_url']);
 
 function usage() {
   return `Usage: node scripts/holoshell-laptop-desktop-bridge.mjs [options]
@@ -141,6 +143,168 @@ function tokenForStorage(consent) {
   };
 }
 
+function classifyPublicUrl(url) {
+  if (!url) return 'missing_url';
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return 'invalid_url';
+  }
+  if (!/^https?:$/i.test(parsed.protocol)) return 'blocked_scheme';
+  const combined = `${parsed.hostname} ${parsed.pathname} ${parsed.search}`.toLowerCase();
+  if (/(checkout|payment|billing|purchase|subscribe|transfer|wallet|bank)/iu.test(combined)) {
+    return 'break_glass_payment';
+  }
+  if (/(login|signin|sign-in|account|settings|profile|admin|oauth|auth|password|security|2fa|mfa|upload|download|export|import|delete|remove|submit|compose|send)/iu.test(combined)) {
+    return 'credential_adjacent';
+  }
+  return 'public_web';
+}
+
+function extractActionTarget(payload = {}, operation = '') {
+  const action = payload.action || payload.target || {};
+  return {
+    operation,
+    url: safeString(payload.url || action.url || payload.preflight?.target?.url, ''),
+  };
+}
+
+function simulatedOpenUrlReceipt(url, options = {}) {
+  const generatedAt = generatedAtForReceipt(options);
+  const target = new URL(url);
+  return {
+    schemaVersion: 'hololand.holoshell.hardware-action.v0.1.0',
+    generatedAt,
+    actionId: stableId('hwa_simulated_open_url', `${generatedAt}:${url}`),
+    request: {
+      actionKind: 'open_url',
+      url,
+      approved: true,
+      executeRequested: true,
+      receiptRequired: true,
+    },
+    permission: {
+      envelope: 'guarded_execute',
+      approvalRequired: true,
+      approved: true,
+      executeRequested: true,
+      mutating: true,
+      breakGlass: false,
+    },
+    browserBoundary: {
+      urlClassification: 'public_web',
+      publicBrowsing: true,
+      host: target.host,
+      profileBoundary: 'system_default_public_ok',
+    },
+    witness: {
+      shellVisibleChange: true,
+      visibleChangeSource: 'browser_navigation_dispatched',
+      browserNavigation: {
+        targetUrl: target.href,
+        targetHost: target.host,
+        targetOrigin: target.origin,
+        targetPath: `${target.pathname}${target.search}${target.hash}`,
+        dispatchAccepted: true,
+        witnessKind: 'browser_navigation_dispatched',
+      },
+    },
+    summary: {
+      status: 'completed',
+      actionKind: 'open_url',
+      permissionEnvelope: 'guarded_execute',
+      approvalRequired: true,
+      approved: true,
+      executeRequested: true,
+      executionPerformed: true,
+      mutatingActionExecuted: true,
+      targetResolved: true,
+      targetUrlHost: target.host,
+      shellVisibleChange: true,
+      visibleWitnessKind: 'browser_navigation_dispatched',
+      browserBoundaryStatus: 'public_web',
+      browserProfileBoundary: 'system_default_public_ok',
+      error: '',
+    },
+    result: {
+      ok: true,
+      target: url,
+      simulated: true,
+      browserNavigation: {
+        targetUrl: target.href,
+        targetHost: target.host,
+        targetOrigin: target.origin,
+        targetPath: `${target.pathname}${target.search}${target.hash}`,
+        dispatchAccepted: true,
+        witnessKind: 'browser_navigation_dispatched',
+      },
+    },
+    rollback: 'close_browser_tab_or_window_manually',
+  };
+}
+
+function generatedAtForReceipt(options = {}) {
+  return options.createdAt || new Date().toISOString();
+}
+
+function runOpenUrlActionExecutor(url, options = {}, payload = {}) {
+  const classification = classifyPublicUrl(url);
+  if (classification !== 'public_web') {
+    throw new Error(`open_url_executor_refused:${classification}`);
+  }
+  if (payload.executorMode === 'simulated' || options.executorMode === 'simulated') {
+    return simulatedOpenUrlReceipt(url, options);
+  }
+  const receiptRoot = repoPath(path.join(options.receiptDir || DEFAULT_RECEIPT_DIR, 'hardware-actions'));
+  mkdirSync(receiptRoot, { recursive: true });
+  const latestPath = path.join(receiptRoot, 'action-latest.json');
+  const latestJsPath = path.join(receiptRoot, 'action-latest.js');
+  const archiveDir = path.join(receiptRoot, 'receipts');
+  const result = spawnSync(process.execPath, [
+    path.join(REPO_ROOT, 'scripts', 'holoshell-action-executor.mjs'),
+    '--action',
+    'open_url',
+    '--url',
+    url,
+    '--approved',
+    '--execute',
+    '--json',
+    '--receipt-dir',
+    archiveDir,
+    '--output',
+    latestPath,
+    '--js-output',
+    latestJsPath,
+  ], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 30_000,
+    windowsHide: true,
+  });
+  if (result.status !== 0) {
+    throw new Error(`open_url_executor_failed:${(result.stderr || result.stdout || '').trim().slice(0, 400)}`);
+  }
+  return JSON.parse(result.stdout);
+}
+
+function executeAdmittedAction(payload = {}, options = {}, validation = {}) {
+  const operation = validation.operation || safeString(payload.operation, '');
+  if (!ADMITTED_EXECUTOR_ACTIONS.has(operation)) {
+    throw new Error(`executor_lane_not_admitted:${operation || 'unknown'}`);
+  }
+  const target = extractActionTarget(payload, operation);
+  if (operation === 'open_url') {
+    if (!target.url) throw new Error('open_url_executor_requires_url');
+    return {
+      action: operation,
+      target,
+      hardwareActionReceipt: runOpenUrlActionExecutor(target.url, options, payload),
+    };
+  }
+  throw new Error(`executor_lane_not_implemented:${operation}`);
+}
+
 export function buildBridgeStatus(options = {}) {
   const host = options.host || DEFAULT_HOST;
   const port = Number(options.port || DEFAULT_PORT);
@@ -168,6 +332,7 @@ export function buildBridgeStatus(options = {}) {
       fallbackModels: ['hf.co/bartowski/microsoft_Fara-7B-GGUF:Q4_K_M', 'qwen3-vl:4b'],
       mayExecute: false,
       mayStageApprovedExecution: true,
+      admittedExecutorActions: [...ADMITTED_EXECUTOR_ACTIONS],
     },
     capabilities: [
       'bridge_status',
@@ -175,6 +340,7 @@ export function buildBridgeStatus(options = {}) {
       'consent_token_issue',
       'consent_token_verify',
       'approved_execution_staging',
+      'admitted_open_url_executor',
       'execution_refusal',
       'receipt_write',
       'browser_proxied_jetson_report',
@@ -330,15 +496,22 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
   }
   const at = generatedAt(options);
   const preflight = payload.preflight;
+  const executeApprovedAction = payload.executeApprovedAction === true;
+  const actionExecution = executeApprovedAction
+    ? executeAdmittedAction(payload, options, validation)
+    : null;
+  const hardwareSummary = actionExecution?.hardwareActionReceipt?.summary || null;
+  const hardwareStatus = hardwareSummary?.status || '';
+  const performed = Boolean(hardwareSummary?.executionPerformed);
   const executionId = stableId(
     'desktop_execution',
-    `${at}:${validation.tokenId}:${preflight.preflightId}:${validation.operation}:${validation.preflightReceiptHash}`
+    `${at}:${validation.tokenId}:${preflight.preflightId}:${validation.operation}:${validation.preflightReceiptHash}:${executeApprovedAction ? 'execute' : 'stage'}`
   );
   return {
     schemaVersion: DESKTOP_CONTROL_EXECUTION_SCHEMA,
     executionId,
     generatedAt: at,
-    status: 'approved_execution_staged',
+    status: actionExecution ? `completed_${validation.operation}` : 'approved_execution_staged',
     source: 'apps/holoshell/source/holoshell-desktop-control-bridge.hsplus',
     daemonScript: 'scripts/holoshell-laptop-desktop-bridge.mjs',
     holoGateStages: ['identify', 'scope', 'log'],
@@ -349,13 +522,26 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
     consentTokenId: validation.tokenId,
     consentTokenExpiresAt: validation.expiresAt,
     executionAllowed: true,
-    executionMode: 'staged_receipt_only_until_action_executor',
+    executionMode: actionExecution ? `admitted_${validation.operation}_executor` : 'staged_receipt_only_until_action_executor',
+    executeApprovedAction,
+    admittedExecutorAction: ADMITTED_EXECUTOR_ACTIONS.has(validation.operation),
     destructiveActionsTaken: false,
-    desktopAutomationExecuted: false,
+    desktopAutomationExecuted: performed,
+    hardwareAction: actionExecution ? {
+      action: actionExecution.action,
+      target: actionExecution.target,
+      status: hardwareStatus,
+      actionId: actionExecution.hardwareActionReceipt?.actionId || '',
+      receiptPath: actionExecution.hardwareActionReceipt?.output?.receiptPath || '',
+      visibleWitnessKind: hardwareSummary?.visibleWitnessKind || '',
+      targetUrlHost: hardwareSummary?.targetUrlHost || '',
+    } : null,
     approvalRequiredForDesktopAutomation: true,
     receiptRequired: true,
     bridge: buildBridgeStatus(options),
-    nextSafeStep: 'Admit and validate a concrete action executor lane for this action class before allowing OS mutation.',
+    nextSafeStep: actionExecution
+      ? 'Review the hardware action receipt and rollback manually if the opened browser tab is not desired.'
+      : 'Admit and validate a concrete action executor lane for this action class before allowing OS mutation.',
   };
 }
 
@@ -467,8 +653,9 @@ export async function handleBridgeRequest(req, res, options = {}) {
   }
 
   if (req.method === 'POST' && requestUrl.pathname === '/api/desktop-control/execute') {
+    let payload = {};
     try {
-      const payload = await readRequestBody(req);
+      payload = await readRequestBody(req);
       if (payload.consentToken && payload.preflight) {
         const receipt = buildDesktopControlExecution(payload, requestOptions);
         const saved = writeReceipt(receipt, requestOptions.receiptDir, 'executions', receipt.executionId, '.execution');
@@ -479,8 +666,11 @@ export async function handleBridgeRequest(req, res, options = {}) {
         sendJson(res, saved, 403);
       }
     } catch (error) {
-      const payload = { reason: `desktop_control_consent_token_invalid:${String(error.message || error)}` };
-      const receipt = buildExecutionRefusal(payload, requestOptions);
+      const refusalPayload = {
+        ...payload,
+        reason: `desktop_control_consent_token_invalid:${String(error.message || error)}`,
+      };
+      const receipt = buildExecutionRefusal(refusalPayload, requestOptions);
       const saved = writeReceipt(receipt, requestOptions.receiptDir, 'refusals', receipt.refusalId, '.refusal');
       sendJson(res, saved, 403);
     }
@@ -514,6 +704,22 @@ export function runSelfTest(options = {}) {
     operation: preflight.intent.primaryAction,
     consentToken,
   }, { ...options, createdAt: status.generatedAt });
+  const openUrlPreflight = buildDesktopControlPreflight({
+    intent: 'Open URL https://example.com/status in the default browser.',
+  }, { ...options, createdAt: status.generatedAt });
+  const openUrlConsent = buildConsentToken({
+    preflight: openUrlPreflight,
+    operation: 'open_url',
+    freshUserGesture: true,
+  }, { ...options, createdAt: status.generatedAt, token: 'self-test-open-url-token' });
+  const openUrlExecution = buildDesktopControlExecution({
+    preflight: openUrlPreflight,
+    operation: 'open_url',
+    consentToken: openUrlConsent,
+    url: 'https://example.com/status',
+    executeApprovedAction: true,
+    executorMode: 'simulated',
+  }, { ...options, createdAt: status.generatedAt, executorMode: 'simulated' });
   const failures = [];
   if (status.status !== 'ready') failures.push('status not ready');
   if (status.destructiveActionsTaken !== false) failures.push('status mutated');
@@ -526,8 +732,11 @@ export function runSelfTest(options = {}) {
   if (refusal.desktopAutomationExecuted !== false) failures.push('refusal executed desktop automation');
   if (execution.status !== 'approved_execution_staged') failures.push('approved execution was not staged');
   if (execution.desktopAutomationExecuted !== false) failures.push('staged execution touched desktop');
+  if (openUrlExecution.status !== 'completed_open_url') failures.push('open_url executor did not complete');
+  if (openUrlExecution.desktopAutomationExecuted !== true) failures.push('open_url executor did not record desktop automation');
+  if (openUrlExecution.destructiveActionsTaken !== false) failures.push('open_url executor marked destructive action');
   if (failures.length) throw new Error(`self-test failed: ${failures.join(', ')}`);
-  return { status, preflight, consentToken, refusal, execution };
+  return { status, preflight, consentToken, refusal, execution, openUrlExecution };
 }
 
 function isMain() {

@@ -29,7 +29,9 @@ assert.equal(status.hostRole, 'laptop_desktop_bridge');
 assert.equal(status.modelPolicy.lane, 'fara_gui_grounding');
 assert.equal(status.modelPolicy.mayExecute, false);
 assert.equal(status.modelPolicy.mayStageApprovedExecution, true);
+assert.deepEqual(status.modelPolicy.admittedExecutorActions, ['open_url']);
 assert.ok(status.capabilities.includes('consent_token_issue'));
+assert.ok(status.capabilities.includes('admitted_open_url_executor'));
 assert.equal(status.endpoints.consentToken, '/api/desktop-control/consent-token');
 assert.equal(status.destructiveActionsTaken, false);
 assert.equal(status.desktopAutomationExecuted, false);
@@ -84,6 +86,49 @@ assert.equal(execution.executionAllowed, true);
 assert.equal(execution.destructiveActionsTaken, false);
 assert.equal(execution.desktopAutomationExecuted, false);
 
+const openUrlPreflight = buildDesktopControlPreflight({
+  intent: 'Open URL https://example.com/status in the default browser.',
+}, { createdAt: CREATED_AT });
+assert.equal(openUrlPreflight.intent.primaryAction, 'open_url');
+
+const openUrlConsentToken = buildConsentToken({
+  preflight: openUrlPreflight,
+  operation: 'open_url',
+  freshUserGesture: true,
+}, { createdAt: CREATED_AT, token: 'fixture-open-url-token' });
+
+const openUrlExecution = buildDesktopControlExecution({
+  preflight: openUrlPreflight,
+  operation: 'open_url',
+  consentToken: openUrlConsentToken,
+  url: 'https://example.com/status',
+  executeApprovedAction: true,
+  executorMode: 'simulated',
+}, { createdAt: CREATED_AT, executorMode: 'simulated' });
+assert.equal(openUrlExecution.status, 'completed_open_url');
+assert.equal(openUrlExecution.executionMode, 'admitted_open_url_executor');
+assert.equal(openUrlExecution.desktopAutomationExecuted, true);
+assert.equal(openUrlExecution.destructiveActionsTaken, false);
+assert.equal(openUrlExecution.hardwareAction.status, 'completed');
+assert.equal(openUrlExecution.hardwareAction.targetUrlHost, 'example.com');
+
+assert.throws(() => buildDesktopControlExecution({
+  preflight: openUrlPreflight,
+  operation: 'open_url',
+  consentToken: openUrlConsentToken,
+  url: 'https://example.com/account/settings',
+  executeApprovedAction: true,
+  executorMode: 'simulated',
+}, { createdAt: CREATED_AT, executorMode: 'simulated' }), /credential_adjacent/);
+
+assert.throws(() => buildDesktopControlExecution({
+  preflight,
+  operation: preflight.intent.primaryAction,
+  consentToken,
+  executeApprovedAction: true,
+  executorMode: 'simulated',
+}, { createdAt: CREATED_AT, executorMode: 'simulated' }), /executor_lane_not_admitted/);
+
 const refusal = buildExecutionRefusal({ preflightId: preflight.preflightId }, { createdAt: CREATED_AT });
 assert.equal(refusal.status, 'refused');
 assert.equal(refusal.executionAllowed, false);
@@ -114,6 +159,8 @@ assert.equal(cliSelfTest.preflight.executionAllowed, false);
 assert.equal(cliSelfTest.consentToken.status, 'issued');
 assert.equal(cliSelfTest.refusal.status, 'refused');
 assert.equal(cliSelfTest.execution.status, 'approved_execution_staged');
+assert.equal(cliSelfTest.openUrlExecution.status, 'completed_open_url');
+assert.equal(cliSelfTest.openUrlExecution.desktopAutomationExecuted, true);
 
 const tmp = mkdtempSync(join(tmpdir(), 'holoshell-laptop-bridge-'));
 const server = createLaptopDesktopBridgeServer({
@@ -193,6 +240,63 @@ try {
   assert.equal(stagedExecutionBody.destructiveActionsTaken, false);
   assert.equal(stagedExecutionBody.desktopAutomationExecuted, false);
   assert.ok(existsSync(stagedExecutionBody.receiptPath));
+
+  const openUrlPreflightResponse = await fetch(`${baseUrl}/api/desktop-control/preflight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intent: 'Open URL https://example.com/status in the default browser.' }),
+  });
+  assert.equal(openUrlPreflightResponse.status, 200);
+  const openUrlPreflightBody = await openUrlPreflightResponse.json();
+  assert.equal(openUrlPreflightBody.intent.primaryAction, 'open_url');
+
+  const openUrlConsentResponse = await fetch(`${baseUrl}/api/desktop-control/consent-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: openUrlPreflightBody,
+      operation: 'open_url',
+      freshUserGesture: true,
+    }),
+  });
+  assert.equal(openUrlConsentResponse.status, 200);
+  const openUrlConsentBody = await openUrlConsentResponse.json();
+
+  const openUrlExecuteResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: openUrlPreflightBody,
+      operation: 'open_url',
+      consentToken: openUrlConsentBody,
+      url: 'https://example.com/status',
+      executeApprovedAction: true,
+      executorMode: 'simulated',
+    }),
+  });
+  assert.equal(openUrlExecuteResponse.status, 200);
+  const openUrlExecuteBody = await openUrlExecuteResponse.json();
+  assert.equal(openUrlExecuteBody.status, 'completed_open_url');
+  assert.equal(openUrlExecuteBody.executionMode, 'admitted_open_url_executor');
+  assert.equal(openUrlExecuteBody.desktopAutomationExecuted, true);
+  assert.equal(openUrlExecuteBody.destructiveActionsTaken, false);
+
+  const blockedAccountUrlResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: openUrlPreflightBody,
+      operation: 'open_url',
+      consentToken: openUrlConsentBody,
+      url: 'https://example.com/account/settings',
+      executeApprovedAction: true,
+      executorMode: 'simulated',
+    }),
+  });
+  assert.equal(blockedAccountUrlResponse.status, 403);
+  const blockedAccountUrlBody = await blockedAccountUrlResponse.json();
+  assert.equal(blockedAccountUrlBody.status, 'refused');
+  assert.match(blockedAccountUrlBody.reason, /credential_adjacent/);
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }

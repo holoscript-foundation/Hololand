@@ -870,7 +870,7 @@ function normalizeDesktopBridgeReport(payload = {}) {
       mayExecute: false,
     },
     capabilities,
-    mutationBoundary: incoming.mutationBoundary || 'execution_refused_until_holoshell_consent_token',
+    mutationBoundary: incoming.mutationBoundary || 'os_mutation_refused_until_consent_token_and_action_executor',
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     approvalRequiredForDesktopAutomation: true,
@@ -969,9 +969,10 @@ function desktopBridgeStatusSnapshot() {
     capabilities: [
       'screen_capture_request',
       'desktop_action_preflight',
+      'admitted_open_url_executor',
       'gpu_telemetry_report',
     ],
-    mutationBoundary: 'readiness_only_until_consent_token',
+    mutationBoundary: 'os_mutation_refused_until_consent_token_and_action_executor',
     destructiveActionsTaken: false,
     approvalRequiredForDesktopAutomation: true,
   };
