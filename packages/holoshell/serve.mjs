@@ -15,7 +15,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync } from 'node:child_process';
@@ -33,6 +33,20 @@ const HOST = process.env.HOLOSHELL_SERVE_HOST ?? '127.0.0.1';
 const RECEIPTS_DIR =
   process.env.HOLOSHELL_RECEIPTS_DIR ??
   'C:/Users/Josep/.ai-ecosystem/runtime/holoshell/receipts';
+
+const AI_ECOSYSTEM_DIR =
+  process.env.AI_ECOSYSTEM_DIR ||
+  process.env.HOLOTUNE_AI_ECOSYSTEM_DIR ||
+  join(process.env.USERPROFILE || process.env.HOME || '.', '.ai-ecosystem');
+
+const HOLOTUNE_TRACE_WRITER =
+  process.env.HOLOTUNE_TRACE_WRITER ||
+  join(AI_ECOSYSTEM_DIR, 'scripts', 'trace-writer.mjs');
+
+const HOLOTUNE_TRACE_AGENT_ID =
+  process.env.HOLOTUNE_TRACE_AGENT_ID ||
+  process.env.HOLOSCRIPT_AGENT_ID ||
+  'agent_brittney';
 
 // Relative path to Phase A scripts in HoloScript repo
 const CONSENT_CONTRACT = new URL(
@@ -814,6 +828,7 @@ function improvementExecutionHistory(runId = null) {
       remainingRunCount: receipt.remainingRunCount,
       destructiveActionsTaken: receipt.destructiveActionsTaken,
       desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+      holotuneTrace: receipt.holotuneTrace || null,
       receiptPath: receipt.receiptPath,
     }));
 }
@@ -838,6 +853,135 @@ function writeImprovementExecutionReceipt(receipt) {
   const withPath = { ...receipt, receiptPath };
   writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
   return withPath;
+}
+
+function sanitizeTraceId(id) {
+  return String(id || 'unknown-agent').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 128) || 'unknown-agent';
+}
+
+function appendHolotuneTraceDirect(row) {
+  if (!row?.user || !row?.target) throw new Error('trace row requires user and target');
+  const agentId = sanitizeTraceId(row.agentId || HOLOTUNE_TRACE_AGENT_ID);
+  const trace = {
+    system: typeof row.system === 'string' ? row.system : '',
+    user: row.user,
+    target: row.target,
+    grader: row.grader ?? null,
+    grader_key: Array.isArray(row.grader_key) ? row.grader_key : [],
+    family: row.family || 'live-trace',
+    modality: row.modality || 'agentic',
+    source: row.source || 'live-trace',
+    agentId,
+    ts: row.ts || new Date().toISOString(),
+  };
+  const dir = join(AI_ECOSYSTEM_DIR, 'traces', agentId);
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'trace.jsonl');
+  appendFileSync(file, `${JSON.stringify(trace)}\n`, 'utf8');
+  return file;
+}
+
+function appendHolotuneTrace(row) {
+  if (process.env.HOLOTUNE_TRACE_DISABLED === '1') {
+    return { status: 'disabled', file: '' };
+  }
+  if (HOLOTUNE_TRACE_WRITER && existsSync(HOLOTUNE_TRACE_WRITER)) {
+    const output = execFileSync(process.execPath, [
+      HOLOTUNE_TRACE_WRITER,
+      '--agent',
+      row.agentId || HOLOTUNE_TRACE_AGENT_ID,
+      '--row',
+      JSON.stringify(row),
+    ], {
+      cwd: AI_ECOSYSTEM_DIR,
+      encoding: 'utf8',
+      timeout: 10_000,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        AI_ECOSYSTEM_DIR,
+      },
+    });
+    const match = String(output || '').match(/appended ->\s*(.+)$/m);
+    return { status: 'trace-writer', file: match ? match[1].trim() : '' };
+  }
+  return { status: 'direct', file: appendHolotuneTraceDirect(row) };
+}
+
+function improvementResultTraceRow(receipt, result) {
+  const validationPassed = result.validation?.status === 'passed';
+  const agentId = HOLOTUNE_TRACE_AGENT_ID;
+  const routingSummary = receipt.sourceRun?.routingSummary || receipt.routingSummary || '';
+  const user = [
+    `Execute a HoloShell improvement shakedown run for objective: ${receipt.objective}`,
+    `Run number: ${result.runNumber}`,
+    routingSummary ? `Routing: ${routingSummary}` : '',
+  ].filter(Boolean).join('\n');
+  const target = [
+    `Status: ${result.status}`,
+    `Validation: ${result.validation?.status || 'unknown'}`,
+    `GPU assignment: ${result.gpuAssignmentSummary}`,
+    `Lesson: ${result.lesson}`,
+    `Receipt: ${receipt.receiptPath || receipt.executionId}`,
+  ].join('\n');
+  return {
+    system: 'You are Brittney operating HoloShell. Execute receipt-backed improvement runs, preserve safety boundaries, measure the result, and return the verified lesson.',
+    user,
+    target,
+    grader: {
+      kind: 'holoshell_improvement_execution',
+      passed: validationPassed && receipt.destructiveActionsTaken === false && receipt.desktopAutomationExecuted === false,
+      executionId: receipt.executionId,
+      sourceRunId: receipt.sourceRunId,
+      runNumber: result.runNumber,
+      validationSignals: Array.isArray(result.validation?.signals) ? result.validation.signals : [],
+      destructiveActionsTaken: receipt.destructiveActionsTaken,
+      desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+      receipt: receipt.receiptPath || null,
+    },
+    grader_key: ['holoshell-improvement', receipt.executionId, String(result.runNumber)],
+    family: 'agentic-improvement',
+    modality: 'agentic',
+    source: 'holoshell-improvement-run',
+    agentId,
+    ts: receipt.generatedAt,
+  };
+}
+
+function emitImprovementHolotuneTraces(receipt) {
+  const runResults = Array.isArray(receipt.runResults) ? receipt.runResults : [];
+  if (!runResults.length) {
+    return {
+      schemaVersion: 'hololand.holoshell.holotune-trace-emission.v0.1.0',
+      status: 'no_rows',
+      agentId: HOLOTUNE_TRACE_AGENT_ID,
+      emittedRows: 0,
+      traceFiles: [],
+      errors: [],
+    };
+  }
+  const traceFiles = [];
+  const errors = [];
+  let emittedRows = 0;
+  for (const result of runResults) {
+    const row = improvementResultTraceRow(receipt, result);
+    try {
+      const appended = appendHolotuneTrace(row);
+      if (appended.file) traceFiles.push(appended.file);
+      if (appended.status !== 'disabled') emittedRows += 1;
+    } catch (error) {
+      errors.push(String(error.message || error).slice(0, 240));
+    }
+  }
+  return {
+    schemaVersion: 'hololand.holoshell.holotune-trace-emission.v0.1.0',
+    status: errors.length ? (emittedRows ? 'partial' : 'failed') : 'emitted',
+    agentId: HOLOTUNE_TRACE_AGENT_ID,
+    emittedRows,
+    traceFiles: [...new Set(traceFiles)].slice(0, 5),
+    traceWriter: existsSync(HOLOTUNE_TRACE_WRITER) ? HOLOTUNE_TRACE_WRITER : 'direct_rec_shape_fallback',
+    errors,
+  };
 }
 
 function desktopBridgeReportReceipts() {
@@ -899,6 +1043,7 @@ function buildImprovementRunReceipt(payload = {}) {
     'plan_guarded_action',
     'execute_after_receipt',
     'validate_and_measure',
+    'feed_verified_trace_to_holotune',
     'feed_lesson_to_brittney',
   ];
   const receipt = {
@@ -923,7 +1068,7 @@ function buildImprovementRunReceipt(payload = {}) {
     loop,
     measurementPlan: {
       everyRun: true,
-      requiredSignals: ['status_delta', 'validation_result', 'gpu_snapshot', 'receipt_path', 'lesson_for_brittney'],
+      requiredSignals: ['status_delta', 'validation_result', 'gpu_snapshot', 'receipt_path', 'holotune_trace_row', 'lesson_for_brittney'],
       firstBatchRecommendation: runCount > 10 ? 'Run a 10-run shakedown before opening the full batch.' : 'Batch size is within shakedown range.',
     },
     nextSafeStep: 'Review the queued receipt, then execute through the guarded lane that matches the task.',
@@ -1068,6 +1213,7 @@ function buildImprovementRunStep(step, routing) {
     plan_guarded_action: routing.desktopAutomation.lane,
     execute_after_receipt: 'receipt_gate',
     validate_and_measure: 'receipt_gate',
+    feed_verified_trace_to_holotune: 'holotune_trace',
     feed_lesson_to_brittney: routing.operator.lane,
   };
   const stepStatus = step === 'plan_guarded_action'
@@ -1193,7 +1339,11 @@ function buildImprovementExecutionReceipt(runId, payload = {}) {
       ? 'Review this shakedown receipt, then execute the next capped batch or explicitly allow a larger batch.'
       : 'All queued dry-run improvements for this receipt are measured; queue a new receipt for the next iteration.',
   };
-  return writeImprovementExecutionReceipt(receipt);
+  const saved = writeImprovementExecutionReceipt(receipt);
+  const holotuneTrace = emitImprovementHolotuneTraces(saved);
+  const traced = { ...saved, holotuneTrace };
+  writeFileSync(saved.receiptPath, `${JSON.stringify(traced, null, 2)}\n`, 'utf8');
+  return traced;
 }
 
 function publicShellUrl() {
@@ -1221,6 +1371,7 @@ function buildLiveStatusSnapshot() {
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
+      holotuneTraceSource: 'scripts/trace-writer.mjs',
     },
     avatar: {
       name: 'Brittney',
@@ -1240,6 +1391,7 @@ function buildLiveStatusSnapshot() {
       'vision_model_routing',
       'improvement_run_queue',
       'improvement_run_execution',
+      'holotune_trace_emit',
       'gpu_lane_balance',
       'desktop_bridge_status',
       'desktop_bridge_browser_report',
@@ -1252,6 +1404,7 @@ function buildLiveStatusSnapshot() {
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
+      { id: 'holotune_trace', model: 'HoloTune trace writer', role: 'verified improvement receipts to per-identity corpus rows' },
     ],
     modelLibrary,
     nativeResources,
@@ -1744,6 +1897,7 @@ async function handleRequest(req, res) {
           runResults: receipt.runResults,
           aggregate: receipt.aggregate,
           lessons: receipt.lessons,
+          holotuneTrace: receipt.holotuneTrace,
           nextSafeStep: receipt.nextSafeStep,
           receipt,
           proposals: [

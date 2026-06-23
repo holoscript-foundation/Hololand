@@ -412,7 +412,8 @@ const runtimeScript = `  <script>
         .then(function(d) {
           if (d.error) { _setImprovementStatus('Execute error: ' + d.error, '#f85149'); return; }
           _setImprovementStatus('Measured ' + d.totalExecutedRunCount + ' run(s); ' + d.remainingRunCount + ' left', '#3fb950');
-          _bMsg('Improvement execution', d.status + ' - ' + d.executedRunCount + ' measured in this batch; ' + d.remainingRunCount + ' left\\nVision/GPU: ' + d.gpuBalancePlan.localGpu.summary + '\\nDesktop bridge: ' + d.desktopBridge.status + '\\nNext: ' + d.nextSafeStep, '#3fb950');
+          var traceLine = d.holotuneTrace ? '\\nHoloTune traces: ' + d.holotuneTrace.status + ' (' + d.holotuneTrace.emittedRows + ' rows)' : '';
+          _bMsg('Improvement execution', d.status + ' - ' + d.executedRunCount + ' measured in this batch; ' + d.remainingRunCount + ' left\\nVision/GPU: ' + d.gpuBalancePlan.localGpu.summary + '\\nDesktop bridge: ' + d.desktopBridge.status + traceLine + '\\nNext: ' + d.nextSafeStep, '#3fb950');
           if (d.lessons && d.lessons.length) _bMsg('Lessons', d.lessons.slice(0, 4).join('\\n'), '#3fb950');
           loadImprovementRuns();
         })

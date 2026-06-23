@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const port = 9080 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const receiptsDir = mkdtempSync(join(tmpdir(), 'holoshell-improvement-runs-'));
+const traceRoot = mkdtempSync(join(tmpdir(), 'holoshell-holotune-traces-'));
 const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
   cwd: process.cwd(),
   env: {
@@ -15,6 +16,8 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_HOST: '127.0.0.1',
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSHELL_RECEIPTS_DIR: receiptsDir,
+    AI_ECOSYSTEM_DIR: traceRoot,
+    HOLOTUNE_TRACE_AGENT_ID: 'agent_brittney',
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
   },
@@ -147,12 +150,22 @@ try {
   assert.equal(firstExecution.desktopBridge.hostRole, 'laptop_desktop_bridge');
   assert.equal(firstExecution.desktopBridge.destructiveActionsTaken, false);
   assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, true);
+  assert.equal(firstExecution.holotuneTrace.status, 'emitted');
+  assert.equal(firstExecution.holotuneTrace.agentId, 'agent_brittney');
+  assert.equal(firstExecution.holotuneTrace.emittedRows, 10);
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'vision_language'));
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'fara_gui_grounding' && assignment.preferredProcessor === 'laptop_desktop_bridge'));
   assert.equal(firstExecution.runResults.length, 10);
   assert.ok(firstExecution.runResults.every((result) => result.validation.status === 'passed'));
   assert.ok(firstExecution.runResults.every((result) => result.destructiveActionsTaken === false));
   assert.ok(existsSync(firstExecution.receipt.receiptPath));
+  const tracePath = join(traceRoot, 'traces', 'agent_brittney', 'trace.jsonl');
+  assert.ok(existsSync(tracePath));
+  const firstTraceRows = readFileSync(tracePath, 'utf8').trim().split(/\r?\n/u).map((line) => JSON.parse(line));
+  assert.equal(firstTraceRows.length, 10);
+  assert.ok(firstTraceRows.every((row) => row.source === 'holoshell-improvement-run'));
+  assert.ok(firstTraceRows.every((row) => row.grader?.kind === 'holoshell_improvement_execution'));
+  assert.ok(firstTraceRows.every((row) => row.grader?.passed === true));
 
   const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
@@ -166,6 +179,10 @@ try {
   assert.equal(secondExecution.executedRunCount, 2);
   assert.equal(secondExecution.totalExecutedRunCount, 12);
   assert.equal(secondExecution.remainingRunCount, 0);
+  assert.equal(secondExecution.holotuneTrace.status, 'emitted');
+  assert.equal(secondExecution.holotuneTrace.emittedRows, 2);
+  const allTraceRows = readFileSync(tracePath, 'utf8').trim().split(/\r?\n/u);
+  assert.equal(allTraceRows.length, 12);
 
   const detailResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}`, {
     signal: AbortSignal.timeout(10_000),
@@ -180,12 +197,15 @@ try {
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
   assert.match(receiptText, /visionUnderstanding/);
   assert.match(receiptText, /desktopAutomation/);
+  assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /holotuneTrace/);
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);
   assert.match(serveSource, /buildImprovementExecutionReceipt/);
   assert.match(serveSource, /desktopBridgeStatusSnapshot/);
   assert.match(serveSource, /buildGpuBalancePlan/);
+  assert.match(serveSource, /emitImprovementHolotuneTraces/);
+  assert.match(serveSource, /trace-writer\.mjs/);
   assert.match(serveSource, /desktop-bridge-report/);
   assert.match(serveSource, /approvalRequiredForDesktopAutomation/);
 
@@ -193,6 +213,7 @@ try {
   assert.match(compileSource, /improvement-run-panel/);
   assert.match(compileSource, /api\/improvement-runs/);
   assert.match(compileSource, /executeLatestImprovementRun/);
+  assert.match(compileSource, /HoloTune traces/);
   assert.match(compileSource, /improvement-history/);
   assert.match(compileSource, /127\.0\.0\.1:8751/);
   assert.match(compileSource, /127\.0\.0\.1:8752/);
@@ -201,4 +222,5 @@ try {
 } finally {
   if (server.exitCode === null) server.kill();
   rmSync(receiptsDir, { recursive: true, force: true });
+  rmSync(traceRoot, { recursive: true, force: true });
 }

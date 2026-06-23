@@ -20,6 +20,7 @@ composition "HoloShell Improvement Run Loop" {
     liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
     modelLibrarySource: ".ai-ecosystem/model-library/library.json"
     holoClawSkillSource: "HoloScript/compositions/skills"
+    holotuneTraceSource: ".ai-ecosystem/scripts/trace-writer.mjs"
     maxBatchRunCount: 128
     defaultShakedownRunCount: 10
     receiptRequired: true
@@ -56,6 +57,12 @@ composition "HoloShell Improvement Run Loop" {
     type: "append_only"
     priority: "high"
     description: "Non-mutating shakedown executions that measure every queued improvement run"
+  }
+
+  channel "holoshell:improvement:holotune_trace" {
+    type: "append_only"
+    priority: "high"
+    description: "Verified improvement shakedown results emitted as per-identity HoloTune trace rows"
   }
 
   channel "holoshell:improvement:desktop_bridge" {
@@ -95,6 +102,16 @@ composition "HoloShell Improvement Run Loop" {
     desktopAutomationExecuted: false
   }
 
+  template "HoloTuneTraceEmission" {
+    type: "holotune_trace_emission"
+    schemaVersion: "hololand.holoshell.holotune-trace-emission.v0.1.0"
+    status: "emitted"
+    agentId: "agent_brittney"
+    emittedRows: 0
+    traceFiles: []
+    errors: []
+  }
+
   policy "VisionIsNotFara" {
     appliesTo: ["screen_understanding", "image_understanding", "desktop_automation"]
     visionUnderstandingLane: "vision_language"
@@ -124,9 +141,10 @@ composition "HoloShell Improvement Run Loop" {
 
   policy "ExponentialImprovementLoop" {
     appliesTo: ["improvement_batch"]
-    loopSteps: ["capture_live_state", "route_to_native_model_or_skill", "plan_guarded_action", "execute_after_receipt", "validate_and_measure", "feed_lesson_to_brittney"]
+    loopSteps: ["capture_live_state", "route_to_native_model_or_skill", "plan_guarded_action", "execute_after_receipt", "validate_and_measure", "feed_verified_trace_to_holotune", "feed_lesson_to_brittney"]
     requireMeasurementEveryRun: true
     requireReceiptEveryRun: true
+    requireHoloTuneTraceRowEveryRun: true
     destructiveActionsTakenByQueue: false
     shakedownRunCount: 10
     requireGpuBalanceSnapshot: true
@@ -183,6 +201,19 @@ composition "HoloShell Improvement Run Loop" {
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true
+    })
+  }
+
+  action emit_holotune_trace(receipt) {
+    emit("holoshell:improvement:holotune_trace", {
+      action: "holotune_trace_emitted",
+      run_id: receipt.sourceRunId,
+      execution_id: receipt.executionId,
+      agent_id: receipt.holotuneTrace.agentId,
+      emitted_rows: receipt.holotuneTrace.emittedRows,
+      status: receipt.holotuneTrace.status,
+      receipt_required: true,
+      destructive_actions_taken: false
     })
   }
 
