@@ -66,6 +66,7 @@ try {
   assert.match(body.routing.visionUnderstanding.role, /no desktop actuation/);
   assert.match(body.routing.desktopAutomation.role, /desktop automation/);
   assert.ok(body.routing.visionUnderstanding.models.some((model) => /qwen3-vl|vision/i.test(`${model.model} ${model.role}`)));
+  assert.ok(body.routing.visionUnderstanding.models.every((model) => !/holo-sdf|sdf|geometry|text-to-3d/i.test(`${model.model} ${model.role}`)));
   assert.ok(body.routing.desktopAutomation.models.some((model) => /fara|computer-use/i.test(`${model.model} ${model.role}`)));
   assert.ok(body.routingSummary.includes('vision='));
   assert.ok(body.routingSummary.includes('desktop='));

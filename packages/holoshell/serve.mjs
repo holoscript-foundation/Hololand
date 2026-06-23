@@ -661,6 +661,13 @@ function modelsMatching(models, needles) {
   });
 }
 
+function excludeModelsMatching(models, needles) {
+  return models.filter((model) => {
+    const haystack = modelSearchText(model);
+    return !needles.some((needle) => haystack.includes(needle));
+  });
+}
+
 function firstModelLabel(models, fallback) {
   return modelLabel(models[0]) || fallback;
 }
@@ -688,7 +695,10 @@ function selectHoloClawSkills(nativeResources, objective) {
 
 function buildNativeRunRouting(snapshot, objective) {
   const models = availableModelEntries(snapshot.modelLibrary);
-  const visionModels = modelsMatching(models, ['vision', 'multimodal', 'qwen3-vl', 'image']);
+  const visionModels = excludeModelsMatching(
+    modelsMatching(models, ['vision', 'multimodal', 'qwen3-vl', 'vision-language', 'screen']),
+    ['sdf', 'geometry', 'text-to-3d', 'holo-sdf']
+  );
   const desktopAutomationModels = modelsMatching(models, ['computer-use', 'agentic', 'fara']);
   const geometryModels = modelsMatching(models, ['sdf', 'geometry', 'text-to-3d', 'holo-sdf']);
   const embeddingModels = modelsMatching(models, ['embedding', 'semantic-search', 'holoembed', 'nomic']);
