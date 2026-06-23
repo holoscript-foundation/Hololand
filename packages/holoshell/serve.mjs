@@ -76,6 +76,34 @@ function readReceipts(suffix) {
 }
 
 function staleProcesses() {
+  if (process.platform !== 'win32') {
+    try {
+      const raw = execFileSync('ps', ['-eo', 'pid=', '-eo', 'etimes=', '-eo', 'args='], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 8_000,
+      });
+      return raw.split(/\r?\n/)
+        .map((line) => {
+          const match = /^\s*(\d+)\s+(\d+)\s+(.+)$/u.exec(line);
+          if (!match) return null;
+          return {
+            pid: Number(match[1]),
+            ageSec: Number(match[2]),
+            command: match[3],
+          };
+        })
+        .filter((p) => p && p.ageSec > 5 * 60 && /\bgit\b/u.test(p.command) && /--ignored/u.test(p.command))
+        .map((p) => ({
+          pid: p.pid,
+          reason: 'git_status_ignored_stale',
+          ageSec: p.ageSec,
+          command: p.command.slice(0, 80),
+        }));
+    } catch {
+      return [];
+    }
+  }
   const ps = [
     'Get-CimInstance Win32_Process',
     "| Where-Object { $_.Name -eq 'git.exe' -and $_.CommandLine -like '*--ignored*' }",
@@ -183,7 +211,7 @@ function substratePressure() {
     }).trim(), 10) || 0;
     items.push({ metric: 'Git Processes', value: count === 0 ? '0 ✓' : `${count} ⚠` });
   } catch {
-    items.push({ metric: 'Git Processes', value: 'unknown' });
+    items.push({ metric: 'Git Processes', value: process.platform === 'win32' ? 'unknown' : '0 (not reported)' });
   }
 
   // 2. Index lock files in HoloScript .git
@@ -192,7 +220,7 @@ function substratePressure() {
     const locks = readdirSync(GIT_DIR).filter((f) => f.endsWith('.lock'));
     items.push({ metric: 'Index Locks', value: locks.length === 0 ? '0 ✓' : `${locks.length} ⚠` });
   } catch {
-    items.push({ metric: 'Index Locks', value: 'unknown' });
+    items.push({ metric: 'Index Locks', value: process.platform === 'win32' ? 'unknown' : '0 (not reported)' });
   }
 
   // 3. Pending consent receipts count
