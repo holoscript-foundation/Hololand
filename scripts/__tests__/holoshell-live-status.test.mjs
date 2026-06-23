@@ -67,8 +67,10 @@ try {
   assert.ok(status.systemStatus.capabilityCount >= 10);
   assert.ok(status.systemStatus.laneCount >= 7);
   assert.equal(status.systemStatus.route.improvementRunEndpoint, 'POST /api/improvement-runs');
+  assert.equal(status.systemStatus.route.desktopBridgeReportEndpoint, 'POST /api/desktop-control/bridge/report');
   assert.ok(status.systemStatus.capabilities.includes('vision_model_routing'));
   assert.ok(status.systemStatus.capabilities.includes('improvement_run_queue'));
+  assert.ok(status.systemStatus.capabilities.includes('desktop_bridge_browser_report'));
   assert.ok(status.systemStatus.lanes.some((lane) =>
     lane.id === 'vision_language' && /screen and image|vision model stack/i.test(lane.role)
   ));

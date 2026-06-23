@@ -12,10 +12,18 @@ composition "HoloShell Desktop Control Bridge" {
     sourceLayer: "HoloScript"
     runtimeSurface: "Brittney Studio desktop app"
     planEndpoint: "POST /api/desktop-control/plan"
+    statusEndpoint: "GET /api/desktop-control/bridge"
+    bridgeReportEndpoint: "POST /api/desktop-control/bridge/report"
+    daemonStatusEndpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
+    daemonPreflightEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/preflight"
+    daemonExecuteEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/execute"
     chatEndpoint: "POST /api/brittney/chat"
     bridgeScript: "scripts/holoshell-desktop-control-plan.mjs"
+    daemonScript: "scripts/holoshell-laptop-desktop-bridge.mjs"
     latestPlanReceipt: ".tmp/holoshell/desktop-control-latest.json"
     latestPlanBootstrap: ".tmp/holoshell/desktop-control-latest.js"
+    latestBridgeReport: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
+    preflightReceiptDir: ".tmp/holoshell/desktop-control-bridge/preflights"
     primaryOperator: "brittney"
     visualGroundingLane: "fara_gui_grounding"
     visualGroundingModel: "fara:7b"
@@ -29,6 +37,10 @@ composition "HoloShell Desktop Control Bridge" {
     currentIntent: ""
     modelLane: "fara_gui_grounding"
     recommendedModel: "fara:7b"
+    bridgeStatus: "awaiting_laptop_daemon"
+    lastBridgeReportId: ""
+    lastBridgeHeartbeat: ""
+    lastPreflightId: ""
     screenshotRequired: true
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
@@ -54,6 +66,18 @@ composition "HoloShell Desktop Control Bridge" {
     description: "Guarded execution request created only after explicit approval"
   }
 
+  channel "holoshell:desktop-control:bridge-status" {
+    type: "append_only"
+    priority: "high"
+    description: "Browser-proxied laptop bridge status reports received by the Jetson surface"
+  }
+
+  channel "holoshell:desktop-control:preflight" {
+    type: "append_only"
+    priority: "critical"
+    description: "Laptop bridge preflight receipts for desktop action proposals"
+  }
+
   template "DesktopControlPlan" {
     type: "desktop_control_plan"
     actor: "brittney"
@@ -65,6 +89,32 @@ composition "HoloShell Desktop Control Bridge" {
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
     executionDefault: "staged_not_run"
+    receiptRequired: true
+  }
+
+  template "LaptopDesktopBridgeStatus" {
+    type: "desktop_control_bridge_status"
+    schemaVersion: "hololand.holoshell.laptop-desktop-bridge.v0.1.0"
+    status: "ready"
+    url: "http://127.0.0.1:8751"
+    hostRole: "laptop_desktop_bridge"
+    modelLane: "fara_gui_grounding"
+    capabilities: ["bridge_status", "desktop_action_preflight", "execution_refusal", "receipt_write"]
+    destructiveActionsTaken: false
+    approvalRequiredForDesktopAutomation: true
+  }
+
+  template "DesktopControlPreflight" {
+    type: "desktop_control_preflight"
+    schemaVersion: "hololand.holoshell.desktop-control-preflight.v0.1.0"
+    preflightId: ""
+    planId: ""
+    modelLane: "fara_gui_grounding"
+    permissionEnvelope: "guarded_execute"
+    executionAllowed: false
+    consentRequired: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
     receiptRequired: true
   }
 
@@ -108,6 +158,17 @@ composition "HoloShell Desktop Control Bridge" {
     executionDefault: "staged_not_run"
   }
 
+  policy "LaptopBridgePreflightOnly" {
+    appliesTo: ["desktop_action_preflight", "execution_refusal", "receipt_write"]
+    hostRole: "laptop_desktop_bridge"
+    statusReportAllowedWithoutConsent: true
+    preflightAllowedWithoutConsent: true
+    executionAllowedWithoutConsent: false
+    desktopAutomationExecutedByDaemonDefault: false
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
   policy "BreakGlassDesktopControl" {
     appliesTo: ["credential_entry", "account_change", "purchase", "delete_data", "send_message", "install_software", "registry_change"]
     permissionEnvelope: "break_glass"
@@ -147,6 +208,40 @@ composition "HoloShell Desktop Control Bridge" {
       fallback_model: "qwen3-vl:4b",
       requires_screenshot: true,
       may_execute: false,
+      receipt_required: true
+    })
+  }
+
+  action report_laptop_bridge_status(report) {
+    state.bridgeStatus = report.status
+    state.lastBridgeReportId = report.reportId
+    state.lastBridgeHeartbeat = report.generatedAt
+    emit("holoshell:desktop-control:bridge-status", {
+      action: "laptop_desktop_bridge_reported",
+      report_id: state.lastBridgeReportId,
+      status: state.bridgeStatus,
+      url: report.url,
+      host_role: "laptop_desktop_bridge",
+      destructive_actions_taken: false,
+      approval_required_for_desktop_automation: true,
+      receipt_required: true
+    })
+  }
+
+  action preflight_desktop_control(preflight) {
+    state.lastPreflightId = preflight.preflightId
+    state.permissionEnvelope = preflight.permissionEnvelope
+    state.approvalRequired = preflight.consentRequired
+    emit("holoshell:desktop-control:preflight", {
+      action: "desktop_control_preflight_created",
+      preflight_id: state.lastPreflightId,
+      plan_id: preflight.planId,
+      model_lane: "fara_gui_grounding",
+      permission_envelope: state.permissionEnvelope,
+      execution_allowed: false,
+      consent_required: true,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
       receipt_required: true
     })
   }

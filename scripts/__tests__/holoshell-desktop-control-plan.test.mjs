@@ -80,9 +80,11 @@ assert.match(readFileSync(join(tmp, 'latest.js'), 'utf8'), /HOLOSHELL_DESKTOP_CO
 const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
 assert.match(serveSource, /\/api\/desktop-control\/plan/);
 assert.match(serveSource, /holoshell-desktop-control-plan\.mjs/);
+assert.match(serveSource, /\/api\/desktop-control\/bridge\/report/);
 assert.match(serveSource, /desktopControl/);
 assert.match(serveSource, /fara_gui_grounding/);
 
 const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
 assert.match(compileSource, /Desktop control/);
 assert.match(compileSource, /desktopControl/);
+assert.match(compileSource, /127\.0\.0\.1:8751/);

@@ -91,6 +91,43 @@ try {
   assert.equal(bridge.approvalRequiredForDesktopAutomation, true);
   assert.ok(bridge.capabilities.includes('gpu_telemetry_report'));
 
+  const bridgeReportResponse = await fetch(`${baseUrl}/api/desktop-control/bridge/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      report: {
+        schemaVersion: 'hololand.holoshell.laptop-desktop-bridge.v0.1.0',
+        reportId: 'desktop_bridge_report_test',
+        generatedAt: new Date().toISOString(),
+        status: 'ready',
+        url: 'http://127.0.0.1:8751',
+        hostRole: 'laptop_desktop_bridge',
+        modelPolicy: { lane: 'fara_gui_grounding', recommendedModel: 'fara:7b', mayExecute: false },
+        capabilities: ['bridge_status', 'desktop_action_preflight', 'execution_refusal', 'receipt_write'],
+        destructiveActionsTaken: false,
+        desktopAutomationExecuted: false,
+        approvalRequiredForDesktopAutomation: true,
+      },
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const bridgeReport = await bridgeReportResponse.json();
+  assert.equal(bridgeReportResponse.status, 200, JSON.stringify(bridgeReport));
+  assert.equal(bridgeReport.status, 'ready');
+  assert.equal(bridgeReport.destructiveActionsTaken, false);
+  assert.equal(bridgeReport.desktopAutomationExecuted, false);
+
+  const readyBridgeResponse = await fetch(`${baseUrl}/api/desktop-control/bridge`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const readyBridge = await readyBridgeResponse.json();
+  assert.equal(readyBridgeResponse.status, 200, JSON.stringify(readyBridge));
+  assert.equal(readyBridge.status, 'ready');
+  assert.equal(readyBridge.source, 'browser_proxied_laptop_daemon');
+  assert.equal(readyBridge.hostRole, 'laptop_desktop_bridge');
+  assert.equal(readyBridge.destructiveActionsTaken, false);
+  assert.equal(readyBridge.desktopAutomationExecuted, false);
+
   const firstExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -106,6 +143,8 @@ try {
   assert.equal(firstExecution.destructiveActionsTaken, false);
   assert.equal(firstExecution.desktopAutomationExecuted, false);
   assert.equal(firstExecution.approvalRequiredForDesktopAutomation, true);
+  assert.equal(firstExecution.desktopBridge.status, 'ready');
+  assert.equal(firstExecution.desktopBridge.hostRole, 'laptop_desktop_bridge');
   assert.equal(firstExecution.desktopBridge.destructiveActionsTaken, false);
   assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, true);
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'vision_language'));
@@ -147,6 +186,7 @@ try {
   assert.match(serveSource, /buildImprovementExecutionReceipt/);
   assert.match(serveSource, /desktopBridgeStatusSnapshot/);
   assert.match(serveSource, /buildGpuBalancePlan/);
+  assert.match(serveSource, /desktop-bridge-report/);
   assert.match(serveSource, /approvalRequiredForDesktopAutomation/);
 
   const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
@@ -154,6 +194,8 @@ try {
   assert.match(compileSource, /api\/improvement-runs/);
   assert.match(compileSource, /executeLatestImprovementRun/);
   assert.match(compileSource, /improvement-history/);
+  assert.match(compileSource, /127\.0\.0\.1:8751/);
+  assert.match(compileSource, /desktop-control\/bridge\/report/);
 } finally {
   if (server.exitCode === null) server.kill();
   rmSync(receiptsDir, { recursive: true, force: true });

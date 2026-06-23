@@ -840,6 +840,52 @@ function writeImprovementExecutionReceipt(receipt) {
   return withPath;
 }
 
+function desktopBridgeReportReceipts() {
+  return readReceipts('.desktop-bridge-report.json');
+}
+
+function latestDesktopBridgeReport() {
+  return desktopBridgeReportReceipts()[0] || null;
+}
+
+function normalizeDesktopBridgeReport(payload = {}) {
+  const incoming = payload.report || payload.bridge || payload;
+  const serverReceivedAt = new Date().toISOString();
+  const sourceStatus = String(incoming.status || '').trim() || 'reported';
+  const reportId = incoming.reportId ||
+    `desktop_bridge_report_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const capabilities = Array.isArray(incoming.capabilities) ? incoming.capabilities.filter(Boolean) : [];
+  return {
+    schemaVersion: 'hololand.holoshell.desktop-bridge-report.v0.1.0',
+    source: 'browser_proxied_laptop_daemon',
+    reportId,
+    generatedAt: incoming.generatedAt || serverReceivedAt,
+    serverReceivedAt,
+    status: sourceStatus,
+    url: incoming.url || 'http://127.0.0.1:8751',
+    hostRole: incoming.hostRole || 'laptop_desktop_bridge',
+    modelPolicy: incoming.modelPolicy || {
+      lane: 'fara_gui_grounding',
+      recommendedModel: 'fara:7b',
+      mayExecute: false,
+    },
+    capabilities,
+    mutationBoundary: incoming.mutationBoundary || 'execution_refused_until_holoshell_consent_token',
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    approvalRequiredForDesktopAutomation: true,
+  };
+}
+
+function writeDesktopBridgeReport(report) {
+  mkdirSync(RECEIPTS_DIR, { recursive: true });
+  const fileName = `${report.reportId}.desktop-bridge-report.json`;
+  const receiptPath = join(RECEIPTS_DIR, fileName);
+  const withPath = { ...report, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
 function buildImprovementRunReceipt(payload = {}) {
   const objective = String(payload.objective || payload.message || payload.intent || '').trim();
   const runCount = parseImprovementRunCount(payload.runCount || payload.count || payload.requestedRunCount);
@@ -908,13 +954,18 @@ function desktopBridgeStatusSnapshot() {
   const url = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_URL || 'http://127.0.0.1:8751';
   const configured = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_ENABLED === '1' ||
     Boolean(process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_URL);
-  return {
+  const report = latestDesktopBridgeReport();
+  const reportTimestamp = report?.serverReceivedAt || report?.generatedAt || '';
+  const reportAgeMs = reportTimestamp ? Date.now() - Date.parse(reportTimestamp) : null;
+  const reportFresh = Number.isFinite(reportAgeMs) && reportAgeMs >= 0 && reportAgeMs <= 120_000;
+  const base = {
     schemaVersion: 'hololand.holoshell.desktop-bridge.v0.1.0',
     generatedAt: new Date().toISOString(),
     status: configured ? 'configured' : 'awaiting_laptop_daemon',
     url,
     hostRole: HOST === '0.0.0.0' ? 'jetson_surface' : 'local_surface',
     expectedDaemon: 'holoshell-laptop-desktop-bridge',
+    reportEndpoint: 'POST /api/desktop-control/bridge/report',
     capabilities: [
       'screen_capture_request',
       'desktop_action_preflight',
@@ -923,6 +974,33 @@ function desktopBridgeStatusSnapshot() {
     mutationBoundary: 'readiness_only_until_consent_token',
     destructiveActionsTaken: false,
     approvalRequiredForDesktopAutomation: true,
+  };
+  if (!report) return base;
+  const mergedCapabilities = [...new Set([...base.capabilities, ...(report.capabilities || [])])];
+  if (!reportFresh) {
+    return {
+      ...base,
+      status: 'stale_laptop_report',
+      latestReportId: report.reportId,
+      latestReportStatus: report.status,
+      latestReportReceivedAt: report.serverReceivedAt || report.generatedAt,
+      reportAgeMs,
+      capabilities: mergedCapabilities,
+    };
+  }
+  return {
+    ...base,
+    status: report.status === 'ready' ? 'ready' : report.status,
+    source: 'browser_proxied_laptop_daemon',
+    url: report.url || base.url,
+    hostRole: report.hostRole || 'laptop_desktop_bridge',
+    latestReportId: report.reportId,
+    latestReportReceivedAt: report.serverReceivedAt || report.generatedAt,
+    reportAgeMs,
+    modelPolicy: report.modelPolicy,
+    capabilities: mergedCapabilities,
+    mutationBoundary: report.mutationBoundary || base.mutationBoundary,
+    desktopAutomationExecuted: false,
   };
 }
 
@@ -1139,6 +1217,7 @@ function buildLiveStatusSnapshot() {
       chatEndpoint: 'POST /api/brittney/chat',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
+      desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
     },
@@ -1162,6 +1241,7 @@ function buildLiveStatusSnapshot() {
       'improvement_run_execution',
       'gpu_lane_balance',
       'desktop_bridge_status',
+      'desktop_bridge_browser_report',
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
@@ -1494,6 +1574,31 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/desktop-control/bridge') {
     respond(res, desktopBridgeStatusSnapshot());
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/desktop-control/bridge/report') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const report = writeDesktopBridgeReport(normalizeDesktopBridgeReport(payload));
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.desktop-bridge-report-response.v0.1.0',
+          status: report.status,
+          reportId: report.reportId,
+          source: report.source,
+          hostRole: report.hostRole,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          approvalRequiredForDesktopAutomation: true,
+          receipt: report,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
     return;
   }
 

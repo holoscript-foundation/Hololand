@@ -225,6 +225,38 @@ const runtimeScript = `  <script>
         return item.runId + ' - ' + item.totalExecutedRunCount + '/' + item.queuedRunCount + ' measured' + (item.remainingRunCount ? ' (' + item.remainingRunCount + ' left)' : '');
       }).join('\\n');
     }
+    function _setDesktopBridgeStatus(text) {
+      var el = document.getElementById('desktop-bridge-status'); if (!el) return;
+      el.textContent = text;
+    }
+    function _reportLaptopDesktopBridge(report) {
+      fetch('/api/desktop-control/bridge/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report: report })
+      }).catch(function() {});
+    }
+    function _loadServerDesktopBridgeStatus() {
+      fetch('/api/desktop-control/bridge')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          _setDesktopBridgeStatus('Bridge: ' + d.status);
+        })
+        .catch(function() {
+          _setDesktopBridgeStatus('Bridge: not reported');
+        });
+    }
+    function probeLaptopDesktopBridge() {
+      fetch('http://127.0.0.1:8751/api/desktop-control/bridge', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          _setDesktopBridgeStatus('Bridge: ' + d.status + ' (laptop)');
+          _reportLaptopDesktopBridge(d);
+        })
+        .catch(function() {
+          _loadServerDesktopBridgeStatus();
+        });
+    }
     function loadImprovementRuns() {
       fetch('/api/improvement-runs')
         .then(function(r) { return r.json(); })
@@ -234,15 +266,7 @@ const runtimeScript = `  <script>
           _renderImprovementHistory(d.items || []);
         })
         .catch(function(e) { _setImprovementStatus('History network error: ' + e.message, '#f85149'); });
-      fetch('/api/desktop-control/bridge')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          var el = document.getElementById('desktop-bridge-status'); if (!el) return;
-          el.textContent = 'Bridge: ' + d.status;
-        })
-        .catch(function() {
-          var el = document.getElementById('desktop-bridge-status'); if (el) el.textContent = 'Bridge: not reported';
-        });
+      probeLaptopDesktopBridge();
     }
     function executeLatestImprovementRun() {
       if (!_lastImprovementRunId) { _setImprovementStatus('Queue or refresh a run first', '#d29922'); return; }

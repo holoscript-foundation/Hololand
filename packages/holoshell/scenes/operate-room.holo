@@ -27,6 +27,8 @@ composition "OperateRoom" {
     improvement_run_endpoint: "POST /api/improvement-runs"
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
     desktop_bridge_endpoint: "GET /api/desktop-control/bridge"
+    desktop_bridge_report_endpoint: "POST /api/desktop-control/bridge/report"
+    laptop_desktop_bridge_endpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
   }
 
   environment {
@@ -68,6 +70,8 @@ composition "OperateRoom" {
     // Improvement batches use POST /api/improvement-runs, then capped shakedown
     // execution through POST /api/improvement-runs/:runId/execute. Vision models
     // read screens/images; Fara is reserved for guarded desktop automation planning.
+    // The browser probes the laptop bridge at 127.0.0.1:8751 and reports status
+    // back to the Jetson surface; desktop mutation remains consent-token gated.
     // The interactive DOM (messages / input / send) is built by the runtime helper.
     object "chat" {
       type: "main"
