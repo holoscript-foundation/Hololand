@@ -89,6 +89,8 @@ try {
   assert.match(serveSource, /GPU util not reported/);
   assert.match(serveSource, /modelLibrarySnapshot/);
   assert.match(serveSource, /nativeResourceSnapshot/);
+  assert.match(serveSource, /directCatalogByName/);
+  assert.match(serveSource, /baseCatalogByName/);
 } finally {
   if (server.exitCode === null) {
     server.kill();

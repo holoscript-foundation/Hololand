@@ -529,15 +529,25 @@ function installedOllamaModels() {
 function modelLibrarySnapshot() {
   const { source: catalogSource, catalog } = readModelCatalog();
   const installed = installedOllamaModels();
-  const catalogByName = new Map(
-    (catalog?.models || []).flatMap((entry) => {
-      const keys = [entry.id, entry.display, entry.base].filter(Boolean).map(normalizeModelName);
-      return keys.map((key) => [key, entry]);
-    })
-  );
+  const directCatalogByName = new Map();
+  const baseCatalogByName = new Map();
+  for (const entry of catalog?.models || []) {
+    for (const key of [entry.id, entry.display].filter(Boolean).map(normalizeModelName)) {
+      if (!directCatalogByName.has(key)) directCatalogByName.set(key, entry);
+    }
+    if (entry.base) {
+      const key = normalizeModelName(entry.base);
+      if (!baseCatalogByName.has(key)) baseCatalogByName.set(key, entry);
+    }
+  }
   const installedModels = installed.models.map((model) => {
     const normalized = normalizeModelName(model.name);
-    const catalogEntry = catalogByName.get(normalized) || catalogByName.get(normalized.replace(/^hf\.co\/bartowski\//u, ''));
+    const alias = normalized.replace(/^hf\.co\/bartowski\//u, '');
+    const catalogEntry =
+      directCatalogByName.get(normalized) ||
+      directCatalogByName.get(alias) ||
+      baseCatalogByName.get(normalized) ||
+      baseCatalogByName.get(alias);
     return {
       name: model.name,
       size: model.size,
