@@ -184,6 +184,30 @@ try {
   const tracePath = join(traceRoot, 'traces', 'agent_brittney', 'trace.jsonl');
   assert.equal(existsSync(tracePath), false);
 
+  const unsafeFixes = [
+    { ...codebaseFixes(1, 100)[0], destructiveActionsTaken: true },
+    { ...codebaseFixes(1, 101)[0], desktopAutomationExecuted: true },
+  ];
+  const unsafeExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shakedownCount: 2, codebaseFixes: unsafeFixes }),
+    signal: AbortSignal.timeout(80_000),
+  });
+  const unsafeExecution = await unsafeExecutionResponse.json();
+  assert.equal(unsafeExecutionResponse.status, 200, JSON.stringify(unsafeExecution));
+  assert.equal(unsafeExecution.status, 'awaiting_codebase_fix_evidence');
+  assert.equal(unsafeExecution.plannedFixCount, 2);
+  assert.equal(unsafeExecution.executedRunCount, 0);
+  assert.equal(unsafeExecution.totalExecutedRunCount, 0);
+  assert.equal(unsafeExecution.remainingRunCount, 12);
+  assert.equal(unsafeExecution.destructiveActionsTaken, false);
+  assert.equal(unsafeExecution.desktopAutomationExecuted, false);
+  assert.equal(unsafeExecution.runResults.length, 0);
+  assert.equal(unsafeExecution.holotuneTrace.status, 'deferred');
+  assert.equal(unsafeExecution.holotuneTrace.emittedRows, 0);
+  assert.equal(existsSync(tracePath), false);
+
   const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -211,15 +235,17 @@ try {
   assert.equal(detailResponse.status, 200, JSON.stringify(detail));
   assert.equal(detail.totalExecutedRunCount, 2);
   assert.equal(detail.remainingRunCount, 10);
-  assert.equal(detail.executions.length, 2);
+  assert.equal(detail.executions.length, 3);
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
   assert.match(receiptText, /visionUnderstanding/);
   assert.match(receiptText, /desktopAutomation/);
   assert.match(receiptText, /codebaseFixPolicy/);
+  assert.match(receiptText, /disallowedEvidence/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /holotuneTrace/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
+  assert.match(readFileSync(unsafeExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);

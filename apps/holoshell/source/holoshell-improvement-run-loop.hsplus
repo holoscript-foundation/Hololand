@@ -151,6 +151,8 @@ composition "HoloShell Improvement Run Loop" {
     requireMeasurementEveryRun: true
     requireReceiptEveryRun: true
     requireCodebaseFixEvidenceEveryCountedRun: true
+    disallowDestructiveEvidenceEveryCountedRun: true
+    disallowDesktopAutomationEvidenceEveryCountedRun: true
     requireHoloTuneTraceRowEveryRun: false
     holotuneTraceMode: "deferred_until_codebase_fix_review"
     holotuneTraceClientEnableAllowed: false

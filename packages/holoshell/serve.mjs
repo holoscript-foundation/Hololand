@@ -1075,6 +1075,7 @@ function normalizeCodebaseFixEvidence(value, index) {
     receiptPath: value.receiptPath ? String(value.receiptPath).slice(0, 500) : '',
     commit: value.commit ? String(value.commit).slice(0, 80) : '',
     destructiveActionsTaken: value.destructiveActionsTaken === true,
+    desktopAutomationExecuted: value.desktopAutomationExecuted === true,
   };
 }
 
@@ -1090,7 +1091,9 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
       fix.changedFiles.length > 0 &&
       fix.validationCommands.length > 0 &&
       fix.validationStatus !== 'missing' &&
-      Boolean(fix.receiptPath || fix.commit)
+      Boolean(fix.receiptPath || fix.commit) &&
+      fix.destructiveActionsTaken === false &&
+      fix.desktopAutomationExecuted === false
     );
 }
 
@@ -1127,6 +1130,7 @@ function buildImprovementRunReceipt(payload = {}) {
     codebaseFixPolicy: {
       requiredBeforeCountedExecution: true,
       requiredEvidence: ['issue', 'changedFiles', 'validationCommands', 'validationStatus'],
+      disallowedEvidence: ['destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
       tuningIsNotTheShakedown: true,
     },
     holotuneTracePolicy: {
