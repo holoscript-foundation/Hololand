@@ -22,20 +22,28 @@ KEY="${JETSON_KEY:-$HOME/.ssh/jetson_ed25519}"
 J="${JETSON_HOST:-username@holojetson.local}"
 HL="$(cd "$(dirname "$0")/.." && pwd)"
 HS="${HOLOSCRIPT_REPO:-$(cd "$HL/../HoloScript" && pwd)}"
+MODEL_LIBRARY="${HOLOSHELL_MODEL_LIBRARY_PATH:-$HOME/.ai-ecosystem/model-library/library.json}"
 ROOT=/mnt/nvme/holo/holoscript-root          # HOLOSCRIPT_REPO on the Jetson (dists + brain)
 SURF=/mnt/nvme/holo/holoshell-surface        # the serve + turn handler + html
 
 echo "[deploy] HoloScript repo: $HS"
 echo "[deploy] ensuring Jetson layout under /mnt/nvme/holo ..."
-ssh -i "$KEY" "$J" "mkdir -p $SURF/packages/holoshell/dist $SURF/scripts $ROOT/packages/aibrittney $ROOT/packages/llm-provider $ROOT/compositions"
+ssh -i "$KEY" "$J" "mkdir -p $SURF/packages/holoshell/dist $SURF/scripts $SURF/model-library $ROOT/packages/aibrittney $ROOT/packages/llm-provider $ROOT/compositions/skills"
 
-echo "[deploy] syncing platform-neutral dists + brain + surface ..."
+echo "[deploy] syncing platform-neutral dists + brain + native resources + surface ..."
 scp -i "$KEY" -q -r "$HS/packages/aibrittney/dist"     "$J:$ROOT/packages/aibrittney/"
 scp -i "$KEY" -q -r "$HS/packages/llm-provider/dist"   "$J:$ROOT/packages/llm-provider/"
 scp -i "$KEY" -q    "$HS/compositions/model-fleet.hsplus" "$J:$ROOT/compositions/"
+scp -i "$KEY" -q -r "$HS/compositions/skills"          "$J:$ROOT/compositions/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/serve.mjs" "$J:$SURF/packages/holoshell/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/dist/operate-room.html" "$J:$SURF/packages/holoshell/dist/"
 scp -i "$KEY" -q    "$HL/scripts/holoshell-brittney-turn.mjs" "$J:$SURF/scripts/"
+
+if [ -f "$MODEL_LIBRARY" ]; then
+  scp -i "$KEY" -q "$MODEL_LIBRARY" "$J:$SURF/model-library/library.json"
+else
+  echo "[deploy] model library not found at $MODEL_LIBRARY; live server will use installed Ollama list only"
+fi
 
 if [ "${1:-}" = "--restart" ]; then
   echo "[deploy] restarting holoshell-surface ..."

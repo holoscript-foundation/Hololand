@@ -443,6 +443,193 @@ function gitStatusSnapshot() {
     });
 }
 
+function readJsonFileIfPresent(filePath) {
+  try {
+    if (!filePath || !existsSync(filePath)) return null;
+    return JSON.parse(readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function modelLibraryPaths() {
+  return [
+    process.env.HOLOSHELL_MODEL_LIBRARY_PATH,
+    join(__dirname, '..', '..', 'model-library', 'library.json'),
+    'C:/Users/josep/.ai-ecosystem/model-library/library.json',
+    'C:/Users/Josep/.ai-ecosystem/model-library/library.json',
+  ].filter(Boolean);
+}
+
+function readModelCatalog() {
+  for (const filePath of modelLibraryPaths()) {
+    const catalog = readJsonFileIfPresent(filePath);
+    if (catalog?.models && Array.isArray(catalog.models)) {
+      return { source: filePath, catalog };
+    }
+  }
+  return { source: null, catalog: null };
+}
+
+function normalizeModelName(name) {
+  return String(name || '').replace(/:latest$/u, '').toLowerCase();
+}
+
+function inferModelRole(name, catalogEntry = null) {
+  const key = normalizeModelName(name);
+  const tags = catalogEntry?.capability_tags || [];
+  if (tags.length) return tags.slice(0, 3).join('/');
+  if (key.includes('holo-sdf')) return 'sdf-authoring/text-to-3d';
+  if (key.includes('brittney-edge')) return 'native-field/tool-calls';
+  if (key.includes('fara')) return 'computer-use/gui-grounding';
+  if (key.includes('qwen3-vl')) return 'vision-language';
+  if (key.includes('nomic')) return 'embeddings/semantic-search';
+  if (key.includes('qwen3:4b-instruct')) return 'operator/tool-calls';
+  if (key.includes('qwen3:4b')) return 'reasoning/thinking';
+  if (key.includes('granite')) return 'tiny-fleet-worker';
+  return 'available-model';
+}
+
+function parseOllamaList(raw) {
+  return String(raw || '')
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/\s{2,}/u).map((part) => part.trim()).filter(Boolean);
+      return {
+        name: parts[0] || line.split(/\s+/u)[0] || '',
+        id: parts[1] || '',
+        size: parts[2] || '',
+        modified: parts.slice(3).join(' ') || '',
+      };
+    })
+    .filter((model) => model.name);
+}
+
+function installedOllamaModels() {
+  const candidates = ['ollama', '/usr/local/bin/ollama'].filter((cmd, index, all) => all.indexOf(cmd) === index);
+  for (const command of candidates) {
+    try {
+      const raw = execFileSync(command, ['list'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 8_000,
+        env: { ...process.env, OLLAMA_HOST: process.env.OLLAMA_HOST || '127.0.0.1:11434' },
+      });
+      return { source: `${command} list`, models: parseOllamaList(raw) };
+    } catch {
+      // Try the next well-known Ollama path before falling back to the catalog.
+    }
+  }
+  return { source: null, models: [] };
+}
+
+function modelLibrarySnapshot() {
+  const { source: catalogSource, catalog } = readModelCatalog();
+  const installed = installedOllamaModels();
+  const catalogByName = new Map(
+    (catalog?.models || []).flatMap((entry) => {
+      const keys = [entry.id, entry.display, entry.base].filter(Boolean).map(normalizeModelName);
+      return keys.map((key) => [key, entry]);
+    })
+  );
+  const installedModels = installed.models.map((model) => {
+    const normalized = normalizeModelName(model.name);
+    const catalogEntry = catalogByName.get(normalized) || catalogByName.get(normalized.replace(/^hf\.co\/bartowski\//u, ''));
+    return {
+      name: model.name,
+      size: model.size,
+      modified: model.modified,
+      display: catalogEntry?.display || model.name,
+      status: catalogEntry?.status || 'installed',
+      role: inferModelRole(model.name, catalogEntry),
+    };
+  });
+  const catalogModels = (catalog?.models || []).map((entry) => ({
+    id: entry.id,
+    display: entry.display || entry.id,
+    status: entry.status || 'unknown',
+    role: inferModelRole(entry.id, entry),
+  }));
+  const visibleModels = installedModels.length ? installedModels : catalogModels.filter((entry) => entry.status === 'live').slice(0, 8);
+  const summary = visibleModels.length
+    ? `${installedModels.length || catalogModels.length} model(s): ${visibleModels.slice(0, 8).map((model) => `${model.name || model.id} (${model.role})`).join('; ')}`
+    : 'No model library entries reported';
+  return {
+    schemaVersion: 'hololand.holoshell.model-library.v0.1.0',
+    status: visibleModels.length ? 'available' : 'not_reported',
+    catalogSource,
+    installedSource: installed.source,
+    catalogCount: catalogModels.length,
+    installedCount: installedModels.length,
+    defaults: catalog?.lane_defaults || {},
+    installedModels,
+    catalogModels: catalogModels.slice(0, 20),
+    summary,
+  };
+}
+
+function holoscriptRootCandidates() {
+  return [
+    process.env.HOLOSCRIPT_REPO,
+    process.env.HOLOSCRIPT_REPO_ROOT,
+    join(__dirname, '..', '..', '..', 'HoloScript'),
+    'C:/Users/josep/Documents/GitHub/HoloScript',
+    'C:/Users/Josep/Documents/GitHub/HoloScript',
+  ].filter(Boolean);
+}
+
+function extractHoloClawSkill(filePath, rootDir) {
+  try {
+    const content = readFileSync(filePath, 'utf8');
+    const fileName = filePath.split(/[\\/]/u).pop();
+    const nameMatch = content.match(/composition\s+"([^"]+)"/u) || content.match(/composition\s+([A-Za-z0-9_-]+)/u);
+    const description = (content.match(/\/\/\s*(.+)/u)?.[1] || '').trim();
+    const actions = [...content.matchAll(/action\s+"?([A-Za-z0-9_-]+)"?/gu)].map((match) => match[1]);
+    const traits = [...content.matchAll(/@([A-Za-z_][A-Za-z0-9_]*)/gu)]
+      .map((match) => match[1])
+      .filter((trait, index, all) => all.indexOf(trait) === index && trait !== 'absorb');
+    const stat = statSync(filePath);
+    return {
+      name: nameMatch ? nameMatch[1] : fileName.replace(/\.hsplus$/u, ''),
+      fileName,
+      path: filePath.replace(rootDir, '').replace(/^[\\/]/u, '').replace(/\\/gu, '/'),
+      description,
+      actionCount: actions.length,
+      actions: actions.slice(0, 6),
+      traits: traits.slice(0, 8),
+      modifiedAt: stat.mtime.toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function nativeResourceSnapshot() {
+  const rootDir = holoscriptRootCandidates().find((candidate) => existsSync(candidate));
+  const skillsDir = rootDir ? join(rootDir, 'compositions', 'skills') : '';
+  const skillFiles = skillsDir && existsSync(skillsDir)
+    ? readdirSync(skillsDir).filter((file) => file.endsWith('.hsplus')).map((file) => join(skillsDir, file))
+    : [];
+  const skills = skillFiles
+    .map((filePath) => extractHoloClawSkill(filePath, rootDir))
+    .filter(Boolean)
+    .sort((a, b) => String(b.modifiedAt).localeCompare(String(a.modifiedAt)));
+  return {
+    schemaVersion: 'hololand.holoshell.native-resources.v0.1.0',
+    status: skills.length ? 'available' : 'not_reported',
+    holoscriptRoot: rootDir || null,
+    holoClawSkillDir: skillsDir || null,
+    holoClawSkillCount: skills.length,
+    holoClawSkills: skills.slice(0, 12),
+    summary: skills.length
+      ? `${skills.length} HoloClaw skill(s): ${skills.slice(0, 8).map((skill) => skill.name).join(', ')}`
+      : 'No HoloClaw skill shelf reported',
+  };
+}
+
 function publicShellUrl() {
   return `http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}`;
 }
@@ -451,6 +638,8 @@ function buildLiveStatusSnapshot() {
   const pending = pendingConsents();
   const executions = executionHistory();
   const stale = staleProcesses();
+  const modelLibrary = modelLibrarySnapshot();
+  const nativeResources = nativeResourceSnapshot();
   return {
     schemaVersion: 'hololand.holoshell.live-status.v0.1.0',
     generatedAt: new Date().toISOString(),
@@ -475,12 +664,21 @@ function buildLiveStatusSnapshot() {
       'desktop_control_plan',
       'fara_gui_grounding',
       'daimon_rehydration',
+      'model_library',
+      'holoclaw_skill_shelf',
+      'native_resource_inventory',
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
       { id: 'fara_gui_grounding', model: 'fara:7b', role: 'desktop app visual grounding' },
+      { id: 'holo_sdf_geometry', model: 'holo-sdf:v0', role: 'text/image to SDFNode geometry' },
+      { id: 'vision_language', model: 'qwen3-vl:4b', role: 'screen and image understanding' },
+      { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
+      { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
     ],
+    modelLibrary,
+    nativeResources,
     gpu: gpuStatusSnapshot(),
     substratePressure: substratePressure(),
     worktreeHealth: worktreeHealth(),
@@ -517,6 +715,14 @@ function laneSummary(snapshot) {
     .join('; ');
 }
 
+function modelLibrarySummary(snapshot) {
+  return snapshot.modelLibrary?.summary || 'No model library entries reported';
+}
+
+function nativeResourceSummary(snapshot) {
+  return snapshot.nativeResources?.summary || 'No native resources reported';
+}
+
 function formatLiveStatusBrief(snapshot) {
   return [
     '[Live HoloShell status context - answer from these fields; do not answer "unknown" when a field is present.]',
@@ -525,6 +731,8 @@ function formatLiveStatusBrief(snapshot) {
     `Brittney avatar: ${snapshot.avatar.status}; runtime ${snapshot.avatar.runtime}; Daimon context ${snapshot.avatar.daimonContext}`,
     `Capabilities: ${snapshot.capabilities.join(', ')}`,
     `Lanes: ${laneSummary(snapshot)}`,
+    `Model library: ${modelLibrarySummary(snapshot)}`,
+    `Native resources: ${nativeResourceSummary(snapshot)}`,
     `GPU telemetry: ${snapshot.gpu.summary}`,
     `Substrate pressure: ${metricSummary(snapshot.substratePressure)}`,
     `Worktrees: ${gitSummary(snapshot.gitStatus)}`,
@@ -544,8 +752,9 @@ function buildGroundedStatusReply(snapshot, message) {
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Route desktop app work through Fara: ${snapshot.route.desktopControlEndpoint} uses the fara_gui_grounding lane and stays plan-only until guarded approval.`,
       `3. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
-      `4. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
-      `5. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `4. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `5. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
+      `6. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
       'No cube/test object is needed here. The next move is live data -> Fara-grounded desktop plan -> guarded execution receipt -> measure the run -> feed the improvement back into Brittney.',
     ].join('\n');
@@ -557,6 +766,8 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
+    `Model library: ${modelLibrarySummary(snapshot)}.`,
+    `Native resources: ${nativeResourceSummary(snapshot)}.`,
     `GPU balance: ${snapshot.gpu.summary}.`,
     `Local guardrails: ${baseGuardrails}.`,
     `Worktrees: ${gitSummary(snapshot.gitStatus)}.`,
@@ -576,6 +787,16 @@ function liveStatusProposals(snapshot, message) {
       lane: 'owned_gpu_fleet',
       receiptRequired: true,
     },
+    {
+      operation: 'inspect_model_library',
+      lane: 'model_library',
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_holoclaw_skill_shelf',
+      lane: 'holoclaw_skills',
+      receiptRequired: true,
+    },
   ];
   if (looksLikeNextStepsIntent(message)) {
     proposals.push({
@@ -588,6 +809,11 @@ function liveStatusProposals(snapshot, message) {
       lane: 'fara_gui_grounding',
       receiptRequired: true,
       approvalRequired: true,
+    });
+    proposals.push({
+      operation: 'route_task_to_native_model_or_skill',
+      lane: 'native_resource_inventory',
+      receiptRequired: true,
     });
   }
   if (snapshot.pendingConsentCount > 0) {
@@ -619,6 +845,8 @@ function liveStatusResponseEnvelope(snapshot) {
     avatar: snapshot.avatar,
     capabilityCount: snapshot.capabilities.length,
     laneCount: snapshot.lanes.length,
+    modelLibrary: snapshot.modelLibrary,
+    nativeResources: snapshot.nativeResources,
     gpu: snapshot.gpu,
     pendingConsentCount: snapshot.pendingConsentCount,
     staleProcessCount: snapshot.staleProcessCount,

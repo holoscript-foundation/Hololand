@@ -15,6 +15,8 @@ composition "HoloShell Live Status Brief" {
     statusEnvelope: "systemStatus"
     bridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
+    modelLibrarySource: ".ai-ecosystem/model-library/library.json"
+    holoClawSkillSource: "HoloScript/compositions/skills"
     primaryOperator: "brittney"
     visualGroundingLane: "fara_gui_grounding"
     receiptRequired: true
@@ -29,6 +31,11 @@ composition "HoloShell Live Status Brief" {
     staleProcessCount: 0
     recentExecutionCount: 0
     gpuTelemetryStatus: "not_reported"
+    modelLibraryStatus: "not_reported"
+    installedModelCount: 0
+    catalogModelCount: 0
+    nativeResourceStatus: "not_reported"
+    holoClawSkillCount: 0
     statusBriefGeneratedAt: ""
     lastReplyMode: "live_status"
   }
@@ -52,6 +59,8 @@ composition "HoloShell Live Status Brief" {
     avatar: {}
     capabilities: []
     lanes: []
+    modelLibrary: {}
+    nativeResources: {}
     gpu: {}
     substratePressure: []
     worktreeHealth: []
@@ -70,12 +79,14 @@ composition "HoloShell Live Status Brief" {
     includesSystemStatusEnvelope: true
     includesCapabilityCount: true
     includesLaneCount: true
+    includesModelLibrary: true
+    includesNativeResources: true
     includesGpuTelemetryBoundary: true
     includesReceiptGuardrails: true
   }
 
   policy "StatusBeforeModelGuess" {
-    appliesTo: ["system_status", "next_steps", "gpu_balance", "capability_summary"]
+    appliesTo: ["system_status", "next_steps", "gpu_balance", "capability_summary", "model_library", "native_resources"]
     requiredInput: "live_status_snapshot"
     answerMayNotSayUnknownWhenMeasured: true
     deterministicReplyAllowed: true
@@ -85,9 +96,17 @@ composition "HoloShell Live Status Brief" {
 
   policy "NextStepsUseOperatingLanes" {
     appliesTo: ["next_steps", "improvement_batch", "desktop_app_control"]
-    requiredLanes: ["brittney_operator", "fara_gui_grounding", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "receipt_gate"]
     requirePlanBeforeExecution: true
     improvementLoop: ["live_data", "fara_grounded_plan", "guarded_execution_receipt", "measure_run", "feed_back_to_brittney"]
+    receiptRequired: true
+  }
+
+  policy "NativeResourcesBeforeRecreate" {
+    appliesTo: ["model_routing", "skill_routing", "desktop_app_control", "improvement_batch"]
+    requiredInput: "live_status_snapshot"
+    preferCatalogModels: true
+    preferHoloClawSkills: true
     receiptRequired: true
   }
 
@@ -100,6 +119,11 @@ composition "HoloShell Live Status Brief" {
     state.staleProcessCount = snapshot.staleProcessCount
     state.recentExecutionCount = snapshot.recentExecutionCount
     state.gpuTelemetryStatus = snapshot.gpu.status
+    state.modelLibraryStatus = snapshot.modelLibrary.status
+    state.installedModelCount = snapshot.modelLibrary.installedCount
+    state.catalogModelCount = snapshot.modelLibrary.catalogCount
+    state.nativeResourceStatus = snapshot.nativeResources.status
+    state.holoClawSkillCount = snapshot.nativeResources.holoClawSkillCount
     state.statusBriefGeneratedAt = snapshot.generatedAt
     emit("holoshell:live-status:snapshot", {
       action: "live_status_snapshot_assembled",
@@ -111,6 +135,11 @@ composition "HoloShell Live Status Brief" {
       stale_processes: state.staleProcessCount,
       recent_executions: state.recentExecutionCount,
       gpu_telemetry_status: state.gpuTelemetryStatus,
+      model_library_status: state.modelLibraryStatus,
+      installed_model_count: state.installedModelCount,
+      catalog_model_count: state.catalogModelCount,
+      native_resource_status: state.nativeResourceStatus,
+      holoclaw_skill_count: state.holoClawSkillCount,
       receipt_required: true
     })
   }
@@ -124,6 +153,9 @@ composition "HoloShell Live Status Brief" {
       avatar_status: snapshot.avatar.status,
       capability_count: snapshot.capabilities.length,
       lane_count: snapshot.lanes.length,
+      model_library_status: snapshot.modelLibrary.status,
+      native_resource_status: snapshot.nativeResources.status,
+      holoclaw_skill_count: snapshot.nativeResources.holoClawSkillCount,
       model_reply_overridden_when_needed: true,
       receipt_required: true
     })

@@ -61,11 +61,17 @@ try {
   assert.doesNotMatch(status.reply, /Avatar status:\s*unknown/i);
   assert.doesNotMatch(status.reply, /No active capabilities/i);
   assert.doesNotMatch(status.reply, /NaN/);
+  assert.match(status.reply, /Model library:/);
+  assert.match(status.reply, /Native resources:/);
   assert.equal(status.systemStatus.status, 'online');
-  assert.ok(status.systemStatus.capabilityCount >= 4);
-  assert.ok(status.systemStatus.laneCount >= 3);
+  assert.ok(status.systemStatus.capabilityCount >= 8);
+  assert.ok(status.systemStatus.laneCount >= 7);
+  assert.ok(status.systemStatus.modelLibrary.catalogCount >= 1);
+  assert.ok(status.systemStatus.nativeResources.holoClawSkillCount >= 1);
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'summarize_live_system_status'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_gpu_lane_balance'));
+  assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_model_library'));
+  assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_holoclaw_skill_shelf'));
 
   const next = await postChat('what are our next steps?');
   assert.match(next.reply, /Next steps, grounded in live HoloShell state/);
@@ -75,11 +81,14 @@ try {
   assert.doesNotMatch(next.reply, /NaN/);
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_receipt_backed_improvement_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_desktop_control_with_fara'));
+  assert.ok(next.proposals.some((proposal) => proposal.operation === 'route_task_to_native_model_or_skill'));
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /tegrastatsGpuSnapshot/);
   assert.match(serveSource, /Number\.isFinite/);
   assert.match(serveSource, /GPU util not reported/);
+  assert.match(serveSource, /modelLibrarySnapshot/);
+  assert.match(serveSource, /nativeResourceSnapshot/);
 } finally {
   if (server.exitCode === null) {
     server.kill();
