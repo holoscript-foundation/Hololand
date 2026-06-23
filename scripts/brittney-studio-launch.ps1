@@ -6,6 +6,9 @@
 
   $0 BY DESIGN:
     * Jetson (qwen3:4b @ holojetson.local:11434) is the local brain (model-policy LOCAL default).
+    * Messages land on the Jetson-hosted Brittney/HoloShell surface first.
+    * The laptop is the reasoning workstation: Codex/HoloMesh peers inspect, decide,
+      validate, and act through HoloShell + HoloMesh while the Jetson keeps the live surface.
     * The Vast fleet is SCALE-TO-ZERO — the serving autoscaler warms a box only on real
       inference demand and drains it on idle. NOTHING is provisioned at launch. No spend.
     * "Claude-level depth" is the model-policy CLOUD default (claude-opus-4-8) and is OPT-IN
@@ -57,7 +60,9 @@ Write-Host '[Brittney Studio] the laptop is a SCREEN for the Jetson (founder 202
 
 # The Jetson is the sovereign node — it HOSTS the Brittney surface itself (systemd
 # holoshell-surface, always-on, $0: brain + agents + surface all on the Jetson). This
-# laptop runs NO local LLM and NO local Brittney serve; it just DISPLAYS the Jetson.
+# launcher does not start a laptop Brittney serve; the laptop provides deeper
+# reasoning, validation, and HoloMesh/HoloShell actions from its agent seats while it
+# displays the Jetson.
 # (Studio — the heavy Next.js build IDE — is a separate dev tool launched on its own,
 # not part of this screen; it cannot run on the 8GB Jetson alongside the model.)
 
