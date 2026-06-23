@@ -2,7 +2,7 @@
 /**
  * HoloShell Operate Room — local data tier (localhost:8747)
  *
- * Serves the Native2DCompiler-compiled HTML dashboard and provides live
+ * Serves the compiled HoloShell chat surface and provides live
  * machine-local data via /api/* endpoints.
  *
  * Data tier rationale: all data here (Win32_Process CIM, local receipt files,
@@ -124,6 +124,52 @@ function executionHistory() {
     executedAtShort: r.executedAt ? r.executedAt.slice(11, 19) : '?',
     summary:         r.summary ?? { killed: 0, errors: 0 },
   }));
+}
+
+function looksLikeDesktopControlIntent(message) {
+  return /\b(screen|desktop|window|app|application|browser|chrome|edge|excel|word|powerpoint|terminal|button|click|type|hotkey|keyboard|mouse|focus|open|launch|control|save|submit|scroll|tab)\b/iu.test(String(message || ''));
+}
+
+function parseJsonFromNodeOutput(output) {
+  const text = String(output || '');
+  const firstBrace = text.indexOf('{');
+  if (firstBrace < 0) throw new Error('desktop_control_plan_json_missing');
+  return JSON.parse(text.slice(firstBrace));
+}
+
+function desktopControlPlanFor(intent, options = {}) {
+  const repoRoot = join(__dirname, '..', '..');
+  const planScript = join(repoRoot, 'scripts', 'holoshell-desktop-control-plan.mjs');
+  const args = [
+    planScript,
+    '--intent',
+    intent,
+    '--actor',
+    options.actor || 'brittney',
+    '--json',
+  ];
+  if (options.selfTest) args.push('--self-test');
+  const out = execFileSync('node', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 20_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  const parsed = parseJsonFromNodeOutput(out);
+  return parsed.receipt || parsed;
+}
+
+function desktopControlProposal(plan) {
+  if (!plan?.summary?.relevant) return null;
+  return {
+    operation: plan.proposal?.operation || plan.summary.primaryAction || 'desktop_control',
+    lane: 'desktop_control',
+    modelLane: plan.summary.modelLane || 'fara_gui_grounding',
+    permissionEnvelope: plan.summary.permissionEnvelope,
+    approvalRequired: plan.summary.approvalRequired,
+    receiptRequired: true,
+    planId: plan.planId,
+  };
 }
 
 function substratePressure() {
@@ -343,17 +389,66 @@ async function handleRequest(req, res) {
         });
         const receipt = JSON.parse(out.slice(out.indexOf('{')));
         const r = receipt.result || {};
+        const desktopControl = looksLikeDesktopControlIntent(message)
+          ? desktopControlPlanFor(message, { actor: 'brittney' })
+          : null;
+        const controlProposal = desktopControlProposal(desktopControl);
+        const proposals = (receipt.proposals || []).map((p) => ({
+          operation: p.operation || p.kind || p.title || 'action',
+          lane: p.lane || p.consentLane || null,
+          receiptRequired: p.receiptRequired ?? null,
+        }));
+        if (controlProposal) proposals.push(controlProposal);
         respond(res, {
           turnId: receipt.turnId,
           reply: r.finalText || r.summary || r.text || '(no reply)',
-          proposals: (receipt.proposals || []).map((p) => ({
-            operation: p.operation || p.kind || p.title || 'action',
-            lane: p.lane || p.consentLane || null,
-            receiptRequired: p.receiptRequired ?? null,
-          })),
+          proposals,
+          desktopControl: desktopControl ? {
+            planId: desktopControl.planId,
+            status: desktopControl.summary?.status,
+            modelLane: desktopControl.summary?.modelLane,
+            recommendedModel: desktopControl.summary?.recommendedModel,
+            permissionEnvelope: desktopControl.summary?.permissionEnvelope,
+            approvalRequired: desktopControl.summary?.approvalRequired,
+            nextSafeStep: desktopControl.summary?.nextSafeStep,
+          } : null,
           receiptType: receipt.receipt?.receiptType || null,
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
+      }
+    });
+    return;
+  }
+
+  // ── POST /api/desktop-control/plan — plan-only desktop control. Brittney is the
+  // operator surface; Fara is the GUI-grounding lane. This endpoint never clicks,
+  // types, opens apps, sends messages, installs software, deletes data, or changes
+  // settings. It returns a receipt-backed plan for a later guarded execution path.
+  if (req.method === 'POST' && path === '/api/desktop-control/plan') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const { intent, message, selfTest } = JSON.parse(body || '{}');
+        const requestedIntent = intent || message;
+        if (!requestedIntent || typeof requestedIntent !== 'string') {
+          respond(res, { error: 'missing intent' }, 400);
+          return;
+        }
+        const plan = desktopControlPlanFor(requestedIntent, { actor: 'brittney', selfTest });
+        respond(res, {
+          planId: plan.planId,
+          status: plan.summary.status,
+          modelLane: plan.summary.modelLane,
+          recommendedModel: plan.summary.recommendedModel,
+          permissionEnvelope: plan.summary.permissionEnvelope,
+          approvalRequired: plan.summary.approvalRequired,
+          destructiveActionsTaken: plan.receipt.destructiveActionsTaken,
+          proposal: desktopControlProposal(plan),
+          receipt: plan,
+        });
       } catch (err) {
         respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
       }

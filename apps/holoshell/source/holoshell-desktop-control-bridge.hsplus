@@ -1,0 +1,165 @@
+// HoloShell Desktop Control Bridge
+//
+// Source contract for desktop-app control planning. Brittney remains the user
+// facing operator; Fara provides GUI/visual grounding when a screenshot or
+// coordinate-bearing control step is needed. This bridge is plan-only by
+// default. Host mutation requires a later guarded execution receipt.
+
+composition "HoloShell Desktop Control Bridge" {
+  config {
+    title: "HoloShell Desktop Control Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeSurface: "Brittney Studio desktop app"
+    planEndpoint: "POST /api/desktop-control/plan"
+    chatEndpoint: "POST /api/brittney/chat"
+    bridgeScript: "scripts/holoshell-desktop-control-plan.mjs"
+    latestPlanReceipt: ".tmp/holoshell/desktop-control-latest.json"
+    latestPlanBootstrap: ".tmp/holoshell/desktop-control-latest.js"
+    primaryOperator: "brittney"
+    visualGroundingLane: "fara_gui_grounding"
+    visualGroundingModel: "fara:7b"
+    fallbackVisionModel: "qwen3-vl:4b"
+    executionDefault: "staged_not_run"
+  }
+
+  state {
+    controlStatus: "idle"
+    currentPlanId: ""
+    currentIntent: ""
+    modelLane: "fara_gui_grounding"
+    recommendedModel: "fara:7b"
+    screenshotRequired: true
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    executionDefault: "staged_not_run"
+    lastReceiptPath: ".tmp/holoshell/desktop-control-latest.json"
+  }
+
+  channel "holoshell:desktop-control:plan" {
+    type: "request_response"
+    priority: "critical"
+    description: "Brittney turns desktop-control intent into a receipt-backed plan"
+  }
+
+  channel "holoshell:desktop-control:fara-grounding" {
+    type: "append_only"
+    priority: "high"
+    description: "Fara GUI grounding requests for screenshot/coordinate-bearing actions"
+  }
+
+  channel "holoshell:desktop-control:execution-request" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded execution request created only after explicit approval"
+  }
+
+  template "DesktopControlPlan" {
+    type: "desktop_control_plan"
+    actor: "brittney"
+    planner: "fara_gui_grounding"
+    intent: ""
+    planId: ""
+    screenshotRequired: true
+    allowedActionTypes: ["inspect_screen", "focus_window", "launch_app", "open_url", "click_control", "type_text", "hotkey"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    executionDefault: "staged_not_run"
+    receiptRequired: true
+  }
+
+  template "FaraGroundingRequest" {
+    type: "fara_grounding_request"
+    modelLane: "fara_gui_grounding"
+    recommendedModel: "fara:7b"
+    fallbackModel: "qwen3-vl:4b"
+    requiresScreenshot: true
+    outputFormat: "json_action_plan"
+    coordinateSystem: "screen_pixels"
+    mayExecute: false
+  }
+
+  template "DesktopControlReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.desktop-control-plan.v0.1.0"
+    actor: "brittney"
+    modelLane: "fara_gui_grounding"
+    destructiveActionsTaken: false
+    approvalRequired: true
+    executionDefault: "staged_not_run"
+    rollback: "not_applicable_for_plan_only"
+  }
+
+  policy "ReadOnlyDesktopInspection" {
+    appliesTo: ["inspect_screen", "summarize_window", "identify_control", "explain_next_step"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    screenshotAllowed: true
+    receiptRequired: true
+  }
+
+  policy "GuardedDesktopControl" {
+    appliesTo: ["focus_window", "launch_app", "open_url", "click_control", "type_text", "hotkey"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    requiresFreshUserGesture: true
+    screenshotRequired: true
+    receiptRequired: true
+    executionDefault: "staged_not_run"
+  }
+
+  policy "BreakGlassDesktopControl" {
+    appliesTo: ["credential_entry", "account_change", "purchase", "delete_data", "send_message", "install_software", "registry_change"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    founderReviewRequired: true
+    executionDefault: "blocked_until_review"
+    receiptRequired: true
+  }
+
+  action plan_desktop_control(request) {
+    state.currentIntent = request.intent
+    state.controlStatus = "plan_ready"
+    state.currentPlanId = request.planId
+    state.permissionEnvelope = request.permissionEnvelope
+    state.approvalRequired = request.permissionEnvelope != "read_only"
+    state.screenshotRequired = request.screenshotRequired
+    emit("holoshell:desktop-control:plan", {
+      action: "desktop_control_plan_created",
+      intent: state.currentIntent,
+      plan_id: state.currentPlanId,
+      model_lane: state.modelLane,
+      recommended_model: state.recommendedModel,
+      permission_envelope: state.permissionEnvelope,
+      approval_required: state.approvalRequired,
+      screenshot_required: state.screenshotRequired,
+      execution_default: state.executionDefault,
+      receipt_required: true
+    })
+  }
+
+  action request_fara_grounding(plan) {
+    emit("holoshell:desktop-control:fara-grounding", {
+      action: "fara_grounding_requested",
+      plan_id: plan.planId,
+      model_lane: "fara_gui_grounding",
+      recommended_model: "fara:7b",
+      fallback_model: "qwen3-vl:4b",
+      requires_screenshot: true,
+      may_execute: false,
+      receipt_required: true
+    })
+  }
+
+  action request_guarded_execution(plan, approval) {
+    emit("holoshell:desktop-control:execution-request", {
+      action: "desktop_control_execution_requested",
+      plan_id: plan.planId,
+      approval_receipt: approval.receiptId,
+      permission_envelope: plan.permissionEnvelope,
+      approval_required: true,
+      destructive_actions_taken: false,
+      receipt_required: true
+    })
+  }
+}
