@@ -247,6 +247,74 @@ function looksLikeNextStepsIntent(message) {
   return /\b(next\s+steps?|what\s+(now|next)|where\s+do\s+we\s+go|what\s+should\s+we\s+do|plan|roadmap|priority|priorities|improve|improvement|marathon|100\+?|hundred)\b/iu.test(String(message || ''));
 }
 
+function parseOptionalInteger(value) {
+  const parsed = Number.parseInt(String(value || '').replace(/[^\d-]/g, ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalFloat(value) {
+  const parsed = Number.parseFloat(String(value || '').replace(/[^.\d-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function gpuMetric(value, suffix, fallback) {
+  return Number.isFinite(value) ? `${value}${suffix}` : fallback;
+}
+
+function gpuSummary(items) {
+  return items
+    .map((gpu) => {
+      const util = gpuMetric(gpu.utilizationPercent, '% GPU', 'GPU util not reported');
+      const memory = Number.isFinite(gpu.memoryUsedMiB) && Number.isFinite(gpu.memoryTotalMiB)
+        ? `${gpu.memoryUsedMiB}/${gpu.memoryTotalMiB} MiB`
+        : 'memory not reported';
+      const temperature = Number.isFinite(gpu.temperatureC) ? `, ${gpu.temperatureC}C` : '';
+      const power = Number.isFinite(gpu.powerMilliwatts) ? `, ${gpu.powerMilliwatts}mW` : '';
+      return `${gpu.name}: ${util}, ${memory}${temperature}${power}`;
+    })
+    .join('; ');
+}
+
+function tegrastatsGpuSnapshot() {
+  let raw = '';
+  try {
+    raw = execSync('timeout 3s tegrastats --interval 1000', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 4_000,
+    }).trim();
+  } catch (err) {
+    raw = String(err.stdout || '').trim();
+  }
+  const line = raw.split(/\r?\n/).find((entry) => /GR3D_FREQ/u.test(entry));
+  if (!line) return null;
+  const utilization = /GR3D_FREQ\s+(\d+)%/u.exec(line);
+  const ram = /RAM\s+(\d+)\/(\d+)MB/u.exec(line);
+  const temperature = /gpu@([0-9.]+)C/u.exec(line);
+  const power = /VDD_IN\s+(\d+)mW/u.exec(line);
+  const item = {
+    name: 'Jetson Orin integrated GPU',
+    utilizationPercent: utilization ? parseOptionalInteger(utilization[1]) : null,
+    memoryUsedMiB: ram ? parseOptionalInteger(ram[1]) : null,
+    memoryTotalMiB: ram ? parseOptionalInteger(ram[2]) : null,
+    temperatureC: temperature ? parseOptionalFloat(temperature[1]) : null,
+    powerMilliwatts: power ? parseOptionalInteger(power[1]) : null,
+  };
+  if (
+    !Number.isFinite(item.utilizationPercent) &&
+    !Number.isFinite(item.memoryUsedMiB) &&
+    !Number.isFinite(item.memoryTotalMiB)
+  ) {
+    return null;
+  }
+  return {
+    status: 'reported',
+    source: 'tegrastats',
+    items: [item],
+    summary: gpuSummary([item]),
+  };
+}
+
 function gpuStatusSnapshot() {
   try {
     const raw = execFileSync('nvidia-smi', [
@@ -263,12 +331,29 @@ function gpuStatusSnapshot() {
         .filter((parts) => parts.length >= 4)
         .map(([name, utilization, memoryUsed, memoryTotal]) => ({
           name,
-          utilizationPercent: Number.parseInt(utilization, 10),
-          memoryUsedMiB: Number.parseInt(memoryUsed, 10),
-          memoryTotalMiB: Number.parseInt(memoryTotal, 10),
+          utilizationPercent: parseOptionalInteger(utilization),
+          memoryUsedMiB: parseOptionalInteger(memoryUsed),
+          memoryTotalMiB: parseOptionalInteger(memoryTotal),
         }))
       : [];
+    const hasMeasuredTelemetry = items.some((gpu) =>
+      Number.isFinite(gpu.utilizationPercent) ||
+      Number.isFinite(gpu.memoryUsedMiB) ||
+      Number.isFinite(gpu.memoryTotalMiB)
+    );
+    if (items.length > 0 && !hasMeasuredTelemetry) {
+      const tegra = tegrastatsGpuSnapshot();
+      if (tegra) return tegra;
+      return {
+        status: 'reported_limited',
+        source: 'nvidia-smi',
+        items,
+        summary: gpuSummary(items),
+      };
+    }
     if (items.length === 0) {
+      const tegra = tegrastatsGpuSnapshot();
+      if (tegra) return tegra;
       return {
         status: 'not_reported',
         items: [],
@@ -277,12 +362,13 @@ function gpuStatusSnapshot() {
     }
     return {
       status: 'reported',
+      source: 'nvidia-smi',
       items,
-      summary: items
-        .map((gpu) => `${gpu.name}: ${gpu.utilizationPercent}% GPU, ${gpu.memoryUsedMiB}/${gpu.memoryTotalMiB} MiB`)
-        .join('; '),
+      summary: gpuSummary(items),
     };
   } catch {
+    const tegra = tegrastatsGpuSnapshot();
+    if (tegra) return tegra;
     return {
       status: 'not_reported',
       items: [],

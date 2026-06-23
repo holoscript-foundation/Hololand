@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const port = 8870 + Math.floor(Math.random() * 200);
@@ -58,6 +60,7 @@ try {
   assert.doesNotMatch(status.reply, /System status:\s*unknown/i);
   assert.doesNotMatch(status.reply, /Avatar status:\s*unknown/i);
   assert.doesNotMatch(status.reply, /No active capabilities/i);
+  assert.doesNotMatch(status.reply, /NaN/);
   assert.equal(status.systemStatus.status, 'online');
   assert.ok(status.systemStatus.capabilityCount >= 4);
   assert.ok(status.systemStatus.laneCount >= 3);
@@ -69,8 +72,14 @@ try {
   assert.match(next.reply, /Fara/i);
   assert.match(next.reply, /No cube\/test object is needed/);
   assert.doesNotMatch(next.reply, /Begin with a minimal test object/i);
+  assert.doesNotMatch(next.reply, /NaN/);
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_receipt_backed_improvement_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_desktop_control_with_fara'));
+
+  const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
+  assert.match(serveSource, /tegrastatsGpuSnapshot/);
+  assert.match(serveSource, /Number\.isFinite/);
+  assert.match(serveSource, /GPU util not reported/);
 } finally {
   if (server.exitCode === null) {
     server.kill();
