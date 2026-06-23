@@ -1,0 +1,121 @@
+// HoloShell Improvement Run Loop
+//
+// Source contract for queueing repeated Brittney-led improvement runs from the
+// desktop HoloShell app. Vision understanding is distinct from Fara: vision
+// models read screens/images, while Fara plans guarded desktop automation.
+
+composition "HoloShell Improvement Run Loop" {
+  config {
+    title: "HoloShell Improvement Run Loop"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    serverModule: "packages/holoshell/serve.mjs"
+    queueEndpoint: "POST /api/improvement-runs"
+    historyEndpoint: "GET /api/improvement-runs"
+    surfaceSource: "packages/holoshell/scenes/operate-room.holo"
+    desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
+    liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
+    modelLibrarySource: ".ai-ecosystem/model-library/library.json"
+    holoClawSkillSource: "HoloScript/compositions/skills"
+    maxBatchRunCount: 128
+    receiptRequired: true
+    destructiveActionsTakenByQueue: false
+  }
+
+  state {
+    lastRunId: ""
+    queuedRunCount: 0
+    requestedRunCount: 0
+    visionModelCount: 0
+    desktopAutomationModelCount: 0
+    holoClawSkillCount: 0
+    lastStatus: "idle"
+  }
+
+  channel "holoshell:improvement:queue" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipt-backed improvement batches queued from the HoloShell desktop surface"
+  }
+
+  channel "holoshell:improvement:routing" {
+    type: "append_only"
+    priority: "high"
+    description: "Native model and skill routing selected for each improvement batch"
+  }
+
+  template "ImprovementRunReceipt" {
+    type: "improvement_run_receipt"
+    schemaVersion: "hololand.holoshell.improvement-run.v0.1.0"
+    runId: ""
+    status: "queued"
+    objective: ""
+    requestedRunCount: 0
+    queuedRunCount: 0
+    routing: {}
+    loop: []
+    receiptRequired: true
+    destructiveActionsTaken: false
+  }
+
+  policy "VisionIsNotFara" {
+    appliesTo: ["screen_understanding", "image_understanding", "desktop_automation"]
+    visionUnderstandingLane: "vision_language"
+    desktopAutomationLane: "fara_gui_grounding"
+    visionModelsReadOnly: true
+    faraPlansDesktopActions: true
+    faraRequiresApprovalBeforeMutation: true
+    receiptRequired: true
+  }
+
+  policy "NativeRoutingBeforeFallback" {
+    appliesTo: ["improvement_batch", "model_routing", "skill_routing"]
+    preferModelLibrary: true
+    preferHoloClawSkills: true
+    requiredLanes: ["brittney_operator", "vision_language", "fara_gui_grounding", "holo_sdf_geometry", "semantic_embeddings", "holoclaw_skills", "receipt_gate"]
+    receiptRequired: true
+  }
+
+  policy "ExponentialImprovementLoop" {
+    appliesTo: ["improvement_batch"]
+    loopSteps: ["capture_live_state", "route_to_native_model_or_skill", "plan_guarded_action", "execute_after_receipt", "validate_and_measure", "feed_lesson_to_brittney"]
+    requireMeasurementEveryRun: true
+    requireReceiptEveryRun: true
+    destructiveActionsTakenByQueue: false
+  }
+
+  action queue_improvement_run(receipt) {
+    state.lastRunId = receipt.runId
+    state.queuedRunCount = receipt.queuedRunCount
+    state.requestedRunCount = receipt.requestedRunCount
+    state.visionModelCount = receipt.routing.visionUnderstanding.models.length
+    state.desktopAutomationModelCount = receipt.routing.desktopAutomation.models.length
+    state.holoClawSkillCount = receipt.routing.holoClawSkills.count
+    state.lastStatus = receipt.status
+    emit("holoshell:improvement:queue", {
+      action: "improvement_run_queued",
+      run_id: state.lastRunId,
+      status: state.lastStatus,
+      requested_run_count: state.requestedRunCount,
+      queued_run_count: state.queuedRunCount,
+      receipt_required: true,
+      destructive_actions_taken: false
+    })
+  }
+
+  action route_improvement_run(receipt) {
+    emit("holoshell:improvement:routing", {
+      action: "improvement_run_routed",
+      run_id: receipt.runId,
+      operator_model: receipt.routing.operator.model,
+      vision_models: receipt.routing.visionUnderstanding.models,
+      desktop_automation_models: receipt.routing.desktopAutomation.models,
+      geometry_model: receipt.routing.geometry.model,
+      embeddings_model: receipt.routing.embeddings.model,
+      holoclaw_skill_count: receipt.routing.holoClawSkills.count,
+      fara_role: "desktop_automation",
+      vision_role: "screen_image_understanding",
+      receipt_required: true
+    })
+  }
+}

@@ -15,7 +15,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync } from 'node:child_process';
@@ -640,6 +640,202 @@ function nativeResourceSnapshot() {
   };
 }
 
+function modelLabel(model) {
+  return model?.name || model?.id || model?.display || '';
+}
+
+function modelSearchText(model) {
+  return [
+    model?.name,
+    model?.id,
+    model?.display,
+    model?.role,
+    model?.status,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function modelsMatching(models, needles) {
+  return models.filter((model) => {
+    const haystack = modelSearchText(model);
+    return needles.some((needle) => haystack.includes(needle));
+  });
+}
+
+function firstModelLabel(models, fallback) {
+  return modelLabel(models[0]) || fallback;
+}
+
+function availableModelEntries(modelLibrary) {
+  const installed = modelLibrary?.installedModels || [];
+  return installed.length ? installed : (modelLibrary?.catalogModels || []);
+}
+
+function selectHoloClawSkills(nativeResources, objective) {
+  const skills = nativeResources?.holoClawSkills || [];
+  const text = String(objective || '').toLowerCase();
+  const preferred = [];
+  if (/\b(video|clip|reconstruct|3d|scan|map)\b/u.test(text)) preferred.push('video-to-3d');
+  if (/\b(photo|image|picture|hologram|vision|screen)\b/u.test(text)) preferred.push('photo-to-hologram', 'gif-to-sprite');
+  if (/\b(test|verify|validation|regression)\b/u.test(text)) preferred.push('test-runner');
+  if (/\b(lint|type|code|build|bug|fix)\b/u.test(text)) preferred.push('lint-sweep', 'code-health');
+  const byName = new Map(skills.map((skill) => [String(skill.name || skill.fileName || '').toLowerCase(), skill]));
+  const selected = preferred
+    .map((name) => byName.get(name))
+    .filter(Boolean);
+  const fill = skills.filter((skill) => !selected.includes(skill)).slice(0, Math.max(0, 4 - selected.length));
+  return [...selected, ...fill].slice(0, 6);
+}
+
+function buildNativeRunRouting(snapshot, objective) {
+  const models = availableModelEntries(snapshot.modelLibrary);
+  const visionModels = modelsMatching(models, ['vision', 'multimodal', 'qwen3-vl', 'image']);
+  const desktopAutomationModels = modelsMatching(models, ['computer-use', 'agentic', 'fara']);
+  const geometryModels = modelsMatching(models, ['sdf', 'geometry', 'text-to-3d', 'holo-sdf']);
+  const embeddingModels = modelsMatching(models, ['embedding', 'semantic-search', 'holoembed', 'nomic']);
+  const operatorModels = modelsMatching(models, ['tool-calls', 'operator', 'non-thinking', 'brittney-edge', 'qwen3:4b-instruct']);
+  const skills = selectHoloClawSkills(snapshot.nativeResources, objective);
+  return {
+    operator: {
+      lane: 'brittney_operator',
+      model: firstModelLabel(operatorModels, snapshot.modelLibrary?.defaults?.operator || 'qwen3:4b-instruct'),
+      role: 'operator chat, run routing, and tool-call supervision',
+    },
+    visionUnderstanding: {
+      lane: 'vision_language',
+      models: (visionModels.length ? visionModels : [{ name: snapshot.modelLibrary?.defaults?.vision || 'qwen3-vl:4b', role: 'vision-language' }])
+        .slice(0, 4)
+        .map((model) => ({
+          model: modelLabel(model),
+          role: model.role || 'screen/image understanding',
+          status: model.status || 'available',
+        })),
+      role: 'screen/image understanding only; no desktop actuation',
+    },
+    desktopAutomation: {
+      lane: 'fara_gui_grounding',
+      models: (desktopAutomationModels.length ? desktopAutomationModels : [{ name: 'fara:7b', role: 'computer-use/gui-grounding' }])
+        .slice(0, 4)
+        .map((model) => ({
+          model: modelLabel(model),
+          role: model.role || 'desktop automation planning',
+          status: model.status || 'available',
+        })),
+      role: 'guarded desktop automation planning; approval required before mutation',
+    },
+    geometry: {
+      lane: 'holo_sdf_geometry',
+      model: firstModelLabel(geometryModels, 'holo-sdf:v0'),
+      role: 'text/image-derived SDFNode geometry authoring',
+    },
+    embeddings: {
+      lane: 'semantic_embeddings',
+      model: firstModelLabel(embeddingModels, snapshot.modelLibrary?.defaults?.embeddings || 'nomic-embed-text'),
+      role: 'semantic recall, search, and run memory',
+    },
+    holoClawSkills: {
+      lane: 'holoclaw_skills',
+      count: snapshot.nativeResources?.holoClawSkillCount || 0,
+      selected: skills.map((skill) => ({
+        name: skill.name,
+        fileName: skill.fileName,
+        actions: skill.actions || [],
+      })),
+      role: 'native repeatable task execution shelf',
+    },
+    receiptGate: {
+      lane: 'receipt_gate',
+      model: 'local filesystem receipts',
+      role: 'approval, audit, measurement, and rollback boundary',
+    },
+  };
+}
+
+function parseImprovementRunCount(value) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.max(1, Math.min(128, parsed));
+}
+
+function improvementRunHistory() {
+  return readReceipts('.improvement-run.json').slice(0, 20).map((receipt) => ({
+    runId: receipt.runId,
+    status: receipt.status,
+    objective: receipt.objective,
+    queuedRunCount: receipt.queuedRunCount,
+    requestedRunCount: receipt.requestedRunCount,
+    generatedAt: receipt.generatedAt,
+    routingSummary: receipt.routingSummary,
+    receiptPath: receipt.receiptPath,
+  }));
+}
+
+function writeImprovementRunReceipt(receipt) {
+  mkdirSync(RECEIPTS_DIR, { recursive: true });
+  const fileName = `${receipt.runId}.improvement-run.json`;
+  const receiptPath = join(RECEIPTS_DIR, fileName);
+  const withPath = { ...receipt, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
+function buildImprovementRunReceipt(payload = {}) {
+  const objective = String(payload.objective || payload.message || payload.intent || '').trim();
+  const runCount = parseImprovementRunCount(payload.runCount || payload.count || payload.requestedRunCount);
+  const snapshot = buildLiveStatusSnapshot();
+  const routing = buildNativeRunRouting(snapshot, objective);
+  const generatedAt = new Date().toISOString();
+  const runId = `hir_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const loop = [
+    'capture_live_state',
+    'route_to_native_model_or_skill',
+    'plan_guarded_action',
+    'execute_after_receipt',
+    'validate_and_measure',
+    'feed_lesson_to_brittney',
+  ];
+  const receipt = {
+    schemaVersion: 'hololand.holoshell.improvement-run.v0.1.0',
+    source: 'apps/holoshell/source/holoshell-improvement-run-loop.hsplus',
+    runId,
+    generatedAt,
+    status: 'queued',
+    objective: objective || 'Improve HoloShell through a receipt-backed native run loop',
+    requestedRunCount: runCount,
+    queuedRunCount: runCount,
+    destructiveActionsTaken: false,
+    receiptRequired: true,
+    approvalRequiredForDesktopAutomation: true,
+    routing,
+    routingSummary: [
+      `vision=${routing.visionUnderstanding.models.map((model) => model.model).join(', ')}`,
+      `desktop=${routing.desktopAutomation.models.map((model) => model.model).join(', ')}`,
+      `operator=${routing.operator.model}`,
+      `skills=${routing.holoClawSkills.selected.map((skill) => skill.name).join(', ') || 'none'}`,
+    ].join('; '),
+    loop,
+    measurementPlan: {
+      everyRun: true,
+      requiredSignals: ['status_delta', 'validation_result', 'gpu_snapshot', 'receipt_path', 'lesson_for_brittney'],
+      firstBatchRecommendation: runCount > 10 ? 'Run a 10-run shakedown before opening the full batch.' : 'Batch size is within shakedown range.',
+    },
+    nextSafeStep: 'Review the queued receipt, then execute through the guarded lane that matches the task.',
+    systemStatus: {
+      status: snapshot.status,
+      capabilityCount: snapshot.capabilities.length,
+      laneCount: snapshot.lanes.length,
+      gpu: snapshot.gpu,
+      modelLibrary: {
+        installedCount: snapshot.modelLibrary.installedCount,
+        catalogCount: snapshot.modelLibrary.catalogCount,
+      },
+      nativeResources: {
+        holoClawSkillCount: snapshot.nativeResources.holoClawSkillCount,
+      },
+    },
+  };
+  return writeImprovementRunReceipt(receipt);
+}
+
 function publicShellUrl() {
   return `http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}`;
 }
@@ -661,6 +857,7 @@ function buildLiveStatusSnapshot() {
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
+      improvementRunEndpoint: 'POST /api/improvement-runs',
     },
     avatar: {
       name: 'Brittney',
@@ -677,12 +874,14 @@ function buildLiveStatusSnapshot() {
       'model_library',
       'holoclaw_skill_shelf',
       'native_resource_inventory',
+      'vision_model_routing',
+      'improvement_run_queue',
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
-      { id: 'fara_gui_grounding', model: 'fara:7b', role: 'desktop app visual grounding' },
+      { id: 'fara_gui_grounding', model: 'fara:7b', role: 'guarded desktop automation planning' },
       { id: 'holo_sdf_geometry', model: 'holo-sdf:v0', role: 'text/image to SDFNode geometry' },
-      { id: 'vision_language', model: 'qwen3-vl:4b', role: 'screen and image understanding' },
+      { id: 'vision_language', model: 'qwen3-vl:4b', role: 'vision model stack for screen and image understanding' },
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
@@ -760,13 +959,14 @@ function buildGroundedStatusReply(snapshot, message) {
     return [
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
-      `2. Route desktop app work through Fara: ${snapshot.route.desktopControlEndpoint} uses the fara_gui_grounding lane and stays plan-only until guarded approval.`,
-      `3. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
-      `4. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `5. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
-      `6. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara stays the guarded desktop automation lane at ${snapshot.route.desktopControlEndpoint}.`,
+      `3. Queue improvement batches through ${snapshot.route.improvementRunEndpoint}; each batch gets a routing receipt before any execution.`,
+      `4. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
+      `5. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `6. Run improvement batches through the desktop app route with receipts on every pass. Current guardrails: ${baseGuardrails}.`,
+      `7. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
-      'No cube/test object is needed here. The next move is live data -> Fara-grounded desktop plan -> guarded execution receipt -> measure the run -> feed the improvement back into Brittney.',
+      'No cube/test object is needed here. The next move is live data -> native vision/skill/model route -> Fara only when desktop automation is needed -> guarded execution receipt -> measure the run -> feed the improvement back into Brittney.',
     ].join('\n');
   }
 
@@ -776,6 +976,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
+    `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}; vision understanding is separate from Fara desktop automation.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
     `GPU balance: ${snapshot.gpu.summary}.`,
@@ -807,6 +1008,11 @@ function liveStatusProposals(snapshot, message) {
       lane: 'holoclaw_skills',
       receiptRequired: true,
     },
+    {
+      operation: 'queue_improvement_run_batch',
+      lane: 'improvement_run_queue',
+      receiptRequired: true,
+    },
   ];
   if (looksLikeNextStepsIntent(message)) {
     proposals.push({
@@ -823,6 +1029,11 @@ function liveStatusProposals(snapshot, message) {
     proposals.push({
       operation: 'route_task_to_native_model_or_skill',
       lane: 'native_resource_inventory',
+      receiptRequired: true,
+    });
+    proposals.push({
+      operation: 'separate_vision_from_desktop_automation',
+      lane: 'vision_model_routing',
       receiptRequired: true,
     });
   }
@@ -853,6 +1064,8 @@ function liveStatusResponseEnvelope(snapshot) {
     generatedAt: snapshot.generatedAt,
     route: snapshot.route,
     avatar: snapshot.avatar,
+    capabilities: snapshot.capabilities,
+    lanes: snapshot.lanes,
     capabilityCount: snapshot.capabilities.length,
     laneCount: snapshot.lanes.length,
     modelLibrary: snapshot.modelLibrary,
@@ -948,6 +1161,14 @@ async function handleRequest(req, res) {
   // ── GET /api/execution-history
   if (req.method === 'GET' && path === '/api/execution-history') {
     respond(res, { items: executionHistory() });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/improvement-runs') {
+    respond(res, {
+      schemaVersion: 'hololand.holoshell.improvement-run-history.v0.1.0',
+      items: improvementRunHistory(),
+    });
     return;
   }
 
@@ -1054,6 +1275,53 @@ async function handleRequest(req, res) {
           receiptType: receipt.receipt?.receiptType || null,
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
+      }
+    });
+    return;
+  }
+
+  // ── POST /api/improvement-runs — queue a receipt-backed improvement batch.
+  // This endpoint only records routing and guardrails; execution remains a later,
+  // receipt-gated step, and Fara is only selected for desktop automation work.
+  if (req.method === 'POST' && path === '/api/improvement-runs') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const receipt = buildImprovementRunReceipt(payload);
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.improvement-run-response.v0.1.0',
+          status: receipt.status,
+          runId: receipt.runId,
+          objective: receipt.objective,
+          requestedRunCount: receipt.requestedRunCount,
+          queuedRunCount: receipt.queuedRunCount,
+          destructiveActionsTaken: receipt.destructiveActionsTaken,
+          approvalRequiredForDesktopAutomation: receipt.approvalRequiredForDesktopAutomation,
+          routing: receipt.routing,
+          routingSummary: receipt.routingSummary,
+          loop: receipt.loop,
+          measurementPlan: receipt.measurementPlan,
+          nextSafeStep: receipt.nextSafeStep,
+          receipt,
+          proposals: [
+            {
+              operation: 'review_improvement_run_receipt',
+              lane: 'receipt_gate',
+              receiptRequired: true,
+              runId: receipt.runId,
+            },
+            {
+              operation: 'execute_shakedown_batch',
+              lane: 'improvement_run_queue',
+              receiptRequired: true,
+              runId: receipt.runId,
+            },
+          ],
+        });
       } catch (err) {
         respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
       }

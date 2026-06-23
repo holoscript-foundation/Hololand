@@ -23,6 +23,8 @@ composition "OperateRoom" {
     compile_target: "Native2DCompiler"
     serve_port: 8747
     surface: "chat"
+    improvement_run_source: "apps/holoshell/source/holoshell-improvement-run-loop.hsplus"
+    improvement_run_endpoint: "POST /api/improvement-runs"
   }
 
   environment {
@@ -33,7 +35,10 @@ composition "OperateRoom" {
 
   // No data state — the surface holds a conversation, not dashboards. Brittney's
   // turn (+ proposals) is rendered by the injected chat runtime into the mount.
-  state {}
+  state {
+    last_improvement_run_id: ""
+    last_improvement_run_count: 0
+  }
 
   object "root" {
     type: "container"
@@ -58,6 +63,8 @@ composition "OperateRoom" {
     // reply + any permission-enveloped action proposals come back INLINE — she
     // proposes, you read them in the conversation; there is no dashboard. The
     // Daimon's remembered context (once emerged) rides along via rehydration.
+    // Improvement batches use POST /api/improvement-runs. Vision models read
+    // screens/images; Fara is reserved for guarded desktop automation planning.
     // The interactive DOM (messages / input / send) is built by the runtime helper.
     object "chat" {
       type: "main"

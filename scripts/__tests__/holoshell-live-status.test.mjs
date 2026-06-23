@@ -64,24 +64,39 @@ try {
   assert.match(status.reply, /Model library:/);
   assert.match(status.reply, /Native resources:/);
   assert.equal(status.systemStatus.status, 'online');
-  assert.ok(status.systemStatus.capabilityCount >= 8);
+  assert.ok(status.systemStatus.capabilityCount >= 10);
   assert.ok(status.systemStatus.laneCount >= 7);
+  assert.equal(status.systemStatus.route.improvementRunEndpoint, 'POST /api/improvement-runs');
+  assert.ok(status.systemStatus.capabilities.includes('vision_model_routing'));
+  assert.ok(status.systemStatus.capabilities.includes('improvement_run_queue'));
+  assert.ok(status.systemStatus.lanes.some((lane) =>
+    lane.id === 'vision_language' && /screen and image|vision model stack/i.test(lane.role)
+  ));
+  assert.ok(status.systemStatus.lanes.some((lane) =>
+    lane.id === 'fara_gui_grounding' && /desktop automation/i.test(lane.role)
+  ));
   assert.ok(status.systemStatus.modelLibrary.catalogCount >= 1);
   assert.ok(status.systemStatus.nativeResources.holoClawSkillCount >= 1);
+  assert.match(status.reply, /Improvement runs:/);
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'summarize_live_system_status'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_gpu_lane_balance'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_model_library'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_holoclaw_skill_shelf'));
+  assert.ok(status.proposals.some((proposal) => proposal.operation === 'queue_improvement_run_batch'));
 
   const next = await postChat('what are our next steps?');
   assert.match(next.reply, /Next steps, grounded in live HoloShell state/);
   assert.match(next.reply, /Fara/i);
+  assert.match(next.reply, /vision models read screens\/images/i);
+  assert.match(next.reply, /Fara.*desktop automation/i);
   assert.match(next.reply, /No cube\/test object is needed/);
   assert.doesNotMatch(next.reply, /Begin with a minimal test object/i);
   assert.doesNotMatch(next.reply, /NaN/);
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_receipt_backed_improvement_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'plan_desktop_control_with_fara'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'route_task_to_native_model_or_skill'));
+  assert.ok(next.proposals.some((proposal) => proposal.operation === 'queue_improvement_run_batch'));
+  assert.ok(next.proposals.some((proposal) => proposal.operation === 'separate_vision_from_desktop_automation'));
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /tegrastatsGpuSnapshot/);

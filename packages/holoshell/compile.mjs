@@ -213,16 +213,59 @@ const runtimeScript = `  <script>
         })
         .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149'); });
     }
+    function _setImprovementStatus(text, color) {
+      var el = document.getElementById('improvement-status'); if (!el) return;
+      el.textContent = text; el.style.color = color || '#8b949e';
+    }
+    function queueImprovementRun() {
+      var objectiveInput = document.getElementById('improvement-objective');
+      var countInput = document.getElementById('improvement-count');
+      if (!objectiveInput || !countInput) return;
+      var objective = objectiveInput.value.trim() || 'Improve HoloShell through the native Brittney run loop';
+      var runCount = parseInt(countInput.value || '10', 10);
+      if (!Number.isFinite(runCount)) runCount = 10;
+      runCount = Math.max(1, Math.min(128, runCount));
+      _setImprovementStatus('Queueing...', '#d29922');
+      fetch('/api/improvement-runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ objective: objective, runCount: runCount })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.error) { _setImprovementStatus('Error: ' + d.error, '#f85149'); return; }
+          _setImprovementStatus('Queued ' + d.queuedRunCount + ' run(s): ' + d.runId, '#3fb950');
+          _bMsg('Improvement run', 'Queued ' + d.queuedRunCount + ' run(s) for: ' + d.objective + '\\n' + d.routingSummary + '\\nNext: ' + d.nextSafeStep, '#3fb950');
+          if (d.proposals && d.proposals.length) {
+            var lines = d.proposals.map(function(x) { return '- ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
+            _bMsg('Run proposals', lines, '#3fb950');
+          }
+        })
+        .catch(function(e) { _setImprovementStatus('Network error: ' + e.message, '#f85149'); });
+    }
     function initBrittneyChat() {
       var mount = document.getElementById('brittney-chat-mount'); if (!mount) return;
       mount.innerHTML =
+        '<div id="improvement-run-panel" style="flex:0 0 auto;margin:14px 0 0 0;padding:12px;border:1px solid #30363d;border-radius:8px;background:#0d1117">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">' +
+        '<strong style="font-size:13px;color:#c9d1d9;font-weight:650">Improvement Runs</strong>' +
+        '<span id="improvement-status" style="font-size:12px;color:#8b949e;text-align:right">Idle</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) 78px 86px;gap:8px">' +
+        '<input id="improvement-objective" placeholder="Objective" style="min-width:0;padding:10px 11px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
+        '<input id="improvement-count" type="number" min="1" max="128" value="10" aria-label="Run count" style="width:78px;padding:10px 9px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
+        '<button id="improvement-queue" style="min-width:86px;padding:10px 12px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-weight:650;cursor:pointer">Queue</button>' +
+        '</div>' +
+        '</div>' +
         '<div id="brittney-messages" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:12px;margin:14px 0"></div>' +
         '<div style="display:flex;gap:8px;flex:0 0 auto">' +
         '<input id="brittney-input" placeholder="Talk to Brittney — she manages the system, agents do the data work…" style="flex:1;padding:13px 14px;border-radius:10px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:14px" />' +
         '<button id="brittney-send" style="padding:13px 22px;border-radius:10px;border:none;background:#238636;color:#fff;font-weight:600;cursor:pointer">Send</button>' +
         '</div>';
       document.getElementById('brittney-send').addEventListener('click', sendBrittneyChat);
+      document.getElementById('improvement-queue').addEventListener('click', queueImprovementRun);
       document.getElementById('brittney-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBrittneyChat(); });
+      document.getElementById('improvement-objective').addEventListener('keydown', function(e) { if (e.key === 'Enter') queueImprovementRun(); });
       document.getElementById('brittney-input').focus();
       _bMsg('Brittney', 'Online — routed across both owned GPUs ($0). Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
     }
