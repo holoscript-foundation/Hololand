@@ -2,8 +2,9 @@
 //
 // Source contract for desktop-app control planning. Brittney remains the user
 // facing operator; Fara provides GUI/visual grounding when a screenshot or
-// coordinate-bearing control step is needed. This bridge is plan-only by
-// default. Host mutation requires a later guarded execution receipt.
+// coordinate-bearing control step is needed. This bridge supports preflight and
+// HoloGate consent-token staging; host mutation still requires a later admitted
+// action executor receipt.
 
 composition "HoloShell Desktop Control Bridge" {
   config {
@@ -20,6 +21,9 @@ composition "HoloShell Desktop Control Bridge" {
     daemonPreflightEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/preflight"
     daemonFallbackPreflightEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/preflight"
     daemonTertiaryPreflightEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/preflight"
+    daemonConsentTokenEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/consent-token"
+    daemonFallbackConsentTokenEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/consent-token"
+    daemonTertiaryConsentTokenEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/consent-token"
     daemonExecuteEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/execute"
     daemonFallbackExecuteEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/execute"
     daemonTertiaryExecuteEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/execute"
@@ -47,6 +51,8 @@ composition "HoloShell Desktop Control Bridge" {
     lastBridgeReportId: ""
     lastBridgeHeartbeat: ""
     lastPreflightId: ""
+    lastConsentTokenId: ""
+    lastExecutionId: ""
     screenshotRequired: true
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
@@ -84,6 +90,18 @@ composition "HoloShell Desktop Control Bridge" {
     description: "Laptop bridge preflight receipts for desktop action proposals"
   }
 
+  channel "holoshell:desktop-control:consent-token" {
+    type: "append_only"
+    priority: "critical"
+    description: "HoloGate consent tokens bound to exact preflight receipts"
+  }
+
+  channel "holoshell:desktop-control:execution-staging" {
+    type: "append_only"
+    priority: "critical"
+    description: "Approved execution staging receipts that still do not mutate the OS"
+  }
+
   template "DesktopControlPlan" {
     type: "desktop_control_plan"
     actor: "brittney"
@@ -105,7 +123,7 @@ composition "HoloShell Desktop Control Bridge" {
     url: "http://127.0.0.1:8751"
     hostRole: "laptop_desktop_bridge"
     modelLane: "fara_gui_grounding"
-    capabilities: ["bridge_status", "desktop_action_preflight", "execution_refusal", "receipt_write"]
+    capabilities: ["bridge_status", "desktop_action_preflight", "consent_token_issue", "consent_token_verify", "approved_execution_staging", "execution_refusal", "receipt_write"]
     destructiveActionsTaken: false
     approvalRequiredForDesktopAutomation: true
   }
@@ -119,6 +137,37 @@ composition "HoloShell Desktop Control Bridge" {
     permissionEnvelope: "guarded_execute"
     executionAllowed: false
     consentRequired: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "DesktopControlConsentToken" {
+    type: "desktop_control_consent_token"
+    schemaVersion: "hololand.holoshell.desktop-control-consent-token.v0.1.0"
+    tokenId: ""
+    preflightId: ""
+    preflightReceiptHash: ""
+    operation: ""
+    permissionEnvelope: "guarded_execute"
+    freshUserGestureObserved: true
+    executionAllowed: true
+    executionMode: "staged_receipt_only_until_action_executor"
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "DesktopControlExecutionStaging" {
+    type: "desktop_control_execution"
+    schemaVersion: "hololand.holoshell.desktop-control-execution.v0.1.0"
+    executionId: ""
+    preflightId: ""
+    consentTokenId: ""
+    operation: ""
+    status: "approved_execution_staged"
+    executionAllowed: true
+    executionMode: "staged_receipt_only_until_action_executor"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -170,6 +219,21 @@ composition "HoloShell Desktop Control Bridge" {
     statusReportAllowedWithoutConsent: true
     preflightAllowedWithoutConsent: true
     executionAllowedWithoutConsent: false
+    desktopAutomationExecutedByDaemonDefault: false
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  policy "HoloGateConsentTokenStaging" {
+    appliesTo: ["consent_token_issue", "consent_token_verify", "approved_execution_staging"]
+    hostRole: "laptop_desktop_bridge"
+    holoGateStages: ["identify", "scope", "log"]
+    requiresExactPreflightReceipt: true
+    requiresFreshUserGesture: true
+    tokenBoundToOperation: true
+    tokenBoundToPreflightHash: true
+    executionAllowedWithValidToken: true
+    osMutationAllowedByThisLane: false
     desktopAutomationExecutedByDaemonDefault: false
     destructiveActionsTaken: false
     receiptRequired: true
@@ -246,6 +310,38 @@ composition "HoloShell Desktop Control Bridge" {
       permission_envelope: state.permissionEnvelope,
       execution_allowed: false,
       consent_required: true,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action issue_desktop_control_consent(token) {
+    state.lastConsentTokenId = token.tokenId
+    emit("holoshell:desktop-control:consent-token", {
+      action: "desktop_control_consent_token_issued",
+      token_id: state.lastConsentTokenId,
+      preflight_id: token.preflightId,
+      operation: token.operation,
+      permission_envelope: token.permissionEnvelope,
+      execution_allowed: token.executionAllowed,
+      execution_mode: "staged_receipt_only_until_action_executor",
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action stage_desktop_control_execution(execution) {
+    state.lastExecutionId = execution.executionId
+    emit("holoshell:desktop-control:execution-staging", {
+      action: "desktop_control_execution_staged",
+      execution_id: state.lastExecutionId,
+      preflight_id: execution.preflightId,
+      consent_token_id: execution.consentTokenId,
+      operation: execution.operation,
+      execution_allowed: true,
+      execution_mode: "staged_receipt_only_until_action_executor",
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true

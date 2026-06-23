@@ -5,11 +5,12 @@
  * Runs on the Windows laptop at 127.0.0.1:8751 so the Jetson-hosted HoloShell
  * page can discover the local desktop automation lane through the browser.
  * This bridge is intentionally non-mutating: it reports readiness, writes
- * preflight receipts, and refuses execution until a HoloGate consent-token
- * execution lane is implemented and validated.
+ * preflight receipts, issues HoloGate consent tokens, and stages approved
+ * execution receipts without touching the OS until a concrete executor lane is
+ * implemented and validated.
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -19,7 +20,9 @@ import { buildDesktopControlPlan } from './holoshell-desktop-control-plan.mjs';
 
 export const LAPTOP_DESKTOP_BRIDGE_SCHEMA = 'hololand.holoshell.laptop-desktop-bridge.v0.1.0';
 export const DESKTOP_CONTROL_PREFLIGHT_SCHEMA = 'hololand.holoshell.desktop-control-preflight.v0.1.0';
+export const DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA = 'hololand.holoshell.desktop-control-consent-token.v0.1.0';
 export const DESKTOP_CONTROL_EXECUTION_REFUSAL_SCHEMA = 'hololand.holoshell.desktop-control-execution-refusal.v0.1.0';
+export const DESKTOP_CONTROL_EXECUTION_SCHEMA = 'hololand.holoshell.desktop-control-execution.v0.1.0';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_HOST = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_HOST || '127.0.0.1';
@@ -82,6 +85,16 @@ function hashText(text) {
   return createHash('sha256').update(String(text), 'utf8').digest('hex');
 }
 
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
+function hashValue(value) {
+  return hashText(stableStringify(value));
+}
+
 function stableId(prefix, text) {
   return `${prefix}_${hashText(text).slice(0, 12)}`;
 }
@@ -93,6 +106,39 @@ function repoPath(filePath) {
 function safeString(value, fallback = '') {
   const text = String(value ?? '').trim();
   return text || fallback;
+}
+
+function plusMinutes(iso, minutes) {
+  const base = Date.parse(iso);
+  const safeBase = Number.isFinite(base) ? base : Date.now();
+  return new Date(safeBase + Math.max(1, Number(minutes || 5)) * 60_000).toISOString();
+}
+
+function tokenHash(token, preflightReceiptHash, operation, expiresAt) {
+  return hashText(`${token}:${preflightReceiptHash}:${operation}:${expiresAt}`);
+}
+
+function preflightReceiptHash(preflight = {}) {
+  return hashValue({
+    schemaVersion: preflight.schemaVersion || '',
+    preflightId: preflight.preflightId || '',
+    planId: preflight.planId || '',
+    permissionEnvelope: preflight.permissionEnvelope || '',
+    primaryAction: preflight.intent?.primaryAction || '',
+    intentSha256: preflight.intent?.sha256 || '',
+  });
+}
+
+function tokenForResponse(consent) {
+  return consent;
+}
+
+function tokenForStorage(consent) {
+  return {
+    ...consent,
+    token: '[redacted]',
+    tokenRedacted: true,
+  };
 }
 
 export function buildBridgeStatus(options = {}) {
@@ -121,10 +167,14 @@ export function buildBridgeStatus(options = {}) {
       recommendedModel: 'fara:7b',
       fallbackModels: ['hf.co/bartowski/microsoft_Fara-7B-GGUF:Q4_K_M', 'qwen3-vl:4b'],
       mayExecute: false,
+      mayStageApprovedExecution: true,
     },
     capabilities: [
       'bridge_status',
       'desktop_action_preflight',
+      'consent_token_issue',
+      'consent_token_verify',
+      'approved_execution_staging',
       'execution_refusal',
       'receipt_write',
       'browser_proxied_jetson_report',
@@ -132,9 +182,10 @@ export function buildBridgeStatus(options = {}) {
     endpoints: {
       status: '/api/desktop-control/bridge',
       preflight: '/api/desktop-control/preflight',
+      consentToken: '/api/desktop-control/consent-token',
       execute: '/api/desktop-control/execute',
     },
-    mutationBoundary: 'execution_refused_until_holoshell_consent_token',
+    mutationBoundary: 'os_mutation_refused_until_consent_token_and_action_executor',
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     approvalRequiredForDesktopAutomation: true,
@@ -196,15 +247,128 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
   };
 }
 
+export function buildConsentToken(payload = {}, options = {}) {
+  const preflight = payload.preflight || payload.receipt || null;
+  if (!preflight?.preflightId) throw new Error('consent token requires exact preflight receipt');
+  const at = generatedAt(options);
+  const operation = safeString(payload.operation || preflight.intent?.primaryAction, 'inspect_screen');
+  const permissionEnvelope = preflight.permissionEnvelope || 'guarded_execute';
+  const consentRequired = preflight.consentRequired !== false && permissionEnvelope !== 'read_only';
+  const freshUserGesture = payload.freshUserGesture === true || payload.freshGesture === true;
+  const hash = payload.preflightReceiptHash || preflightReceiptHash(preflight);
+  const ttlMinutes = Number(payload.ttlMinutes || options.ttlMinutes || 5);
+  const expiresAt = options.expiresAt || plusMinutes(at, ttlMinutes);
+  const token = options.token || randomBytes(24).toString('base64url');
+  const blockedReason = permissionEnvelope === 'break_glass'
+    ? 'break_glass_requires_founder_review'
+    : (!freshUserGesture && consentRequired ? 'fresh_user_gesture_required' : '');
+  const status = blockedReason ? 'blocked' : (consentRequired ? 'issued' : 'not_required_read_only');
+  const tokenId = stableId('desktop_consent_token', `${at}:${preflight.preflightId}:${operation}:${hash}`);
+  return {
+    schemaVersion: DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA,
+    tokenId,
+    token,
+    tokenHash: tokenHash(token, hash, operation, expiresAt),
+    generatedAt: at,
+    expiresAt,
+    status,
+    blockedReason,
+    source: 'apps/holoshell/source/holoshell-desktop-control-bridge.hsplus',
+    daemonScript: 'scripts/holoshell-laptop-desktop-bridge.mjs',
+    holoGateStages: ['identify', 'scope', 'log'],
+    operation,
+    preflightId: preflight.preflightId,
+    planId: preflight.planId || '',
+    preflightReceiptHash: hash,
+    permissionEnvelope,
+    consentRequired,
+    freshUserGestureRequired: consentRequired,
+    freshUserGestureObserved: freshUserGesture,
+    executionAllowed: status === 'issued',
+    executionMode: 'staged_receipt_only_until_action_executor',
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    nextSafeStep: status === 'issued'
+      ? 'Use this short-lived token with the exact preflight receipt to stage an approved execution receipt; OS mutation remains off until an action executor lane is admitted.'
+      : (blockedReason || 'Read-only preflight does not require a consent token.'),
+  };
+}
+
+export function validateConsentToken(payload = {}, options = {}) {
+  const preflight = payload.preflight || null;
+  const consentToken = payload.consentToken || payload.token || null;
+  const token = typeof consentToken === 'string' ? { token: consentToken } : consentToken;
+  if (!preflight?.preflightId) return { valid: false, reason: 'missing_exact_preflight_receipt' };
+  if (!token?.token || !token?.tokenHash) return { valid: false, reason: 'missing_consent_token' };
+  const operation = safeString(payload.operation || preflight.intent?.primaryAction || token.operation, 'inspect_screen');
+  const hash = preflightReceiptHash(preflight);
+  if (token.schemaVersion && token.schemaVersion !== DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA) {
+    return { valid: false, reason: 'consent_token_schema_mismatch' };
+  }
+  if (token.status && token.status !== 'issued') return { valid: false, reason: token.blockedReason || 'consent_token_not_issued' };
+  if (token.preflightId && token.preflightId !== preflight.preflightId) return { valid: false, reason: 'consent_token_preflight_mismatch' };
+  if (token.preflightReceiptHash && token.preflightReceiptHash !== hash) return { valid: false, reason: 'consent_token_receipt_hash_mismatch' };
+  if (token.operation && token.operation !== operation) return { valid: false, reason: 'consent_token_operation_mismatch' };
+  if (token.expiresAt && Date.parse(token.expiresAt) <= Date.parse(generatedAt(options))) return { valid: false, reason: 'consent_token_expired' };
+  const expectedHash = tokenHash(token.token, hash, operation, token.expiresAt || '');
+  if (expectedHash !== token.tokenHash) return { valid: false, reason: 'consent_token_hash_mismatch' };
+  return {
+    valid: true,
+    reason: '',
+    operation,
+    preflightReceiptHash: hash,
+    tokenId: token.tokenId || '',
+    expiresAt: token.expiresAt || '',
+  };
+}
+
+export function buildDesktopControlExecution(payload = {}, options = {}) {
+  const validation = validateConsentToken(payload, options);
+  if (!validation.valid) {
+    throw new Error(validation.reason || 'consent_token_invalid');
+  }
+  const at = generatedAt(options);
+  const preflight = payload.preflight;
+  const executionId = stableId(
+    'desktop_execution',
+    `${at}:${validation.tokenId}:${preflight.preflightId}:${validation.operation}:${validation.preflightReceiptHash}`
+  );
+  return {
+    schemaVersion: DESKTOP_CONTROL_EXECUTION_SCHEMA,
+    executionId,
+    generatedAt: at,
+    status: 'approved_execution_staged',
+    source: 'apps/holoshell/source/holoshell-desktop-control-bridge.hsplus',
+    daemonScript: 'scripts/holoshell-laptop-desktop-bridge.mjs',
+    holoGateStages: ['identify', 'scope', 'log'],
+    operation: validation.operation,
+    preflightId: preflight.preflightId,
+    planId: preflight.planId || '',
+    preflightReceiptHash: validation.preflightReceiptHash,
+    consentTokenId: validation.tokenId,
+    consentTokenExpiresAt: validation.expiresAt,
+    executionAllowed: true,
+    executionMode: 'staged_receipt_only_until_action_executor',
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    approvalRequiredForDesktopAutomation: true,
+    receiptRequired: true,
+    bridge: buildBridgeStatus(options),
+    nextSafeStep: 'Admit and validate a concrete action executor lane for this action class before allowing OS mutation.',
+  };
+}
+
 export function buildExecutionRefusal(payload = {}, options = {}) {
   const at = generatedAt(options);
   const preflightId = safeString(payload.preflightId || payload.preflight?.preflightId, 'missing_preflight');
+  const reason = payload.reason || 'desktop_control_execution_requires_holoshell_consent_token_lane';
   return {
     schemaVersion: DESKTOP_CONTROL_EXECUTION_REFUSAL_SCHEMA,
-    refusalId: stableId('desktop_execution_refusal', `${at}:${preflightId}`),
+    refusalId: stableId('desktop_execution_refusal', `${at}:${preflightId}:${reason}`),
     generatedAt: at,
     status: 'refused',
-    reason: 'desktop_control_execution_requires_holoshell_consent_token_lane',
+    reason,
     source: 'apps/holoshell/source/holoshell-desktop-control-bridge.hsplus',
     daemonScript: 'scripts/holoshell-laptop-desktop-bridge.mjs',
     preflightId,
@@ -284,14 +448,41 @@ export async function handleBridgeRequest(req, res, options = {}) {
     return;
   }
 
+  if (req.method === 'POST' && requestUrl.pathname === '/api/desktop-control/consent-token') {
+    try {
+      const payload = await readRequestBody(req);
+      const consent = buildConsentToken(payload, requestOptions);
+      const saved = writeReceipt(
+        tokenForStorage(consent),
+        requestOptions.receiptDir,
+        'consent-tokens',
+        consent.tokenId,
+        '.consent'
+      );
+      sendJson(res, { ...saved, ...tokenForResponse(consent), receiptPath: saved.receiptPath }, consent.status === 'issued' ? 200 : 403);
+    } catch (error) {
+      sendJson(res, { error: String(error.message || error), destructiveActionsTaken: false }, 400);
+    }
+    return;
+  }
+
   if (req.method === 'POST' && requestUrl.pathname === '/api/desktop-control/execute') {
     try {
       const payload = await readRequestBody(req);
+      if (payload.consentToken && payload.preflight) {
+        const receipt = buildDesktopControlExecution(payload, requestOptions);
+        const saved = writeReceipt(receipt, requestOptions.receiptDir, 'executions', receipt.executionId, '.execution');
+        sendJson(res, saved);
+      } else {
+        const receipt = buildExecutionRefusal(payload, requestOptions);
+        const saved = writeReceipt(receipt, requestOptions.receiptDir, 'refusals', receipt.refusalId, '.refusal');
+        sendJson(res, saved, 403);
+      }
+    } catch (error) {
+      const payload = { reason: `desktop_control_consent_token_invalid:${String(error.message || error)}` };
       const receipt = buildExecutionRefusal(payload, requestOptions);
       const saved = writeReceipt(receipt, requestOptions.receiptDir, 'refusals', receipt.refusalId, '.refusal');
       sendJson(res, saved, 403);
-    } catch (error) {
-      sendJson(res, { error: String(error.message || error), destructiveActionsTaken: false }, 400);
     }
     return;
   }
@@ -312,17 +503,31 @@ export function runSelfTest(options = {}) {
   const preflight = buildDesktopControlPreflight({
     intent: 'Use Fara to inspect the screen and click the Save button.',
   }, { ...options, createdAt: status.generatedAt });
+  const consentToken = buildConsentToken({
+    preflight,
+    operation: preflight.intent.primaryAction,
+    freshUserGesture: true,
+  }, { ...options, createdAt: status.generatedAt, token: 'self-test-token' });
   const refusal = buildExecutionRefusal({ preflightId: preflight.preflightId }, { ...options, createdAt: status.generatedAt });
+  const execution = buildDesktopControlExecution({
+    preflight,
+    operation: preflight.intent.primaryAction,
+    consentToken,
+  }, { ...options, createdAt: status.generatedAt });
   const failures = [];
   if (status.status !== 'ready') failures.push('status not ready');
   if (status.destructiveActionsTaken !== false) failures.push('status mutated');
   if (preflight.modelLane !== 'fara_gui_grounding') failures.push('missing Fara lane');
   if (preflight.executionAllowed !== false) failures.push('preflight should not allow execution');
   if (preflight.destructiveActionsTaken !== false) failures.push('preflight mutated');
+  if (consentToken.status !== 'issued') failures.push('consent token not issued');
+  if (consentToken.executionAllowed !== true) failures.push('consent token should allow staging');
   if (refusal.status !== 'refused') failures.push('execution should be refused');
   if (refusal.desktopAutomationExecuted !== false) failures.push('refusal executed desktop automation');
+  if (execution.status !== 'approved_execution_staged') failures.push('approved execution was not staged');
+  if (execution.desktopAutomationExecuted !== false) failures.push('staged execution touched desktop');
   if (failures.length) throw new Error(`self-test failed: ${failures.join(', ')}`);
-  return { status, preflight, refusal };
+  return { status, preflight, consentToken, refusal, execution };
 }
 
 function isMain() {
