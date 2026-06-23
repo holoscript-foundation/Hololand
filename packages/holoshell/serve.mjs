@@ -69,10 +69,14 @@ function readReceipts(suffix) {
         catch { return null; }
       })
       .filter(Boolean)
-      .sort((a, b) => (b.timestamp || b.executedAt || '').localeCompare(a.timestamp || a.executedAt || ''));
+      .sort((a, b) => receiptSortKey(b).localeCompare(receiptSortKey(a)));
   } catch {
     return [];
   }
+}
+
+function receiptSortKey(receipt) {
+  return receipt?.timestamp || receipt?.executedAt || receipt?.generatedAt || '';
 }
 
 function staleProcesses() {

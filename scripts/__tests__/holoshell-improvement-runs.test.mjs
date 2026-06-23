@@ -77,6 +77,7 @@ try {
   });
   const history = await historyResponse.json();
   assert.equal(historyResponse.status, 200, JSON.stringify(history));
+  assert.equal(history.items[0].runId, body.runId);
   assert.ok(history.items.some((item) => item.runId === body.runId));
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
