@@ -18,6 +18,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildDesktopControlPlan } from './holoshell-desktop-control-plan.mjs';
+import {
+  verifyProof as verifyGestureProof,
+  signProof as signGestureProof,
+  CONSENT_GESTURE_SCHEMA,
+} from './holoshell-consent-gesture.mjs';
 
 export const LAPTOP_DESKTOP_BRIDGE_SCHEMA = 'hololand.holoshell.laptop-desktop-bridge.v0.1.0';
 export const DESKTOP_CONTROL_PREFLIGHT_SCHEMA = 'hololand.holoshell.desktop-control-preflight.v0.1.0';
@@ -483,14 +488,27 @@ export function buildConsentToken(payload = {}, options = {}) {
   const operation = safeString(payload.operation || preflight.intent?.primaryAction, 'inspect_screen');
   const permissionEnvelope = preflight.permissionEnvelope || 'guarded_execute';
   const consentRequired = preflight.consentRequired !== false && permissionEnvelope !== 'read_only';
-  const freshUserGesture = payload.freshUserGesture === true || payload.freshGesture === true;
   const hash = payload.preflightReceiptHash || preflightReceiptHash(preflight);
+  // freshUserGesture is now a REAL physical keypress proof (HMAC-signed, preflight-bound,
+  // fresh-TTL via holoshell-consent-gesture.mjs), NOT an agent-assertable flag (founder
+  // 2026-06-24). The legacy boolean flag is honored ONLY when HOLOSHELL_ALLOW_FLAG_GESTURE=1
+  // (dev/test escape hatch); production desktop mutation requires the signed gesture proof.
+  const gestureResult = payload.gestureProof
+    ? verifyGestureProof(payload.gestureProof, { preflightReceiptHash: hash, nowIso: at })
+    : { ok: false, reason: 'no_gesture_proof' };
+  const flagGestureAllowed = /^(1|true|on)$/i.test(process.env.HOLOSHELL_ALLOW_FLAG_GESTURE || '');
+  const freshUserGesture = gestureResult.ok
+    || (flagGestureAllowed && (payload.freshUserGesture === true || payload.freshGesture === true));
   const ttlMinutes = Number(payload.ttlMinutes || options.ttlMinutes || 5);
   const expiresAt = options.expiresAt || plusMinutes(at, ttlMinutes);
   const token = options.token || randomBytes(24).toString('base64url');
   const blockedReason = permissionEnvelope === 'break_glass'
     ? 'break_glass_requires_founder_review'
-    : (!freshUserGesture && consentRequired ? 'fresh_user_gesture_required' : '');
+    : (!freshUserGesture && consentRequired
+        ? (gestureResult.reason && gestureResult.reason !== 'no_gesture_proof'
+            ? `gesture_${gestureResult.reason}`
+            : 'fresh_user_gesture_required')
+        : '');
   const status = blockedReason ? 'blocked' : (consentRequired ? 'issued' : 'not_required_read_only');
   const tokenId = stableId('desktop_consent_token', `${at}:${preflight.preflightId}:${operation}:${hash}`);
   return {
@@ -513,6 +531,9 @@ export function buildConsentToken(payload = {}, options = {}) {
     consentRequired,
     freshUserGestureRequired: consentRequired,
     freshUserGestureObserved: freshUserGesture,
+    gestureVerified: gestureResult.ok,
+    gestureReason: gestureResult.reason || '',
+    gestureProofSchema: CONSENT_GESTURE_SCHEMA,
     executionAllowed: status === 'issued',
     executionMode: 'staged_receipt_only_until_action_executor',
     destructiveActionsTaken: false,
@@ -756,11 +777,31 @@ export function runSelfTest(options = {}) {
   const preflight = buildDesktopControlPreflight({
     intent: 'Use Fara to inspect the screen and click the Save button.',
   }, { ...options, createdAt: status.generatedAt });
+  // Construct a VALID signed gesture proof (mirrors a real keypress capture) so the self-test
+  // exercises the real proof path — not the agent-assertable flag.
+  const proofFor = (pf) => {
+    const phash = preflightReceiptHash(pf);
+    const fields = {
+      schemaVersion: CONSENT_GESTURE_SCHEMA,
+      challenge: 'self-test',
+      preflightReceiptHash: phash,
+      key: 'F8',
+      pressedAt: status.generatedAt,
+      observedGesture: true,
+      ttlMs: 600000,
+    };
+    return { ...fields, signature: signGestureProof(fields) };
+  };
   const consentToken = buildConsentToken({
     preflight,
     operation: preflight.intent.primaryAction,
-    freshUserGesture: true,
+    gestureProof: proofFor(preflight),
   }, { ...options, createdAt: status.generatedAt, token: 'self-test-token' });
+  // A consent request with NO gesture proof must be BLOCKED (the agent can't self-authorize).
+  const noGestureConsent = buildConsentToken({
+    preflight,
+    operation: preflight.intent.primaryAction,
+  }, { ...options, createdAt: status.generatedAt, token: 'self-test-nogesture' });
   const refusal = buildExecutionRefusal({ preflightId: preflight.preflightId }, { ...options, createdAt: status.generatedAt });
   const execution = buildDesktopControlExecution({
     preflight,
@@ -773,7 +814,7 @@ export function runSelfTest(options = {}) {
   const openUrlConsent = buildConsentToken({
     preflight: openUrlPreflight,
     operation: 'open_url',
-    freshUserGesture: true,
+    gestureProof: proofFor(openUrlPreflight),
   }, { ...options, createdAt: status.generatedAt, token: 'self-test-open-url-token' });
   const openUrlExecution = buildDesktopControlExecution({
     preflight: openUrlPreflight,
@@ -791,6 +832,9 @@ export function runSelfTest(options = {}) {
   if (preflight.destructiveActionsTaken !== false) failures.push('preflight mutated');
   if (consentToken.status !== 'issued') failures.push('consent token not issued');
   if (consentToken.executionAllowed !== true) failures.push('consent token should allow staging');
+  if (consentToken.gestureVerified !== true) failures.push('valid signed gesture proof should verify');
+  if (noGestureConsent.status !== 'blocked') failures.push('consent WITHOUT a gesture proof must be blocked (no agent self-authorize)');
+  if (noGestureConsent.blockedReason !== 'fresh_user_gesture_required') failures.push('missing-gesture consent must require fresh user gesture');
   if (refusal.status !== 'refused') failures.push('execution should be refused');
   if (refusal.desktopAutomationExecuted !== false) failures.push('refusal executed desktop automation');
   if (execution.status !== 'approved_execution_staged') failures.push('approved execution was not staged');
