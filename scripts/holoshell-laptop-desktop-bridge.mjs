@@ -30,7 +30,20 @@ const DEFAULT_HOST = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_HOST || '127.0.
 const DEFAULT_PORT = Number(process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_PORT || 8751);
 const DEFAULT_RECEIPT_DIR = process.env.HOLOSHELL_LAPTOP_DESKTOP_BRIDGE_RECEIPTS ||
   '.tmp/holoshell/desktop-control-bridge';
-const ADMITTED_EXECUTOR_ACTIONS = new Set(['open_url']);
+// GUI-mutating actions are wired + window-scope-protected (the action-executor's
+// assertForegroundIsTarget refuses any click/type that would land on a non-target window) and
+// consent-token gated — but they are ADMITTED into the autonomous bridge lane ONLY when the
+// founder explicitly opts in via HOLOSHELL_ADMIT_GUI_MUTATION=1. Default OFF keeps the
+// autonomous Jetson->bridge path open_url-only (the safe default). REMAINING HARDENING before
+// trusting the autonomous lane fully: consent-token freshUserGesture must be a real human
+// keypress, not an agent-supplied flag (board task lbe3). Direct executor (--approved --execute)
+// already gives the window-scope-protected, human-invoked execute capability today.
+const GUI_MUTATION_ACTIONS = ['focus_window', 'click_control', 'invoke_control', 'type_text', 'hotkey'];
+const ADMIT_GUI_MUTATION = /^(1|true|on)$/i.test(process.env.HOLOSHELL_ADMIT_GUI_MUTATION || '');
+const ADMITTED_EXECUTOR_ACTIONS = new Set([
+  'open_url',
+  ...(ADMIT_GUI_MUTATION ? GUI_MUTATION_ACTIONS : []),
+]);
 
 function usage() {
   return `Usage: node scripts/holoshell-laptop-desktop-bridge.mjs [options]
@@ -167,7 +180,48 @@ function extractActionTarget(payload = {}, operation = '') {
   return {
     operation,
     url: safeString(payload.url || action.url || payload.preflight?.target?.url, ''),
+    windowTitle: safeString(payload.windowTitle || action.windowTitle, ''),
+    handle: safeString(payload.handle || action.handle, ''),
+    controlName: safeString(payload.controlName || action.controlName, ''),
+    text: typeof (payload.text ?? action.text) === 'string' ? String(payload.text ?? action.text) : '',
+    hotkey: safeString(payload.hotkey || action.hotkey, ''),
+    x: payload.x ?? action.x ?? '',
+    y: payload.y ?? action.y ?? '',
   };
+}
+
+// Invoke the action-executor for a GUI-mutating action with --approved --execute. The executor
+// applies the window-scope assertion (refuses on foreground!=target) and writes a signed receipt;
+// a window_scope_violation surfaces as a status:'error' receipt (executionPerformed:false), never
+// a stray keystroke. Only reachable when the operation is in ADMITTED_EXECUTOR_ACTIONS.
+function runGuiActionExecutor(operation, target, options = {}) {
+  const receiptRoot = repoPath(path.join(options.receiptDir || DEFAULT_RECEIPT_DIR, 'hardware-actions'));
+  mkdirSync(receiptRoot, { recursive: true });
+  const archiveDir = path.join(receiptRoot, 'receipts');
+  const argv = [
+    path.join(REPO_ROOT, 'scripts', 'holoshell-action-executor.mjs'),
+    '--action', operation, '--approved', '--execute', '--json',
+    '--receipt-dir', archiveDir,
+    '--output', path.join(receiptRoot, 'action-latest.json'),
+    '--js-output', path.join(receiptRoot, 'action-latest.js'),
+  ];
+  if (target.handle) argv.push('--handle', target.handle);
+  else if (target.windowTitle) argv.push('--window-title', target.windowTitle);
+  if (target.controlName) argv.push('--control-name', target.controlName);
+  if (target.text) argv.push('--text', target.text);
+  if (target.hotkey) argv.push('--hotkey', target.hotkey);
+  if (target.x !== '' && target.x != null) argv.push('--x', String(target.x));
+  if (target.y !== '' && target.y != null) argv.push('--y', String(target.y));
+  const result = spawnSync(process.execPath, argv, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 30_000,
+    windowsHide: true,
+  });
+  if (result.status !== 0) {
+    throw new Error(`gui_action_executor_failed:${(result.stderr || result.stdout || '').trim().slice(0, 400)}`);
+  }
+  return JSON.parse(result.stdout);
 }
 
 function simulatedOpenUrlReceipt(url, options = {}) {
@@ -300,6 +354,15 @@ function executeAdmittedAction(payload = {}, options = {}, validation = {}) {
       action: operation,
       target,
       hardwareActionReceipt: runOpenUrlActionExecutor(target.url, options, payload),
+    };
+  }
+  if (GUI_MUTATION_ACTIONS.includes(operation)) {
+    // Admitted only when HOLOSHELL_ADMIT_GUI_MUTATION is on (the membership check above already
+    // enforced that). Window-scope assertion + signed receipt applied by the executor.
+    return {
+      action: operation,
+      target,
+      hardwareActionReceipt: runGuiActionExecutor(operation, target, options),
     };
   }
   throw new Error(`executor_lane_not_implemented:${operation}`);
@@ -735,6 +798,13 @@ export function runSelfTest(options = {}) {
   if (openUrlExecution.status !== 'completed_open_url') failures.push('open_url executor did not complete');
   if (openUrlExecution.desktopAutomationExecuted !== true) failures.push('open_url executor did not record desktop automation');
   if (openUrlExecution.destructiveActionsTaken !== false) failures.push('open_url executor marked destructive action');
+  // Safe-default guarantee (founder 2026-06-24): open_url is always admitted; GUI-mutating
+  // actions (click/type/focus/hotkey) must NOT be admitted into the autonomous lane unless the
+  // founder explicitly set HOLOSHELL_ADMIT_GUI_MUTATION.
+  if (!ADMITTED_EXECUTOR_ACTIONS.has('open_url')) failures.push('open_url must always be admitted');
+  if (!ADMIT_GUI_MUTATION && (ADMITTED_EXECUTOR_ACTIONS.has('type_text') || ADMITTED_EXECUTOR_ACTIONS.has('click_control'))) {
+    failures.push('GUI mutation MUST stay gated off without HOLOSHELL_ADMIT_GUI_MUTATION');
+  }
   if (failures.length) throw new Error(`self-test failed: ${failures.join(', ')}`);
   return { status, preflight, consentToken, refusal, execution, openUrlExecution };
 }
