@@ -175,6 +175,8 @@ composition "HoloShell Desktop Control Bridge" {
     freshUserGestureObserved: true
     gestureVerified: true
     gestureProofSchema: "hololand.holoshell.consent-gesture.v0.1.0"
+    futureGestureProofAllowed: false
+    futureClockSkewAllowanceMs: 5000
     executionAllowed: true
     executionMode: "staged_receipt_only_until_action_executor"
     destructiveActionsTaken: false
@@ -270,6 +272,8 @@ composition "HoloShell Desktop Control Bridge" {
     requiresExactPreflightReceipt: true
     requiresFreshUserGesture: true
     requiresPreflightChallengeNonce: true
+    rejectFutureGestureProofs: true
+    futureClockSkewAllowanceMs: 5000
     tokenBoundToOperation: true
     tokenBoundToPreflightHash: true
     tokenBoundToConsentChallenge: true

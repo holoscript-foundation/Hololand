@@ -108,6 +108,16 @@ assert.equal(wrongChallengeConsentToken.status, 'blocked');
 assert.equal(wrongChallengeConsentToken.executionAllowed, false);
 assert.match(wrongChallengeConsentToken.blockedReason, /challenge_mismatch/);
 
+const futureGestureConsentToken = buildConsentToken({
+  preflight,
+  operation: preflight.intent.primaryAction,
+  gestureProof: gestureProofFor(preflight, { pressedAt: '2026-06-23T00:10:30.000Z' }),
+}, { createdAt: CREATED_AT, token: 'fixture-future-gesture-token' });
+assert.equal(futureGestureConsentToken.status, 'blocked');
+assert.equal(futureGestureConsentToken.executionAllowed, false);
+assert.equal(futureGestureConsentToken.gestureVerified, false);
+assert.match(futureGestureConsentToken.blockedReason, /future/);
+
 const execution = buildDesktopControlExecution({
   preflight,
   operation: preflight.intent.primaryAction,
