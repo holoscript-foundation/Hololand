@@ -1089,7 +1089,6 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
     ? payload.codebaseFixes
     : (Array.isArray(payload.fixEvidence) ? payload.fixEvidence : []);
   return source
-    .slice(0, limit)
     .map((item, index) => normalizeCodebaseFixEvidence(item, index))
     .filter((fix) =>
       fix &&
@@ -1099,7 +1098,8 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
       Boolean(fix.receiptPath || fix.commit) &&
       fix.destructiveActionsTaken === false &&
       fix.desktopAutomationExecuted === false
-    );
+    )
+    .slice(0, limit);
 }
 
 function buildImprovementRunReceipt(payload = {}) {
@@ -1137,6 +1137,7 @@ function buildImprovementRunReceipt(payload = {}) {
       requiredEvidence: ['issue', 'changedFiles', 'validationCommands', 'validationStatus'],
       requiredValidationStatus: 'passed',
       commitEvidenceFormat: 'git_sha_7_to_40_hex',
+      filterInvalidEvidenceBeforeBatchLimit: true,
       disallowedEvidence: ['validationStatus:not-passed', 'commit:invalid-format', 'destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
       tuningIsNotTheShakedown: true,
     },

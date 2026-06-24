@@ -84,6 +84,7 @@ try {
   assert.equal(body.receipt.codebaseFixPolicy.requiredBeforeCountedExecution, true);
   assert.equal(body.receipt.codebaseFixPolicy.requiredValidationStatus, 'passed');
   assert.equal(body.receipt.codebaseFixPolicy.commitEvidenceFormat, 'git_sha_7_to_40_hex');
+  assert.equal(body.receipt.codebaseFixPolicy.filterInvalidEvidenceBeforeBatchLimit, true);
   assert.equal(body.receipt.holotuneTracePolicy.mode, 'defer_until_codebase_fix_shakedown_validated');
   assert.equal(body.receipt.holotuneTracePolicy.serverControlledMode, 'server_controlled_after_codebase_fix_review');
   assert.match(body.receipt.holotuneTracePolicy.reason, /client payloads cannot enable tuning/);
@@ -257,6 +258,38 @@ try {
   assert.equal(invalidCommitExecution.holotuneTrace.emittedRows, 0);
   assert.equal(existsSync(tracePath), false);
 
+  const mixedEvidenceExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      shakedownCount: 1,
+      codebaseFixes: [
+        {
+          ...codebaseFixes(1, 104)[0],
+          receiptPath: '',
+          commit: 'not-a-commit',
+        },
+        {
+          ...codebaseFixes(1, 105)[0],
+          receiptPath: '',
+          commit: '123ABCD',
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(80_000),
+  });
+  const mixedEvidenceExecution = await mixedEvidenceExecutionResponse.json();
+  assert.equal(mixedEvidenceExecutionResponse.status, 200, JSON.stringify(mixedEvidenceExecution));
+  assert.equal(mixedEvidenceExecution.status, 'completed_codebase_fix_shakedown');
+  assert.equal(mixedEvidenceExecution.executedRunCount, 1);
+  assert.equal(mixedEvidenceExecution.totalExecutedRunCount, 1);
+  assert.equal(mixedEvidenceExecution.remainingRunCount, 11);
+  assert.equal(mixedEvidenceExecution.runResults.length, 1);
+  assert.equal(mixedEvidenceExecution.runResults[0].codebaseFix.commit, '123abcd');
+  assert.equal(mixedEvidenceExecution.holotuneTrace.status, 'deferred');
+  assert.equal(mixedEvidenceExecution.holotuneTrace.emittedRows, 0);
+  assert.equal(existsSync(tracePath), false);
+
   const secondExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -267,8 +300,8 @@ try {
   assert.equal(secondExecutionResponse.status, 200, JSON.stringify(secondExecution));
   assert.equal(secondExecution.status, 'completed_codebase_fix_shakedown');
   assert.equal(secondExecution.executedRunCount, 2);
-  assert.equal(secondExecution.totalExecutedRunCount, 2);
-  assert.equal(secondExecution.remainingRunCount, 10);
+  assert.equal(secondExecution.totalExecutedRunCount, 3);
+  assert.equal(secondExecution.remainingRunCount, 9);
   assert.equal(secondExecution.holotuneTrace.status, 'deferred');
   assert.equal(secondExecution.holotuneTrace.emittedRows, 0);
   assert.equal(existsSync(tracePath), false);
@@ -283,7 +316,7 @@ try {
     body: JSON.stringify({
       shakedownCount: 1,
       codebaseFixes: [{
-        ...codebaseFixes(1, 104)[0],
+        ...codebaseFixes(1, 106)[0],
         receiptPath: '',
         commit: 'ABCDEF1',
       }],
@@ -294,8 +327,8 @@ try {
   assert.equal(validCommitExecutionResponse.status, 200, JSON.stringify(validCommitExecution));
   assert.equal(validCommitExecution.status, 'completed_codebase_fix_shakedown');
   assert.equal(validCommitExecution.executedRunCount, 1);
-  assert.equal(validCommitExecution.totalExecutedRunCount, 3);
-  assert.equal(validCommitExecution.remainingRunCount, 9);
+  assert.equal(validCommitExecution.totalExecutedRunCount, 4);
+  assert.equal(validCommitExecution.remainingRunCount, 8);
   assert.equal(validCommitExecution.runResults.length, 1);
   assert.equal(validCommitExecution.runResults[0].codebaseFix.commit, 'abcdef1');
   assert.equal(validCommitExecution.holotuneTrace.status, 'deferred');
@@ -307,9 +340,9 @@ try {
   });
   const detail = await detailResponse.json();
   assert.equal(detailResponse.status, 200, JSON.stringify(detail));
-  assert.equal(detail.totalExecutedRunCount, 3);
-  assert.equal(detail.remainingRunCount, 9);
-  assert.equal(detail.executions.length, 6);
+  assert.equal(detail.totalExecutedRunCount, 4);
+  assert.equal(detail.remainingRunCount, 8);
+  assert.equal(detail.executions.length, 7);
 
   const receiptText = readFileSync(body.receipt.receiptPath, 'utf8');
   assert.match(receiptText, /holoshell-improvement-run-loop\.hsplus/);
@@ -318,12 +351,14 @@ try {
   assert.match(receiptText, /codebaseFixPolicy/);
   assert.match(receiptText, /requiredValidationStatus/);
   assert.match(receiptText, /commitEvidenceFormat/);
+  assert.match(receiptText, /filterInvalidEvidenceBeforeBatchLimit/);
   assert.match(receiptText, /disallowedEvidence/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /holotuneTrace/);
   assert.match(readFileSync(firstExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
   assert.match(readFileSync(unsafeExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
   assert.match(readFileSync(failedExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
   assert.match(readFileSync(invalidCommitExecution.receipt.receiptPath, 'utf8'), /awaiting_codebase_fix_evidence/);
+  assert.match(readFileSync(mixedEvidenceExecution.receipt.receiptPath, 'utf8'), /completed_codebase_fix_shakedown/);
 
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /buildNativeRunRouting/);
