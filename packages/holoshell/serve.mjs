@@ -1060,6 +1060,11 @@ function normalizeStringList(value) {
   return value.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 20);
 }
 
+function normalizeCommitEvidence(value) {
+  const commit = String(value || '').trim().slice(0, 80);
+  return /^[0-9a-f]{7,40}$/iu.test(commit) ? commit.toLowerCase() : '';
+}
+
 function normalizeCodebaseFixEvidence(value, index) {
   if (!value || typeof value !== 'object') return null;
   const changedFiles = normalizeStringList(value.changedFiles || value.files);
@@ -1073,7 +1078,7 @@ function normalizeCodebaseFixEvidence(value, index) {
     validationCommands,
     validationStatus,
     receiptPath: value.receiptPath ? String(value.receiptPath).slice(0, 500) : '',
-    commit: value.commit ? String(value.commit).slice(0, 80) : '',
+    commit: normalizeCommitEvidence(value.commit || value.commitSha || value.sha),
     destructiveActionsTaken: value.destructiveActionsTaken === true,
     desktopAutomationExecuted: value.desktopAutomationExecuted === true,
   };
@@ -1131,7 +1136,8 @@ function buildImprovementRunReceipt(payload = {}) {
       requiredBeforeCountedExecution: true,
       requiredEvidence: ['issue', 'changedFiles', 'validationCommands', 'validationStatus'],
       requiredValidationStatus: 'passed',
-      disallowedEvidence: ['validationStatus:not-passed', 'destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
+      commitEvidenceFormat: 'git_sha_7_to_40_hex',
+      disallowedEvidence: ['validationStatus:not-passed', 'commit:invalid-format', 'destructiveActionsTaken:true', 'desktopAutomationExecuted:true'],
       tuningIsNotTheShakedown: true,
     },
     holotuneTracePolicy: {

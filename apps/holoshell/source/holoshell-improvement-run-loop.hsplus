@@ -152,6 +152,7 @@ composition "HoloShell Improvement Run Loop" {
     requireReceiptEveryRun: true
     requireCodebaseFixEvidenceEveryCountedRun: true
     requirePassedValidationEveryCountedRun: true
+    requireCommitShaFormatEveryCountedRun: true
     disallowDestructiveEvidenceEveryCountedRun: true
     disallowDesktopAutomationEvidenceEveryCountedRun: true
     requireHoloTuneTraceRowEveryRun: false
