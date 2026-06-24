@@ -907,6 +907,50 @@ $ok = [HoloShellWin32Focus]::SetForegroundWindow($handle)
   return extractJson(runPowerShell(script));
 }
 
+function foregroundWindowHandle() {
+  if (process.platform !== 'win32') return '';
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class HoloShellForeground {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+}
+"@
+$fg = [HoloShellForeground]::GetForegroundWindow()
+@{ handle = [string]([Int64]$fg) } | ConvertTo-Json -Depth 2
+`;
+  const result = extractJson(runPowerShell(script));
+  return String(result?.handle || '');
+}
+
+// Window-scope safety primitive (founder 2026-06-24). SendKeys/mouse_event act on whatever
+// window currently has FOCUS, and SetForegroundWindow can SILENTLY FAIL (Windows restricts
+// foreground stealing). Without this guard, a click/type intended for the target window lands
+// on whatever the user is actually in (e.g. the founder's active app). evaluateWindowScope is
+// pure (unit-tested); assertForegroundIsTarget reads the live foreground handle and THROWS
+// window_scope_violation on ANY mismatch — so a guarded mutation is REFUSED rather than
+// misdirected onto a non-target window. This is the prerequisite before any click/type lane is
+// ever admitted on a live desktop.
+function evaluateWindowScope(foregroundHandle, targetHandle) {
+  const fg = String(foregroundHandle || '');
+  const target = String(targetHandle || '');
+  return { ok: fg !== '' && fg === target, foregroundHandle: fg, targetHandle: target };
+}
+
+function assertForegroundIsTarget(window) {
+  if (!window?.handle) {
+    throw new Error('window-scope assertion requires a native target window handle');
+  }
+  const scope = evaluateWindowScope(foregroundWindowHandle(), window.handle);
+  if (!scope.ok) {
+    throw new Error(
+      `window_scope_violation: foreground window ${scope.foregroundHandle || '(none)'} != target ${scope.targetHandle} — refusing to click/type on a non-target window`
+    );
+  }
+  return scope;
+}
+
 function startProcessLiteral(value) {
   const navigationWitness = urlWitness(value);
   const script = `
@@ -945,7 +989,8 @@ Start-Process @params
 }
 
 function sendHotkey(window, hotkey) {
-  if (window?.handle) focusWindow(window);
+  // Focus + window-scope assertion is performed by the caller (executeApprovedAction) so the
+  // target is verified foreground immediately before keys are sent.
   const keys = sendKeyChord(hotkey);
   if (!keys) throw new Error('hotkey action requires --hotkey');
   const script = `
@@ -957,7 +1002,7 @@ Add-Type -AssemblyName System.Windows.Forms
 }
 
 function sendText(window, text) {
-  if (window?.handle) focusWindow(window);
+  // Focus + window-scope assertion is performed by the caller (executeApprovedAction).
   const escaped = sendKeysText(text);
   const script = `
 Add-Type -AssemblyName System.Windows.Forms
@@ -1013,7 +1058,12 @@ function executeApprovedAction(args, window, control) {
       },
     };
   }
-  if (args.action === 'focus_window') return focusWindow(window);
+  if (args.action === 'focus_window') {
+    const focusResult = focusWindow(window);
+    // Verify the focus actually landed on the target (SetForegroundWindow can silently fail).
+    const windowScope = assertForegroundIsTarget(window);
+    return { ...focusResult, windowScope };
+  }
   if (args.action === 'open_url') {
     if (!/^https?:\/\//i.test(args.url || ''))
       throw new Error('open_url only accepts http or https URLs');
@@ -1028,16 +1078,28 @@ function executeApprovedAction(args, window, control) {
     const program = findLaunchProgram(args);
     return startProcessTarget(program?.launchTarget || args.app);
   }
-  if (args.action === 'hotkey') return sendHotkey(window, args.hotkey);
-  if (args.action === 'type_text') return sendText(window, args.text);
+  // Focus-dependent OS mutations: focus the target, ASSERT it is foreground, THEN send. The
+  // assertion refuses (throws window_scope_violation) if focus did not land — so keystrokes/
+  // clicks can never leak onto a non-target (e.g. the founder's active) window.
+  if (args.action === 'hotkey') {
+    focusWindow(window);
+    const windowScope = assertForegroundIsTarget(window);
+    return { ...sendHotkey(window, args.hotkey), windowScope };
+  }
+  if (args.action === 'type_text') {
+    focusWindow(window);
+    const windowScope = assertForegroundIsTarget(window);
+    return { ...sendText(window, args.text), windowScope };
+  }
   if (args.action === 'click_control' || args.action === 'invoke_control') {
-    if (window?.handle) focusWindow(window);
+    focusWindow(window);
+    const windowScope = assertForegroundIsTarget(window);
     const explicitPoint =
       args.x !== '' && args.y !== '' ? { x: Number(args.x), y: Number(args.y) } : null;
     const point = explicitPoint || centerOf(control?.bounds) || centerOf(window?.bounds);
     if (!point)
       throw new Error(`${args.action} requires control bounds, window bounds, or --x/--y`);
-    return clickPoint(point);
+    return { ...clickPoint(point), windowScope };
   }
   throw new Error(`No executor is implemented for ${args.action}`);
 }
@@ -1350,6 +1412,14 @@ function assertSelfTest(args) {
     failures.push('executed public open_url should preserve target host witness');
   if (accountBrowser.browserBoundary?.urlClassification !== 'credential_adjacent')
     failures.push('account open_url should be credential_adjacent');
+  // Window-scope safety primitive (founder 2026-06-24): click/type must land ONLY on the
+  // resolved target window. Pure evaluator, no live PowerShell.
+  const scopeMatch = evaluateWindowScope('1001', '1001');
+  const scopeMismatch = evaluateWindowScope('9999', '1001');
+  const scopeEmpty = evaluateWindowScope('', '1001');
+  if (!scopeMatch.ok) failures.push('window-scope must PASS when foreground == target');
+  if (scopeMismatch.ok) failures.push('window-scope MUST FAIL when foreground != target');
+  if (scopeEmpty.ok) failures.push('window-scope MUST FAIL when foreground is unknown/empty');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   return readOnly;
 }
