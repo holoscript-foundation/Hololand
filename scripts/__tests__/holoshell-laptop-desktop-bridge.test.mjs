@@ -17,10 +17,27 @@ import {
   LAPTOP_DESKTOP_BRIDGE_SCHEMA,
   runSelfTest,
 } from '../holoshell-laptop-desktop-bridge.mjs';
+import {
+  CONSENT_GESTURE_SCHEMA,
+  signProof as signGestureProof,
+} from '../holoshell-consent-gesture.mjs';
 
 const NODE = process.execPath;
 const SCRIPT = resolve('scripts/holoshell-laptop-desktop-bridge.mjs');
 const CREATED_AT = '2026-06-23T00:00:00.000Z';
+
+function gestureProofFor(preflight, overrides = {}) {
+  const fields = {
+    schemaVersion: CONSENT_GESTURE_SCHEMA,
+    challenge: overrides.challenge || preflight.consentChallenge,
+    preflightReceiptHash: preflight.preflightReceiptHash,
+    key: overrides.key || 'F8',
+    pressedAt: overrides.pressedAt || CREATED_AT,
+    observedGesture: overrides.observedGesture !== false,
+    ttlMs: overrides.ttlMs || 600000,
+  };
+  return { ...fields, signature: signGestureProof(fields) };
+}
 
 const status = buildBridgeStatus({ host: '127.0.0.1', port: 8751, createdAt: CREATED_AT });
 assert.equal(status.schemaVersion, LAPTOP_DESKTOP_BRIDGE_SCHEMA);
@@ -45,6 +62,10 @@ assert.equal(preflight.modelLane, 'fara_gui_grounding');
 assert.equal(preflight.permissionEnvelope, 'guarded_execute');
 assert.equal(preflight.consentRequired, true);
 assert.equal(preflight.executionAllowed, false);
+assert.ok(preflight.consentChallenge);
+assert.equal(preflight.consentGesture.challenge, preflight.consentChallenge);
+assert.equal(preflight.consentGesture.key, 'F8');
+assert.ok(preflight.preflightReceiptHash);
 assert.equal(preflight.destructiveActionsTaken, false);
 assert.equal(preflight.desktopAutomationExecuted, false);
 
@@ -58,12 +79,15 @@ assert.equal(readOnlyPreflight.executionAllowed, false);
 const consentToken = buildConsentToken({
   preflight,
   operation: preflight.intent.primaryAction,
-  freshUserGesture: true,
+  gestureProof: gestureProofFor(preflight),
 }, { createdAt: CREATED_AT, token: 'fixture-token' });
 assert.equal(consentToken.schemaVersion, DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA);
 assert.equal(consentToken.status, 'issued');
 assert.equal(consentToken.executionAllowed, true);
 assert.equal(consentToken.preflightId, preflight.preflightId);
+assert.equal(consentToken.consentChallenge, preflight.consentChallenge);
+assert.equal(consentToken.challengeBound, true);
+assert.equal(consentToken.gestureVerified, true);
 assert.equal(consentToken.destructiveActionsTaken, false);
 assert.equal(consentToken.desktopAutomationExecuted, false);
 
@@ -74,6 +98,15 @@ const blockedConsentToken = buildConsentToken({
 assert.equal(blockedConsentToken.status, 'blocked');
 assert.equal(blockedConsentToken.executionAllowed, false);
 assert.match(blockedConsentToken.blockedReason, /fresh_user_gesture/);
+
+const wrongChallengeConsentToken = buildConsentToken({
+  preflight,
+  operation: preflight.intent.primaryAction,
+  gestureProof: gestureProofFor(preflight, { challenge: 'wrong-challenge' }),
+}, { createdAt: CREATED_AT, token: 'fixture-wrong-challenge-token' });
+assert.equal(wrongChallengeConsentToken.status, 'blocked');
+assert.equal(wrongChallengeConsentToken.executionAllowed, false);
+assert.match(wrongChallengeConsentToken.blockedReason, /challenge_mismatch/);
 
 const execution = buildDesktopControlExecution({
   preflight,
@@ -94,7 +127,7 @@ assert.equal(openUrlPreflight.intent.primaryAction, 'open_url');
 const openUrlConsentToken = buildConsentToken({
   preflight: openUrlPreflight,
   operation: 'open_url',
-  freshUserGesture: true,
+  gestureProof: gestureProofFor(openUrlPreflight),
 }, { createdAt: CREATED_AT, token: 'fixture-open-url-token' });
 
 const openUrlExecution = buildDesktopControlExecution({
@@ -198,7 +231,7 @@ try {
     body: JSON.stringify({
       preflight: preflightBody,
       operation: preflightBody.intent.primaryAction,
-      freshUserGesture: true,
+      gestureProof: gestureProofFor(preflightBody),
     }),
   });
   assert.equal(consentResponse.status, 200);
@@ -256,7 +289,7 @@ try {
     body: JSON.stringify({
       preflight: openUrlPreflightBody,
       operation: 'open_url',
-      freshUserGesture: true,
+      gestureProof: gestureProofFor(openUrlPreflightBody),
     }),
   });
   assert.equal(openUrlConsentResponse.status, 200);
@@ -306,3 +339,5 @@ assert.match(serveSource, /\/api\/desktop-control\/bridge/);
 
 const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
 assert.match(compileSource, /desktop-bridge-status/);
+assert.match(compileSource, /desktop-control\/gesture-proof/);
+assert.doesNotMatch(compileSource, /freshUserGesture: true/);

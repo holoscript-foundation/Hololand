@@ -273,10 +273,10 @@ const runtimeScript = `  <script>
         _bMsg('Desktop execution', 'open_url requires founder review before approval.', '#f85149');
         return;
       }
-      var row = _bMsg('Desktop approval', 'Public URL ready: ' + target.url + '\\nRequires fresh click: preflight -> consent token -> execute open_url.', '#d29922');
+      var row = _bMsg('Desktop approval', 'Public URL ready: ' + target.url + '\\nRequires approval: click here, then press F8 for the challenge-bound gesture proof.', '#d29922');
       _bActionButton(row, 'Approve open URL', function(button) {
         var preflightReceipt = null;
-        button.textContent = 'Opening...';
+        button.textContent = 'Preflighting...';
         _postLaptopBridge('/api/desktop-control/preflight', {
           intent: desktopControl.intent || intent,
           actor: 'brittney'
@@ -285,10 +285,19 @@ const runtimeScript = `  <script>
           if (preflight.intent && preflight.intent.primaryAction && preflight.intent.primaryAction !== 'open_url') {
             throw new Error('preflight_action_mismatch:' + preflight.intent.primaryAction);
           }
-          return _postLaptopBridge('/api/desktop-control/consent-token', {
+          button.textContent = 'Press F8...';
+          return _postLaptopBridge('/api/desktop-control/gesture-proof', {
             preflight: preflight,
             operation: 'open_url',
-            freshUserGesture: true
+            key: (preflight.consentGesture && preflight.consentGesture.key) || 'F8',
+            ttlMs: (preflight.consentGesture && preflight.consentGesture.ttlMs) || 30000
+          });
+        }).then(function(gestureProof) {
+          button.textContent = 'Opening...';
+          return _postLaptopBridge('/api/desktop-control/consent-token', {
+            preflight: preflightReceipt,
+            operation: 'open_url',
+            gestureProof: gestureProof
           });
         }).then(function(consentToken) {
           return _postLaptopBridge('/api/desktop-control/execute', {

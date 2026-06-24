@@ -22,6 +22,9 @@ composition "HoloShell Desktop Control Bridge" {
     daemonPreflightEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/preflight"
     daemonFallbackPreflightEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/preflight"
     daemonTertiaryPreflightEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/preflight"
+    daemonGestureProofEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/gesture-proof"
+    daemonFallbackGestureProofEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/gesture-proof"
+    daemonTertiaryGestureProofEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/gesture-proof"
     daemonConsentTokenEndpoint: "POST http://127.0.0.1:8751/api/desktop-control/consent-token"
     daemonFallbackConsentTokenEndpoint: "POST http://127.0.0.1:8752/api/desktop-control/consent-token"
     daemonTertiaryConsentTokenEndpoint: "POST http://127.0.0.1:8753/api/desktop-control/consent-token"
@@ -100,6 +103,12 @@ composition "HoloShell Desktop Control Bridge" {
     description: "HoloGate consent tokens bound to exact preflight receipts"
   }
 
+  channel "holoshell:desktop-control:gesture-proof" {
+    type: "request_response"
+    priority: "critical"
+    description: "Fresh physical keypress proofs bound to a preflight challenge nonce"
+  }
+
   channel "holoshell:desktop-control:execution-staging" {
     type: "append_only"
     priority: "critical"
@@ -147,6 +156,8 @@ composition "HoloShell Desktop Control Bridge" {
     permissionEnvelope: "guarded_execute"
     executionAllowed: false
     consentRequired: true
+    consentChallenge: ""
+    consentGesture: { schemaVersion: "hololand.holoshell.consent-gesture.v0.1.0", challenge: "", key: "F8", ttlMs: 30000, proofRequired: true }
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -158,9 +169,12 @@ composition "HoloShell Desktop Control Bridge" {
     tokenId: ""
     preflightId: ""
     preflightReceiptHash: ""
+    consentChallenge: ""
     operation: ""
     permissionEnvelope: "guarded_execute"
     freshUserGestureObserved: true
+    gestureVerified: true
+    gestureProofSchema: "hololand.holoshell.consent-gesture.v0.1.0"
     executionAllowed: true
     executionMode: "staged_receipt_only_until_action_executor"
     destructiveActionsTaken: false
@@ -255,8 +269,10 @@ composition "HoloShell Desktop Control Bridge" {
     holoGateStages: ["identify", "scope", "log"]
     requiresExactPreflightReceipt: true
     requiresFreshUserGesture: true
+    requiresPreflightChallengeNonce: true
     tokenBoundToOperation: true
     tokenBoundToPreflightHash: true
+    tokenBoundToConsentChallenge: true
     executionAllowedWithValidToken: true
     osMutationAllowedByThisLane: false
     desktopAutomationExecutedByDaemonDefault: false
@@ -270,6 +286,7 @@ composition "HoloShell Desktop Control Bridge" {
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     requiresExactPreflightReceipt: true
     requiresFreshUserGesture: true
+    requiresPreflightChallengeNonce: true
     requiresValidConsentToken: true
     allowedUrlClassification: "public_web"
     blockedUrlClassifications: ["credential_adjacent", "break_glass_payment", "blocked_scheme", "invalid_url"]

@@ -19,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildDesktopControlPlan } from './holoshell-desktop-control-plan.mjs';
 import {
+  captureGesture,
   verifyProof as verifyGestureProof,
   signProof as signGestureProof,
   CONSENT_GESTURE_SCHEMA,
@@ -134,8 +135,8 @@ function plusMinutes(iso, minutes) {
   return new Date(safeBase + Math.max(1, Number(minutes || 5)) * 60_000).toISOString();
 }
 
-function tokenHash(token, preflightReceiptHash, operation, expiresAt) {
-  return hashText(`${token}:${preflightReceiptHash}:${operation}:${expiresAt}`);
+function tokenHash(token, preflightReceiptHash, operation, expiresAt, consentChallenge = '') {
+  return hashText(`${token}:${preflightReceiptHash}:${operation}:${expiresAt}:${consentChallenge}`);
 }
 
 function preflightReceiptHash(preflight = {}) {
@@ -405,6 +406,7 @@ export function buildBridgeStatus(options = {}) {
     capabilities: [
       'bridge_status',
       'desktop_action_preflight',
+      'consent_gesture_capture',
       'consent_token_issue',
       'consent_token_verify',
       'approved_execution_staging',
@@ -416,6 +418,7 @@ export function buildBridgeStatus(options = {}) {
     endpoints: {
       status: '/api/desktop-control/bridge',
       preflight: '/api/desktop-control/preflight',
+      gestureProof: '/api/desktop-control/gesture-proof',
       consentToken: '/api/desktop-control/consent-token',
       execute: '/api/desktop-control/execute',
     },
@@ -449,7 +452,10 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
     : (permissionEnvelope === 'read_only' ? 'read_only_ready' : 'preflight_ready');
   const preflightId = stableId('desktop_preflight', `${at}:${planId}:${primaryAction}:${permissionEnvelope}`);
   const consentRequired = permissionEnvelope !== 'read_only';
-  return {
+  const consentChallenge = consentRequired
+    ? safeString(payload.consentChallenge || options.consentChallenge, randomBytes(16).toString('base64url'))
+    : '';
+  const receipt = {
     schemaVersion: DESKTOP_CONTROL_PREFLIGHT_SCHEMA,
     preflightId,
     generatedAt: at,
@@ -467,6 +473,14 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
     modelLane: 'fara_gui_grounding',
     permissionEnvelope,
     consentRequired,
+    consentChallenge,
+    consentGesture: consentRequired ? {
+      schemaVersion: CONSENT_GESTURE_SCHEMA,
+      challenge: consentChallenge,
+      key: 'F8',
+      ttlMs: 30000,
+      proofRequired: true,
+    } : null,
     executionAllowed: false,
     executionDefault: 'refused_until_consent_token_lane',
     approvalRequiredForDesktopAutomation: true,
@@ -476,8 +490,12 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
     receiptRequired: true,
     bridge: buildBridgeStatus(options),
     nextSafeStep: consentRequired
-      ? 'Show this preflight receipt and require a fresh HoloGate consent token before any desktop mutation lane exists.'
+      ? 'Show this preflight receipt and require a fresh challenge-bound HoloGate consent gesture before any desktop mutation lane exists.'
       : 'Read-only inspection is preflighted; keep the receipt and do not mutate the desktop.',
+  };
+  return {
+    ...receipt,
+    preflightReceiptHash: preflightReceiptHash(receipt),
   };
 }
 
@@ -489,14 +507,16 @@ export function buildConsentToken(payload = {}, options = {}) {
   const permissionEnvelope = preflight.permissionEnvelope || 'guarded_execute';
   const consentRequired = preflight.consentRequired !== false && permissionEnvelope !== 'read_only';
   const hash = payload.preflightReceiptHash || preflightReceiptHash(preflight);
+  const expectedChallenge = safeString(payload.consentChallenge || preflight.consentChallenge, '');
   // freshUserGesture is now a REAL physical keypress proof (HMAC-signed, preflight-bound,
   // fresh-TTL via holoshell-consent-gesture.mjs), NOT an agent-assertable flag (founder
   // 2026-06-24). The legacy boolean flag is honored ONLY when HOLOSHELL_ALLOW_FLAG_GESTURE=1
   // (dev/test escape hatch); production desktop mutation requires the signed gesture proof.
   const gestureResult = payload.gestureProof
-    ? verifyGestureProof(payload.gestureProof, { preflightReceiptHash: hash, nowIso: at })
+    ? verifyGestureProof(payload.gestureProof, { preflightReceiptHash: hash, expectedChallenge, nowIso: at })
     : { ok: false, reason: 'no_gesture_proof' };
   const flagGestureAllowed = /^(1|true|on)$/i.test(process.env.HOLOSHELL_ALLOW_FLAG_GESTURE || '');
+  const missingChallenge = consentRequired && !expectedChallenge;
   const freshUserGesture = gestureResult.ok
     || (flagGestureAllowed && (payload.freshUserGesture === true || payload.freshGesture === true));
   const ttlMinutes = Number(payload.ttlMinutes || options.ttlMinutes || 5);
@@ -504,18 +524,20 @@ export function buildConsentToken(payload = {}, options = {}) {
   const token = options.token || randomBytes(24).toString('base64url');
   const blockedReason = permissionEnvelope === 'break_glass'
     ? 'break_glass_requires_founder_review'
-    : (!freshUserGesture && consentRequired
+    : (missingChallenge
+        ? 'consent_challenge_required'
+        : (!freshUserGesture && consentRequired
         ? (gestureResult.reason && gestureResult.reason !== 'no_gesture_proof'
-            ? `gesture_${gestureResult.reason}`
+            ? gestureResult.reason
             : 'fresh_user_gesture_required')
-        : '');
+        : ''));
   const status = blockedReason ? 'blocked' : (consentRequired ? 'issued' : 'not_required_read_only');
   const tokenId = stableId('desktop_consent_token', `${at}:${preflight.preflightId}:${operation}:${hash}`);
   return {
     schemaVersion: DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA,
     tokenId,
     token,
-    tokenHash: tokenHash(token, hash, operation, expiresAt),
+    tokenHash: tokenHash(token, hash, operation, expiresAt, expectedChallenge),
     generatedAt: at,
     expiresAt,
     status,
@@ -527,6 +549,7 @@ export function buildConsentToken(payload = {}, options = {}) {
     preflightId: preflight.preflightId,
     planId: preflight.planId || '',
     preflightReceiptHash: hash,
+    consentChallenge: expectedChallenge,
     permissionEnvelope,
     consentRequired,
     freshUserGestureRequired: consentRequired,
@@ -534,6 +557,7 @@ export function buildConsentToken(payload = {}, options = {}) {
     gestureVerified: gestureResult.ok,
     gestureReason: gestureResult.reason || '',
     gestureProofSchema: CONSENT_GESTURE_SCHEMA,
+    challengeBound: Boolean(expectedChallenge),
     executionAllowed: status === 'issued',
     executionMode: 'staged_receipt_only_until_action_executor',
     destructiveActionsTaken: false,
@@ -553,21 +577,26 @@ export function validateConsentToken(payload = {}, options = {}) {
   if (!token?.token || !token?.tokenHash) return { valid: false, reason: 'missing_consent_token' };
   const operation = safeString(payload.operation || preflight.intent?.primaryAction || token.operation, 'inspect_screen');
   const hash = preflightReceiptHash(preflight);
+  const consentChallenge = safeString(token.consentChallenge || preflight.consentChallenge, '');
   if (token.schemaVersion && token.schemaVersion !== DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA) {
     return { valid: false, reason: 'consent_token_schema_mismatch' };
   }
   if (token.status && token.status !== 'issued') return { valid: false, reason: token.blockedReason || 'consent_token_not_issued' };
   if (token.preflightId && token.preflightId !== preflight.preflightId) return { valid: false, reason: 'consent_token_preflight_mismatch' };
   if (token.preflightReceiptHash && token.preflightReceiptHash !== hash) return { valid: false, reason: 'consent_token_receipt_hash_mismatch' };
+  if (token.consentChallenge && preflight.consentChallenge && token.consentChallenge !== preflight.consentChallenge) {
+    return { valid: false, reason: 'consent_token_challenge_mismatch' };
+  }
   if (token.operation && token.operation !== operation) return { valid: false, reason: 'consent_token_operation_mismatch' };
   if (token.expiresAt && Date.parse(token.expiresAt) <= Date.parse(generatedAt(options))) return { valid: false, reason: 'consent_token_expired' };
-  const expectedHash = tokenHash(token.token, hash, operation, token.expiresAt || '');
+  const expectedHash = tokenHash(token.token, hash, operation, token.expiresAt || '', consentChallenge);
   if (expectedHash !== token.tokenHash) return { valid: false, reason: 'consent_token_hash_mismatch' };
   return {
     valid: true,
     reason: '',
     operation,
     preflightReceiptHash: hash,
+    consentChallenge,
     tokenId: token.tokenId || '',
     expiresAt: token.expiresAt || '',
   };
@@ -603,6 +632,7 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
     preflightId: preflight.preflightId,
     planId: preflight.planId || '',
     preflightReceiptHash: validation.preflightReceiptHash,
+    consentChallenge: validation.consentChallenge,
     consentTokenId: validation.tokenId,
     consentTokenExpiresAt: validation.expiresAt,
     executionAllowed: true,
@@ -718,6 +748,33 @@ export async function handleBridgeRequest(req, res, options = {}) {
     return;
   }
 
+  if (req.method === 'POST' && requestUrl.pathname === '/api/desktop-control/gesture-proof') {
+    try {
+      const payload = await readRequestBody(req);
+      const preflight = payload.preflight || payload.receipt || null;
+      if (!preflight?.preflightId) throw new Error('gesture proof requires exact preflight receipt');
+      const challenge = safeString(payload.challenge || payload.consentChallenge || preflight.consentChallenge, '');
+      if (!challenge) throw new Error('consent_challenge_required');
+      const hash = payload.preflightReceiptHash || preflight.preflightReceiptHash || preflightReceiptHash(preflight);
+      const ttlMs = Math.max(1000, Number(payload.ttlMs || payload.ttl || preflight.consentGesture?.ttlMs || 30000));
+      const proof = captureGesture({
+        challenge,
+        preflightReceiptHash: hash,
+        key: payload.key || preflight.consentGesture?.key || 'F8',
+        ttlMs,
+      });
+      sendJson(res, {
+        ...proof,
+        preflightId: preflight.preflightId,
+        destructiveActionsTaken: false,
+        desktopAutomationExecuted: false,
+      }, proof.observedGesture ? 200 : 403);
+    } catch (error) {
+      sendJson(res, { error: String(error.message || error), destructiveActionsTaken: false }, 400);
+    }
+    return;
+  }
+
   if (req.method === 'POST' && requestUrl.pathname === '/api/desktop-control/consent-token') {
     try {
       const payload = await readRequestBody(req);
@@ -780,11 +837,10 @@ export function runSelfTest(options = {}) {
   // Construct a VALID signed gesture proof (mirrors a real keypress capture) so the self-test
   // exercises the real proof path — not the agent-assertable flag.
   const proofFor = (pf) => {
-    const phash = preflightReceiptHash(pf);
     const fields = {
       schemaVersion: CONSENT_GESTURE_SCHEMA,
-      challenge: 'self-test',
-      preflightReceiptHash: phash,
+      challenge: pf.consentChallenge,
+      preflightReceiptHash: pf.preflightReceiptHash || preflightReceiptHash(pf),
       key: 'F8',
       pressedAt: status.generatedAt,
       observedGesture: true,
