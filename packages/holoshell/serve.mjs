@@ -293,6 +293,20 @@ function looksLikeNextStepsIntent(message) {
   return /\b(next\s+steps?|what\s+(now|next)|where\s+do\s+we\s+go|what\s+should\s+we\s+do|plan|roadmap|priority|priorities|improve|improvement|marathon|100\+?|hundred)\b/iu.test(String(message || ''));
 }
 
+// The founder reaching out PERSONALLY (a feeling, the relationship itself, the vision, getting
+// to know each other) — not operating the machine. This must take precedence over the status/
+// next-steps classifiers, which are greedy (\bsystem\b, \bbrittney\b, \bstate\b all match) and
+// were discarding Brittney's real reply in favour of a telemetry card. Conservative: a relational
+// word inside an imperative tool/desktop command stays operational.
+function looksLikeRelationalIntent(message) {
+  const text = String(message || '');
+  const relational = /\b(relationship|connection|connecting|how are you|how('?re| are) (we|things|you)|who are you|get to know|feel|feeling|trust|grow|growing|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
+  if (!relational) return false;
+  if (/^\s*(build|run|open|launch|execute|deploy|install|fix|compile|test|queue|refresh|check|stage|focus|click|type|scroll|save|submit)\b/iu.test(text)) return false;
+  if (looksLikeDesktopControlIntent(text)) return false;
+  return true;
+}
+
 function parseOptionalInteger(value) {
   const parsed = Number.parseInt(String(value || '').replace(/[^\d-]/g, ''), 10);
   return Number.isFinite(parsed) ? parsed : null;
@@ -1917,7 +1931,11 @@ async function handleRequest(req, res) {
         }
         const repoRoot = join(__dirname, '..', '..');
         const turnScript = join(repoRoot, 'scripts', 'holoshell-brittney-turn.mjs');
-        const liveStatus = looksLikeStatusIntent(message) || looksLikeNextStepsIntent(message)
+        // Relational turns win over the status/next-steps override: the founder talking WITH
+        // Brittney gets HER reply, never a substituted status card (the "system" in "founder and
+        // system" used to trip looksLikeStatusIntent and bury her answer).
+        const relational = looksLikeRelationalIntent(message);
+        const liveStatus = !relational && (looksLikeStatusIntent(message) || looksLikeNextStepsIntent(message))
           ? buildLiveStatusSnapshot()
           : null;
         // If the daimon has emerged, prime Brittney with its remembered context (rehydration).
@@ -1927,6 +1945,7 @@ async function handleRequest(req, res) {
           .join('\n\n');
         const args = [turnScript, '--prompt', prompt, '--json'];
         if (selfTest) args.push('--self-test');
+        if (relational) args.push('--relational');
         const out = execFileSync('node', args, {
           cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
         });

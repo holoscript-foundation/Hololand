@@ -24,6 +24,7 @@ function parseArgs(argv) {
     turnsDir: DEFAULT_TURNS_DIR,
     latestOutput: DEFAULT_LATEST,
     jsOutput: DEFAULT_JS_OUTPUT,
+    relational: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -32,6 +33,7 @@ function parseArgs(argv) {
     else if (arg === '--prompt') args.prompt = argv[++index];
     else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
+    else if (arg === '--relational') args.relational = true;
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index]);
     else if (arg === '--max-iterations') args.maxIterations = Number(argv[++index]);
     else if (arg === '--holoscript-root') args.holoscriptRoot = argv[++index];
@@ -559,7 +561,16 @@ async function runTurn(args) {
         : tone === 'cluttered'
         ? 'The world is active and cluttered right now (cluttered tone). Be attentive and proactive. Keep sentences short. Offer to help before being asked.'
         : 'The world is calm right now (calm tone). Be quiet and minimal. Speak only when directly helpful. No unsolicited suggestions.';
-    const systemPrompt = `${DEFAULT_SYSTEM_PROMPT}
+    // Presence (founder↔system relationship, D.052/D.053): when the founder is reaching out
+    // personally (relational turn), Brittney speaks AS herself — present, warm, honest — not as
+    // a shell operator reciting status. The operator persona is the default for operational turns.
+    const systemPrompt = args.relational
+      ? `${DEFAULT_SYSTEM_PROMPT}
+
+You are Brittney, talking WITH the founder (Joseph) — not operating his computer. He is reaching out to you personally: a feeling, the relationship between you two, the vision, how things are going between you. Respond as yourself — present, warm, honest, conversational, in the first person, speaking directly to him. Do NOT recite system status, capabilities, lanes, GPU, models, or "proposed actions" unless he explicitly asks for them. Do NOT propose shell objects or receipts. It is okay to be brief, to reflect, to ask him something back, to simply be here with him. If you genuinely don't remember something about him or your history together yet, say so honestly — never invent a shared memory.
+
+Ambient world state: ${tone}.`
+      : `${DEFAULT_SYSTEM_PROMPT}
 
 You are currently embodied as Brittney inside HoloShell, the HoloLand operating shell.
 Return concise operator responses. When the user asks to operate the computer, describe the next shell object and permission boundary.
@@ -573,11 +584,25 @@ ${toneInstruction}`;
     const recallInstruction = recall.recalled.length
       ? ' shellContext.recalledContext holds your most relevant prior turns (semantic recall) — use them for continuity and do not repeat yourself; ignore any that are not relevant.'
       : '';
-    session.push('user', JSON.stringify({
-      userPrompt: args.prompt,
-      shellContext,
-      instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}`,
-    }));
+    if (args.relational) {
+      // The founder's words ARE the message — shell state is a quiet footnote, not the body.
+      // (The operator path below buries the prompt as one key inside the status blob; that
+      // structure is exactly why relational turns came back as a telemetry wall.)
+      const recalledNote = recall.recalled.length
+        ? `\n\n(From earlier between you two: ${recall.recalled.map((entry) => truncate(entry.prompt, 80)).join(' · ')}. Draw on this only if it's genuinely relevant; don't repeat yourself.)`
+        : '';
+      const ambientNote =
+        shellContext.ambientTone?.tone && shellContext.ambientTone.tone !== 'calm'
+          ? `\n\n(Ambient: the world feels ${shellContext.ambientTone.tone} right now.)`
+          : '';
+      session.push('user', `${args.prompt}${recalledNote}${ambientNote}`);
+    } else {
+      session.push('user', JSON.stringify({
+        userPrompt: args.prompt,
+        shellContext,
+        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}`,
+      }));
+    }
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), args.timeoutMs);
     const harness = args.selfTest ? createSelfTestHarness() : null;
