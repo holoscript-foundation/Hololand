@@ -27,6 +27,7 @@ export const CONSENT_GESTURE_SCHEMA = 'hololand.holoshell.consent-gesture.v0.1.0
 const KEY_DIR = path.join(os.homedir(), '.holoshell');
 const KEY_PATH = path.join(KEY_DIR, 'consent-gesture.key');
 const DEFAULT_KEY = 'F8';
+const DEFAULT_MAX_TTL_MS = 30000;
 const DEFAULT_FUTURE_SKEW_ALLOWANCE_MS = 5000;
 // Virtual-key codes for keys unlikely to be pressed by accident.
 const VK = { F7: 0x76, F8: 0x77, F9: 0x78, F10: 0x79, SCROLLLOCK: 0x91, PAUSE: 0x13 };
@@ -80,11 +81,21 @@ export function verifyProof(proof, opts = {}) {
   }
   const now = Date.parse(opts.nowIso || new Date().toISOString());
   const pressed = Date.parse(proof.pressedAt || '');
-  const ttlMs = Number(proof.ttlMs) || 60000;
+  const ttlMs = Number(proof.ttlMs);
+  const suppliedMaxTtl = Number(opts.maxTtlMs ?? DEFAULT_MAX_TTL_MS);
+  const maxTtlMs = Number.isFinite(suppliedMaxTtl) && suppliedMaxTtl > 0
+    ? suppliedMaxTtl
+    : DEFAULT_MAX_TTL_MS;
   const suppliedSkewAllowance = Number(opts.futureSkewAllowanceMs ?? DEFAULT_FUTURE_SKEW_ALLOWANCE_MS);
   const futureSkewAllowanceMs = Number.isFinite(suppliedSkewAllowance)
     ? Math.max(0, suppliedSkewAllowance)
     : DEFAULT_FUTURE_SKEW_ALLOWANCE_MS;
+  if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+    return { ok: false, reason: 'gesture_proof_ttl_invalid' };
+  }
+  if (ttlMs > maxTtlMs) {
+    return { ok: false, reason: 'gesture_proof_ttl_exceeds_limit' };
+  }
   if (!Number.isFinite(now) || !Number.isFinite(pressed) || now - pressed > ttlMs) {
     return { ok: false, reason: 'gesture_proof_stale' };
   }

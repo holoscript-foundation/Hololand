@@ -135,6 +135,11 @@ function plusMinutes(iso, minutes) {
   return new Date(safeBase + Math.max(1, Number(minutes || 5)) * 60_000).toISOString();
 }
 
+function consentGestureMaxTtlMs(preflight = {}) {
+  const ttlMs = Number(preflight.consentGesture?.ttlMs || 30000);
+  return Number.isFinite(ttlMs) && ttlMs > 0 ? Math.max(1000, ttlMs) : 30000;
+}
+
 function tokenHash(token, preflightReceiptHash, operation, expiresAt, consentChallenge = '') {
   return hashText(`${token}:${preflightReceiptHash}:${operation}:${expiresAt}:${consentChallenge}`);
 }
@@ -512,8 +517,14 @@ export function buildConsentToken(payload = {}, options = {}) {
   // fresh-TTL via holoshell-consent-gesture.mjs), NOT an agent-assertable flag (founder
   // 2026-06-24). The legacy boolean flag is honored ONLY when HOLOSHELL_ALLOW_FLAG_GESTURE=1
   // (dev/test escape hatch); production desktop mutation requires the signed gesture proof.
+  const maxGestureTtlMs = consentGestureMaxTtlMs(preflight);
   const gestureResult = payload.gestureProof
-    ? verifyGestureProof(payload.gestureProof, { preflightReceiptHash: hash, expectedChallenge, nowIso: at })
+    ? verifyGestureProof(payload.gestureProof, {
+        preflightReceiptHash: hash,
+        expectedChallenge,
+        nowIso: at,
+        maxTtlMs: maxGestureTtlMs,
+      })
     : { ok: false, reason: 'no_gesture_proof' };
   const flagGestureAllowed = /^(1|true|on)$/i.test(process.env.HOLOSHELL_ALLOW_FLAG_GESTURE || '');
   const missingChallenge = consentRequired && !expectedChallenge;
@@ -557,6 +568,7 @@ export function buildConsentToken(payload = {}, options = {}) {
     gestureVerified: gestureResult.ok,
     gestureReason: gestureResult.reason || '',
     gestureProofSchema: CONSENT_GESTURE_SCHEMA,
+    maxGestureProofTtlMs: maxGestureTtlMs,
     challengeBound: Boolean(expectedChallenge),
     executionAllowed: status === 'issued',
     executionMode: 'staged_receipt_only_until_action_executor',
@@ -756,7 +768,12 @@ export async function handleBridgeRequest(req, res, options = {}) {
       const challenge = safeString(payload.challenge || payload.consentChallenge || preflight.consentChallenge, '');
       if (!challenge) throw new Error('consent_challenge_required');
       const hash = payload.preflightReceiptHash || preflight.preflightReceiptHash || preflightReceiptHash(preflight);
-      const ttlMs = Math.max(1000, Number(payload.ttlMs || payload.ttl || preflight.consentGesture?.ttlMs || 30000));
+      const maxTtlMs = consentGestureMaxTtlMs(preflight);
+      const requestedTtlMs = Number(payload.ttlMs || payload.ttl || maxTtlMs);
+      const ttlMs = Math.min(
+        Math.max(1000, Number.isFinite(requestedTtlMs) ? requestedTtlMs : maxTtlMs),
+        maxTtlMs
+      );
       const proof = captureGesture({
         challenge,
         preflightReceiptHash: hash,
@@ -844,7 +861,7 @@ export function runSelfTest(options = {}) {
       key: 'F8',
       pressedAt: status.generatedAt,
       observedGesture: true,
-      ttlMs: 600000,
+      ttlMs: pf.consentGesture?.ttlMs || 30000,
     };
     return { ...fields, signature: signGestureProof(fields) };
   };

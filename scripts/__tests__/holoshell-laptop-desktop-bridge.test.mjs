@@ -34,7 +34,7 @@ function gestureProofFor(preflight, overrides = {}) {
     key: overrides.key || 'F8',
     pressedAt: overrides.pressedAt || CREATED_AT,
     observedGesture: overrides.observedGesture !== false,
-    ttlMs: overrides.ttlMs || 600000,
+    ttlMs: overrides.ttlMs || 30000,
   };
   return { ...fields, signature: signGestureProof(fields) };
 }
@@ -117,6 +117,17 @@ assert.equal(futureGestureConsentToken.status, 'blocked');
 assert.equal(futureGestureConsentToken.executionAllowed, false);
 assert.equal(futureGestureConsentToken.gestureVerified, false);
 assert.match(futureGestureConsentToken.blockedReason, /future/);
+
+const excessiveTtlConsentToken = buildConsentToken({
+  preflight,
+  operation: preflight.intent.primaryAction,
+  gestureProof: gestureProofFor(preflight, { ttlMs: 600000 }),
+}, { createdAt: CREATED_AT, token: 'fixture-excessive-ttl-token' });
+assert.equal(excessiveTtlConsentToken.status, 'blocked');
+assert.equal(excessiveTtlConsentToken.executionAllowed, false);
+assert.equal(excessiveTtlConsentToken.gestureVerified, false);
+assert.equal(excessiveTtlConsentToken.maxGestureProofTtlMs, 30000);
+assert.match(excessiveTtlConsentToken.blockedReason, /ttl_exceeds_limit/);
 
 const execution = buildDesktopControlExecution({
   preflight,
