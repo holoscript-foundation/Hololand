@@ -45,6 +45,8 @@ const naturalOpenUrlPlan = buildDesktopControlPlan({
 assert.equal(naturalOpenUrlPlan.summary.primaryAction, 'open_url');
 assert.equal(naturalOpenUrlPlan.summary.permissionEnvelope, 'guarded_execute');
 assert.equal(naturalOpenUrlPlan.summary.approvalRequired, true);
+assert.equal(naturalOpenUrlPlan.target.operation, 'open_url');
+assert.equal(naturalOpenUrlPlan.target.url, 'https://example.com/status');
 
 const breakGlassPlan = buildDesktopControlPlan({
   intent: 'Delete files and enter my password in the app.',

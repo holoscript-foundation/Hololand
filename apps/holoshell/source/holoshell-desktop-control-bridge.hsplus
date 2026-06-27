@@ -4,8 +4,8 @@
 // facing operator; Fara provides GUI/visual grounding when a screenshot or
 // coordinate-bearing control step is needed. This bridge supports preflight and
 // HoloGate consent-token staging. Public open_url is the first admitted action
-// executor lane; every other host mutation still requires a later admitted
-// action executor receipt.
+// executor lane; consent is bound to the exact preflight target fingerprint, and
+// every other host mutation still requires a later admitted action executor receipt.
 
 composition "HoloShell Desktop Control Bridge" {
   config {
@@ -158,6 +158,10 @@ composition "HoloShell Desktop Control Bridge" {
     consentRequired: true
     consentChallenge: ""
     consentGesture: { schemaVersion: "hololand.holoshell.consent-gesture.v0.1.0", challenge: "", key: "F8", ttlMs: 30000, proofRequired: true }
+    target: { operation: "", url: "", windowTitle: "", handle: "", controlName: "", text: "", hotkey: "", x: "", y: "" }
+    targetFingerprint: ""
+    targetUrlClassification: "not_applicable"
+    requiresExactExecutionTarget: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -169,6 +173,8 @@ composition "HoloShell Desktop Control Bridge" {
     tokenId: ""
     preflightId: ""
     preflightReceiptHash: ""
+    targetFingerprint: ""
+    tokenBoundToTargetFingerprint: true
     consentChallenge: ""
     operation: ""
     permissionEnvelope: "guarded_execute"
@@ -181,6 +187,10 @@ composition "HoloShell Desktop Control Bridge" {
     excessiveGestureProofTtlAllowed: false
     executionAllowed: true
     executionMode: "staged_receipt_only_until_action_executor"
+    requiresExactExecutionTarget: true
+    preflightTargetFingerprint: ""
+    executionTargetFingerprint: ""
+    executionTargetMatchVerified: false
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -209,6 +219,8 @@ composition "HoloShell Desktop Control Bridge" {
     consentTokenId: ""
     operation: "open_url"
     urlClassification: "public_web"
+    requiresExactExecutionTarget: true
+    executionTargetMatchVerified: true
     executionMode: "admitted_open_url_executor"
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     desktopAutomationExecuted: true
@@ -280,6 +292,7 @@ composition "HoloShell Desktop Control Bridge" {
     maxGestureProofTtlMs: 30000
     tokenBoundToOperation: true
     tokenBoundToPreflightHash: true
+    tokenBoundToTargetFingerprint: true
     tokenBoundToConsentChallenge: true
     executionAllowedWithValidToken: true
     osMutationAllowedByThisLane: false
@@ -296,6 +309,8 @@ composition "HoloShell Desktop Control Bridge" {
     requiresFreshUserGesture: true
     requiresPreflightChallengeNonce: true
     requiresValidConsentToken: true
+    requiresExactExecutionTarget: true
+    requiresTargetFingerprintMatch: true
     allowedUrlClassification: "public_web"
     blockedUrlClassifications: ["credential_adjacent", "break_glass_payment", "blocked_scheme", "invalid_url"]
     executionMode: "admitted_open_url_executor"
@@ -374,6 +389,8 @@ composition "HoloShell Desktop Control Bridge" {
       permission_envelope: state.permissionEnvelope,
       execution_allowed: false,
       consent_required: true,
+      target_fingerprint: preflight.targetFingerprint,
+      requires_exact_execution_target: preflight.requiresExactExecutionTarget,
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true
@@ -388,6 +405,8 @@ composition "HoloShell Desktop Control Bridge" {
       preflight_id: token.preflightId,
       operation: token.operation,
       permission_envelope: token.permissionEnvelope,
+      target_fingerprint: token.targetFingerprint,
+      token_bound_to_target_fingerprint: token.tokenBoundToTargetFingerprint,
       execution_allowed: token.executionAllowed,
       execution_mode: "staged_receipt_only_until_action_executor",
       destructive_actions_taken: false,
@@ -406,6 +425,8 @@ composition "HoloShell Desktop Control Bridge" {
       operation: execution.operation,
       execution_allowed: true,
       execution_mode: "staged_receipt_only_until_action_executor",
+      preflight_target_fingerprint: execution.preflightTargetFingerprint,
+      execution_target_match_verified: execution.executionTargetMatchVerified,
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true
@@ -422,6 +443,9 @@ composition "HoloShell Desktop Control Bridge" {
       consent_token_id: execution.consentTokenId,
       hardware_action_id: state.lastHardwareActionId,
       target_url_host: execution.hardwareAction.targetUrlHost,
+      preflight_target_fingerprint: execution.preflightTargetFingerprint,
+      execution_target_fingerprint: execution.executionTargetFingerprint,
+      execution_target_match_verified: execution.executionTargetMatchVerified,
       execution_mode: "admitted_open_url_executor",
       desktop_automation_executed: true,
       destructive_actions_taken: false,

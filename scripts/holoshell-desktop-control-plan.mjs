@@ -93,6 +93,22 @@ function hasAny(text, pattern) {
   return pattern.test(text);
 }
 
+function normalizeUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    return new URL(text).href;
+  } catch {
+    return text;
+  }
+}
+
+function extractFirstUrl(text) {
+  const match = String(text || '').match(/\bhttps?:\/\/[^\s<>"']+/iu);
+  if (!match) return '';
+  return normalizeUrl(match[0].replace(/[),.;!?]+$/u, ''));
+}
+
 function stripNegatedSafetyClauses(text) {
   return String(text || '').replace(
     /\b(do not|don't|never|avoid|without|no)\b[^.?!]*(password|credential|login|purchase|buy|payment|delete|remove|registry|install|uninstall|send|post|wallet|trezor)[^.?!]*/giu,
@@ -106,6 +122,7 @@ function unique(items) {
 
 function classifyIntent(intent) {
   const text = String(intent || '').toLowerCase();
+  const targetUrl = extractFirstUrl(intent);
   const riskText = stripNegatedSafetyClauses(text);
   const desktopRelevant = hasAny(
     text,
@@ -129,6 +146,7 @@ function classifyIntent(intent) {
   return {
     relevant: desktopRelevant,
     primaryAction,
+    targetUrl,
     permissionEnvelope,
     approvalRequired: permissionEnvelope !== 'read_only',
     founderReviewRequired: permissionEnvelope === 'break_glass',
@@ -232,6 +250,10 @@ export function buildDesktopControlPlan(options = {}) {
       sha256: hashText(intent),
       primaryAction: classification.primaryAction,
       relevant: classification.relevant,
+    },
+    target: {
+      operation: classification.primaryAction,
+      url: classification.targetUrl || '',
     },
     modelPolicy: {
       lane: 'fara_gui_grounding',

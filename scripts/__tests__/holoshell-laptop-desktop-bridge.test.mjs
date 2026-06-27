@@ -144,12 +144,17 @@ const openUrlPreflight = buildDesktopControlPreflight({
   intent: 'Open URL https://example.com/status in the default browser.',
 }, { createdAt: CREATED_AT });
 assert.equal(openUrlPreflight.intent.primaryAction, 'open_url');
+assert.equal(openUrlPreflight.target.url, 'https://example.com/status');
+assert.equal(openUrlPreflight.requiresExactExecutionTarget, true);
+assert.ok(openUrlPreflight.targetFingerprint);
 
 const openUrlConsentToken = buildConsentToken({
   preflight: openUrlPreflight,
   operation: 'open_url',
   gestureProof: gestureProofFor(openUrlPreflight),
 }, { createdAt: CREATED_AT, token: 'fixture-open-url-token' });
+assert.equal(openUrlConsentToken.targetFingerprint, openUrlPreflight.targetFingerprint);
+assert.equal(openUrlConsentToken.tokenBoundToTargetFingerprint, true);
 
 const openUrlExecution = buildDesktopControlExecution({
   preflight: openUrlPreflight,
@@ -165,11 +170,29 @@ assert.equal(openUrlExecution.desktopAutomationExecuted, true);
 assert.equal(openUrlExecution.destructiveActionsTaken, false);
 assert.equal(openUrlExecution.hardwareAction.status, 'completed');
 assert.equal(openUrlExecution.hardwareAction.targetUrlHost, 'example.com');
+assert.equal(openUrlExecution.executionTargetMatchVerified, true);
 
 assert.throws(() => buildDesktopControlExecution({
   preflight: openUrlPreflight,
   operation: 'open_url',
   consentToken: openUrlConsentToken,
+  url: 'https://example.org/status',
+  executeApprovedAction: true,
+  executorMode: 'simulated',
+}, { createdAt: CREATED_AT, executorMode: 'simulated' }), /target_mismatch/);
+
+const credentialAdjacentPreflight = buildDesktopControlPreflight({
+  intent: 'Open URL https://example.com/account/settings in the default browser.',
+}, { createdAt: CREATED_AT });
+const credentialAdjacentConsentToken = buildConsentToken({
+  preflight: credentialAdjacentPreflight,
+  operation: 'open_url',
+  gestureProof: gestureProofFor(credentialAdjacentPreflight),
+}, { createdAt: CREATED_AT, token: 'fixture-credential-adjacent-open-url-token' });
+assert.throws(() => buildDesktopControlExecution({
+  preflight: credentialAdjacentPreflight,
+  operation: 'open_url',
+  consentToken: credentialAdjacentConsentToken,
   url: 'https://example.com/account/settings',
   executeApprovedAction: true,
   executorMode: 'simulated',
@@ -303,6 +326,8 @@ try {
   assert.equal(openUrlPreflightResponse.status, 200);
   const openUrlPreflightBody = await openUrlPreflightResponse.json();
   assert.equal(openUrlPreflightBody.intent.primaryAction, 'open_url');
+  assert.equal(openUrlPreflightBody.target.url, 'https://example.com/status');
+  assert.ok(openUrlPreflightBody.targetFingerprint);
 
   const openUrlConsentResponse = await fetch(`${baseUrl}/api/desktop-control/consent-token`, {
     method: 'POST',
@@ -334,14 +359,53 @@ try {
   assert.equal(openUrlExecuteBody.executionMode, 'admitted_open_url_executor');
   assert.equal(openUrlExecuteBody.desktopAutomationExecuted, true);
   assert.equal(openUrlExecuteBody.destructiveActionsTaken, false);
+  assert.equal(openUrlExecuteBody.executionTargetMatchVerified, true);
 
-  const blockedAccountUrlResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
+  const blockedMismatchedUrlResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       preflight: openUrlPreflightBody,
       operation: 'open_url',
       consentToken: openUrlConsentBody,
+      url: 'https://example.org/status',
+      executeApprovedAction: true,
+      executorMode: 'simulated',
+    }),
+  });
+  assert.equal(blockedMismatchedUrlResponse.status, 403);
+  const blockedMismatchedUrlBody = await blockedMismatchedUrlResponse.json();
+  assert.equal(blockedMismatchedUrlBody.status, 'refused');
+  assert.match(blockedMismatchedUrlBody.reason, /target_mismatch/);
+
+  const credentialAdjacentPreflightResponse = await fetch(`${baseUrl}/api/desktop-control/preflight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intent: 'Open URL https://example.com/account/settings in the default browser.' }),
+  });
+  assert.equal(credentialAdjacentPreflightResponse.status, 200);
+  const credentialAdjacentPreflightBody = await credentialAdjacentPreflightResponse.json();
+  assert.equal(credentialAdjacentPreflightBody.targetUrlClassification, 'credential_adjacent');
+
+  const credentialAdjacentConsentResponse = await fetch(`${baseUrl}/api/desktop-control/consent-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: credentialAdjacentPreflightBody,
+      operation: 'open_url',
+      gestureProof: gestureProofFor(credentialAdjacentPreflightBody),
+    }),
+  });
+  assert.equal(credentialAdjacentConsentResponse.status, 200);
+  const credentialAdjacentConsentBody = await credentialAdjacentConsentResponse.json();
+
+  const blockedAccountUrlResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: credentialAdjacentPreflightBody,
+      operation: 'open_url',
+      consentToken: credentialAdjacentConsentBody,
       url: 'https://example.com/account/settings',
       executeApprovedAction: true,
       executorMode: 'simulated',

@@ -152,6 +152,8 @@ function preflightReceiptHash(preflight = {}) {
     permissionEnvelope: preflight.permissionEnvelope || '',
     primaryAction: preflight.intent?.primaryAction || '',
     intentSha256: preflight.intent?.sha256 || '',
+    target: preflight.target || {},
+    targetFingerprint: preflight.targetFingerprint || '',
   });
 }
 
@@ -186,6 +188,22 @@ function classifyPublicUrl(url) {
   return 'public_web';
 }
 
+function normalizeUrlTarget(url) {
+  const text = safeString(url, '');
+  if (!text) return '';
+  try {
+    return new URL(text).href;
+  } catch {
+    return text;
+  }
+}
+
+function extractFirstUrl(text) {
+  const match = String(text || '').match(/\bhttps?:\/\/[^\s<>"']+/iu);
+  if (!match) return '';
+  return normalizeUrlTarget(match[0].replace(/[),.;!?]+$/u, ''));
+}
+
 function extractActionTarget(payload = {}, operation = '') {
   const action = payload.action || payload.target || {};
   return {
@@ -199,6 +217,52 @@ function extractActionTarget(payload = {}, operation = '') {
     x: payload.x ?? action.x ?? '',
     y: payload.y ?? action.y ?? '',
   };
+}
+
+function normalizeActionTarget(target = {}, operation = '') {
+  return {
+    operation: safeString(operation || target.operation, ''),
+    url: normalizeUrlTarget(target.url),
+    windowTitle: safeString(target.windowTitle, ''),
+    handle: safeString(target.handle, ''),
+    controlName: safeString(target.controlName, ''),
+    text: typeof target.text === 'string' ? target.text : '',
+    hotkey: safeString(target.hotkey, ''),
+    x: target.x === '' || target.x == null ? '' : String(target.x).trim(),
+    y: target.y === '' || target.y == null ? '' : String(target.y).trim(),
+  };
+}
+
+function buildPreflightTarget(plan = {}, payload = {}, operation = '') {
+  const payloadTarget = extractActionTarget(payload, operation);
+  const planTarget = plan.target || {};
+  return normalizeActionTarget({
+    operation,
+    url: payloadTarget.url || planTarget.url || extractFirstUrl(plan.intent?.raw || payload.intent || ''),
+    windowTitle: payloadTarget.windowTitle || planTarget.windowTitle || '',
+    handle: payloadTarget.handle || planTarget.handle || '',
+    controlName: payloadTarget.controlName || planTarget.controlName || '',
+    text: payloadTarget.text || planTarget.text || '',
+    hotkey: payloadTarget.hotkey || planTarget.hotkey || '',
+    x: payloadTarget.x !== '' && payloadTarget.x != null ? payloadTarget.x : (planTarget.x ?? ''),
+    y: payloadTarget.y !== '' && payloadTarget.y != null ? payloadTarget.y : (planTarget.y ?? ''),
+  }, operation);
+}
+
+function actionTargetFingerprint(target = {}) {
+  return hashValue(normalizeActionTarget(target, target.operation));
+}
+
+function requiresExactExecutionTarget(operation) {
+  return ADMITTED_EXECUTOR_ACTIONS.has(operation);
+}
+
+function assertExactExecutionTarget(preflight = {}, target = {}, operation = '') {
+  if (!requiresExactExecutionTarget(operation)) return;
+  const expectedFingerprint = preflight.targetFingerprint || '';
+  if (!expectedFingerprint) throw new Error('desktop_control_target_unbound');
+  const actualFingerprint = actionTargetFingerprint(normalizeActionTarget(target, operation));
+  if (actualFingerprint !== expectedFingerprint) throw new Error('desktop_control_target_mismatch');
 }
 
 // Invoke the action-executor for a GUI-mutating action with --approved --execute. The executor
@@ -358,7 +422,8 @@ function executeAdmittedAction(payload = {}, options = {}, validation = {}) {
   if (!ADMITTED_EXECUTOR_ACTIONS.has(operation)) {
     throw new Error(`executor_lane_not_admitted:${operation || 'unknown'}`);
   }
-  const target = extractActionTarget(payload, operation);
+  const target = normalizeActionTarget(extractActionTarget(payload, operation), operation);
+  assertExactExecutionTarget(payload.preflight, target, operation);
   if (operation === 'open_url') {
     if (!target.url) throw new Error('open_url_executor_requires_url');
     return {
@@ -452,10 +517,12 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
   const planId = plan.planId || stableId('desktop_control_plan', JSON.stringify(plan).slice(0, 2000));
   const permissionEnvelope = plan.summary?.permissionEnvelope || plan.permission?.envelope || 'guarded_execute';
   const primaryAction = plan.summary?.primaryAction || plan.intent?.primaryAction || payload.action || 'inspect_screen';
+  const target = buildPreflightTarget(plan, payload, primaryAction);
+  const targetFingerprint = actionTargetFingerprint(target);
   const status = permissionEnvelope === 'break_glass'
     ? 'blocked_break_glass'
     : (permissionEnvelope === 'read_only' ? 'read_only_ready' : 'preflight_ready');
-  const preflightId = stableId('desktop_preflight', `${at}:${planId}:${primaryAction}:${permissionEnvelope}`);
+  const preflightId = stableId('desktop_preflight', `${at}:${planId}:${primaryAction}:${permissionEnvelope}:${targetFingerprint}`);
   const consentRequired = permissionEnvelope !== 'read_only';
   const consentChallenge = consentRequired
     ? safeString(payload.consentChallenge || options.consentChallenge, randomBytes(16).toString('base64url'))
@@ -475,6 +542,10 @@ export function buildDesktopControlPreflight(payload = {}, options = {}) {
       sha256: plan.intent?.sha256 || hashText(payload.intent || planId),
       primaryAction,
     },
+    target,
+    targetFingerprint,
+    targetUrlClassification: target.url ? classifyPublicUrl(target.url) : 'not_applicable',
+    requiresExactExecutionTarget: requiresExactExecutionTarget(primaryAction),
     modelLane: 'fara_gui_grounding',
     permissionEnvelope,
     consentRequired,
@@ -560,6 +631,8 @@ export function buildConsentToken(payload = {}, options = {}) {
     preflightId: preflight.preflightId,
     planId: preflight.planId || '',
     preflightReceiptHash: hash,
+    targetFingerprint: preflight.targetFingerprint || '',
+    tokenBoundToTargetFingerprint: Boolean(preflight.targetFingerprint),
     consentChallenge: expectedChallenge,
     permissionEnvelope,
     consentRequired,
@@ -596,6 +669,9 @@ export function validateConsentToken(payload = {}, options = {}) {
   if (token.status && token.status !== 'issued') return { valid: false, reason: token.blockedReason || 'consent_token_not_issued' };
   if (token.preflightId && token.preflightId !== preflight.preflightId) return { valid: false, reason: 'consent_token_preflight_mismatch' };
   if (token.preflightReceiptHash && token.preflightReceiptHash !== hash) return { valid: false, reason: 'consent_token_receipt_hash_mismatch' };
+  if (token.targetFingerprint && token.targetFingerprint !== (preflight.targetFingerprint || '')) {
+    return { valid: false, reason: 'consent_token_target_mismatch' };
+  }
   if (token.consentChallenge && preflight.consentChallenge && token.consentChallenge !== preflight.consentChallenge) {
     return { valid: false, reason: 'consent_token_challenge_mismatch' };
   }
@@ -608,6 +684,7 @@ export function validateConsentToken(payload = {}, options = {}) {
     reason: '',
     operation,
     preflightReceiptHash: hash,
+    targetFingerprint: preflight.targetFingerprint || '',
     consentChallenge,
     tokenId: token.tokenId || '',
     expiresAt: token.expiresAt || '',
@@ -651,6 +728,10 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
     executionMode: actionExecution ? `admitted_${validation.operation}_executor` : 'staged_receipt_only_until_action_executor',
     executeApprovedAction,
     admittedExecutorAction: ADMITTED_EXECUTOR_ACTIONS.has(validation.operation),
+    requiresExactExecutionTarget: requiresExactExecutionTarget(validation.operation),
+    preflightTargetFingerprint: preflight.targetFingerprint || '',
+    executionTargetFingerprint: actionExecution?.target ? actionTargetFingerprint(actionExecution.target) : '',
+    executionTargetMatchVerified: Boolean(actionExecution?.target && preflight.targetFingerprint),
     destructiveActionsTaken: false,
     desktopAutomationExecuted: performed,
     hardwareAction: actionExecution ? {
