@@ -1,0 +1,246 @@
+// HoloShell Operator Terminal
+//
+// Canonical source for the terminal projection of HoloShell. This is not a
+// developer dashboard. It is a first-class operating surface for non-developer
+// humans and for agents that need machine-readable state without opening a
+// browser page.
+
+composition "HoloShell Operator Terminal" {
+  config {
+    title: "Operator Terminal"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    audience: "non_developer_and_agent"
+    adapterScript: "scripts/holoshell-operator-terminal.mjs"
+    defaultHumanMode: "calm_operator_terminal"
+    defaultAgentMode: "json_receipt_terminal"
+    brittneyStudioLauncher: "scripts/brittney-studio-launch.ps1"
+    jetsonSurfaceUrl: "http://holojetson.local:8747"
+    jetsonOllamaUrl: "http://holojetson.local:11434"
+    laptopDesktopBridgePrimary: "http://127.0.0.1:8751"
+    liveFeedReceipt: ".tmp/holoshell/live-feed.json"
+    operatorBriefReceipt: ".tmp/holoshell/operator-brief.json"
+    serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
+    agentLaneReceipt: ".tmp/holoshell/agent-lanes.json"
+    readinessEvidenceReceipt: ".tmp/holoshell/readiness-evidence.json"
+    terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    receiptRequired: true
+  }
+
+  state {
+    terminalStatus: "unknown"
+    audienceMode: "human"
+    primarySurface: "jetson"
+    primarySurfaceStatus: "unknown"
+    laptopBridgeStatus: "unknown"
+    brittneyStatus: "unknown"
+    serviceStatus: "unknown"
+    serviceCount: 0
+    requiredServiceCount: 0
+    requiredAttentionCount: 0
+    laneCount: 0
+    activeLaneCount: 0
+    readinessStatus: "unknown"
+    readinessWarningCount: 0
+    pendingApprovalCount: 0
+    timelineCount: 0
+    nextActionCount: 0
+    missingReceiptCount: 0
+    terminalReceiptHash: ""
+  }
+
+  channel "holoshell:terminal:intent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Plain-language operator intents entering HoloShell through a terminal surface"
+  }
+
+  channel "holoshell:terminal:human" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Calm terminal projection for non-developer humans"
+  }
+
+  channel "holoshell:terminal:agent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Machine-readable terminal receipt for agents, automation, and HoloMesh peers"
+  }
+
+  channel "holoshell:terminal:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Operator-terminal receipts proving which HoloShell feeds were read"
+  }
+
+  template "TerminalCommand" {
+    type: "terminal_command"
+    commandId: "unknown"
+    label: "unknown"
+    audience: "human"
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+    exposesRawCommandByDefault: false
+  }
+
+  template "OperatorTerminalReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.operator-terminal.v0.1.0"
+    status: "unknown"
+    humanModeReady: false
+    agentModeReady: false
+    sourceReceiptCount: 0
+    missingReceiptCount: 0
+    rawSecretsIncluded: false
+    rawCommandsIncludedForHuman: false
+  }
+
+  room "OperatorTerminalRoom" {
+    label: "Operator Terminal"
+    userQuestion: "What can I safely ask this computer and its agents to do right now?"
+    visualForm: "terminal_projection"
+    liveFeed: "holoshell:terminal:human"
+
+    object "AskBrittney" using "TerminalCommand" {
+      commandId: "ask_brittney"
+      label: "Ask Brittney"
+      audience: "human"
+      permissionEnvelope: "read_only"
+    }
+
+    object "CheckSystem" using "TerminalCommand" {
+      commandId: "check_system"
+      label: "Check System"
+      audience: "human"
+      permissionEnvelope: "read_only"
+    }
+
+    object "BuildWorld" using "TerminalCommand" {
+      commandId: "build_world"
+      label: "Build World"
+      audience: "human"
+      permissionEnvelope: "guarded_execute"
+    }
+
+    object "ShowAgents" using "TerminalCommand" {
+      commandId: "show_agents"
+      label: "Show Agents"
+      audience: "human"
+      permissionEnvelope: "read_only"
+    }
+
+    object "ReviewApprovals" using "TerminalCommand" {
+      commandId: "review_approvals"
+      label: "Review Approvals"
+      audience: "human"
+      permissionEnvelope: "guarded_execute"
+    }
+
+    object "ShowReceipts" using "TerminalCommand" {
+      commandId: "show_receipts"
+      label: "Show Receipts"
+      audience: "human"
+      permissionEnvelope: "read_only"
+    }
+
+    object "AgentJson" using "TerminalCommand" {
+      commandId: "agent_json"
+      label: "Agent JSON"
+      audience: "agent"
+      permissionEnvelope: "read_only"
+    }
+  }
+
+  policy "TerminalIsProjectionNotFork" {
+    appliesTo: ["terminal_status", "terminal_intent", "agent_json", "human_terminal"]
+    requiredInputs: ["live_feed", "operator_brief", "service_supervisor", "agent_lanes", "readiness_evidence"]
+    browserSurfaceIsOptionalProjection: true
+    directStateMutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "HumanModeHidesDeveloperGrammar" {
+    appliesTo: ["human_terminal", "non_developer_terminal", "always_on_user_surface"]
+    exposePnpmByDefault: false
+    exposeGitByDefault: false
+    exposeRawJsonByDefault: false
+    useOutcomeLabels: true
+    allowedLabels: ["Ask Brittney", "Check System", "Build World", "Show Agents", "Review Approvals", "Show Receipts"]
+  }
+
+  policy "AgentModeKeepsReceiptsCanonical" {
+    appliesTo: ["agent_terminal", "automation", "holomesh_peer"]
+    requiredFields: ["schemaVersion", "sourceAnchors", "summary", "nextActions", "commands", "receipt"]
+    jsonModeRequired: true
+    includeReceiptHashes: true
+    includeMissingReceiptCaveats: true
+    receiptRequired: true
+  }
+
+  policy "JetsonLaptopFleetRoute" {
+    appliesTo: ["brittney_turn", "operator_status", "desktop_action", "fleet_compute"]
+    primarySurface: "jetson_holoshell_surface"
+    jetsonOwnsAlwaysOnBrittney: true
+    laptopRole: "reasoning_validation_desktop_bridge"
+    vastFleetRole: "scale_to_zero_on_real_demand"
+    paidComputeAtLaunch: false
+    receiptRequired: true
+  }
+
+  action consume_terminal_snapshot(snapshot) {
+    state.terminalStatus = snapshot.summary.status
+    state.audienceMode = snapshot.summary.mode
+    state.primarySurface = snapshot.route.primarySurface
+    state.primarySurfaceStatus = snapshot.route.primarySurfaceStatus
+    state.laptopBridgeStatus = snapshot.route.laptopBridgeStatus
+    state.brittneyStatus = snapshot.summary.brittneyStatus
+    state.serviceStatus = snapshot.summary.serviceStatus
+    state.serviceCount = snapshot.summary.serviceCount
+    state.requiredServiceCount = snapshot.summary.requiredServiceCount
+    state.requiredAttentionCount = snapshot.summary.requiredAttentionCount
+    state.laneCount = snapshot.summary.laneCount
+    state.activeLaneCount = snapshot.summary.activeLaneCount
+    state.readinessStatus = snapshot.summary.readinessStatus
+    state.readinessWarningCount = snapshot.summary.readinessWarningCount
+    state.pendingApprovalCount = snapshot.summary.pendingApprovalCount
+    state.timelineCount = snapshot.summary.timelineCount
+    state.nextActionCount = snapshot.summary.nextActionCount
+    state.missingReceiptCount = snapshot.summary.missingReceiptCount
+    state.terminalReceiptHash = snapshot.receipt.terminalHash
+
+    emit("holoshell:terminal:receipt", {
+      action: "operator_terminal_snapshot_consumed",
+      status: state.terminalStatus,
+      mode: state.audienceMode,
+      primary_surface: state.primarySurface,
+      primary_surface_status: state.primarySurfaceStatus,
+      laptop_bridge_status: state.laptopBridgeStatus,
+      brittney_status: state.brittneyStatus,
+      service_status: state.serviceStatus,
+      services: state.serviceCount,
+      required_services: state.requiredServiceCount,
+      required_attention: state.requiredAttentionCount,
+      lanes: state.laneCount,
+      active_lanes: state.activeLaneCount,
+      readiness: state.readinessStatus,
+      readiness_warnings: state.readinessWarningCount,
+      pending_approvals: state.pendingApprovalCount,
+      timeline: state.timelineCount,
+      missing_receipts: state.missingReceiptCount,
+      receipt_hash: state.terminalReceiptHash,
+      receipt_required: true
+    })
+  }
+
+  action route_terminal_intent(intent) {
+    emit("holoshell:terminal:intent", {
+      intent: intent.text,
+      audience: intent.audience || "human",
+      default_actor: "brittney",
+      route: "holoshell_brittney_turn_or_operator_brief",
+      permission_envelope: intent.permissionEnvelope || "read_only",
+      approval_required: intent.permissionEnvelope == "guarded_execute",
+      receipt_required: true
+    })
+  }
+}

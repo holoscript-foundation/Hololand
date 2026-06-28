@@ -29,6 +29,7 @@ contracts.
 | Shell world graph              | `apps/holoshell/source/holoshell-shell-world.holo`             |
 | Render slice                   | `apps/holoshell/source/holoshell-shell-render.hs`              |
 | User shell projection          | `apps/holoshell/source/holoshell-user-shell-projection.hsplus` |
+| Operator terminal              | `apps/holoshell/source/holoshell-operator-terminal.hsplus`     |
 | Founder host                   | `apps/holoshell/source/holoshell-founder-host.hsplus`          |
 | Native wrapper                 | `apps/holoshell/source/holoshell-native-wrapper.hsplus`        |
 | Startup integration            | `apps/holoshell/source/holoshell-startup-integration.hsplus`   |
@@ -130,6 +131,7 @@ contracts.
 | Photo backup custody pipeline           | `apps/holoshell/source/holoshell-photo-backup-pipeline.hs`                     |
 | Operating turn                          | `apps/holoshell/source/holoshell-operating-turn.hsplus`                        |
 | Operator brief                          | `apps/holoshell/source/holoshell-operator-brief.hsplus`                        |
+| Operator terminal                       | `apps/holoshell/source/holoshell-operator-terminal.hsplus`                     |
 
 ## Product And Environment
 

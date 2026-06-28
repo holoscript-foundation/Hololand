@@ -240,6 +240,39 @@ This is a bootstrap wrapper, not OS takeover: execution stays disabled by
 default, the HTML projection may not claim primary shell ownership, startup
 registration is per-user only, and Explorer replacement remains blocked.
 
+## Operator Terminal
+
+The production terminal projection is source-backed by:
+
+```text
+source/holoshell-operator-terminal.hsplus
+scripts/holoshell-operator-terminal.mjs
+docs/OPERATOR_TERMINAL.md
+```
+
+It reads the existing HoloShell receipts and emits:
+
+```text
+.tmp/holoshell/operator-terminal.json
+.tmp/holoshell/operator-terminal.js
+```
+
+Human mode is outcome-first and hides developer grammar by default:
+
+```powershell
+pnpm run holoshell:operator-terminal
+```
+
+Agent mode is canonical JSON for automation and HoloMesh peers:
+
+```powershell
+pnpm run holoshell:operator-terminal -- --agent --json
+```
+
+The terminal does not store private state or bypass approvals. Mutating actions
+still route through HoloShell approval bundles, service managers, desktop
+bridge consent, and receipt control.
+
 ## OS UI Capture Bridge
 
 The first legacy UI wrapper is:
