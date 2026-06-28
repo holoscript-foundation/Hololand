@@ -10,6 +10,116 @@ const REPO_ROOT = path.resolve(path.dirname(__filename), '..');
 const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 const DEFAULT_OUTPUT = path.join(DEFAULT_TMP, 'operator-terminal.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'operator-terminal.js');
+const HUMAN_LABELS = [
+  'Ask Brittney',
+  'Check System',
+  'Build World',
+  'Show Agents',
+  'Review Approvals',
+  'Show Receipts',
+];
+const HUMAN_COMMAND_ROUTES = [
+  {
+    id: 'ask_brittney',
+    label: 'Ask Brittney',
+    meaning: 'Send a plain-language request to the HoloShell operator.',
+    flowLabel: 'Brittney turn',
+    flow: 'brittney_turn',
+    permissionEnvelope: 'read_only_or_guarded_by_intent',
+    approvalRequired: 'classified_by_intent',
+    adapter: 'scripts/holoshell-brittney-turn.mjs',
+    packageScript: 'holoshell:brittney-turn',
+    developerCommand: 'pnpm run holoshell:brittney-turn -- --prompt <request> --json',
+    reads: ['.tmp/holoshell/brittney-context.json', '.tmp/holoshell/operator-brief.json'],
+    writes: ['.tmp/holoshell/brittney-turn-latest.json', '.tmp/holoshell/brittney-turn-latest.js'],
+    receipt: '.tmp/holoshell/brittney-turn-latest.json',
+    target: 'Brittney operator turn bridge',
+  },
+  {
+    id: 'check_system',
+    label: 'Check System',
+    meaning: 'Show health, services, agents, approvals, and caveats.',
+    flowLabel: 'Service manager status',
+    flow: 'service_manager_status',
+    permissionEnvelope: 'read_only',
+    approvalRequired: false,
+    adapter: 'scripts/holoshell-service-supervisor.mjs',
+    packageScript: 'holoshell:service-supervisor',
+    developerCommand: 'pnpm run holoshell:service-supervisor -- --status --json',
+    reads: ['.tmp/holoshell/service-heartbeats.json', '.tmp/holoshell/operator-brief.json'],
+    writes: ['.tmp/holoshell/service-supervisor.json', '.tmp/holoshell/service-supervisor.js'],
+    receipt: '.tmp/holoshell/service-supervisor.json',
+    target: 'HoloShell service supervisor',
+  },
+  {
+    id: 'build_world',
+    label: 'Build World',
+    meaning: 'Start a guided HoloScript/HoloLand build path after readiness checks.',
+    flowLabel: 'World build custody',
+    flow: 'world_build_custody',
+    permissionEnvelope: 'guarded_execute',
+    approvalRequired: true,
+    adapter: 'scripts/holoshell-build-custody.mjs',
+    approvalAdapter: 'scripts/holoshell-workflow-approval-bundle.mjs',
+    packageScript: 'holoshell:build-custody',
+    developerCommand: 'pnpm run holoshell:build-custody -- --json',
+    approvalCommand: 'node scripts/holoshell-workflow-approval-bundle.mjs --json',
+    reads: ['.tmp/holoshell/readiness-evidence.json', '.tmp/holoshell/hardware-reality.json', '.tmp/holoshell/legacy-window-inventory.json'],
+    writes: ['.tmp/holoshell/build-custody.json', '.tmp/holoshell/build-custody.js'],
+    approvalReceipt: '.tmp/holoshell/workflow-approval-latest.json',
+    receipt: '.tmp/holoshell/build-custody.json',
+    target: 'HoloScript/HoloLand build custody lane',
+  },
+  {
+    id: 'show_agents',
+    label: 'Show Agents',
+    meaning: 'List active agent lanes and their boundaries.',
+    flowLabel: 'Agent lanes',
+    flow: 'agent_lanes',
+    permissionEnvelope: 'read_only',
+    approvalRequired: false,
+    adapter: 'scripts/holoshell-agent-lanes.mjs',
+    packageScript: null,
+    developerCommand: 'node scripts/holoshell-agent-lanes.mjs --json',
+    reads: ['.tmp/holoshell/grok-heartbeat.json', 'local process list'],
+    writes: ['.tmp/holoshell/agent-lanes.json'],
+    receipt: '.tmp/holoshell/agent-lanes.json',
+    target: 'HoloMesh agent lane inventory',
+  },
+  {
+    id: 'review_approvals',
+    label: 'Review Approvals',
+    meaning: 'Inspect pending approval packets before any risky action.',
+    flowLabel: 'Approval review',
+    flow: 'approval_review',
+    permissionEnvelope: 'guarded_execute',
+    approvalRequired: false,
+    adapter: 'scripts/holoshell-workflow-approval-bundle.mjs',
+    secondaryAdapter: 'scripts/holoshell-approval-bundle.mjs',
+    packageScript: null,
+    developerCommand: 'node scripts/holoshell-workflow-approval-bundle.mjs --json',
+    reads: ['.tmp/holoshell/workflow-latest.json', '.tmp/holoshell/approval-bundles/'],
+    writes: ['.tmp/holoshell/workflow-approval-latest.json', '.tmp/holoshell/workflow-approval-latest.js'],
+    receipt: '.tmp/holoshell/workflow-approval-latest.json',
+    target: 'Nonce-bound HoloShell approval packets',
+  },
+  {
+    id: 'show_receipts',
+    label: 'Show Receipts',
+    meaning: 'Open the evidence trail without exposing raw logs first.',
+    flowLabel: 'Receipt control',
+    flow: 'receipt_control',
+    permissionEnvelope: 'read_only',
+    approvalRequired: false,
+    adapter: 'scripts/holoshell-receipt-control.mjs',
+    packageScript: 'holoshell:receipt-control',
+    developerCommand: 'pnpm run holoshell:receipt-control -- --json',
+    reads: ['.tmp/holoshell/founder-evidence-demo-latest.json', '.tmp/holoshell/receipt-control-receipts/'],
+    writes: ['.tmp/holoshell/receipt-control-latest.json', '.tmp/holoshell/receipt-control-latest.js'],
+    receipt: '.tmp/holoshell/receipt-control-latest.json',
+    target: 'HoloShell receipt-control timeline',
+  },
+];
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
@@ -19,6 +129,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     tmpDir: DEFAULT_TMP,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
+    intentLabel: null,
+    prompt: '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -31,6 +143,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--tmp-dir') args.tmpDir = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
+    else if (arg === '--label' || arg === '--intent-label') args.intentLabel = argv[++index];
+    else if (arg === '--prompt') args.prompt = argv[++index] || '';
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -63,6 +177,8 @@ Options:
   --tmp-dir <path>     Read HoloShell receipts from this directory. Default: .tmp/holoshell.
   --output <path>      JSON receipt output. Default: .tmp/holoshell/operator-terminal.json.
   --js-output <path>   Browser/bootstrap output. Default: .tmp/holoshell/operator-terminal.js.
+  --label <text>       Route one human label without running the downstream adapter.
+  --prompt <text>      Prompt hash/preview for Ask Brittney route receipts.
   --self-test          Use synthetic receipts and assert terminal invariants.
 `);
 }
@@ -106,6 +222,84 @@ function sha256(value) {
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function normalizeLabel(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function routeForLabel(label) {
+  const normalized = normalizeLabel(label);
+  return HUMAN_COMMAND_ROUTES.find((route) =>
+    route.id === normalized || normalizeLabel(route.label) === normalized
+  ) || null;
+}
+
+function routeSummaryForHuman(route) {
+  return {
+    id: route.id,
+    label: route.label,
+    meaning: route.meaning,
+    flow: route.flow,
+    flowLabel: route.flowLabel,
+    permissionEnvelope: route.permissionEnvelope,
+    approvalRequired: route.approvalRequired,
+    target: route.target,
+    receipt: route.receipt,
+    exposesRawCommandByDefault: false,
+  };
+}
+
+function routeSummaryForAgent(route) {
+  return {
+    id: route.id,
+    label: route.label,
+    flow: route.flow,
+    adapter: route.adapter,
+    secondaryAdapter: route.secondaryAdapter || null,
+    approvalAdapter: route.approvalAdapter || null,
+    packageScript: route.packageScript || null,
+    developerCommand: route.developerCommand,
+    approvalCommand: route.approvalCommand || null,
+    reads: route.reads,
+    writes: route.writes,
+    receipt: route.receipt,
+    approvalReceipt: route.approvalReceipt || null,
+    permissionEnvelope: route.permissionEnvelope,
+    approvalRequired: route.approvalRequired,
+  };
+}
+
+function selectedIntentRoute(args) {
+  if (!args.intentLabel) return null;
+  const route = routeForLabel(args.intentLabel);
+  if (!route) {
+    throw new Error(`Unknown human label: ${args.intentLabel}. Use one of: ${HUMAN_LABELS.join(', ')}.`);
+  }
+  const prompt = String(args.prompt || '').trim();
+  return {
+    selectedAt: new Date().toISOString(),
+    status: 'routed_to_existing_holoshell_flow',
+    requestedLabel: args.intentLabel,
+    human: routeSummaryForHuman(route),
+    agent: routeSummaryForAgent(route),
+    request: route.id === 'ask_brittney'
+      ? {
+          promptSupplied: Boolean(prompt),
+          promptHash: prompt ? sha256(prompt).slice(0, 16) : null,
+          promptPreview: prompt ? `${prompt.slice(0, 72)}${prompt.length > 72 ? '...' : ''}` : null,
+        }
+      : null,
+    execution: {
+      performed: false,
+      reason: 'operator_terminal_routes_labels_only; downstream adapter remains the executor',
+      approvalRequiredBeforeMutation: route.approvalRequired === true || route.permissionEnvelope === 'guarded_execute',
+    },
+  };
 }
 
 function numeric(value, fallback = 0) {
@@ -252,14 +446,8 @@ function sourceReceiptHashes(feeds) {
 
 function buildCommands() {
   return {
-    human: [
-      { id: 'ask_brittney', label: 'Ask Brittney', meaning: 'Send a plain-language request to the HoloShell operator.', permissionEnvelope: 'read_only_or_guarded_by_intent' },
-      { id: 'check_system', label: 'Check System', meaning: 'Show health, services, agents, approvals, and caveats.', permissionEnvelope: 'read_only' },
-      { id: 'build_world', label: 'Build World', meaning: 'Start a guided HoloScript/HoloLand build path after readiness checks.', permissionEnvelope: 'guarded_execute' },
-      { id: 'show_agents', label: 'Show Agents', meaning: 'List active agent lanes and their boundaries.', permissionEnvelope: 'read_only' },
-      { id: 'review_approvals', label: 'Review Approvals', meaning: 'Inspect pending approval packets before any risky action.', permissionEnvelope: 'guarded_execute' },
-      { id: 'show_receipts', label: 'Show Receipts', meaning: 'Open the evidence trail without exposing raw logs first.', permissionEnvelope: 'read_only' },
-    ],
+    human: HUMAN_COMMAND_ROUTES.map(routeSummaryForHuman),
+    routes: HUMAN_COMMAND_ROUTES.map(routeSummaryForAgent),
     agent: [
       { id: 'agent_json', command: 'pnpm run holoshell:operator-terminal -- --agent --json', produces: '.tmp/holoshell/operator-terminal.json' },
       { id: 'refresh_live_feed', command: 'node scripts/holoshell-live-feed.mjs', produces: '.tmp/holoshell/live-feed.json' },
@@ -363,6 +551,7 @@ function createTerminalReceipt(args, feeds) {
   };
 
   const commands = buildCommands();
+  const routedIntent = selectedIntentRoute(args);
   const sourceAnchors = {
     source: 'apps/holoshell/source/holoshell-operator-terminal.hsplus',
     adapter: 'scripts/holoshell-operator-terminal.mjs',
@@ -389,6 +578,7 @@ function createTerminalReceipt(args, feeds) {
     hashes,
     missingReceipts,
     nextActions,
+    routedIntent,
   };
 
   return {
@@ -398,6 +588,7 @@ function createTerminalReceipt(args, feeds) {
     route,
     summary,
     commands,
+    routedIntent,
     nextActions,
     caveats,
     agentContract: {
@@ -413,6 +604,12 @@ function createTerminalReceipt(args, feeds) {
       defaultPrompt: 'What do you want Brittney and the agents to help with?',
       hidesDeveloperGrammarByDefault: true,
       labels: commands.human.map((command) => command.label),
+      routes: commands.human.map((command) => ({
+        label: command.label,
+        flowLabel: command.flowLabel,
+        permissionEnvelope: command.permissionEnvelope,
+        approvalRequired: command.approvalRequired,
+      })),
       safeFirst: true,
     },
     safety: {
@@ -446,7 +643,15 @@ function renderHuman(receipt) {
   lines.push('');
   lines.push('Start Here');
   for (const command of receipt.commands.human) {
-    lines.push(`  ${command.label}: ${command.meaning}`);
+    lines.push(`  ${command.label}: ${command.meaning} Routes to ${command.flowLabel}.`);
+  }
+  if (receipt.routedIntent) {
+    lines.push('');
+    lines.push('Selected Route');
+    lines.push(`  ${receipt.routedIntent.human.label}: ${receipt.routedIntent.human.flowLabel}`);
+    lines.push(`  Target: ${receipt.routedIntent.human.target}`);
+    lines.push(`  Approval: ${receipt.routedIntent.execution.approvalRequiredBeforeMutation ? 'required before mutation' : 'not required for read-only route'}`);
+    lines.push(`  Receipt: ${receipt.routedIntent.human.receipt}`);
   }
   lines.push('');
   lines.push('Next');
@@ -457,7 +662,7 @@ function renderHuman(receipt) {
   lines.push('Caveats');
   receipt.caveats.forEach((caveat) => lines.push(`  - ${caveat}`));
   lines.push('');
-  lines.push(`Agent JSON: ${receipt.agentContract.jsonCommand}`);
+  lines.push('Agent mode: receipt available for automation.');
   lines.push(`Receipt: ${receipt.receipt.terminalHash}`);
   return lines.join('\n');
 }
@@ -468,6 +673,14 @@ function assertSelfTest(receipt) {
   if (receipt.sourceAnchors.source !== 'apps/holoshell/source/holoshell-operator-terminal.hsplus') failures.push('source anchor mismatch');
   if (!receipt.commands.human.find((command) => command.label === 'Ask Brittney')) failures.push('missing Ask Brittney command');
   if (!receipt.commands.human.find((command) => command.label === 'Show Receipts')) failures.push('missing Show Receipts command');
+  if (receipt.humanContract.labels.join('|') !== HUMAN_LABELS.join('|')) failures.push('human label order changed');
+  for (const label of HUMAN_LABELS) {
+    const command = receipt.commands.human.find((item) => item.label === label);
+    if (!command?.flowLabel) failures.push(`missing human route for ${label}`);
+    if (command?.exposesRawCommandByDefault !== false) failures.push(`human route leaks raw command for ${label}`);
+    const agentRoute = receipt.commands.routes.find((item) => item.id === command?.id);
+    if (!agentRoute?.adapter) failures.push(`missing agent adapter for ${label}`);
+  }
   if (!receipt.agentContract.jsonCommand.includes('--agent --json')) failures.push('missing agent JSON command');
   if (receipt.safety.rawSecretsIncluded !== false) failures.push('raw secrets flag must be false');
   if (receipt.safety.rawCommandsIncludedForHuman !== false) failures.push('human raw command flag must be false');
@@ -477,7 +690,13 @@ function assertSelfTest(receipt) {
   const human = renderHuman(receipt);
   if (!human.includes('HoloShell Operator Terminal')) failures.push('human view missing title');
   if (!human.includes('Jetson hosts Brittney')) failures.push('human view missing route');
-  if (!human.includes('Agent JSON')) failures.push('human view missing agent route');
+  if (!human.includes('Agent mode')) failures.push('human view missing agent route');
+  if (/pnpm run|node scripts|--agent|--json/.test(human)) failures.push('human view leaked developer grammar');
+  const routed = selectedIntentRoute({ intentLabel: 'Ask Brittney', prompt: 'Prepare this computer.' });
+  if (routed.human.flow !== 'brittney_turn') failures.push('Ask Brittney did not route to Brittney turn');
+  if (routed.execution.performed !== false) failures.push('selected route must not execute downstream adapter');
+  const approvals = selectedIntentRoute({ intentLabel: 'Review Approvals', prompt: '' });
+  if (approvals.human.flow !== 'approval_review') failures.push('Review Approvals did not route to approval review');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 

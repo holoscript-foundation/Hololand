@@ -23,6 +23,10 @@ composition "HoloShell Operator Terminal" {
     serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
     agentLaneReceipt: ".tmp/holoshell/agent-lanes.json"
     readinessEvidenceReceipt: ".tmp/holoshell/readiness-evidence.json"
+    brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+    buildCustodyReceipt: ".tmp/holoshell/build-custody.json"
+    workflowApprovalReceipt: ".tmp/holoshell/workflow-approval-latest.json"
+    receiptControlReceipt: ".tmp/holoshell/receipt-control-latest.json"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     receiptRequired: true
   }
@@ -81,6 +85,11 @@ composition "HoloShell Operator Terminal" {
     permissionEnvelope: "read_only"
     receiptRequired: true
     exposesRawCommandByDefault: false
+    flow: "unknown"
+    adapter: "unknown"
+    receipt: "unknown"
+    target: "unknown"
+    approvalRequired: false
   }
 
   template "OperatorTerminalReceipt" {
@@ -106,6 +115,11 @@ composition "HoloShell Operator Terminal" {
       label: "Ask Brittney"
       audience: "human"
       permissionEnvelope: "read_only"
+      flow: "brittney_turn"
+      adapter: "scripts/holoshell-brittney-turn.mjs"
+      receipt: ".tmp/holoshell/brittney-turn-latest.json"
+      target: "Brittney operator turn bridge"
+      approvalRequired: "classified_by_intent"
     }
 
     object "CheckSystem" using "TerminalCommand" {
@@ -113,6 +127,11 @@ composition "HoloShell Operator Terminal" {
       label: "Check System"
       audience: "human"
       permissionEnvelope: "read_only"
+      flow: "service_manager_status"
+      adapter: "scripts/holoshell-service-supervisor.mjs"
+      receipt: ".tmp/holoshell/service-supervisor.json"
+      target: "HoloShell service supervisor"
+      approvalRequired: false
     }
 
     object "BuildWorld" using "TerminalCommand" {
@@ -120,6 +139,13 @@ composition "HoloShell Operator Terminal" {
       label: "Build World"
       audience: "human"
       permissionEnvelope: "guarded_execute"
+      flow: "world_build_custody"
+      adapter: "scripts/holoshell-build-custody.mjs"
+      approvalAdapter: "scripts/holoshell-workflow-approval-bundle.mjs"
+      receipt: ".tmp/holoshell/build-custody.json"
+      approvalReceipt: ".tmp/holoshell/workflow-approval-latest.json"
+      target: "HoloScript/HoloLand build custody lane"
+      approvalRequired: true
     }
 
     object "ShowAgents" using "TerminalCommand" {
@@ -127,6 +153,11 @@ composition "HoloShell Operator Terminal" {
       label: "Show Agents"
       audience: "human"
       permissionEnvelope: "read_only"
+      flow: "agent_lanes"
+      adapter: "scripts/holoshell-agent-lanes.mjs"
+      receipt: ".tmp/holoshell/agent-lanes.json"
+      target: "HoloMesh agent lane inventory"
+      approvalRequired: false
     }
 
     object "ReviewApprovals" using "TerminalCommand" {
@@ -134,6 +165,12 @@ composition "HoloShell Operator Terminal" {
       label: "Review Approvals"
       audience: "human"
       permissionEnvelope: "guarded_execute"
+      flow: "approval_review"
+      adapter: "scripts/holoshell-workflow-approval-bundle.mjs"
+      secondaryAdapter: "scripts/holoshell-approval-bundle.mjs"
+      receipt: ".tmp/holoshell/workflow-approval-latest.json"
+      target: "Nonce-bound HoloShell approval packets"
+      approvalRequired: false
     }
 
     object "ShowReceipts" using "TerminalCommand" {
@@ -141,6 +178,11 @@ composition "HoloShell Operator Terminal" {
       label: "Show Receipts"
       audience: "human"
       permissionEnvelope: "read_only"
+      flow: "receipt_control"
+      adapter: "scripts/holoshell-receipt-control.mjs"
+      receipt: ".tmp/holoshell/receipt-control-latest.json"
+      target: "HoloShell receipt-control timeline"
+      approvalRequired: false
     }
 
     object "AgentJson" using "TerminalCommand" {
@@ -166,6 +208,17 @@ composition "HoloShell Operator Terminal" {
     exposeRawJsonByDefault: false
     useOutcomeLabels: true
     allowedLabels: ["Ask Brittney", "Check System", "Build World", "Show Agents", "Review Approvals", "Show Receipts"]
+  }
+
+  policy "HumanLabelsRouteExistingAdapters" {
+    appliesTo: ["ask_brittney", "check_system", "build_world", "show_agents", "review_approvals", "show_receipts"]
+    routeToExistingAdaptersOnly: true
+    mintNewCommandGrammarAllowed: false
+    routeLabelsInsteadOfRawCommands: true
+    requiredFlows: ["brittney_turn", "service_manager_status", "world_build_custody", "agent_lanes", "approval_review", "receipt_control"]
+    requiredAdapters: ["scripts/holoshell-brittney-turn.mjs", "scripts/holoshell-service-supervisor.mjs", "scripts/holoshell-build-custody.mjs", "scripts/holoshell-agent-lanes.mjs", "scripts/holoshell-workflow-approval-bundle.mjs", "scripts/holoshell-receipt-control.mjs"]
+    guardedExecuteRequiresApprovalBeforeMutation: true
+    receiptRequired: true
   }
 
   policy "AgentModeKeepsReceiptsCanonical" {
@@ -237,9 +290,13 @@ composition "HoloShell Operator Terminal" {
       intent: intent.text,
       audience: intent.audience || "human",
       default_actor: "brittney",
-      route: "holoshell_brittney_turn_or_operator_brief",
+      route: intent.route || "human_label_existing_holoshell_flow",
+      label: intent.label || "Ask Brittney",
+      adapter: intent.adapter || "scripts/holoshell-brittney-turn.mjs",
+      receipt: intent.receipt || ".tmp/holoshell/brittney-turn-latest.json",
       permission_envelope: intent.permissionEnvelope || "read_only",
       approval_required: intent.permissionEnvelope == "guarded_execute",
+      raw_command_exposed_by_default: false,
       receipt_required: true
     })
   }

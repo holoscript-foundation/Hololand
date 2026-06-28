@@ -45,11 +45,32 @@ The terminal can still expose exact commands in the receipt, but the visible
 surface starts from outcomes and approval state instead of package-manager or
 JSON language.
 
+Each label routes to an existing HoloShell flow:
+
+| Label | Flow | Receipt |
+| --- | --- | --- |
+| Ask Brittney | Brittney turn | `.tmp/holoshell/brittney-turn-latest.json` |
+| Check System | Service manager status | `.tmp/holoshell/service-supervisor.json` |
+| Build World | World build custody with workflow approval when mutation is needed | `.tmp/holoshell/build-custody.json` |
+| Show Agents | Agent lanes | `.tmp/holoshell/agent-lanes.json` |
+| Review Approvals | Workflow/hardware approval review | `.tmp/holoshell/workflow-approval-latest.json` |
+| Show Receipts | Receipt control | `.tmp/holoshell/receipt-control-latest.json` |
+
 Run:
 
 ```powershell
 pnpm run holoshell:operator-terminal
 ```
+
+Route a label without executing its downstream adapter:
+
+```powershell
+pnpm run holoshell:operator-terminal -- --label "Ask Brittney" --prompt "What needs attention?"
+```
+
+The human output names the selected flow, target, approval state, and receipt.
+The hidden agent receipt carries adapter paths and developer commands for
+automation.
 
 ## Agent Mode
 
