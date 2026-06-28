@@ -13,7 +13,7 @@ composition "TwinEarthFirstPlayableSlice" {
     version: "0.1.0"
     layer: "twin-earth"
     north_star: "playable game layer across browser and apps"
-    source_contract: "HoloScript defines EarthLayer, GeoAnchor, Place, PrivacyRule, quest, entry, consent, and receipts."
+    source_contract: "HoloScript defines EarthLayer, GeoAnchor, Place, PrivacyRule, quest, VPS provider preflight, and receipts."
   }
 
   environment {
@@ -53,6 +53,15 @@ composition "TwinEarthFirstPlayableSlice" {
     discovered_anchors: []
     completed_events: []
     receipts: []
+
+    vps_provider_policy: {
+      accepted_providers: ["arcore", "niantic"]
+      receipt_schema: "hololand.vps-resolver-receipt.v1"
+      credential_refs: ["vault:arcore-geospatial-api-key", "vault:niantic-lightship-api-key"]
+      min_confidence: 0.7
+      raw_frame_receipts_allowed: false
+      secret_values_in_receipts_allowed: false
+    }
 
     earth_layer: {
       id: "twin-earth-frontier-0"
@@ -118,7 +127,7 @@ composition "TwinEarthFirstPlayableSlice" {
         player_verb: "discover"
         objective: "Enter the public anchor, confirm consent, scan the compass echo, and earn a map mark."
         reward: { title: "Twin Earth Scout", map_mark: "pioneer-square-demo" }
-        required_receipts: ["consent_granted", "surface_entered", "geoanchor_discovered", "quest_completed"]
+        required_receipts: ["consent_granted", "surface_entered", "vps_provider_preflight", "geoanchor_discovered", "quest_completed"]
       }
     ]
   }
@@ -140,7 +149,7 @@ composition "TwinEarthFirstPlayableSlice" {
     shape: "cylinder"
     size: [0.5, 1.4, 0.5]
     material: { color: "#00c2a8", emissive: "#00c2a8", emissiveIntensity: 0.35 }
-    traits: ["wgs84_anchor", "foreground_location", "ar_overlay", "browser_preview"]
+    traits: ["wgs84_anchor", "foreground_location", "ar_overlay", "browser_preview", "vps_provider_preflight"]
 
     state {
       anchor_id: "pioneer-square-compass"
@@ -153,6 +162,10 @@ composition "TwinEarthFirstPlayableSlice" {
 
     action discover(surface) {
       return discover_anchor(state.anchor_id, surface)
+    }
+
+    action preflight_vps(provider, status, confidence, horizontal_accuracy) {
+      return record_vps_provider_preflight(provider, status, confidence, horizontal_accuracy, false)
     }
   }
 
@@ -344,6 +357,35 @@ composition "TwinEarthFirstPlayableSlice" {
       return true
     }
 
+    action record_vps_provider_preflight(provider, status, confidence, horizontal_accuracy, credential_present) {
+      let payload = provider + ":" + status + ":confidence=" + confidence + ":horizontal_accuracy=" + horizontal_accuracy + ":credential_present=" + credential_present
+      write_receipt("vps_provider_preflight", payload)
+      emit("vps_provider_preflight", {
+        provider: provider
+        status: status
+        confidence: confidence
+        horizontal_accuracy: horizontal_accuracy
+        credential_present: credential_present
+        raw_frame_included: false
+        secret_value_included: false
+      })
+      return status == "pass"
+    }
+
+    action record_vps_resolution(provider, confidence, horizontal_accuracy, location_id) {
+      let payload = provider + ":confidence=" + confidence + ":horizontal_accuracy=" + horizontal_accuracy + ":location_id=" + location_id
+      write_receipt("vps_provider_resolved", payload)
+      emit("vps_provider_resolved", {
+        provider: provider
+        confidence: confidence
+        horizontal_accuracy: horizontal_accuracy
+        location_id: location_id
+        raw_frame_included: false
+        secret_value_included: false
+      })
+      return true
+    }
+
     action complete_location_quest(quest_id, surface) {
       if (!state.discovered_anchors.includes("pioneer-square-compass")) {
         write_receipt("quest_blocked", quest_id + ":anchor_not_discovered")
@@ -371,6 +413,7 @@ composition "TwinEarthFirstPlayableSlice" {
 
     action play_mobile_ar_entry() {
       enter_surface("mobile-ar")
+      record_vps_provider_preflight("arcore", "blocked_until_device_receipt", 0, 0, false)
       discover_anchor("pioneer-square-compass", "mobile-ar")
       complete_location_quest("local-aura-survey", "mobile-ar")
     }

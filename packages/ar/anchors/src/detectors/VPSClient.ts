@@ -16,9 +16,105 @@ import type { VPSAnchor, Pose, Vector3, Quaternion, CameraIntrinsics } from '../
 
 export type VPSProvider = 'arcore' | 'niantic' | 'custom' | 'local';
 
+export type VPSCredentialSource = 'config' | 'resolver' | 'environment' | 'missing';
+
+export interface VPSCredentialDescriptor {
+  provider: VPSProvider;
+  canonicalName: string;
+  holokeyRef: string;
+  aliases: string[];
+  purpose: string;
+  requiredForPreflight: boolean;
+  requiredForResolve: boolean;
+}
+
+export interface VPSCredentialRequest extends VPSCredentialDescriptor {
+  namesChecked: string[];
+}
+
+export interface VPSCredentialResolution {
+  /** Secret value for immediate runtime use. Never copy this into receipts/logs. */
+  value?: string;
+  source?: VPSCredentialSource;
+  keyName?: string;
+  holokeyRef?: string;
+  present?: boolean;
+}
+
+export type VPSCredentialResolver = (
+  request: VPSCredentialRequest
+) => VPSCredentialResolution | string | null | undefined | Promise<VPSCredentialResolution | string | null | undefined>;
+
+export interface VPSCredentialReceipt {
+  provider: VPSProvider;
+  requiredForPreflight: boolean;
+  requiredForResolve: boolean;
+  present: boolean;
+  source: VPSCredentialSource;
+  canonicalName?: string;
+  holokeyRef?: string;
+  namesChecked: string[];
+  resolvedName?: string;
+  redacted: true;
+}
+
+export interface VPSDeviceReceipt {
+  runtime: 'browser' | 'node' | 'native-bridge' | 'unknown';
+  webxrAvailable: boolean | null;
+  immersiveArSupported?: boolean | null;
+  nativeBridgeExpected?: boolean;
+}
+
+export interface VPSResolverReceipt {
+  schemaVersion: 'hololand.vps-resolver-receipt.v1';
+  generatedAt: string;
+  provider: VPSProvider;
+  operation: 'preflight' | 'resolve';
+  status: 'pass' | 'blocked' | 'fail';
+  credential: VPSCredentialReceipt;
+  device: VPSDeviceReceipt;
+  metrics: {
+    confidence: number | null;
+    horizontalAccuracy: number | null;
+    verticalAccuracy: number | null;
+    headingAccuracy: number | null;
+    processingTime: number | null;
+    gpsHintProvided: boolean;
+    rawFrameIncluded: false;
+  };
+  locationId?: string;
+  blockers: string[];
+  error?: string;
+  noSecretValues: true;
+}
+
+export const VPS_PROVIDER_CREDENTIALS: Partial<Record<VPSProvider, VPSCredentialDescriptor>> = {
+  arcore: {
+    provider: 'arcore',
+    canonicalName: 'ARCORE_GEOSPATIAL_API_KEY',
+    holokeyRef: 'vault:arcore-geospatial-api-key',
+    aliases: ['GOOGLE_ARCORE_API_KEY', 'GOOGLE_GEOSPATIAL_API_KEY'],
+    purpose: 'ARCore Geospatial / Earth API native mobile VPS preflight',
+    requiredForPreflight: true,
+    requiredForResolve: false,
+  },
+  niantic: {
+    provider: 'niantic',
+    canonicalName: 'NIANTIC_LIGHTSHIP_API_KEY',
+    holokeyRef: 'vault:niantic-lightship-api-key',
+    aliases: ['NIANTIC_API_KEY', 'NIANTIC_VPS_API_KEY', 'LIGHTSHIP_API_KEY', 'LIGHTSHIP_VPS_API_KEY'],
+    purpose: 'Niantic Lightship VPS localization',
+    requiredForPreflight: true,
+    requiredForResolve: true,
+  },
+};
+
 export interface VPSConfig {
   provider: VPSProvider;
+  /** Prefer credentialResolver or HoloKey refs for new code; apiKey remains for back-compat. */
   apiKey?: string;
+  /** Secret resolver hook. Receipts record only key names and source, never values. */
+  credentialResolver?: VPSCredentialResolver;
   endpoint?: string;
   timeout: number;
   /** Enable caching of localization results */
@@ -30,6 +126,8 @@ export interface VPSConfig {
   /** Enable debug logging */
   debug: boolean;
 }
+
+export type VPSClientConfig = Partial<VPSConfig> & Pick<VPSConfig, 'provider'>;
 
 export interface VPSRequest {
   /** Camera frame as JPEG or PNG */
@@ -59,6 +157,8 @@ export interface VPSResponse {
   geospatial?: GeospatialPose;
   /** Processing time in ms */
   processingTime?: number;
+  /** Redacted provider/device/credential receipt. Contains no image or secret values. */
+  receipt?: VPSResolverReceipt;
 }
 
 export interface VPSCacheEntry {
@@ -76,6 +176,75 @@ const DEFAULT_VPS_CONFIG: Partial<VPSConfig> = {
   debug: false,
 };
 
+function credentialNames(descriptor?: VPSCredentialDescriptor): string[] {
+  if (!descriptor) return [];
+  return [descriptor.canonicalName, ...descriptor.aliases];
+}
+
+function runtimeProcessEnv(): Record<string, string | undefined> | undefined {
+  const withProcess = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  };
+  return withProcess.process?.env;
+}
+
+function normalizeCredentialResolution(
+  value: VPSCredentialResolution | string | null | undefined,
+  fallbackSource: VPSCredentialSource
+): VPSCredentialResolution {
+  if (typeof value === 'string') {
+    return { value, present: value.length > 0, source: fallbackSource };
+  }
+  if (!value) {
+    return { present: false, source: 'missing' };
+  }
+  return {
+    ...value,
+    present: value.present ?? Boolean(value.value),
+    source: value.source ?? fallbackSource,
+  };
+}
+
+function deviceReceiptBase(): VPSDeviceReceipt {
+  const hasNavigator = typeof navigator !== 'undefined';
+  const hasWebXR = Boolean(hasNavigator && navigator.xr);
+  const hasBrowserWindow = typeof window !== 'undefined' && typeof document !== 'undefined';
+  const runtime: VPSDeviceReceipt['runtime'] =
+    hasBrowserWindow ? 'browser' : runtimeProcessEnv() ? 'node' : hasNavigator ? 'unknown' : 'unknown';
+
+  return {
+    runtime,
+    webxrAvailable: hasNavigator ? hasWebXR : null,
+  };
+}
+
+export function createEnvVPSCredentialResolver(
+  env: Record<string, string | undefined> | undefined = runtimeProcessEnv()
+): VPSCredentialResolver {
+  return (request) => {
+    if (!env) return { source: 'missing', present: false };
+
+    for (const name of request.namesChecked) {
+      const value = env[name];
+      if (value) {
+        return {
+          value,
+          source: 'environment',
+          keyName: name,
+          holokeyRef: request.holokeyRef,
+          present: true,
+        };
+      }
+    }
+
+    return {
+      source: 'missing',
+      holokeyRef: request.holokeyRef,
+      present: false,
+    };
+  };
+}
+
 /**
  * VPS Client - Complete Implementation
  *
@@ -88,7 +257,7 @@ export class VPSClient {
   private xrSession: XRSession | null = null;
   private localFeatureDB: Map<string, LocalFeature[]> = new Map();
 
-  constructor(config: VPSConfig) {
+  constructor(config: VPSClientConfig) {
     this.config = {
       ...DEFAULT_VPS_CONFIG,
       ...config,
@@ -100,6 +269,7 @@ export class VPSClient {
    */
   async resolve(request: VPSRequest): Promise<VPSResponse> {
     const startTime = performance.now();
+    const credential = await this.resolveProviderCredential();
 
     // Check cache first
     if (this.config.enableCache && request.gpsHint) {
@@ -113,25 +283,35 @@ export class VPSClient {
     }
 
     let response: VPSResponse;
-
-    switch (this.config.provider) {
-      case 'arcore':
-        response = await this.resolveARCoreWebXR(request);
-        break;
-      case 'niantic':
-        response = await this.resolveNianticREST(request);
-        break;
-      case 'custom':
-        response = await this.resolveCustomVPS(request);
-        break;
-      case 'local':
-        response = await this.resolveLocal(request);
-        break;
-      default:
-        response = { success: false, error: 'Unknown VPS provider' };
+    if (
+      credential.requiredForResolve &&
+      !credential.receipt.present
+    ) {
+      response = {
+        success: false,
+        error: `Missing ${credential.receipt.canonicalName ?? this.config.provider} credential`,
+      };
+    } else {
+      switch (this.config.provider) {
+        case 'arcore':
+          response = await this.resolveARCoreWebXR(request);
+          break;
+        case 'niantic':
+          response = await this.resolveNianticREST(request, credential.value);
+          break;
+        case 'custom':
+          response = await this.resolveCustomVPS(request);
+          break;
+        case 'local':
+          response = await this.resolveLocal(request);
+          break;
+        default:
+          response = { success: false, error: 'Unknown VPS provider' };
+      }
     }
 
     response.processingTime = performance.now() - startTime;
+    response.receipt = this.createResolveReceipt(response, request, credential);
 
     // Cache successful results
     if (response.success && this.config.enableCache && request.gpsHint) {
@@ -140,6 +320,174 @@ export class VPSClient {
 
     this.lastResponse = response;
     return response;
+  }
+
+  /**
+   * Run a provider/device/credential preflight without sending camera pixels.
+   */
+  async preflight(): Promise<VPSResolverReceipt> {
+    const credential = await this.resolveProviderCredential();
+    const blockers: string[] = [];
+    const device = deviceReceiptBase();
+
+    if (credential.requiredForPreflight && !credential.receipt.present) {
+      blockers.push(`Missing ${credential.receipt.canonicalName ?? this.config.provider} in config, HoloKey resolver, or env aliases`);
+    }
+
+    if (this.config.provider === 'arcore') {
+      device.nativeBridgeExpected = true;
+      if (device.runtime === 'node') {
+        blockers.push('ARCore device preflight needs Android Chrome/WebXR or the native ARCore bridge; current runtime is Node');
+      } else if (typeof navigator === 'undefined') {
+        blockers.push('ARCore device preflight needs Android Chrome/WebXR or the native ARCore bridge; navigator is unavailable in this runtime');
+      } else if (!navigator.xr) {
+        blockers.push('ARCore device preflight needs WebXR immersive-ar support or a native ARCore bridge');
+      } else {
+        try {
+          device.immersiveArSupported = await navigator.xr.isSessionSupported('immersive-ar');
+          if (!device.immersiveArSupported) {
+            blockers.push('WebXR immersive-ar is not supported on this device/browser');
+          }
+        } catch (error) {
+          device.immersiveArSupported = null;
+          blockers.push(`WebXR immersive-ar support check failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    } else if (this.config.provider === 'custom' && !this.config.endpoint) {
+      blockers.push('Custom VPS endpoint is required');
+    } else if (this.config.provider === 'local' && this.localFeatureDB.size === 0) {
+      blockers.push('Local VPS feature database is empty');
+    }
+
+    return {
+      schemaVersion: 'hololand.vps-resolver-receipt.v1',
+      generatedAt: new Date().toISOString(),
+      provider: this.config.provider,
+      operation: 'preflight',
+      status: blockers.length === 0 ? 'pass' : 'blocked',
+      credential: credential.receipt,
+      device,
+      metrics: {
+        confidence: null,
+        horizontalAccuracy: null,
+        verticalAccuracy: null,
+        headingAccuracy: null,
+        processingTime: null,
+        gpsHintProvided: false,
+        rawFrameIncluded: false,
+      },
+      blockers,
+      noSecretValues: true,
+    };
+  }
+
+  private async resolveProviderCredential(): Promise<{
+    value?: string;
+    requiredForPreflight: boolean;
+    requiredForResolve: boolean;
+    receipt: VPSCredentialReceipt;
+  }> {
+    const descriptor = VPS_PROVIDER_CREDENTIALS[this.config.provider];
+    const namesChecked = credentialNames(descriptor);
+
+    if (this.config.apiKey) {
+      return {
+        value: this.config.apiKey,
+        requiredForPreflight: descriptor?.requiredForPreflight ?? false,
+        requiredForResolve: descriptor?.requiredForResolve ?? false,
+        receipt: {
+          provider: this.config.provider,
+          requiredForPreflight: descriptor?.requiredForPreflight ?? false,
+          requiredForResolve: descriptor?.requiredForResolve ?? false,
+          present: true,
+          source: 'config',
+          canonicalName: descriptor?.canonicalName,
+          holokeyRef: descriptor?.holokeyRef,
+          namesChecked,
+          resolvedName: descriptor?.canonicalName ?? 'apiKey',
+          redacted: true,
+        },
+      };
+    }
+
+    let resolution = normalizeCredentialResolution(null, 'missing');
+    if (descriptor && this.config.credentialResolver) {
+      resolution = normalizeCredentialResolution(
+        await this.config.credentialResolver({
+          ...descriptor,
+          namesChecked,
+        }),
+        'resolver'
+      );
+    }
+
+    if (!resolution.present && descriptor) {
+      resolution = normalizeCredentialResolution(
+        await createEnvVPSCredentialResolver()({
+          ...descriptor,
+          namesChecked,
+        }),
+        'environment'
+      );
+    }
+
+    return {
+      value: resolution.value,
+      requiredForPreflight: descriptor?.requiredForPreflight ?? false,
+      requiredForResolve: descriptor?.requiredForResolve ?? false,
+      receipt: {
+        provider: this.config.provider,
+        requiredForPreflight: descriptor?.requiredForPreflight ?? false,
+        requiredForResolve: descriptor?.requiredForResolve ?? false,
+        present: Boolean(resolution.present && resolution.value),
+        source: resolution.present ? (resolution.source ?? 'resolver') : 'missing',
+        canonicalName: descriptor?.canonicalName,
+        holokeyRef: resolution.holokeyRef ?? descriptor?.holokeyRef,
+        namesChecked,
+        resolvedName: resolution.keyName,
+        redacted: true,
+      },
+    };
+  }
+
+  private createResolveReceipt(
+    response: VPSResponse,
+    request: VPSRequest,
+    credential: {
+      requiredForResolve: boolean;
+      receipt: VPSCredentialReceipt;
+    }
+  ): VPSResolverReceipt {
+    const blockers: string[] = [];
+    if (credential.requiredForResolve && !credential.receipt.present) {
+      blockers.push(`Missing ${credential.receipt.canonicalName ?? this.config.provider} in config, HoloKey resolver, or env aliases`);
+    }
+    if (!response.success && response.error) {
+      blockers.push(response.error);
+    }
+
+    return {
+      schemaVersion: 'hololand.vps-resolver-receipt.v1',
+      generatedAt: new Date().toISOString(),
+      provider: this.config.provider,
+      operation: 'resolve',
+      status: response.success ? 'pass' : blockers.length > 0 ? 'blocked' : 'fail',
+      credential: credential.receipt,
+      device: deviceReceiptBase(),
+      metrics: {
+        confidence: response.confidence ?? null,
+        horizontalAccuracy: response.horizontalAccuracy ?? null,
+        verticalAccuracy: response.verticalAccuracy ?? null,
+        headingAccuracy: response.headingAccuracy ?? null,
+        processingTime: response.processingTime ?? null,
+        gpsHintProvided: Boolean(request.gpsHint),
+        rawFrameIncluded: false,
+      },
+      locationId: response.locationId,
+      blockers,
+      error: response.error,
+      noSecretValues: true,
+    };
   }
 
   /**
@@ -292,8 +640,8 @@ export class VPSClient {
   /**
    * Niantic Lightship VPS via REST API
    */
-  private async resolveNianticREST(request: VPSRequest): Promise<VPSResponse> {
-    if (!this.config.apiKey) {
+  private async resolveNianticREST(request: VPSRequest, apiKey?: string): Promise<VPSResponse> {
+    if (!apiKey) {
       return { success: false, error: 'Niantic API key required' };
     }
 
@@ -332,7 +680,7 @@ export class VPSClient {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'X-Niantic-SDK-Version': '3.0.0',
         },
         body: formData,
