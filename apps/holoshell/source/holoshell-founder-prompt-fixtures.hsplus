@@ -1,0 +1,133 @@
+// HoloShell Founder Prompt Fixtures
+//
+// Source contract for the local Brittney test-prompt lane. Founder-authored
+// words from documentation, knowledge mirrors, and memory can inspire backend
+// test prompts, but the fixture remains local, source-hashed, and receipt-bound.
+
+composition "HoloShell Founder Prompt Fixtures" {
+  config {
+    title: "HoloShell Founder Prompt Fixtures"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-founder-prompt-fixtures.mjs"
+    runtimeBridge: "scripts/holoshell-brittney-turn.mjs"
+    deployBridge: "scripts/deploy-holoshell-to-jetson.sh"
+    latestFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
+    sourceLanes: ["documentation", "knowledge", "memory"]
+  }
+
+  state {
+    status: "unknown"
+    fixtureCount: 0
+    documentationFixtureCount: 0
+    knowledgeFixtureCount: 0
+    memoryFixtureCount: 0
+    selectedFixtureCount: 0
+    corpusHash: ""
+    rawSecretsIncluded: false
+    trainingCorpus: false
+    deployedToJetson: false
+  }
+
+  channel "holoshell:brittney:founder-prompt-fixtures" {
+    type: "local_context"
+    priority: "high"
+    description: "Founder-language prompt fixtures consumed by Brittney test/backend turns"
+  }
+
+  template "FounderPromptFixture" {
+    type: "prompt_fixture"
+    actor: "founder"
+    sourceKind: "documentation"
+    sourceRef: ""
+    sourceLine: 0
+    quoteHash: ""
+    inspiration: ""
+    testPrompt: ""
+    receiptRequired: true
+  }
+
+  template "FounderPromptFixtureReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.founder-prompt-fixtures.v0.1.0"
+    fixtureCount: 0
+    corpusHash: ""
+    sourceKinds: []
+    rawSecretsIncluded: false
+    trainingCorpus: false
+    latestFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
+  }
+
+  policy "FixturesArePromptTestsNotTrainingData" {
+    appliesTo: ["brittney_backend_test", "brittney_turn_context", "jetson_surface_deploy"]
+    trainingCorpus: false
+    modelFineTuneInput: false
+    purpose: "test_prompt_inspiration"
+    receiptRequired: true
+  }
+
+  policy "FounderWordsStayLocalAndSourceHashed" {
+    appliesTo: ["documentation", "knowledge", "memory"]
+    rawSecretsIncluded: false
+    sourceHashRequired: true
+    sourceRefRequired: true
+    shortExcerptOnly: true
+    remoteCloudExportAllowed: false
+    receiptRequired: true
+  }
+
+  policy "RuntimeConsumesSelectedFixturesOnly" {
+    appliesTo: ["holoshell:brittney:turn"]
+    maximumSelectedFixtureCount: 3
+    fullCorpusInPrompt: false
+    promptInstruction: "Use founder-language fixtures as inspiration, not copy text."
+    receiptRequired: true
+  }
+
+  action generate_founder_prompt_fixtures(receipt) {
+    state.status = receipt.sourceSummary.fixtureCount > 0 ? "ready" : "empty"
+    state.fixtureCount = receipt.sourceSummary.fixtureCount
+    state.documentationFixtureCount = count(receipt.fixtures where fixture.sourceKind == "documentation")
+    state.knowledgeFixtureCount = count(receipt.fixtures where fixture.sourceKind == "knowledge")
+    state.memoryFixtureCount = count(receipt.fixtures where fixture.sourceKind == "memory")
+    state.corpusHash = receipt.sourceSummary.corpusHash
+    state.rawSecretsIncluded = receipt.policy.rawSecretsIncluded
+    state.trainingCorpus = receipt.policy.trainingCorpus
+
+    emit("holoshell:brittney:founder-prompt-fixtures", {
+      action: "founder_prompt_fixtures_generated",
+      status: state.status,
+      fixture_count: state.fixtureCount,
+      documentation_fixtures: state.documentationFixtureCount,
+      knowledge_fixtures: state.knowledgeFixtureCount,
+      memory_fixtures: state.memoryFixtureCount,
+      corpus_hash: state.corpusHash,
+      raw_secrets_included: state.rawSecretsIncluded,
+      training_corpus: state.trainingCorpus,
+      receipt_required: true
+    })
+  }
+
+  action consume_selected_founder_prompt_fixtures(selection) {
+    state.selectedFixtureCount = selection.items.length
+    emit("holoshell:brittney:founder-prompt-fixtures", {
+      action: "founder_prompt_fixtures_selected",
+      selected_fixture_count: state.selectedFixtureCount,
+      corpus_hash: selection.corpusHash,
+      source_kinds: selection.sourceKinds,
+      full_corpus_in_prompt: false,
+      receipt_required: true
+    })
+  }
+
+  action deploy_founder_prompt_fixtures_to_jetson(deployReceipt) {
+    state.deployedToJetson = deployReceipt.surface == "holojetson.local:8747" && deployReceipt.fixtureCount > 0
+    emit("holoshell:brittney:founder-prompt-fixtures", {
+      action: "founder_prompt_fixtures_deployed",
+      deployed_to_jetson: state.deployedToJetson,
+      fixture_count: deployReceipt.fixtureCount,
+      corpus_hash: deployReceipt.corpusHash,
+      receipt_required: true
+    })
+  }
+}

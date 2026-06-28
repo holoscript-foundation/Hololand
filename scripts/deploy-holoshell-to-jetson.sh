@@ -25,10 +25,44 @@ HS="${HOLOSCRIPT_REPO:-$(cd "$HL/../HoloScript" && pwd)}"
 MODEL_LIBRARY="${HOLOSHELL_MODEL_LIBRARY_PATH:-$HOME/.ai-ecosystem/model-library/library.json}"
 ROOT=/mnt/nvme/holo/holoscript-root          # HOLOSCRIPT_REPO on the Jetson (dists + brain)
 SURF=/mnt/nvme/holo/holoshell-surface        # the serve + turn handler + html
+FOUNDER_FIXTURE="$HL/.tmp/holoshell/founder-prompt-fixtures.json"
+NODE_BIN="${NODE_BIN:-}"
+if [ -z "$NODE_BIN" ]; then
+  if command -v node >/dev/null 2>&1; then
+    NODE_BIN=node
+  elif command -v node.exe >/dev/null 2>&1; then
+    NODE_BIN=node.exe
+  else
+    echo "[deploy] node not found on PATH (set NODE_BIN=/path/to/node)" >&2
+    exit 1
+  fi
+fi
+node_path() {
+  case "$NODE_BIN" in
+    *node.exe)
+      if command -v wslpath >/dev/null 2>&1; then
+        wslpath -w "$1"
+      elif command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+      else
+        printf '%s' "$1"
+      fi
+      ;;
+    *)
+      printf '%s' "$1"
+      ;;
+  esac
+}
 
 echo "[deploy] HoloScript repo: $HS"
+echo "[deploy] generating founder prompt fixtures ..."
+"$NODE_BIN" "$(node_path "$HL/scripts/holoshell-founder-prompt-fixtures.mjs")" \
+  --out "$(node_path "$FOUNDER_FIXTURE")" \
+  --limit "${HOLOSHELL_FOUNDER_PROMPT_LIMIT:-48}" \
+  --json >/dev/null
+
 echo "[deploy] ensuring Jetson layout under /mnt/nvme/holo ..."
-ssh -i "$KEY" "$J" "mkdir -p $SURF/packages/holoshell/dist $SURF/scripts $SURF/model-library $ROOT/packages/aibrittney $ROOT/packages/llm-provider $ROOT/compositions/skills"
+ssh -i "$KEY" "$J" "mkdir -p $SURF/packages/holoshell/dist $SURF/scripts $SURF/model-library $SURF/.tmp/holoshell $SURF/apps/holoshell/source $ROOT/packages/aibrittney $ROOT/packages/llm-provider $ROOT/compositions/skills"
 
 echo "[deploy] syncing platform-neutral dists + brain + native resources + surface ..."
 scp -i "$KEY" -q -r "$HS/packages/aibrittney/dist"     "$J:$ROOT/packages/aibrittney/"
@@ -38,6 +72,9 @@ scp -i "$KEY" -q -r "$HS/compositions/skills"          "$J:$ROOT/compositions/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/serve.mjs" "$J:$SURF/packages/holoshell/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/dist/operate-room.html" "$J:$SURF/packages/holoshell/dist/"
 scp -i "$KEY" -q    "$HL/scripts/holoshell-brittney-turn.mjs" "$J:$SURF/scripts/"
+scp -i "$KEY" -q    "$HL/scripts/holoshell-founder-prompt-fixtures.mjs" "$J:$SURF/scripts/"
+scp -i "$KEY" -q    "$HL/apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus" "$J:$SURF/apps/holoshell/source/"
+scp -i "$KEY" -q    "$FOUNDER_FIXTURE" "$J:$SURF/.tmp/holoshell/founder-prompt-fixtures.json"
 
 if [ -f "$MODEL_LIBRARY" ]; then
   scp -i "$KEY" -q "$MODEL_LIBRARY" "$J:$SURF/model-library/library.json"

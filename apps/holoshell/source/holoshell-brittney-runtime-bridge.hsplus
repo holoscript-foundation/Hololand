@@ -17,10 +17,12 @@ composition "HoloShell Brittney Runtime Bridge" {
     hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
     contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
     liveStatusSource: "apps/holoshell/source/holoshell-live-status-brief.hsplus"
+    founderPromptFixtureSource: "apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus"
     turnBridgeScript: "scripts/holoshell-brittney-turn.mjs"
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     latestContextReceipt: ".tmp/holoshell/brittney-context.json"
+    latestFounderPromptFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
     latestHardwareActionReceipt: ".tmp/holoshell/action-latest.json"
   }
 
@@ -34,6 +36,8 @@ composition "HoloShell Brittney Runtime Bridge" {
     runtimeEventCount: 0
     toolCallCount: 0
     actionProposalCount: 0
+    founderPromptFixtureCount: 0
+    founderPromptFixtureCorpusHash: ""
     contextStatus: "unknown"
     contextPeerWindowCount: 0
     contextShellWindowCount: 0
@@ -143,6 +147,16 @@ composition "HoloShell Brittney Runtime Bridge" {
     receiptRequired: true
   }
 
+  policy "RuntimeTurnConsumesFounderPromptFixtures" {
+    appliesTo: ["brittney_backend_test", "relational_turn", "operator_turn"]
+    fixtureSource: ".tmp/holoshell/founder-prompt-fixtures.json"
+    sourceContract: "apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus"
+    maximumSelectedFixtureCount: 3
+    fullCorpusInPrompt: false
+    useAsInspirationOnly: true
+    receiptRequired: true
+  }
+
   policy "RuntimeGuardedTurn" {
     appliesTo: ["open_app", "open_file", "open_browser", "start_agent", "focus_captured_window", "focus_window", "hotkey", "click_control", "type_text"]
     permissionEnvelope: "guarded_execute"
@@ -216,6 +230,8 @@ composition "HoloShell Brittney Runtime Bridge" {
     state.runtimeEventCount = receipt.summary.eventCount
     state.toolCallCount = receipt.summary.toolCallCount
     state.actionProposalCount = receipt.summary.actionProposalCount
+    state.founderPromptFixtureCount = receipt.summary.founderPromptFixtureCount
+    state.founderPromptFixtureCorpusHash = receipt.summary.founderPromptFixtureCorpusHash
     state.contextStatus = receipt.summary.contextStatus
     state.contextPeerWindowCount = receipt.summary.contextPeerWindowCount
     state.contextShellWindowCount = receipt.summary.contextShellWindowCount
@@ -229,6 +245,8 @@ composition "HoloShell Brittney Runtime Bridge" {
       event_count: state.runtimeEventCount,
       tool_calls: state.toolCallCount,
       proposals: state.actionProposalCount,
+      founder_prompt_fixtures: state.founderPromptFixtureCount,
+      founder_prompt_fixture_corpus: state.founderPromptFixtureCorpusHash,
       context_status: state.contextStatus,
       peer_windows: state.contextPeerWindowCount,
       shell_windows: state.contextShellWindowCount,

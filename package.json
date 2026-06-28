@@ -50,6 +50,7 @@
     "test:holoshell-native-wrapper": "node scripts/__tests__/holoshell-native-wrapper.test.mjs",
     "test:holoshell-founder-evidence-demo": "node scripts/__tests__/holoshell-founder-evidence-demo.test.mjs",
     "test:holoshell-founder-evidence-card": "node scripts/__tests__/holoshell-founder-evidence-card.test.mjs",
+    "test:holoshell-founder-prompts": "node scripts/__tests__/holoshell-founder-prompt-fixtures.test.mjs",
     "test:holoshell-receipt-control": "node scripts/__tests__/holoshell-receipt-control.test.mjs",
     "test:holoshell-account-task-custody": "node scripts/__tests__/holoshell-account-task-custody.test.mjs",
     "test:holoshell-package-custody": "node scripts/holoshell-package-custody.mjs --self-test",

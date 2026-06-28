@@ -12,6 +12,7 @@ const DEFAULT_TURNS_DIR = path.join(DEFAULT_TMP, 'brittney-turns');
 const DEFAULT_LATEST = path.join(DEFAULT_TMP, 'brittney-turn-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'brittney-turn-latest.js');
 const DEFAULT_EMBED_CACHE = path.join(DEFAULT_TMP, 'turn-embeddings.json');
+const DEFAULT_FOUNDER_PROMPTS = path.join(DEFAULT_TMP, 'founder-prompt-fixtures.json');
 
 function parseArgs(argv) {
   const args = {
@@ -379,6 +380,74 @@ function truncate(text, max) {
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
+function tokenSet(text) {
+  return new Set(String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 4));
+}
+
+function loadFounderPromptFixtures({ prompt, max = 3 } = {}) {
+  const fixturePath = DEFAULT_FOUNDER_PROMPTS;
+  const fixtureReceipt = readJson(fixturePath, null);
+  if (!fixtureReceipt?.fixtures?.length) {
+    return {
+      status: fixtureReceipt ? 'empty' : 'missing',
+      source: fixturePath,
+      generatedAt: fixtureReceipt?.generatedAt || '',
+      corpusHash: fixtureReceipt?.sourceSummary?.corpusHash || '',
+      availableCount: fixtureReceipt?.fixtures?.length || 0,
+      selected: [],
+      sourceKinds: [],
+    };
+  }
+
+  const promptTokens = tokenSet(prompt);
+  const scored = fixtureReceipt.fixtures.map((fixture) => {
+    const fixtureText = `${fixture.inspiration || ''} ${fixture.testPrompt || ''} ${fixture.sourceRef || ''}`;
+    const fixtureTokens = tokenSet(fixtureText);
+    let overlap = 0;
+    for (const token of promptTokens) {
+      if (fixtureTokens.has(token)) overlap += 1;
+    }
+    return {
+      ...fixture,
+      relevance: overlap + (Number(fixture.priority || 0) / 100),
+    };
+  });
+  scored.sort((a, b) => {
+    if (b.relevance !== a.relevance) return b.relevance - a.relevance;
+    return (a.rank || 0) - (b.rank || 0);
+  });
+
+  const selected = scored.slice(0, max).map((fixture) => ({
+    id: fixture.id,
+    sourceKind: fixture.sourceKind,
+    sourceRef: fixture.sourceRef,
+    sourceLine: fixture.sourceLine,
+    quoteHash: fixture.quoteHash,
+    inspiration: truncate(fixture.inspiration || '', 180),
+    testPrompt: truncate(fixture.testPrompt || '', 360),
+    rank: fixture.rank,
+  }));
+
+  return {
+    status: selected.length ? 'ready' : 'empty',
+    source: fixturePath,
+    generatedAt: fixtureReceipt.generatedAt || '',
+    corpusHash: fixtureReceipt.sourceSummary?.corpusHash || '',
+    availableCount: fixtureReceipt.fixtures.length,
+    selected,
+    sourceKinds: [...new Set(selected.map((fixture) => fixture.sourceKind))].sort(),
+  };
+}
+
+function founderPromptInstruction(founderPromptFixtures) {
+  if (!founderPromptFixtures.selected.length) return '';
+  return ' shellContext.founderPromptFixtures holds selected local founder-language test prompts from documentation, knowledge, and memory. Use them as inspiration for tone and priorities; do not quote them at length, and do not treat them as model training data.';
+}
+
 /**
  * Semantic recall over prior HoloShell turns. Embeds the current prompt on the
  * OWNED fleet (nomic-embed-text → the Jetson, $0) via the same fleet-router the
@@ -504,6 +573,18 @@ async function runTurn(args) {
   const turnId = stableId('brittney_turn', `${generatedAt}:${args.prompt}`);
   const promptHash = hashText(args.prompt);
   const shellContext = createShellContext();
+  const founderPromptFixtures = loadFounderPromptFixtures({ prompt: args.prompt });
+  if (founderPromptFixtures.selected.length) {
+    shellContext.founderPromptFixtures = {
+      source: founderPromptFixtures.source,
+      status: founderPromptFixtures.status,
+      generatedAt: founderPromptFixtures.generatedAt,
+      corpusHash: founderPromptFixtures.corpusHash,
+      availableCount: founderPromptFixtures.availableCount,
+      sourceKinds: founderPromptFixtures.sourceKinds,
+      items: founderPromptFixtures.selected,
+    };
+  }
   const holoscriptRoot = path.resolve(args.holoscriptRoot);
   const events = [];
   // Semantic recall: pull the most relevant prior turns into context (nomic on the
@@ -538,6 +619,15 @@ async function runTurn(args) {
       considered: recall.considered,
       embedded: recall.embedded,
       source: recall.source,
+    },
+    founderPromptFixtures: {
+      status: founderPromptFixtures.status,
+      selectedCount: founderPromptFixtures.selected.length,
+      availableCount: founderPromptFixtures.availableCount,
+      sourceKinds: founderPromptFixtures.sourceKinds,
+      corpusHash: founderPromptFixtures.corpusHash,
+      generatedAt: founderPromptFixtures.generatedAt,
+      source: founderPromptFixtures.source,
     },
   };
 
@@ -584,6 +674,7 @@ ${toneInstruction}`;
     const recallInstruction = recall.recalled.length
       ? ' shellContext.recalledContext holds your most relevant prior turns (semantic recall) — use them for continuity and do not repeat yourself; ignore any that are not relevant.'
       : '';
+    const fixtureInstruction = founderPromptInstruction(founderPromptFixtures);
     if (args.relational) {
       // The founder's words ARE the message — shell state is a quiet footnote, not the body.
       // (The operator path below buries the prompt as one key inside the status blob; that
@@ -595,12 +686,15 @@ ${toneInstruction}`;
         shellContext.ambientTone?.tone && shellContext.ambientTone.tone !== 'calm'
           ? `\n\n(Ambient: the world feels ${shellContext.ambientTone.tone} right now.)`
           : '';
-      session.push('user', `${args.prompt}${recalledNote}${ambientNote}`);
+      const founderNote = founderPromptFixtures.selected.length
+        ? `\n\n(Founder-language inspiration from local fixtures: ${founderPromptFixtures.selected.map((entry) => truncate(entry.inspiration, 80)).join(' | ')}. Use as direction; do not quote at length.)`
+        : '';
+      session.push('user', `${args.prompt}${recalledNote}${ambientNote}${founderNote}`);
     } else {
       session.push('user', JSON.stringify({
         userPrompt: args.prompt,
         shellContext,
-        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}`,
+        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}`,
       }));
     }
     const ac = new AbortController();
@@ -654,8 +748,10 @@ ${toneInstruction}`;
     sourceAnchors: {
       source: 'apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus',
       avatarSource: 'apps/holoshell/source/holoshell-brittney-avatar.hsplus',
+      founderPromptSource: 'apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus',
       bridgeScript: 'scripts/holoshell-brittney-turn.mjs',
       brittneyContext: '.tmp/holoshell/brittney-context.json',
+      founderPromptFixtures: DEFAULT_FOUNDER_PROMPTS,
       holoscriptRoot,
       runtimePackageDist: path.resolve(holoscriptRoot, 'packages', 'aibrittney', 'dist'),
     },
@@ -702,6 +798,11 @@ ${toneInstruction}`;
       ambientToneScore: shellContext.ambientTone?.score ?? null,
       semanticRecallCount: runtime.semanticRecall.count,
       semanticRecallSource: runtime.semanticRecall.source,
+      founderPromptFixtureStatus: runtime.founderPromptFixtures.status,
+      founderPromptFixtureCount: runtime.founderPromptFixtures.selectedCount,
+      founderPromptFixtureAvailableCount: runtime.founderPromptFixtures.availableCount,
+      founderPromptFixtureCorpusHash: runtime.founderPromptFixtures.corpusHash,
+      founderPromptFixtureSourceKinds: runtime.founderPromptFixtures.sourceKinds,
     },
   };
 }
