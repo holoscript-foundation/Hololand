@@ -99,9 +99,11 @@ Routes:
   GET  /services/supervisor
   GET  /workflow/founder-command/latest
   GET  /dispatch/latest
+  GET  /workflow/laptop-reasoning/latest
   POST /action
   POST /approval/execute
   POST /workflow/agent-dispatch
+  POST /workflow/laptop-reasoning-job
   POST /workflow/room-marathon
   POST /workflow/claude-chat
   POST /workflow/ollama-cloud-agent
@@ -306,6 +308,28 @@ function founderCommand(body = {}) {
   return runChecked(cli);
 }
 
+function laptopReasoningJob(args, body = {}) {
+  const cli = [
+    'scripts/holoshell-laptop-reasoning-bridge.mjs',
+    '--once',
+    '--dispatch-dir',
+    path.join(args.tmpDir, 'agent-dispatches'),
+    '--inbox-dir',
+    path.join(args.tmpDir, 'laptop-reasoning-inbox'),
+    '--result-dir',
+    path.join(args.tmpDir, 'laptop-reasoning-results'),
+    '--result-output',
+    path.join(args.tmpDir, 'laptop-reasoning-result-latest.json'),
+    '--bridge-output',
+    path.join(args.tmpDir, 'laptop-reasoning-bridge-latest.json'),
+    '--state',
+    path.join(args.tmpDir, 'laptop-reasoning-bridge-state.json'),
+  ];
+  const resultText = body.resultText || body.answer || '';
+  if (resultText) cli.push('--result-text', String(resultText));
+  return runChecked(cli);
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -356,6 +380,8 @@ function latestSnapshot(args) {
     serviceSupervisor: readJson(tmpPath(args, 'service-supervisor.json'), {}),
     founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
+    laptopReasoningBridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
+    laptopReasoningResult: readJson(tmpPath(args, 'laptop-reasoning-result-latest.json'), {}),
   };
 }
 
@@ -586,6 +612,20 @@ function stageFounderCommand(args, body = {}) {
   };
 }
 
+function stageLaptopReasoningJob(args, body = {}) {
+  const bridgeResult = laptopReasoningJob(args, body);
+  refreshLiveFeed();
+  return {
+    ok: true,
+    laptopReasoningBridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
+    laptopReasoningResult: readJson(tmpPath(args, 'laptop-reasoning-result-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      laptopReasoningBridge: bridgeResult.stdout.trim(),
+    },
+  };
+}
+
 function stageAgentDispatch(args, body = {}) {
   refreshRegistry(args);
   const dispatchResult = agentDispatch(body);
@@ -610,6 +650,7 @@ function stageAgentDispatch(args, body = {}) {
   else if (route === '/workflow/grok-build') downstream = stageGrokBuild(args, routedBody);
   else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
+  else if (route === '/workflow/laptop-reasoning-job') downstream = stageLaptopReasoningJob(args, routedBody);
   else if (route === '/action') downstream = stageAction(args, routedBody);
   else {
     const error = new Error(`Agent dispatch selected unsupported route: ${route || 'none'}`);
@@ -628,6 +669,8 @@ function stageAgentDispatch(args, body = {}) {
     workflowIntentGate: downstream.workflowIntentGate,
     grokBuildSetup: downstream.grokBuildSetup,
     founderCommand: downstream.founderCommand,
+    laptopReasoningBridge: downstream.laptopReasoningBridge,
+    laptopReasoningResult: downstream.laptopReasoningResult,
     feed: downstream.feed || readJson(tmpPath(args, 'live-feed.json'), {}),
     logs: {
       dispatch: dispatchResult.stdout.trim(),
@@ -666,6 +709,12 @@ function routeGet(args, pathname) {
   if (pathname === '/services/supervisor') return readJson(tmpPath(args, 'service-supervisor.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
+  if (pathname === '/workflow/laptop-reasoning/latest') {
+    return {
+      bridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
+      result: readJson(tmpPath(args, 'laptop-reasoning-result-latest.json'), {}),
+    };
+  }
   const error = new Error(`Unknown route: ${pathname}`);
   error.statusCode = 404;
   throw error;
@@ -675,6 +724,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/action') return stageAction(args, body);
   if (pathname === '/approval/execute') return executeApproval(args, body);
   if (pathname === '/workflow/agent-dispatch') return stageAgentDispatch(args, body);
+  if (pathname === '/workflow/laptop-reasoning-job') return stageLaptopReasoningJob(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
   if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
   if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);

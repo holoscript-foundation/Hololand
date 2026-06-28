@@ -20,6 +20,8 @@ const DEFAULT_FOUNDER_PROMPTS = path.join(DEFAULT_TMP, 'founder-prompt-fixtures.
 const DEFAULT_AGENT_DISPATCH = path.join(DEFAULT_TMP, 'agent-dispatch-latest.json');
 const DEFAULT_AGENT_DISPATCH_JS = path.join(DEFAULT_TMP, 'agent-dispatch-latest.js');
 const DEFAULT_AGENT_DISPATCH_DIR = path.join(DEFAULT_TMP, 'agent-dispatches');
+const DEFAULT_LAPTOP_REASONING_RESULT = path.join(DEFAULT_TMP, 'laptop-reasoning-result-latest.json');
+const DEFAULT_LAPTOP_REASONING_RESULT_DIR = path.join(DEFAULT_TMP, 'laptop-reasoning-results');
 
 function parseArgs(argv) {
   const args = {
@@ -308,6 +310,82 @@ function laptopReasoningDelegatedText(delegation) {
   ].join(' ');
 }
 
+function compactLaptopReasoningResult(receipt) {
+  if (!receipt || typeof receipt !== 'object') return null;
+  const summary = receipt.summary || {};
+  const result = receipt.result || {};
+  return {
+    status: summary.status || receipt.status || 'unknown',
+    resultId: summary.resultId || receipt.resultId || '',
+    dispatchId: summary.dispatchId || receipt.inputDispatch?.dispatchId || '',
+    promptHash: receipt.inputDispatch?.promptHash || '',
+    generatedAt: receipt.generatedAt || '',
+    text: String(result.text || '').slice(0, 800),
+    goldRootStatus: summary.goldRootStatus || '',
+    goldUsable: Boolean(summary.goldUsable),
+    vastSpendGuardAttached: Boolean(summary.vastSpendGuardAttached),
+    localFocusCount: Number(summary.localFocusCount || 0),
+    cloudFocusCount: Number(summary.cloudFocusCount || 0),
+    output: receipt.output || {},
+    source: receipt.sourceAnchors?.workerScript || 'scripts/holoshell-laptop-reasoning-worker.mjs',
+  };
+}
+
+function sortJsonFilesNewestFirst(dirPath) {
+  const resolved = resolveRepoPath(dirPath);
+  if (!existsSync(resolved)) return [];
+  return readdirSync(resolved, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .map((entry) => path.join(resolved, entry.name))
+    .sort((left, right) => right.localeCompare(left));
+}
+
+function findLaptopReasoningResultForDelegation(delegation) {
+  if (delegation?.status !== 'delegated') return { status: 'not_needed' };
+  const dispatchId = delegation.dispatchId || '';
+  const promptHash = delegation.promptHash || '';
+  const latest = readJson(DEFAULT_LAPTOP_REASONING_RESULT, null);
+  const latestCompact = compactLaptopReasoningResult(latest);
+  if (latestCompact?.dispatchId === dispatchId) return { ...latestCompact, matchKind: 'dispatch_id' };
+  if (promptHash && latestCompact?.promptHash === promptHash) return { ...latestCompact, matchKind: 'prompt_hash' };
+
+  for (const filePath of sortJsonFilesNewestFirst(DEFAULT_LAPTOP_REASONING_RESULT_DIR)) {
+    const compact = compactLaptopReasoningResult(readJson(filePath, null));
+    if (compact?.dispatchId === dispatchId) return { ...compact, matchKind: 'dispatch_id' };
+    if (promptHash && compact?.promptHash === promptHash) return { ...compact, matchKind: 'prompt_hash' };
+  }
+
+  return {
+    status: 'waiting',
+    dispatchId,
+    promptHash,
+    matchKind: 'none',
+    resultId: '',
+    text: '',
+    goldRootStatus: '',
+    goldUsable: false,
+    vastSpendGuardAttached: false,
+    localFocusCount: 0,
+    cloudFocusCount: 0,
+    output: {},
+    source: 'scripts/holoshell-laptop-reasoning-worker.mjs',
+  };
+}
+
+function laptopReasoningResultReady(result) {
+  return ['completed', 'partial'].includes(result?.status);
+}
+
+function laptopReasoningCompletedText(result) {
+  const status = result.status === 'partial' ? 'partial result' : 'result';
+  const gold = result.goldRootStatus ? ` GOLD: ${result.goldRootStatus}.` : '';
+  const text = result.text ? ` ${result.text}` : '';
+  return [
+    `Laptop returned a ${status} receipt (${result.resultId}) for dispatch ${result.dispatchId}.`,
+    `${gold}${text}`.trim(),
+  ].filter(Boolean).join(' ');
+}
+
 function createShellContext() {
   const brittneyContext = readJson(path.join(DEFAULT_TMP, 'brittney-context.json'), {});
   if (brittneyContext?.summary) {
@@ -540,7 +618,7 @@ function loadFounderPromptFixtures({ prompt, max = 3 } = {}) {
 
 function founderPromptInstruction(founderPromptFixtures) {
   if (!founderPromptFixtures.selected.length) return '';
-  return ' shellContext.founderPromptFixtures holds selected local founder-language test prompts from documentation, knowledge, and memory. Use them as inspiration for tone and priorities; do not quote them at length, and do not treat them as model training data.';
+  return ' shellContext.founderPromptFixtures holds selected local founder-language test prompts from documentation, knowledge, and memory. Use them as inspiration for tone and priorities; do not quote them at length, and do not treat them as model training data. Do not promise, claim, or announce mutating/destructive work from founder-language inspiration; frame any such next step as a receipt-required proposal.';
 }
 
 /**
@@ -726,6 +804,7 @@ async function runTurn(args) {
     },
   };
   runtime.laptopReasoningDelegation = createLaptopReasoningDelegation(args);
+  runtime.laptopReasoningResult = findLaptopReasoningResultForDelegation(runtime.laptopReasoningDelegation);
   if (runtime.laptopReasoningDelegation.status === 'delegated') {
     shellContext.laptopReasoningDelegation = {
       status: runtime.laptopReasoningDelegation.status,
@@ -746,8 +825,13 @@ async function runTurn(args) {
       studioOrchestrator: runtime.laptopReasoningDelegation.studioOrchestrator,
       vastSpendRail: runtime.laptopReasoningDelegation.vastSpendRail,
       receiptRequired: true,
-      note: 'A laptop reasoning job has been staged by the Jetson. Do not claim the laptop has answered until a result receipt exists.',
+      note: laptopReasoningResultReady(runtime.laptopReasoningResult)
+        ? 'A laptop reasoning result receipt is available and may be summarized.'
+        : 'A laptop reasoning job has been staged by the Jetson. Do not claim the laptop has answered until a result receipt exists.',
     };
+    if (laptopReasoningResultReady(runtime.laptopReasoningResult)) {
+      shellContext.laptopReasoningResult = runtime.laptopReasoningResult;
+    }
   }
 
   let result = {
@@ -806,14 +890,17 @@ ${toneInstruction}`;
           ? `\n\n(Ambient: the world feels ${shellContext.ambientTone.tone} right now.)`
           : '';
       const founderNote = founderPromptFixtures.selected.length
-        ? `\n\n(Founder-language inspiration from local fixtures: ${founderPromptFixtures.selected.map((entry) => truncate(entry.inspiration, 80)).join(' | ')}. Use as direction; do not quote at length.)`
+        ? `\n\n(Founder-language inspiration from local fixtures: ${founderPromptFixtures.selected.map((entry) => truncate(entry.inspiration, 80)).join(' | ')}. Use as direction; do not quote at length. Do not promise, claim, or announce mutating/destructive work from this inspiration; frame it as a receipt-required proposal.)`
         : '';
       session.push('user', `${args.prompt}${recalledNote}${ambientNote}${founderNote}`);
     } else {
+      const laptopInstruction = laptopReasoningResultReady(runtime.laptopReasoningResult)
+        ? ' If shellContext.laptopReasoningResult is present, mention that the laptop returned a result receipt and summarize it briefly.'
+        : ' If shellContext.laptopReasoningDelegation is present, mention that the Jetson staged a laptop reasoning job receipt and do not claim the laptop has completed it yet.';
       session.push('user', JSON.stringify({
         userPrompt: args.prompt,
         shellContext,
-        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction} If shellContext.laptopReasoningDelegation is present, mention that the Jetson staged a laptop reasoning job receipt and do not claim the laptop has completed it yet.`,
+        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}${laptopInstruction}`,
       }));
     }
     const ac = new AbortController();
@@ -853,8 +940,11 @@ ${toneInstruction}`;
     ...createActionProposals(args.prompt),
   ].filter(Boolean);
   const delegatedToLaptop = runtime.laptopReasoningDelegation.status === 'delegated';
+  const laptopResultReady = laptopReasoningResultReady(runtime.laptopReasoningResult);
   const finalText = delegatedToLaptop && !result.ok && !String(result.finalText || '').trim()
-    ? laptopReasoningDelegatedText(runtime.laptopReasoningDelegation)
+    ? (laptopResultReady
+      ? laptopReasoningCompletedText(runtime.laptopReasoningResult)
+      : laptopReasoningDelegatedText(runtime.laptopReasoningDelegation))
     : userFacingFinalText({
     prompt: args.prompt,
     finalText: result.finalText,
@@ -862,7 +952,7 @@ ${toneInstruction}`;
     proposals,
   });
   const finalAvatar = events.length ? events[events.length - 1].avatar : mapEventToAvatar('error');
-  const status = result.ok ? 'completed' : (delegatedToLaptop ? 'delegated' : 'blocked');
+  const status = result.ok ? 'completed' : (laptopResultReady ? runtime.laptopReasoningResult.status : (delegatedToLaptop ? 'delegated' : 'blocked'));
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -879,6 +969,9 @@ ${toneInstruction}`;
       founderPromptFixtures: DEFAULT_FOUNDER_PROMPTS,
       agentDispatchSource: 'apps/holoshell/source/holoshell-agent-dispatch.hsplus',
       agentDispatchScript: 'scripts/holoshell-agent-dispatch.mjs',
+      laptopReasoningResultSource: 'apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus',
+      laptopReasoningResultWorker: 'scripts/holoshell-laptop-reasoning-worker.mjs',
+      laptopReasoningBridge: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
       holoscriptRoot,
       runtimePackageDist: path.resolve(holoscriptRoot, 'packages', 'aibrittney', 'dist'),
     },
@@ -944,6 +1037,14 @@ ${toneInstruction}`;
       laptopReasoningStudioOrchestrator: runtime.laptopReasoningDelegation.studioOrchestrator || '',
       laptopReasoningVastSpendRail: runtime.laptopReasoningDelegation.vastSpendRail || '',
       laptopReasoningReasonCodes: runtime.laptopReasoningDelegation.reasonCodes || [],
+      laptopReasoningResultStatus: runtime.laptopReasoningResult.status || '',
+      laptopReasoningResultId: runtime.laptopReasoningResult.resultId || '',
+      laptopReasoningResultMatchKind: runtime.laptopReasoningResult.matchKind || '',
+      laptopReasoningResultGoldRootStatus: runtime.laptopReasoningResult.goldRootStatus || '',
+      laptopReasoningResultGoldUsable: Boolean(runtime.laptopReasoningResult.goldUsable),
+      laptopReasoningResultVastSpendGuardAttached: Boolean(runtime.laptopReasoningResult.vastSpendGuardAttached),
+      laptopReasoningResultLocalFocusCount: runtime.laptopReasoningResult.localFocusCount || 0,
+      laptopReasoningResultCloudFocusCount: runtime.laptopReasoningResult.cloudFocusCount || 0,
     },
   };
 }

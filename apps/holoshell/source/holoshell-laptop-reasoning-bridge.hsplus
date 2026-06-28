@@ -1,0 +1,120 @@
+// HoloShell Laptop Reasoning Bridge
+//
+// Source contract for the autonomous pickup loop between Jetson HoloShell
+// dispatch receipts and Windows laptop reasoning result receipts.
+
+composition "HoloShell Laptop Reasoning Bridge" {
+  config {
+    title: "HoloShell Laptop Reasoning Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-laptop-reasoning-bridge.mjs"
+    workerScript: "scripts/holoshell-laptop-reasoning-worker.mjs"
+    workerSource: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
+    localDispatchDir: ".tmp/holoshell/agent-dispatches"
+    remoteDispatchDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/agent-dispatches"
+    localResultDir: ".tmp/holoshell/laptop-reasoning-results"
+    remoteResultDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/laptop-reasoning-results"
+    latestBridgeReceipt: ".tmp/holoshell/laptop-reasoning-bridge-latest.json"
+    latestResultReceipt: ".tmp/holoshell/laptop-reasoning-result-latest.json"
+  }
+
+  state {
+    bridgeStatus: "unknown"
+    bridgeId: ""
+    latestDispatchId: ""
+    latestResultId: ""
+    pulledCount: 0
+    processedCount: 0
+    pushedCount: 0
+    errorCount: 0
+    pullRemote: false
+    pushRemote: false
+    sourceHost: "jetson_holoshell_surface"
+    targetHost: "laptop_windows"
+    permissionEnvelope: "read_only"
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  channel "holoshell:laptop-reasoning:remote-dispatches" {
+    type: "polling_read"
+    priority: "critical"
+    description: "Jetson dispatch receipts pulled into the laptop inbox"
+  }
+
+  channel "holoshell:laptop-reasoning:local-results" {
+    type: "append_only"
+    priority: "critical"
+    description: "Laptop worker result receipts produced from dispatch receipts"
+  }
+
+  channel "holoshell:laptop-reasoning:remote-results" {
+    type: "append_only_remote"
+    priority: "critical"
+    description: "Laptop result receipts mirrored back to Jetson HoloShell"
+  }
+
+  template "LaptopReasoningBridgeReceipt" {
+    type: "laptop_reasoning_bridge_receipt"
+    receiptType: "hololand.holoshell.laptop-reasoning-bridge.v0.1.0"
+    bridgeId: ""
+    status: "completed"
+    pulledCount: 0
+    processedCount: 0
+    pushedCount: 0
+    errorCount: 0
+    latestDispatchId: ""
+    latestResultId: ""
+    permissionEnvelope: "read_only"
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "BridgeOnlyConsumesReceipts" {
+    appliesTo: ["laptop_reasoning_bridge"]
+    permissionEnvelope: "read_only"
+    modelInvocationPerformedByBridge: false
+    mutatingDesktop: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "JetsonResultMirrorIsReceiptOnly" {
+    appliesTo: ["remote_result_push"]
+    remoteWriteScope: "laptop-reasoning-results"
+    allowedRemoteMutation: "append_result_receipt"
+    forbiddenRemoteMutation: ["source_edit", "service_restart", "secret_write"]
+    receiptRequired: true
+  }
+
+  action apply_bridge_receipt(receipt) {
+    state.bridgeStatus = receipt.summary.status
+    state.bridgeId = receipt.bridgeId
+    state.latestDispatchId = receipt.summary.latestDispatchId
+    state.latestResultId = receipt.summary.latestResultId
+    state.pulledCount = receipt.summary.pulledCount
+    state.processedCount = receipt.summary.processedCount
+    state.pushedCount = receipt.summary.pushedCount
+    state.errorCount = receipt.summary.errorCount
+    state.pullRemote = receipt.mode.pullRemote
+    state.pushRemote = receipt.mode.pushRemote
+    emit("holoshell:laptop-reasoning:local-results", {
+      action: "laptop_reasoning_bridge_receipt_applied",
+      bridge_id: state.bridgeId,
+      status: state.bridgeStatus,
+      latest_dispatch_id: state.latestDispatchId,
+      latest_result_id: state.latestResultId,
+      pulled_count: state.pulledCount,
+      processed_count: state.processedCount,
+      pushed_count: state.pushedCount,
+      error_count: state.errorCount,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+}

@@ -242,7 +242,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, desktopBridgeStatus, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, desktopBridgeStatus, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, laptopReasoningBridge, laptopReasoningResult, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -797,6 +797,32 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (laptopReasoningBridge?.summary) {
+    timeline.push({
+      id: laptopReasoningBridge.bridgeId || 'holoshell-laptop-reasoning-bridge',
+      kind: 'laptop_reasoning_bridge',
+      title: `Laptop reasoning bridge ${laptopReasoningBridge.summary.status || 'unknown'}`,
+      detail: `${laptopReasoningBridge.summary.processedCount || 0} dispatch receipt(s) processed; ${laptopReasoningBridge.summary.pushedCount || 0} result receipt(s) pushed; ${laptopReasoningBridge.summary.errorCount || 0} error(s).`,
+      trustState: laptopReasoningBridge.summary.status === 'completed' ? 'verified' : laptopReasoningBridge.summary.status === 'partial' ? 'partial' : 'unknown',
+      generatedAt: laptopReasoningBridge.generatedAt || now,
+      receiptType: laptopReasoningBridge.schemaVersion,
+      source: laptopReasoningBridge.sourceAnchors?.bridgeScript || 'scripts/holoshell-laptop-reasoning-bridge.mjs',
+    });
+  }
+
+  if (laptopReasoningResult?.summary) {
+    timeline.push({
+      id: laptopReasoningResult.resultId || 'holoshell-laptop-reasoning-result',
+      kind: 'laptop_reasoning_result',
+      title: `Laptop reasoning result ${laptopReasoningResult.summary.status || 'unknown'}`,
+      detail: `${laptopReasoningResult.summary.dispatchId || 'unknown dispatch'}; GOLD ${laptopReasoningResult.summary.goldRootStatus || 'unknown'}; local focus ${laptopReasoningResult.summary.localFocusCount || 0}; cloud focus ${laptopReasoningResult.summary.cloudFocusCount || 0}; Vast guard ${laptopReasoningResult.summary.vastSpendGuardAttached ? 'attached' : 'missing'}.`,
+      trustState: laptopReasoningResult.summary.status === 'completed' ? 'verified' : laptopReasoningResult.summary.status === 'partial' ? 'partial' : 'unknown',
+      generatedAt: laptopReasoningResult.generatedAt || now,
+      receiptType: laptopReasoningResult.schemaVersion,
+      source: laptopReasoningResult.sourceAnchors?.workerScript || 'scripts/holoshell-laptop-reasoning-worker.mjs',
+    });
+  }
+
   if (grokBuild?.summary) {
     const authLabel = grokBuild.summary.authRuntimeStatus === 'authenticated'
       ? `authenticated${grokBuild.summary.authProvider ? `/${grokBuild.summary.authProvider}` : ''}`
@@ -1060,6 +1086,8 @@ function createFeed(args) {
   const founderEvidenceDemo = readJson(path.join(tmpDir, 'founder-evidence-demo-latest.json'), {});
   const receiptControl = readJson(path.join(tmpDir, 'receipt-control-latest.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
+  const laptopReasoningBridge = readJson(path.join(tmpDir, 'laptop-reasoning-bridge-latest.json'), {});
+  const laptopReasoningResult = readJson(path.join(tmpDir, 'laptop-reasoning-result-latest.json'), {});
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const grokHeartbeat = readJson(path.join(tmpDir, 'grok-heartbeat.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
@@ -1123,6 +1151,8 @@ function createFeed(args) {
     founderEvidenceDemo,
     receiptControl,
     agentDispatch,
+    laptopReasoningBridge,
+    laptopReasoningResult,
     grokBuild,
     grokHeartbeat,
     hardwareAction,
@@ -1235,6 +1265,8 @@ function createFeed(args) {
       founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
       receiptControl: 'scripts/holoshell-receipt-control.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
+      laptopReasoningBridge: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
+      laptopReasoningResult: 'scripts/holoshell-laptop-reasoning-worker.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
@@ -1583,6 +1615,19 @@ function createFeed(args) {
       agentDispatchActionKind: agentDispatch?.summary?.actionKind || '',
       agentDispatchTargetApp: agentDispatch?.summary?.targetApp || '',
       agentDispatchTargetUrlHost: agentDispatch?.summary?.targetUrlHost || '',
+      laptopReasoningBridgeStatus: laptopReasoningBridge?.summary?.status || 'unknown',
+      laptopReasoningBridgeProcessedCount: laptopReasoningBridge?.summary?.processedCount || 0,
+      laptopReasoningBridgePulledCount: laptopReasoningBridge?.summary?.pulledCount || 0,
+      laptopReasoningBridgePushedCount: laptopReasoningBridge?.summary?.pushedCount || 0,
+      laptopReasoningBridgeErrorCount: laptopReasoningBridge?.summary?.errorCount || 0,
+      laptopReasoningResultStatus: laptopReasoningResult?.summary?.status || 'unknown',
+      laptopReasoningResultId: laptopReasoningResult?.summary?.resultId || '',
+      laptopReasoningResultDispatchId: laptopReasoningResult?.summary?.dispatchId || '',
+      laptopReasoningResultGoldRootStatus: laptopReasoningResult?.summary?.goldRootStatus || '',
+      laptopReasoningResultGoldUsable: Boolean(laptopReasoningResult?.summary?.goldUsable),
+      laptopReasoningResultVastSpendGuardAttached: Boolean(laptopReasoningResult?.summary?.vastSpendGuardAttached),
+      laptopReasoningResultLocalFocusCount: laptopReasoningResult?.summary?.localFocusCount || 0,
+      laptopReasoningResultCloudFocusCount: laptopReasoningResult?.summary?.cloudFocusCount || 0,
       grokBuildSetupStatus: grokBuild?.summary?.status || 'unknown',
       grokBuildCliStatus: grokBuild?.summary?.cliStatus || 'unknown',
       grokBuildCliVersion: grokBuild?.summary?.cliVersion || 'unknown',
@@ -1768,6 +1813,8 @@ function createFeed(args) {
       founderEvidenceDemo,
       receiptControl,
       agentDispatch,
+      laptopReasoningBridge,
+      laptopReasoningResult,
       grokBuild,
       grokHeartbeat,
       hardwareAction,
