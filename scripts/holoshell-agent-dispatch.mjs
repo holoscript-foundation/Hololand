@@ -6,7 +6,7 @@
  * HoloShell route. This script only writes a dispatch receipt; the control
  * daemon performs the downstream staging through existing guarded adapters.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -23,6 +23,21 @@ const DEFAULT_LOFI_URL = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
 const SOURCE_REF = 'apps/holoshell/source/holoshell-agent-dispatch.hsplus';
 const HARDWARE_SOURCE_REF = 'apps/holoshell/source/holoshell-hardware-control.hsplus';
 const SCRIPT_REF = 'scripts/holoshell-agent-dispatch.mjs';
+const GOLD_CODEBASE_SOURCE_REF = 'apps/holoshell/source/holoshell-holoscript-gold-codebase-bridge.hsplus';
+const GOLD_CODEBASE_SCRIPT_REF = 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs';
+const CLAUDE_CHAT_WORKFLOW_REF = 'scripts/holoshell-claude-chat-workflow.mjs';
+const USER_SHELL_PROJECTION_REF = 'apps/holoshell/source/holoshell-user-shell-projection.hsplus';
+const STUDIO_ORCHESTRATOR_REF = 'packages/brittney/service/src/orchestrator.ts';
+const STUDIO_MODEL_ROUTER_REF = 'packages/brittney/service/src/model-router.ts';
+const STUDIO_FLEET_BRIDGE_REF = 'packages/shared/inference/src/integrations/spatial-fleet-bridge.ts';
+const PROVIDER_ROUTING_REGISTRY_REF = 'C:/Users/josep/.ai-ecosystem/config/provider-routing-registry.json';
+const FLEET_MAP_REF = 'C:/Users/josep/.ai-ecosystem/FLEET_MAP.holo';
+const HARDWARE_NORTH_STAR_REF = 'C:/Users/josep/.ai-ecosystem/NORTH_STAR_HARDWARE.md';
+const SPEND_POLICY_REF = 'C:/Users/josep/.ai-ecosystem/SPEND.md';
+const HOLOSHELL_SPEND_POLICY_REF = 'C:/Users/josep/.ai-ecosystem/scripts/holoshell-spend-policy.mjs';
+const VAST_ESCALATION_GATE_REF = 'C:/Users/josep/.ai-ecosystem/scripts/vast-escalation-gate.mjs';
+const FLEET_OUTPUT_CONTRACT_REF = 'C:/Users/josep/.ai-ecosystem/docs/contracts/fleet-output-contract.v2.schema.json';
+const HOLOTUNE_TRAIN_REF = 'C:/Users/josep/.ai-ecosystem/compositions/holotune-train.hsplus';
 
 const OLLAMA_AGENTS = [
   { slug: 'claude', label: 'Claude Code', aliases: ['claude code', 'anthropic'] },
@@ -219,6 +234,129 @@ function shortHash(value, length = 12) {
   return hashValue(value).slice(0, length);
 }
 
+function normalizedReceiptPath(filePath) {
+  return String(filePath || '').replace(/\\/g, '/');
+}
+
+function defaultGoldRoot() {
+  return normalizedReceiptPath(process.env.GOLD_ROOT || 'D:/GOLD');
+}
+
+function goldRootProbeStatus(root) {
+  const probePath = process.platform === 'win32'
+    ? String(root || 'D:/GOLD').replace(/\//g, '\\')
+    : String(root || 'D:/GOLD');
+  if (existsSync(probePath)) return 'mounted_on_dispatch_host';
+  return process.platform === 'win32' ? 'missing_on_dispatch_host' : 'target_host_check_required';
+}
+
+function buildLaptopReasoningResourcePlan() {
+  const goldRoot = defaultGoldRoot();
+  return {
+    reuseBeforeBuild: true,
+    duplicateWorkPolicy: 'consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds',
+    agentLane: 'local',
+    canonicalProviderId: 'laptop-ollama',
+    workload: 'heavy_reasoning',
+    workloadFocus: {
+      local: [
+        {
+          id: 'jetson-orchestrator',
+          canonicalProviderId: 'jetson-ollama',
+          focus: 'always_on_holoshell_operator_and_autonomous_router',
+          sourceAnchors: [FLEET_MAP_REF, HARDWARE_NORTH_STAR_REF, PROVIDER_ROUTING_REGISTRY_REF],
+        },
+        {
+          id: 'laptop-reasoning',
+          canonicalProviderId: 'laptop-ollama',
+          focus: 'repo_bearing_reasoning_gold_context_claude_injection_studio_production',
+          sourceAnchors: [FLEET_MAP_REF, HARDWARE_NORTH_STAR_REF, PROVIDER_ROUTING_REGISTRY_REF],
+        },
+        {
+          id: 'vast-local-overflow',
+          canonicalProviderIds: ['vast-qwen-serverless', 'vast-raw-gpu-fleet'],
+          focus: 'fine_tune_heavy_gpu_large_graph_or_sustained_reasoning_only_after_guarded_escalation',
+          sourceAnchors: [PROVIDER_ROUTING_REGISTRY_REF, VAST_ESCALATION_GATE_REF, FLEET_OUTPUT_CONTRACT_REF],
+        },
+      ],
+      cloud: [
+        {
+          id: 'managed-provider-or-family-seat',
+          canonicalProviderIds: ['managed-anthropic', 'managed-fireworks', 'managed-together', 'managed-ollama-cloud'],
+          focus: 'coordination_review_or_branch_pr_when_local_custody_cannot_execute',
+          sourceAnchors: [PROVIDER_ROUTING_REGISTRY_REF],
+        },
+      ],
+    },
+    canonicalSurfaces: {
+      goldDrive: {
+        id: 'gold.drive.read',
+        root: goldRoot,
+        runtimeStatus: goldRootProbeStatus(goldRoot),
+        use: 'founder_memory_override_and_duplicate_build_prevention',
+        readOnly: true,
+        conflictPolicy: 'diamond_over_platinum_over_gold_over_knowledge_store',
+        sourceAnchors: ['CLAUDE.md', 'NORTH_STAR.md', GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
+      },
+      codebaseBridge: {
+        id: 'holoshell.holoscript_gold_codebase_bridge',
+        use: 'ask_graph_status_codebase_query_surface_map_and_format_inventory_before_new_adapters',
+        readOnlyFirst: true,
+        sourceAnchors: [GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
+      },
+      claudeInjection: {
+        id: 'workflow.claude-chat',
+        route: '/workflow/claude-chat',
+        use: 'reuse_existing_guarded_claude_chat_staging_when_claude_peer_context_is_needed',
+        executionDefault: 'staged_not_run',
+        shellContextAttachedByDefault: false,
+        sourceAnchors: [USER_SHELL_PROJECTION_REF, CLAUDE_CHAT_WORKFLOW_REF],
+      },
+      studioBrittney: {
+        id: 'studio.brittney.chat_and_fleet',
+        use: 'reuse_existing_brittney_service_router_orchestrator_and_spatial_fleet_bridge_for_chat_inference_and_studio_context',
+        serviceOrchestrator: STUDIO_ORCHESTRATOR_REF,
+        modelRouter: STUDIO_MODEL_ROUTER_REF,
+        fleetBridge: STUDIO_FLEET_BRIDGE_REF,
+      },
+      providerRouting: {
+        id: 'provider-routing-registry',
+        use: 'preserve_raw_provider_and_canonical_provider_id_for_jetson_laptop_vast_and_managed_cloud',
+        sourceAnchors: [PROVIDER_ROUTING_REGISTRY_REF],
+      },
+      vastFleet: {
+        id: 'vast.local_overflow',
+        use: 'multi_gpu_finetune_cuda_benchmarks_holotune_or_large_sustained_jobs_only',
+        agentLane: 'local',
+        canonicalProviderIds: ['vast-qwen-serverless', 'vast-raw-gpu-fleet'],
+        spendRail: 'purchased_compute',
+        requires: [
+          'free_first_or_owned_metal_unavailable_receipt',
+          'active_lane_manifest',
+          'daily_current_job_budget_fields',
+          'output_contract',
+          'teardown_receipt',
+        ],
+        sourceAnchors: [
+          PROVIDER_ROUTING_REGISTRY_REF,
+          SPEND_POLICY_REF,
+          HOLOSHELL_SPEND_POLICY_REF,
+          VAST_ESCALATION_GATE_REF,
+          FLEET_OUTPUT_CONTRACT_REF,
+          HOLOTUNE_TRAIN_REF,
+        ],
+      },
+    },
+    budgetPolicy: {
+      sovereignCompute: 'free_uncapped_local_jetson_and_laptop',
+      purchasedComputeRail: 'purchased_compute',
+      paidComputeRule: 'free_first_then_active_cap_spend_guard_then_receipted_output',
+      capRaiseRequiresApprovalRef: true,
+      sourceAnchors: [SPEND_POLICY_REF, HOLOSHELL_SPEND_POLICY_REF, VAST_ESCALATION_GATE_REF],
+    },
+  };
+}
+
 function redactedIntent(intent) {
   const text = String(intent || '');
   if (!text) return '';
@@ -377,6 +515,7 @@ function buildRouteBody(capability, args, agent) {
   if (capability.id === 'laptop_reasoning_job') {
     const prompt = promptFromIntent(args) || args.prompt || args.intent;
     const reasoning = laptopReasoningSignals(args.intent);
+    const resourcePlan = buildLaptopReasoningResourcePlan();
     return {
       actor: args.actor,
       jobType: 'reasoning',
@@ -384,8 +523,16 @@ function buildRouteBody(capability, args, agent) {
       sourceHost: 'jetson_holoshell_surface',
       targetHost: 'laptop_windows',
       lane: 'codex-hardware',
+      agentLane: resourcePlan.agentLane,
+      canonicalProviderId: resourcePlan.canonicalProviderId,
+      workload: resourcePlan.workload,
       modelFamily: 'openai_codex',
       permissionEnvelope: 'read_only',
+      reuseBeforeBuild: resourcePlan.reuseBeforeBuild,
+      duplicateWorkPolicy: resourcePlan.duplicateWorkPolicy,
+      workloadFocus: resourcePlan.workloadFocus,
+      canonicalSurfaces: resourcePlan.canonicalSurfaces,
+      budgetPolicy: resourcePlan.budgetPolicy,
       prompt,
       promptHash: hashValue(prompt || 'empty'),
       reasonCodes: reasoning.signals,
@@ -501,6 +648,20 @@ function buildReceipt(args) {
       source: SOURCE_REF,
       hardwareControl: HARDWARE_SOURCE_REF,
       adapter: SCRIPT_REF,
+      goldCodebaseBridge: GOLD_CODEBASE_SOURCE_REF,
+      goldCodebaseAdapter: GOLD_CODEBASE_SCRIPT_REF,
+      claudeChatWorkflow: CLAUDE_CHAT_WORKFLOW_REF,
+      userShellProjection: USER_SHELL_PROJECTION_REF,
+      studioOrchestrator: STUDIO_ORCHESTRATOR_REF,
+      studioModelRouter: STUDIO_MODEL_ROUTER_REF,
+      studioFleetBridge: STUDIO_FLEET_BRIDGE_REF,
+      providerRoutingRegistry: PROVIDER_ROUTING_REGISTRY_REF,
+      fleetMap: FLEET_MAP_REF,
+      hardwareNorthStar: HARDWARE_NORTH_STAR_REF,
+      spendPolicy: SPEND_POLICY_REF,
+      holoshellSpendPolicy: HOLOSHELL_SPEND_POLICY_REF,
+      vastEscalationGate: VAST_ESCALATION_GATE_REF,
+      fleetOutputContract: FLEET_OUTPUT_CONTRACT_REF,
     },
     host: {
       platform: process.platform,
@@ -565,8 +726,23 @@ function buildReceipt(args) {
       promptPresent: Boolean(routeBody.prompt),
       targetHost: routeBody.targetHost || '',
       reasoningLane: routeBody.lane || '',
+      agentLane: routeBody.agentLane || '',
+      canonicalProviderId: routeBody.canonicalProviderId || '',
+      workload: routeBody.workload || '',
       delegationMode: routeBody.delegationMode || '',
       reasonCodes: routeBody.reasonCodes || [],
+      reuseBeforeBuild: Boolean(routeBody.reuseBeforeBuild),
+      duplicateWorkPolicy: routeBody.duplicateWorkPolicy || '',
+      goldRoot: routeBody.canonicalSurfaces?.goldDrive?.root || '',
+      goldRuntimeStatus: routeBody.canonicalSurfaces?.goldDrive?.runtimeStatus || '',
+      claudeInjectionRoute: routeBody.canonicalSurfaces?.claudeInjection?.route || '',
+      studioOrchestrator: routeBody.canonicalSurfaces?.studioBrittney?.serviceOrchestrator || '',
+      vastSpendRail: routeBody.canonicalSurfaces?.vastFleet?.spendRail || '',
+      vastEscalationGate: routeBody.canonicalSurfaces?.vastFleet?.sourceAnchors?.includes(VAST_ESCALATION_GATE_REF)
+        ? VAST_ESCALATION_GATE_REF
+        : '',
+      localFocusCount: routeBody.workloadFocus?.local?.length || 0,
+      cloudFocusCount: routeBody.workloadFocus?.cloud?.length || 0,
       rawIntentStoredLocallyOnly: true,
     },
     output: {

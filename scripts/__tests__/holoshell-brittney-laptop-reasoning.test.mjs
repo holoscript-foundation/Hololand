@@ -50,6 +50,14 @@ assert.equal(delegation.permissionEnvelope, 'read_only');
 assert.equal(delegation.approvalRequired, false);
 assert.equal(delegation.targetHost, 'laptop_windows');
 assert.equal(delegation.lane, 'codex-hardware');
+assert.equal(delegation.agentLane, 'local');
+assert.equal(delegation.canonicalProviderId, 'laptop-ollama');
+assert.equal(delegation.workload, 'heavy_reasoning');
+assert.equal(delegation.reuseBeforeBuild, true);
+assert.equal(delegation.goldRoot, 'D:/GOLD');
+assert.equal(delegation.claudeInjectionRoute, '/workflow/claude-chat');
+assert.equal(delegation.studioOrchestrator, 'packages/brittney/service/src/orchestrator.ts');
+assert.equal(delegation.vastSpendRail, 'purchased_compute');
 assert.equal(delegation.destructiveActionsTaken, false);
 assert.equal(delegation.desktopAutomationExecuted, false);
 assert.ok(delegation.reasonCodes.includes('explicit_laptop_reasoning_request'));
@@ -60,17 +68,35 @@ const dispatchReceipt = JSON.parse(readFileSync(delegation.dispatchReceiptPath, 
 assert.equal(dispatchReceipt.summary.capabilityId, 'laptop_reasoning_job');
 assert.equal(dispatchReceipt.dispatch.body.targetHost, 'laptop_windows');
 assert.equal(dispatchReceipt.dispatch.body.lane, 'codex-hardware');
+assert.equal(dispatchReceipt.dispatch.body.agentLane, 'local');
+assert.equal(dispatchReceipt.dispatch.body.canonicalProviderId, 'laptop-ollama');
+assert.equal(dispatchReceipt.dispatch.body.reuseBeforeBuild, true);
 assert.equal(dispatchReceipt.dispatch.body.permissionEnvelope, 'read_only');
 assert.equal(dispatchReceipt.dispatch.body.receiptRequired, true);
+assert.equal(dispatchReceipt.dispatch.body.canonicalSurfaces.goldDrive.root, 'D:/GOLD');
+assert.equal(dispatchReceipt.dispatch.body.canonicalSurfaces.claudeInjection.route, '/workflow/claude-chat');
+assert.equal(dispatchReceipt.dispatch.body.canonicalSurfaces.studioBrittney.serviceOrchestrator, 'packages/brittney/service/src/orchestrator.ts');
+assert.equal(dispatchReceipt.dispatch.body.canonicalSurfaces.vastFleet.spendRail, 'purchased_compute');
+assert.ok(dispatchReceipt.dispatch.body.canonicalSurfaces.vastFleet.requires.includes('active_lane_manifest'));
+assert.ok(dispatchReceipt.dispatch.body.budgetPolicy.capRaiseRequiresApprovalRef);
 
 assert.equal(receipt.shellContext.laptopReasoningDelegation.dispatchId, delegation.dispatchId);
+assert.equal(receipt.shellContext.laptopReasoningDelegation.canonicalProviderId, 'laptop-ollama');
+assert.equal(receipt.shellContext.laptopReasoningDelegation.goldRoot, 'D:/GOLD');
 assert.equal(receipt.summary.laptopReasoningDelegationStatus, 'delegated');
 assert.equal(receipt.summary.laptopReasoningTargetHost, 'laptop_windows');
+assert.equal(receipt.summary.laptopReasoningAgentLane, 'local');
+assert.equal(receipt.summary.laptopReasoningCanonicalProviderId, 'laptop-ollama');
+assert.equal(receipt.summary.laptopReasoningReuseBeforeBuild, true);
+assert.equal(receipt.summary.laptopReasoningGoldRoot, 'D:/GOLD');
+assert.equal(receipt.summary.laptopReasoningVastSpendRail, 'purchased_compute');
 assert.ok(receipt.proposals.some((proposal) =>
   proposal.operation === 'dispatch_laptop_reasoning_job' &&
   proposal.objectId === 'laptop-reasoning' &&
   proposal.receiptRequired === true &&
-  proposal.approvalRequired === false
+  proposal.approvalRequired === false &&
+  proposal.canonicalProviderId === 'laptop-ollama' &&
+  proposal.reuseBeforeBuild === true
 ));
 
 console.log('HoloShell Brittney laptop reasoning delegation test passed.');

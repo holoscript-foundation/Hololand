@@ -37,6 +37,15 @@ composition "HoloShell Agent Dispatch" {
     targetApp: ""
     targetUrlHost: ""
     promptPresent: false
+    agentLane: ""
+    canonicalProviderId: ""
+    workload: ""
+    reuseBeforeBuild: false
+    goldRoot: ""
+    goldRuntimeStatus: ""
+    claudeInjectionRoute: ""
+    studioOrchestrator: ""
+    vastSpendRail: ""
     rawIntentStoredLocallyOnly: true
   }
 
@@ -99,14 +108,37 @@ composition "HoloShell Agent Dispatch" {
     type: "laptop_reasoning_job"
     targetHost: "laptop_windows"
     lane: "codex-hardware"
+    agentLane: "local"
+    canonicalProviderId: "laptop-ollama"
+    workload: "heavy_reasoning"
     modelFamily: "openai_codex"
     delegationMode: "jetson_autonomous_large_prompt_router"
     permissionEnvelope: "read_only"
+    reuseBeforeBuild: true
+    duplicateWorkPolicy: "consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds"
     promptHash: ""
     reasonCodes: []
+    goldRoot: "D:/GOLD"
+    claudeInjectionRoute: "/workflow/claude-chat"
+    studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
+    vastSpendRail: "purchased_compute"
     receiptRequired: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+  }
+
+  template "LaptopReasoningReusePlan" {
+    type: "laptop_reasoning_reuse_plan"
+    reuseBeforeBuild: true
+    askGoldFirst: true
+    askCodebaseBridgeFirst: true
+    reuseClaudeInjection: true
+    reuseStudioBrittneyRouter: true
+    useLaptopForRepoBearingReasoning: true
+    useVastOnlyWithSpendGuard: true
+    localWorkFocus: ["jetson_orchestration", "laptop_repo_reasoning", "vast_guarded_overflow"]
+    cloudWorkFocus: ["managed_provider_or_family_seat_coordination"]
+    receiptRequired: true
   }
 
   policy "DispatchDoesNotExecute" {
@@ -124,11 +156,20 @@ composition "HoloShell Agent Dispatch" {
     sourceHost: "jetson_holoshell_surface"
     targetHost: "laptop_windows"
     lane: "codex-hardware"
+    agentLane: "local"
+    canonicalProviderId: "laptop-ollama"
+    workload: "heavy_reasoning"
     permissionEnvelope: "read_only"
     approvalRequired: false
     mutating: false
     executionAllowed: false
     handoffRequired: true
+    reuseBeforeBuild: true
+    askGoldFirst: true
+    askCodebaseBridgeFirst: true
+    reuseClaudeInjection: true
+    reuseStudioBrittneyRouter: true
+    vastRequiresSpendGuard: true
     receiptRequired: true
   }
 
@@ -171,6 +212,15 @@ composition "HoloShell Agent Dispatch" {
     state.targetApp = receipt.summary.targetApp
     state.targetUrlHost = receipt.summary.targetUrlHost
     state.promptPresent = receipt.summary.promptPresent
+    state.agentLane = receipt.summary.agentLane
+    state.canonicalProviderId = receipt.summary.canonicalProviderId
+    state.workload = receipt.summary.workload
+    state.reuseBeforeBuild = receipt.summary.reuseBeforeBuild
+    state.goldRoot = receipt.summary.goldRoot
+    state.goldRuntimeStatus = receipt.summary.goldRuntimeStatus
+    state.claudeInjectionRoute = receipt.summary.claudeInjectionRoute
+    state.studioOrchestrator = receipt.summary.studioOrchestrator
+    state.vastSpendRail = receipt.summary.vastSpendRail
     state.rawIntentStoredLocallyOnly = receipt.summary.rawIntentStoredLocallyOnly
     emit("holoshell:agent-dispatch:receipt", {
       action: "agent_dispatch_receipt_applied",
@@ -188,6 +238,15 @@ composition "HoloShell Agent Dispatch" {
       action_kind: state.actionKind,
       target_app: state.targetApp,
       target_url_host: state.targetUrlHost,
+      agent_lane: state.agentLane,
+      canonical_provider_id: state.canonicalProviderId,
+      workload: state.workload,
+      reuse_before_build: state.reuseBeforeBuild,
+      gold_root: state.goldRoot,
+      gold_runtime_status: state.goldRuntimeStatus,
+      claude_injection_route: state.claudeInjectionRoute,
+      studio_orchestrator: state.studioOrchestrator,
+      vast_spend_rail: state.vastSpendRail,
       receipt_required: true
     })
   }
@@ -206,6 +265,14 @@ composition "HoloShell Agent Dispatch" {
         dispatch_id: receipt.dispatchId,
         route: receipt.dispatch.route,
         dispatch_kind: receipt.dispatch.dispatchKind,
+        agent_lane: receipt.summary.agentLane,
+        canonical_provider_id: receipt.summary.canonicalProviderId,
+        workload: receipt.summary.workload,
+        reuse_before_build: receipt.summary.reuseBeforeBuild,
+        gold_root: receipt.summary.goldRoot,
+        claude_injection_route: receipt.summary.claudeInjectionRoute,
+        studio_orchestrator: receipt.summary.studioOrchestrator,
+        vast_spend_rail: receipt.summary.vastSpendRail,
         downstream_receipt: receipt.dispatch.downstreamReceipt,
         approval_surface: receipt.dispatch.approvalSurface,
         receipt_required: true
