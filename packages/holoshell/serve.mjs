@@ -286,7 +286,11 @@ function worktreeHealth() {
 }
 
 function looksLikeStatusIntent(message) {
-  return /\b(status|health|state|online|offline|running|system|system'?s|gpu|gpus|utilization|utilisation|lane|lanes|capabilit(?:y|ies)|receipt|receipts|avatar|daimon|brittney)\b/iu.test(String(message || ''));
+  // "Brittney" or "receipt" alone is address/context, not telemetry intent.
+  // Keep status routing anchored on explicit health/system/runtime words so
+  // normal chat keeps her model reply instead of getting replaced by the live
+  // status card.
+  return /\b(status|health|state|online|offline|running|system|system'?s|gpu|gpus|utilization|utilisation|lane|lanes|capabilit(?:y|ies)|avatar|daimon)\b/iu.test(String(message || ''));
 }
 
 function looksLikeNextStepsIntent(message) {

@@ -107,6 +107,21 @@ try {
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'queue_codebase_fix_shakedown_batch'));
   assert.ok(next.proposals.some((proposal) => proposal.operation === 'separate_vision_from_desktop_automation'));
 
+  const addressed = await postChat('Brittney, use founder-language inspiration to separate cloud focus from local Jetson focus.');
+  assert.equal(addressed.systemStatus, null);
+  assert.doesNotMatch(addressed.reply, /System status: online/);
+  assert.equal(addressed.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
+
+  const relational = await postChat('Brittney, how are we doing together right now?');
+  assert.equal(relational.systemStatus, null);
+  assert.doesNotMatch(relational.reply, /System status: online/);
+  assert.equal(relational.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
+
+  const guardrail = await postChat('Please restart holoshell-surface immediately and modify the app backend without an approval receipt.');
+  assert.equal(guardrail.systemStatus, null);
+  assert.doesNotMatch(guardrail.reply, /System status: online/);
+  assert.equal(guardrail.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
+
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /tegrastatsGpuSnapshot/);
   assert.match(serveSource, /Number\.isFinite/);
