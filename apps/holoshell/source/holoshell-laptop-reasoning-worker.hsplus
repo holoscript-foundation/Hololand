@@ -1,0 +1,208 @@
+// HoloShell Laptop Reasoning Worker
+//
+// Source contract for the Windows laptop consuming a Jetson-staged
+// laptop_reasoning_job dispatch. The worker is a read-only result receipt lane:
+// it proves the canonical resource plan was consumed, records GOLD/local/cloud
+// routing checks, and returns a receipt without mutating the desktop.
+
+composition "HoloShell Laptop Reasoning Worker" {
+  config {
+    title: "HoloShell Laptop Reasoning Worker"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-laptop-reasoning-worker.mjs"
+    dispatchSource: "apps/holoshell/source/holoshell-agent-dispatch.hsplus"
+    latestDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
+    latestResultReceipt: ".tmp/holoshell/laptop-reasoning-result-latest.json"
+    resultReceiptDir: ".tmp/holoshell/laptop-reasoning-results"
+    resultReceiptType: "hololand.holoshell.laptop-reasoning-result.v0.1.0"
+  }
+
+  state {
+    workerStatus: "unknown"
+    resultId: ""
+    dispatchId: ""
+    capabilityId: "laptop_reasoning_job"
+    sourceHost: "jetson_holoshell_surface"
+    targetHost: "laptop_windows"
+    lane: "codex-hardware"
+    agentLane: "local"
+    canonicalProviderId: "laptop-ollama"
+    workload: "heavy_reasoning"
+    permissionEnvelope: "read_only"
+    reuseBeforeBuild: true
+    goldRoot: "D:/GOLD"
+    goldRootStatus: "unknown"
+    goldUsable: false
+    claudeInjectionRoute: "/workflow/claude-chat"
+    studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
+    vastSpendRail: "purchased_compute"
+    vastSpendGuardAttached: false
+    localFocusCount: 0
+    cloudFocusCount: 0
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  channel "holoshell:laptop-reasoning:dispatch" {
+    type: "read_only_input"
+    priority: "critical"
+    description: "Jetson-authored laptop_reasoning_job dispatch receipt"
+  }
+
+  channel "holoshell:laptop-reasoning:result" {
+    type: "append_only"
+    priority: "critical"
+    description: "Laptop-authored result receipt returned to the HoloShell router"
+  }
+
+  channel "holoshell:laptop-reasoning:resource-plan" {
+    type: "read_only_context"
+    priority: "critical"
+    description: "Canonical resource plan: GOLD, codebase bridge, Claude injection, Studio/Brittney, provider registry, Vast guardrail"
+  }
+
+  template "LaptopReasoningDispatchInput" {
+    type: "laptop_reasoning_dispatch_input"
+    dispatchReceiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
+    capabilityId: "laptop_reasoning_job"
+    dispatchKind: "reasoning_job"
+    sourceHost: "jetson_holoshell_surface"
+    targetHost: "laptop_windows"
+    lane: "codex-hardware"
+    agentLane: "local"
+    canonicalProviderId: "laptop-ollama"
+    permissionEnvelope: "read_only"
+    reuseBeforeBuild: true
+    receiptRequired: true
+  }
+
+  template "LaptopReasoningCanonicalResourcePlan" {
+    type: "laptop_reasoning_canonical_resource_plan"
+    goldDriveRoot: "D:/GOLD"
+    goldDriveReadOnly: true
+    codebaseBridge: "scripts/holoshell-holoscript-gold-codebase-bridge.mjs"
+    claudeInjectionRoute: "/workflow/claude-chat"
+    studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
+    studioModelRouter: "packages/brittney/service/src/model-router.ts"
+    studioFleetBridge: "packages/shared/inference/src/integrations/spatial-fleet-bridge.ts"
+    providerRoutingRegistry: "C:/Users/josep/.ai-ecosystem/config/provider-routing-registry.json"
+    vastSpendRail: "purchased_compute"
+    vastRequires: [
+      "free_first_or_owned_metal_unavailable_receipt",
+      "active_lane_manifest",
+      "daily_current_job_budget_fields",
+      "output_contract",
+      "teardown_receipt"
+    ]
+  }
+
+  template "LaptopReasoningResultReceipt" {
+    type: "laptop_reasoning_result_receipt"
+    receiptType: "hololand.holoshell.laptop-reasoning-result.v0.1.0"
+    resultId: ""
+    status: "completed"
+    dispatchId: ""
+    capabilityId: "laptop_reasoning_job"
+    permissionEnvelope: "read_only"
+    modelInvocationPerformed: false
+    deterministicReceiptOnly: true
+    goldRootStatus: "mounted_on_laptop"
+    useLocalLaptopFirst: true
+    useVastOnlyWithSpendGuard: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "LaptopReasoningWorkerIsReadOnly" {
+    appliesTo: ["laptop_reasoning_result"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mutating: false
+    executionAllowed: false
+    modelInvocationPerformedByWorker: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "ConsumeCanonicalResourcePlanBeforeAnswer" {
+    appliesTo: ["laptop_reasoning_job"]
+    requireGoldDriveSurface: true
+    requireCodebaseBridgeSurface: true
+    requireClaudeInjectionSurface: true
+    requireStudioBrittneySurface: true
+    requireProviderRoutingRegistry: true
+    requireVastSpendGuard: true
+    reuseBeforeBuild: true
+    duplicateWorkPolicy: "consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds"
+  }
+
+  policy "VastFleetIsOverflowOnly" {
+    appliesTo: ["vast.local_overflow"]
+    useVastOnlyWithSpendGuard: true
+    defaultEscalation: "not_escalated_for_result_receipt"
+    requiresActiveLaneManifest: true
+    requiresDailyBudgetFields: true
+    requiresOutputContract: true
+    requiresTeardownReceipt: true
+  }
+
+  action accept_laptop_reasoning_dispatch(dispatch) {
+    state.workerStatus = "dispatch_received"
+    state.dispatchId = dispatch.dispatchId
+    state.capabilityId = dispatch.summary.capabilityId
+    state.targetHost = dispatch.dispatch.body.targetHost
+    state.lane = dispatch.dispatch.body.lane
+    state.agentLane = dispatch.dispatch.body.agentLane
+    state.canonicalProviderId = dispatch.dispatch.body.canonicalProviderId
+    state.workload = dispatch.dispatch.body.workload
+    state.permissionEnvelope = dispatch.dispatch.body.permissionEnvelope
+    state.reuseBeforeBuild = dispatch.dispatch.body.reuseBeforeBuild
+    state.goldRoot = dispatch.dispatch.body.canonicalSurfaces.goldDrive.root
+    state.claudeInjectionRoute = dispatch.dispatch.body.canonicalSurfaces.claudeInjection.route
+    state.studioOrchestrator = dispatch.dispatch.body.canonicalSurfaces.studioBrittney.serviceOrchestrator
+    state.vastSpendRail = dispatch.dispatch.body.canonicalSurfaces.vastFleet.spendRail
+    emit("holoshell:laptop-reasoning:dispatch", {
+      action: "laptop_reasoning_dispatch_received",
+      dispatch_id: state.dispatchId,
+      capability_id: state.capabilityId,
+      target_host: state.targetHost,
+      lane: state.lane,
+      agent_lane: state.agentLane,
+      canonical_provider_id: state.canonicalProviderId,
+      permission_envelope: state.permissionEnvelope,
+      reuse_before_build: state.reuseBeforeBuild,
+      receipt_required: true
+    })
+  }
+
+  action apply_laptop_reasoning_result(receipt) {
+    state.workerStatus = receipt.summary.status
+    state.resultId = receipt.resultId
+    state.dispatchId = receipt.summary.dispatchId
+    state.goldRootStatus = receipt.summary.goldRootStatus
+    state.goldUsable = receipt.summary.goldUsable
+    state.vastSpendGuardAttached = receipt.summary.vastSpendGuardAttached
+    state.localFocusCount = receipt.summary.localFocusCount
+    state.cloudFocusCount = receipt.summary.cloudFocusCount
+    state.destructiveActionsTaken = receipt.summary.destructiveActionsTaken
+    state.desktopAutomationExecuted = receipt.summary.desktopAutomationExecuted
+    emit("holoshell:laptop-reasoning:result", {
+      action: "laptop_reasoning_result_receipt_applied",
+      result_id: state.resultId,
+      dispatch_id: state.dispatchId,
+      status: state.workerStatus,
+      gold_root_status: state.goldRootStatus,
+      gold_usable: state.goldUsable,
+      vast_spend_guard_attached: state.vastSpendGuardAttached,
+      local_focus_count: state.localFocusCount,
+      cloud_focus_count: state.cloudFocusCount,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+}
