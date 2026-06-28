@@ -29,4 +29,9 @@ Before editing HoloLand code, use the HoloScript workflow in `docs/AGENT_HOLOSCR
 
 - The repo may be dirty. Do not revert changes you did not make.
 - Stage explicit files only. Never use `git add -A`.
+- This repo is under `github.com/holoscript-foundation`; `git push` must use
+  the HoloKey Classic Token credential path, not an arbitrary active `gh`
+  account token. If API access reports admin but push returns 403, treat it as
+  a Git credential mismatch. See
+  `C:/Users/josep/.ai-ecosystem/docs/handbooks/github-org-token-auth.md`.
 - Preserve existing deployments unless the user explicitly asks for a migration/removal.

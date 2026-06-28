@@ -19,6 +19,9 @@ You are working in the Hololand codebase. This guide teaches you how to understa
    - `compile_holoscript` or target-specific compilers when runtime output matters
 4. Follow `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`: feature behavior needs `.holo`, `.hs`, or `.hsplus` source, with TypeScript as bootstrap/bridge/runtime infrastructure.
 5. Leave unrelated dirty worktree changes untouched.
+6. Pushes to this repo use the HoloKey Classic Token credential path because the
+   remote is `github.com/holoscript-foundation/Hololand`; see
+   `C:/Users/josep/.ai-ecosystem/docs/handbooks/github-org-token-auth.md`.
 
 ## The Two File Types
 
