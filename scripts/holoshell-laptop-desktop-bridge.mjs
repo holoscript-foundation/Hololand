@@ -784,6 +784,14 @@ function writeReceipt(receipt, receiptDir, subdir, fileId, suffix) {
   return withPath;
 }
 
+export function writeLatestBridgeStatus(status, receiptDir = DEFAULT_RECEIPT_DIR) {
+  const receiptPath = repoPath(path.join(receiptDir || DEFAULT_RECEIPT_DIR, 'latest-status.json'));
+  mkdirSync(path.dirname(receiptPath), { recursive: true });
+  const withPath = { ...status, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
 function sendJson(res, data, statusCode = 200) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
@@ -824,7 +832,7 @@ export async function handleBridgeRequest(req, res, options = {}) {
   }
 
   if (req.method === 'GET' && (requestUrl.pathname === '/health' || requestUrl.pathname === '/api/desktop-control/bridge')) {
-    const status = buildBridgeStatus(requestOptions);
+    const status = writeLatestBridgeStatus(buildBridgeStatus(requestOptions), requestOptions.receiptDir);
     sendJson(res, requestUrl.pathname === '/health' ? { ok: true, bridge: status } : status);
     return;
   }
@@ -1021,7 +1029,7 @@ if (isMain()) {
       process.exit(0);
     }
     if (args.status) {
-      const status = buildBridgeStatus(args);
+      const status = writeLatestBridgeStatus(buildBridgeStatus(args), args.receiptDir);
       if (args.json) console.log(JSON.stringify(status, null, 2));
       else {
         console.log(`Status: ${status.status}`);

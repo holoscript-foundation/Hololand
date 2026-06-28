@@ -18,6 +18,8 @@ composition "HoloShell Operator Terminal" {
     jetsonSurfaceUrl: "http://holojetson.local:8747"
     jetsonOllamaUrl: "http://holojetson.local:11434"
     laptopDesktopBridgePrimary: "http://127.0.0.1:8751"
+    laptopDesktopBridgeReceipt: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
+    laptopDesktopBridgeFreshnessMs: 120000
     liveFeedReceipt: ".tmp/holoshell/live-feed.json"
     operatorBriefReceipt: ".tmp/holoshell/operator-brief.json"
     serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
@@ -37,6 +39,8 @@ composition "HoloShell Operator Terminal" {
     primarySurface: "jetson"
     primarySurfaceStatus: "unknown"
     laptopBridgeStatus: "unknown"
+    laptopBridgeFreshness: "unknown"
+    laptopBridgeReceiptAgeMs: 0
     brittneyStatus: "unknown"
     serviceStatus: "unknown"
     serviceCount: 0
@@ -246,6 +250,8 @@ composition "HoloShell Operator Terminal" {
     state.primarySurface = snapshot.route.primarySurface
     state.primarySurfaceStatus = snapshot.route.primarySurfaceStatus
     state.laptopBridgeStatus = snapshot.route.laptopBridgeStatus
+    state.laptopBridgeFreshness = snapshot.route.laptopBridgeFreshness || "unknown"
+    state.laptopBridgeReceiptAgeMs = snapshot.route.laptopBridgeReceiptAgeMs || 0
     state.brittneyStatus = snapshot.summary.brittneyStatus
     state.serviceStatus = snapshot.summary.serviceStatus
     state.serviceCount = snapshot.summary.serviceCount
@@ -268,6 +274,8 @@ composition "HoloShell Operator Terminal" {
       primary_surface: state.primarySurface,
       primary_surface_status: state.primarySurfaceStatus,
       laptop_bridge_status: state.laptopBridgeStatus,
+      laptop_bridge_freshness: state.laptopBridgeFreshness,
+      laptop_bridge_receipt_age_ms: state.laptopBridgeReceiptAgeMs,
       brittney_status: state.brittneyStatus,
       service_status: state.serviceStatus,
       services: state.serviceCount,

@@ -34,6 +34,7 @@
     "test:holoshell-agent-dispatch": "node scripts/__tests__/holoshell-agent-dispatch.test.mjs",
     "test:holoshell-desktop-control": "node scripts/__tests__/holoshell-desktop-control-plan.test.mjs",
     "test:holoshell-laptop-desktop-bridge": "node scripts/__tests__/holoshell-laptop-desktop-bridge.test.mjs",
+    "test:holoshell-live-feed-bridge-status": "node scripts/__tests__/holoshell-live-feed-bridge-status.test.mjs",
     "test:holoshell-live-status": "node scripts/__tests__/holoshell-live-status.test.mjs",
     "test:holoshell-improvement-runs": "node scripts/__tests__/holoshell-improvement-runs.test.mjs",
     "test:holoshell-grok-build": "node scripts/holoshell-grok-build-workflow.mjs --self-test",

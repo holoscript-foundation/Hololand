@@ -7,6 +7,7 @@ const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'live-feed.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'live-feed.js');
 const DEFAULT_TMP = path.join('.tmp', 'holoshell');
+const DESKTOP_BRIDGE_FRESH_MS = 120000;
 
 function parseArgs(argv) {
   const args = {
@@ -170,6 +171,39 @@ function serviceSupervisorTrustState(serviceSupervisor) {
   return 'unknown';
 }
 
+function desktopBridgeReceiptAgeMs(desktopBridgeStatus, nowMs = Date.now()) {
+  const generated = Date.parse(desktopBridgeStatus?.generatedAt || '');
+  if (!Number.isFinite(generated)) return null;
+  return Math.max(0, nowMs - generated);
+}
+
+function desktopBridgeFreshness(desktopBridgeStatus) {
+  if (!desktopBridgeStatus?.schemaVersion) return 'missing';
+  const ageMs = desktopBridgeReceiptAgeMs(desktopBridgeStatus);
+  if (ageMs === null) return 'unknown';
+  return ageMs <= DESKTOP_BRIDGE_FRESH_MS ? 'fresh' : 'stale';
+}
+
+function desktopBridgeStatusValue(desktopBridgeStatus) {
+  if (!desktopBridgeStatus?.schemaVersion) return 'check_required';
+  if (desktopBridgeFreshness(desktopBridgeStatus) === 'stale') return 'stale';
+  return desktopBridgeStatus.status || 'unknown';
+}
+
+function desktopBridgeRisk(desktopBridgeStatus) {
+  const status = desktopBridgeStatusValue(desktopBridgeStatus);
+  if (status === 'ready') return 'pass';
+  if (status === 'stale') return 'warn';
+  return 'unknown';
+}
+
+function desktopBridgeTrustState(desktopBridgeStatus) {
+  const status = desktopBridgeStatusValue(desktopBridgeStatus);
+  if (status === 'ready') return 'verified';
+  if (status === 'stale') return 'partial';
+  return 'unknown';
+}
+
 function legacyRealityContractStatus(legacyAppReality) {
   return legacyAppReality?.schemaContract?.validationStatus || 'missing';
 }
@@ -208,7 +242,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, desktopBridgeStatus, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -456,6 +490,21 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: serviceSupervisor.generatedAt || now,
       receiptType: serviceSupervisor.schemaVersion,
       source: serviceSupervisor.sourceAnchors?.adapter || 'scripts/holoshell-service-supervisor.mjs',
+    });
+  }
+
+  if (desktopBridgeStatus?.schemaVersion) {
+    const status = desktopBridgeStatusValue(desktopBridgeStatus);
+    const ageMs = desktopBridgeReceiptAgeMs(desktopBridgeStatus);
+    timeline.push({
+      id: desktopBridgeStatus.reportId || 'desktop-control-bridge',
+      kind: 'desktop_control_bridge',
+      title: `Laptop desktop bridge ${status}`,
+      detail: `${desktopBridgeStatus.url || 'unknown URL'}; host role ${desktopBridgeStatus.hostRole || 'unknown'}; receipt ${desktopBridgeFreshness(desktopBridgeStatus)}${ageMs === null ? '' : ` (${ageMs}ms old)`}; mutation ${desktopBridgeStatus.destructiveActionsTaken ? 'taken' : 'not taken'}.`,
+      trustState: desktopBridgeTrustState(desktopBridgeStatus),
+      generatedAt: desktopBridgeStatus.generatedAt || now,
+      receiptType: desktopBridgeStatus.schemaVersion,
+      source: desktopBridgeStatus.daemonScript || 'scripts/holoshell-laptop-desktop-bridge.mjs',
     });
   }
 
@@ -993,6 +1042,7 @@ function createFeed(args) {
   const networkChangeEvents = readJson(path.join(tmpDir, 'network-change-events.json'), {});
   const networkSentinelService = readJson(path.join(tmpDir, 'network-sentinel-service.json'), {});
   const serviceSupervisor = readJson(path.join(tmpDir, 'service-supervisor.json'), {});
+  const desktopBridgeStatus = readJson(path.join(tmpDir, 'desktop-control-bridge', 'latest-status.json'), {});
   const legacyAppReality = readJson(path.join(tmpDir, 'legacy-app-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
@@ -1055,6 +1105,7 @@ function createFeed(args) {
     networkChangeEvents,
     networkSentinelService,
     serviceSupervisor,
+    desktopBridgeStatus,
     legacyAppReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
@@ -1095,6 +1146,7 @@ function createFeed(args) {
   const networkChangeRisk = networkChangeSentinelRisk(networkChangeEvents);
   const sentinelServiceRisk = networkSentinelServiceRisk(networkSentinelService);
   const supervisorRisk = serviceSupervisorRisk(serviceSupervisor);
+  const desktopBridgeRiskState = desktopBridgeRisk(desktopBridgeStatus);
   const legacyRealityRisk = legacyRealityContractStatus(legacyAppReality) === 'fail'
     ? 'warn'
     : legacyRealityContractStatus(legacyAppReality) === 'missing'
@@ -1135,7 +1187,7 @@ function createFeed(args) {
         ? 'warn'
         : 'unknown';
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, fleetRisk, founderHostRisk, nativeWrapperRisk, startupIntegrationRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, desktopBridgeRiskState, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, fleetRisk, founderHostRisk, nativeWrapperRisk, startupIntegrationRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -1154,6 +1206,9 @@ function createFeed(args) {
       networkSentinelServiceAdapter: 'scripts/holoshell-network-sentinel-service.mjs',
       serviceSupervisor: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
       serviceSupervisorAdapter: 'scripts/holoshell-service-supervisor.mjs',
+      desktopBridgeStatus: 'apps/holoshell/source/holoshell-desktop-control-bridge.hsplus',
+      desktopBridgeStatusAdapter: 'scripts/holoshell-laptop-desktop-bridge.mjs',
+      desktopBridgeStatusReceipt: '.tmp/holoshell/desktop-control-bridge/latest-status.json',
       legacyAppRealityAdapter: 'scripts/holoshell-legacy-app-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
@@ -1358,6 +1413,19 @@ function createFeed(args) {
       serviceSupervisorLocalDaemonServiceCount: serviceSupervisor?.summary?.localDaemonServiceCount || 0,
       serviceSupervisorServiceMutationTaken: Boolean(serviceSupervisor?.summary?.serviceMutationTaken),
       serviceSupervisorDestructiveActionsTaken: Boolean(serviceSupervisor?.receipt?.destructiveActionsTaken),
+      desktopBridgeStatus: desktopBridgeStatusValue(desktopBridgeStatus),
+      laptopDesktopBridgeStatus: desktopBridgeStatusValue(desktopBridgeStatus),
+      desktopBridgeRawStatus: desktopBridgeStatus?.status || 'unknown',
+      desktopBridgeFreshness: desktopBridgeFreshness(desktopBridgeStatus),
+      desktopBridgeReceiptAgeMs: desktopBridgeReceiptAgeMs(desktopBridgeStatus),
+      desktopBridgeFreshnessMaxMs: DESKTOP_BRIDGE_FRESH_MS,
+      desktopBridgeGeneratedAt: desktopBridgeStatus?.generatedAt || '',
+      desktopBridgeUrl: desktopBridgeStatus?.url || '',
+      desktopBridgeHostRole: desktopBridgeStatus?.hostRole || '',
+      desktopBridgeCapabilityCount: Array.isArray(desktopBridgeStatus?.capabilities) ? desktopBridgeStatus.capabilities.length : 0,
+      desktopBridgeDestructiveActionsTaken: Boolean(desktopBridgeStatus?.destructiveActionsTaken),
+      desktopBridgeDesktopAutomationExecuted: Boolean(desktopBridgeStatus?.desktopAutomationExecuted),
+      desktopBridgeApprovalRequiredForAutomation: Boolean(desktopBridgeStatus?.approvalRequiredForDesktopAutomation),
       legacyAppRealityStatus: legacyAppReality?.summary?.confidence || 'unknown',
       legacyAppRealityContractStatus: legacyRealityContractStatus(legacyAppReality),
       legacyAppRealityProcessCount: legacyAppReality?.summary?.processCount || 0,
@@ -1682,6 +1750,7 @@ function createFeed(args) {
       networkChangeEvents,
       networkSentinelService,
       serviceSupervisor,
+      desktopBridgeStatus,
       legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
@@ -1797,6 +1866,7 @@ try {
     console.log(`Network sentinel: ${feed.summary.networkChangeSentinelLastObservationKind}`);
     console.log(`Network sentinel service: ${feed.summary.networkSentinelServiceStatus}`);
     console.log(`Service supervisor: ${feed.summary.serviceSupervisorStatus}`);
+    console.log(`Desktop bridge: ${feed.summary.desktopBridgeStatus} (${feed.summary.desktopBridgeFreshness})`);
     console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
     console.log(`Founder evidence demo: ${feed.summary.founderEvidenceDemoStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);

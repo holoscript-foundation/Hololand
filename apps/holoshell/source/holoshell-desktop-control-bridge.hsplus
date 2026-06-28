@@ -39,6 +39,7 @@ composition "HoloShell Desktop Control Bridge" {
     latestPlanReceipt: ".tmp/holoshell/desktop-control-latest.json"
     latestPlanBootstrap: ".tmp/holoshell/desktop-control-latest.js"
     latestBridgeReport: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
+    latestBridgeReportFreshnessMs: 120000
     preflightReceiptDir: ".tmp/holoshell/desktop-control-bridge/preflights"
     primaryOperator: "brittney"
     visualGroundingLane: "fara_gui_grounding"
@@ -145,6 +146,9 @@ composition "HoloShell Desktop Control Bridge" {
     capabilities: ["bridge_status", "desktop_action_preflight", "consent_token_issue", "consent_token_verify", "approved_execution_staging", "admitted_open_url_executor", "execution_refusal", "receipt_write"]
     destructiveActionsTaken: false
     approvalRequiredForDesktopAutomation: true
+    latestStatusReceipt: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
+    liveFeedConsumesLatestStatus: true
+    maxFreshnessMs: 120000
   }
 
   template "DesktopControlPreflight" {
@@ -272,6 +276,12 @@ composition "HoloShell Desktop Control Bridge" {
     appliesTo: ["desktop_action_preflight", "execution_refusal", "receipt_write"]
     hostRole: "laptop_desktop_bridge"
     statusReportAllowedWithoutConsent: true
+    statusEndpointWritesLatestReceipt: true
+    latestStatusReceipt: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
+    liveFeedConsumesLatestStatus: true
+    operatorTerminalAcceptsReadyWhenFresh: true
+    staleStatusMustRemainVisible: true
+    maxFreshnessMs: 120000
     preflightAllowedWithoutConsent: true
     executionAllowedWithoutConsent: false
     desktopAutomationExecutedByDaemonDefault: false

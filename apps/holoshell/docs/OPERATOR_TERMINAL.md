@@ -98,6 +98,7 @@ pnpm run holoshell:legacy-apps
 pnpm run holoshell:readiness-evidence
 pnpm run holoshell:operator-brief
 pnpm run holoshell:service-supervisor
+pnpm run holoshell:laptop-desktop-bridge -- --status
 node scripts\holoshell-live-feed.mjs
 pnpm run holoshell:operator-terminal
 ```

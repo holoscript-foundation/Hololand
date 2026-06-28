@@ -355,6 +355,9 @@ function fixtureFeeds() {
         laneCount: 8,
         activeLaneCount: 3,
         timelineCount: 22,
+        desktopBridgeStatus: 'ready',
+        desktopBridgeFreshness: 'fresh',
+        desktopBridgeReceiptAgeMs: 250,
         pendingHardwareApprovalCount: 1,
         activeWorkflowApprovalPendingCount: 0,
         readinessEvidenceStatus: 'warn',
@@ -546,6 +549,8 @@ function createTerminalReceipt(args, feeds) {
     primarySurfaceStatus: feeds.liveFeed ? 'receipt_observed' : 'not_observed',
     laptopRole: 'reasoning_validation_desktop_bridge',
     laptopBridgeStatus: live.desktopBridgeStatus || live.laptopDesktopBridgeStatus || 'check_required',
+    laptopBridgeFreshness: live.desktopBridgeFreshness || 'unknown',
+    laptopBridgeReceiptAgeMs: live.desktopBridgeReceiptAgeMs ?? null,
     vastFleetRole: 'scale_to_zero_on_real_inference_demand',
     paidComputeAtTerminalLaunch: false,
   };
@@ -569,6 +574,7 @@ function createTerminalReceipt(args, feeds) {
   if (summary.readinessWarningCount > 0) caveats.push(`${summary.readinessWarningCount} readiness warning(s) remain.`);
   if (staleReadinessBriefActions(feeds).length) caveats.push('Operator brief has stale readiness-warning guidance; refresh operator brief before acting on that item.');
   if (route.laptopBridgeStatus === 'check_required') caveats.push('Laptop desktop bridge status is not in the latest terminal feed.');
+  if (route.laptopBridgeStatus === 'stale') caveats.push(`Laptop desktop bridge status receipt is stale; refresh ${sourceAnchors.liveFeed} after running holoshell:laptop-desktop-bridge -- --status.`);
   if (!caveats.length) caveats.push('No terminal-specific caveats beyond the source receipts.');
 
   const receiptInput = {
@@ -634,7 +640,7 @@ function renderHuman(receipt) {
   const lines = [];
   lines.push('HoloShell Operator Terminal');
   lines.push(`Status: ${receipt.summary.status}`);
-  lines.push(`Route: Jetson hosts Brittney at ${receipt.route.primarySurfaceUrl}; laptop is reasoning/control bridge.`);
+  lines.push(`Route: Jetson hosts Brittney at ${receipt.route.primarySurfaceUrl}; laptop bridge ${receipt.route.laptopBridgeStatus}.`);
   lines.push(`Brittney: ${receipt.summary.brittneyStatus} (runtime ${receipt.summary.brittneyRuntimeStatus})`);
   lines.push(`Services: ${receipt.summary.serviceStatus} (${receipt.summary.requiredOnlineServiceCount}/${receipt.summary.requiredServiceCount} required online, ${receipt.summary.requiredAttentionCount} attention)`);
   lines.push(`Agents: ${receipt.summary.activeLaneCount}/${receipt.summary.laneCount} lanes active`);

@@ -215,15 +215,20 @@ assert.match(refusal.reason, /consent_token/);
 
 assert.equal(runSelfTest({ createdAt: CREATED_AT }).refusal.status, 'refused');
 
+const statusTmp = mkdtempSync(join(tmpdir(), 'holoshell-laptop-bridge-status-'));
 const cliStatus = JSON.parse(execFileSync(NODE, [
   SCRIPT,
   '--status',
+  '--receipt-dir',
+  statusTmp,
   '--created-at',
   CREATED_AT,
   '--json',
 ], { encoding: 'utf8' }));
 assert.equal(cliStatus.status, 'ready');
 assert.equal(cliStatus.destructiveActionsTaken, false);
+assert.match(cliStatus.receiptPath, /latest-status\.json$/);
+assert.equal(existsSync(cliStatus.receiptPath), true);
 
 const cliSelfTest = JSON.parse(execFileSync(NODE, [
   SCRIPT,
@@ -256,6 +261,8 @@ try {
   const statusBody = await statusResponse.json();
   assert.equal(statusBody.status, 'ready');
   assert.equal(statusBody.destructiveActionsTaken, false);
+  assert.match(statusBody.receiptPath, /latest-status\.json$/);
+  assert.equal(existsSync(statusBody.receiptPath), true);
 
   const preflightResponse = await fetch(`${baseUrl}/api/desktop-control/preflight`, {
     method: 'POST',
