@@ -16,10 +16,20 @@ export {
 } from './GPSAnchorProvider';
 export { 
   VPSClient, 
+  VPS_PROVIDER_CREDENTIALS,
+  createEnvVPSCredentialResolver,
   geospatialToWorldPose,
+  type VPSClientConfig,
   type VPSConfig, 
   type VPSProvider,
   type VPSRequest,
   type VPSResponse,
+  type VPSCredentialDescriptor,
+  type VPSCredentialRequest,
+  type VPSCredentialResolution,
+  type VPSCredentialResolver,
+  type VPSCredentialReceipt,
+  type VPSDeviceReceipt,
+  type VPSResolverReceipt,
   type GeospatialPose 
 } from './VPSClient';

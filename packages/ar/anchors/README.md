@@ -123,14 +123,20 @@ import { VPSClient } from '@hololand/ar-anchors';
 // ARCore Geospatial (requires ARCore SDK)
 const vps = new VPSClient({
   provider: 'arcore',
+  credentialResolver: holokeyResolver,
 });
 
-// Custom VPS server
+// Niantic Lightship VPS. The resolver returns a value, but receipts only expose
+// key names and HoloKey refs.
 const vps = new VPSClient({
-  provider: 'custom',
-  endpoint: 'https://vps.myapp.com/resolve',
-  apiKey: 'your-api-key',
+  provider: 'niantic',
+  credentialResolver: holokeyResolver,
 });
+
+const preflight = await vps.preflight();
+// preflight.schemaVersion === 'hololand.vps-resolver-receipt.v1'
+// preflight.credential.canonicalName === 'NIANTIC_LIGHTSHIP_API_KEY'
+// preflight.noSecretValues === true
 
 const response = await vps.resolve({
   image: cameraFrame,
@@ -138,6 +144,17 @@ const response = await vps.resolve({
   gpsHint: { latitude: 37.7749, longitude: -122.4194 },
 });
 ```
+
+Canonical provider credential names:
+
+| Provider | Canonical key | HoloKey ref | Back-compat aliases |
+|----------|---------------|-------------|---------------------|
+| ARCore Geospatial | `ARCORE_GEOSPATIAL_API_KEY` | `vault:arcore-geospatial-api-key` | `GOOGLE_ARCORE_API_KEY`, `GOOGLE_GEOSPATIAL_API_KEY` |
+| Niantic Lightship | `NIANTIC_LIGHTSHIP_API_KEY` | `vault:niantic-lightship-api-key` | `NIANTIC_API_KEY`, `NIANTIC_VPS_API_KEY`, `LIGHTSHIP_API_KEY`, `LIGHTSHIP_VPS_API_KEY` |
+
+Receipts intentionally omit raw camera frames, exact secret values, and exact GPS
+payloads. They record provider, credential presence, device/runtime readiness,
+confidence, accuracy, and location ID when the provider returns one.
 
 ## Coordinate Transform
 
