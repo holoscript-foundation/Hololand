@@ -3,6 +3,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import {
+  buildReceipt as buildAgentDispatchReceipt,
+  persist as persistAgentDispatchReceipt,
+} from './holoshell-agent-dispatch.mjs';
 
 const SCHEMA_VERSION = 'hololand.holoshell.brittney-turn.v0.1.0';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,6 +17,9 @@ const DEFAULT_LATEST = path.join(DEFAULT_TMP, 'brittney-turn-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'brittney-turn-latest.js');
 const DEFAULT_EMBED_CACHE = path.join(DEFAULT_TMP, 'turn-embeddings.json');
 const DEFAULT_FOUNDER_PROMPTS = path.join(DEFAULT_TMP, 'founder-prompt-fixtures.json');
+const DEFAULT_AGENT_DISPATCH = path.join(DEFAULT_TMP, 'agent-dispatch-latest.json');
+const DEFAULT_AGENT_DISPATCH_JS = path.join(DEFAULT_TMP, 'agent-dispatch-latest.js');
+const DEFAULT_AGENT_DISPATCH_DIR = path.join(DEFAULT_TMP, 'agent-dispatches');
 
 function parseArgs(argv) {
   const args = {
@@ -211,6 +218,77 @@ function userFacingFinalText({ prompt, finalText, resultOk, proposals }) {
   return resultOk
     ? cleanText || `I received "${prompt}" but have no working capability for it yet.`
     : "I don't have a working capability for that yet.";
+}
+
+function createLaptopReasoningDelegation(args) {
+  const dispatchArgs = {
+    actor: 'brittney',
+    intent: args.prompt,
+    prompt: args.prompt,
+    output: DEFAULT_AGENT_DISPATCH,
+    jsOutput: DEFAULT_AGENT_DISPATCH_JS,
+    dispatchDir: DEFAULT_AGENT_DISPATCH_DIR,
+  };
+  const dispatch = buildAgentDispatchReceipt(dispatchArgs);
+  if (dispatch.summary.capabilityId !== 'laptop_reasoning_job') {
+    return {
+      status: 'not_needed',
+      capabilityId: dispatch.summary.capabilityId,
+      confidence: dispatch.summary.confidence,
+      reasonCodes: [],
+      receiptRequired: false,
+    };
+  }
+  const persisted = persistAgentDispatchReceipt(dispatchArgs, dispatch);
+  return {
+    status: 'delegated',
+    dispatchId: persisted.dispatchId,
+    capabilityId: persisted.summary.capabilityId,
+    capabilityLabel: persisted.summary.capabilityLabel,
+    confidence: persisted.summary.confidence,
+    route: persisted.summary.route,
+    dispatchKind: persisted.summary.dispatchKind,
+    permissionEnvelope: persisted.summary.permissionEnvelope,
+    approvalRequired: persisted.summary.approvalRequired,
+    targetHost: persisted.summary.targetHost,
+    lane: persisted.summary.reasoningLane,
+    delegationMode: persisted.summary.delegationMode,
+    reasonCodes: persisted.summary.reasonCodes || [],
+    latestPath: persisted.output.latestPath,
+    dispatchReceiptPath: persisted.output.dispatchReceiptPath,
+    promptHash: persisted.dispatch.body.promptHash,
+    promptChars: persisted.dispatch.body.promptChars,
+    wordCount: persisted.dispatch.body.wordCount,
+    receiptRequired: true,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  };
+}
+
+function createLaptopReasoningProposal(delegation) {
+  if (delegation?.status !== 'delegated') return null;
+  return {
+    id: stableId('proposal', `laptop-reasoning:${delegation.dispatchId}`),
+    objectId: 'laptop-reasoning',
+    label: 'Laptop Reasoning',
+    operation: 'dispatch_laptop_reasoning_job',
+    permissionEnvelope: 'read_only',
+    mutating: false,
+    approvalRequired: false,
+    receiptRequired: true,
+    dispatchId: delegation.dispatchId,
+    lane: delegation.lane,
+    targetHost: delegation.targetHost,
+    reason: `Jetson delegated this prompt for laptop reasoning (${delegation.reasonCodes.join(', ') || 'router threshold'}).`,
+  };
+}
+
+function laptopReasoningDelegatedText(delegation) {
+  return [
+    `I staged a read-only laptop reasoning job (${delegation.dispatchId}) for the Codex hardware lane.`,
+    `Target: ${delegation.targetHost}; lane: ${delegation.lane}; receipt: ${delegation.dispatchReceiptPath}.`,
+    "I won't claim the laptop has answered until a result receipt comes back.",
+  ].join(' ');
 }
 
 function createShellContext() {
@@ -630,6 +708,20 @@ async function runTurn(args) {
       source: founderPromptFixtures.source,
     },
   };
+  runtime.laptopReasoningDelegation = createLaptopReasoningDelegation(args);
+  if (runtime.laptopReasoningDelegation.status === 'delegated') {
+    shellContext.laptopReasoningDelegation = {
+      status: runtime.laptopReasoningDelegation.status,
+      dispatchId: runtime.laptopReasoningDelegation.dispatchId,
+      route: runtime.laptopReasoningDelegation.route,
+      targetHost: runtime.laptopReasoningDelegation.targetHost,
+      lane: runtime.laptopReasoningDelegation.lane,
+      permissionEnvelope: runtime.laptopReasoningDelegation.permissionEnvelope,
+      reasonCodes: runtime.laptopReasoningDelegation.reasonCodes,
+      receiptRequired: true,
+      note: 'A laptop reasoning job has been staged by the Jetson. Do not claim the laptop has answered until a result receipt exists.',
+    };
+  }
 
   let result = {
     ok: false,
@@ -694,7 +786,7 @@ ${toneInstruction}`;
       session.push('user', JSON.stringify({
         userPrompt: args.prompt,
         shellContext,
-        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}`,
+        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction} If shellContext.laptopReasoningDelegation is present, mention that the Jetson staged a laptop reasoning job receipt and do not claim the laptop has completed it yet.`,
       }));
     }
     const ac = new AbortController();
@@ -729,15 +821,21 @@ ${toneInstruction}`;
     events.push(normalizeEvent({ kind: 'error', message: result.error }));
   }
 
-  const proposals = createActionProposals(args.prompt);
-  const finalText = userFacingFinalText({
+  const proposals = [
+    createLaptopReasoningProposal(runtime.laptopReasoningDelegation),
+    ...createActionProposals(args.prompt),
+  ].filter(Boolean);
+  const delegatedToLaptop = runtime.laptopReasoningDelegation.status === 'delegated';
+  const finalText = delegatedToLaptop && !result.ok && !String(result.finalText || '').trim()
+    ? laptopReasoningDelegatedText(runtime.laptopReasoningDelegation)
+    : userFacingFinalText({
     prompt: args.prompt,
     finalText: result.finalText,
     resultOk: result.ok,
     proposals,
   });
   const finalAvatar = events.length ? events[events.length - 1].avatar : mapEventToAvatar('error');
-  const status = result.ok ? 'completed' : 'blocked';
+  const status = result.ok ? 'completed' : (delegatedToLaptop ? 'delegated' : 'blocked');
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -752,6 +850,8 @@ ${toneInstruction}`;
       bridgeScript: 'scripts/holoshell-brittney-turn.mjs',
       brittneyContext: '.tmp/holoshell/brittney-context.json',
       founderPromptFixtures: DEFAULT_FOUNDER_PROMPTS,
+      agentDispatchSource: 'apps/holoshell/source/holoshell-agent-dispatch.hsplus',
+      agentDispatchScript: 'scripts/holoshell-agent-dispatch.mjs',
       holoscriptRoot,
       runtimePackageDist: path.resolve(holoscriptRoot, 'packages', 'aibrittney', 'dist'),
     },
@@ -803,6 +903,11 @@ ${toneInstruction}`;
       founderPromptFixtureAvailableCount: runtime.founderPromptFixtures.availableCount,
       founderPromptFixtureCorpusHash: runtime.founderPromptFixtures.corpusHash,
       founderPromptFixtureSourceKinds: runtime.founderPromptFixtures.sourceKinds,
+      laptopReasoningDelegationStatus: runtime.laptopReasoningDelegation.status,
+      laptopReasoningDispatchId: runtime.laptopReasoningDelegation.dispatchId || '',
+      laptopReasoningTargetHost: runtime.laptopReasoningDelegation.targetHost || '',
+      laptopReasoningLane: runtime.laptopReasoningDelegation.lane || '',
+      laptopReasoningReasonCodes: runtime.laptopReasoningDelegation.reasonCodes || [],
     },
   };
 }

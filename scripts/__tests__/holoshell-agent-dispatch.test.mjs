@@ -28,6 +28,20 @@ const roomOnly = receiptFor('start room marathon using Ollama Kimi Cloud');
 assert.equal(roomOnly.summary.capabilityId, 'room_marathon');
 assert.equal(roomOnly.summary.route, '/workflow/room-marathon');
 
+const laptopReasoning = receiptFor('Have the laptop use Codex reasoning to inspect this repo and return a receipt.');
+assert.equal(laptopReasoning.summary.status, 'ready_to_stage');
+assert.equal(laptopReasoning.summary.capabilityId, 'laptop_reasoning_job');
+assert.equal(laptopReasoning.summary.dispatchKind, 'reasoning_job');
+assert.equal(laptopReasoning.summary.permissionEnvelope, 'read_only');
+assert.equal(laptopReasoning.summary.approvalRequired, false);
+assert.equal(laptopReasoning.dispatch.body.targetHost, 'laptop_windows');
+assert.equal(laptopReasoning.dispatch.body.lane, 'codex-hardware');
+assert.ok(laptopReasoning.dispatch.body.reasonCodes.includes('explicit_laptop_reasoning_request'));
+
+const codexLaunch = receiptFor('launch Codex through Ollama');
+assert.equal(codexLaunch.summary.capabilityId, 'ollama_cloud_agent');
+assert.equal(codexLaunch.summary.route, '/workflow/ollama-cloud-agent');
+
 const lofiOnly = receiptFor('open browser and play lofi music on YouTube');
 assert.equal(lofiOnly.summary.capabilityId, 'browser_lofi');
 assert.equal(lofiOnly.summary.dispatchKind, 'hardware_action');

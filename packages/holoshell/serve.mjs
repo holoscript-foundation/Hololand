@@ -287,10 +287,15 @@ function worktreeHealth() {
 
 function looksLikeStatusIntent(message) {
   // "Brittney" or "receipt" alone is address/context, not telemetry intent.
-  // Keep status routing anchored on explicit health/system/runtime words so
-  // normal chat keeps her model reply instead of getting replaced by the live
-  // status card.
-  return /\b(status|health|state|online|offline|running|system|system'?s|gpu|gpus|utilization|utilisation|lane|lanes|capabilit(?:y|ies)|avatar|daimon)\b/iu.test(String(message || ''));
+  // Likewise, "lane" can mean "Codex laptop lane" inside normal architecture
+  // chat; only route to the status card when telemetry terms are paired with an
+  // explicit status/check/report ask.
+  const text = String(message || '');
+  if (/\b(status|health|online|offline|running|system status|system health)\b/iu.test(text)) return true;
+  return (
+    /\b(show|give|summarize|inspect|check|report|current|live|what(?:'s| is))\b[\s\S]{0,120}\b(gpu|gpus|utilization|utilisation|lane|lanes|capabilit(?:y|ies)|avatar|daimon)\b/iu.test(text) ||
+    /\b(gpu|gpus|lane|lanes|capabilit(?:y|ies)|avatar|daimon)\b[\s\S]{0,120}\b(status|health|telemetry|utilization|utilisation|balance)\b/iu.test(text)
+  );
 }
 
 function looksLikeNextStepsIntent(message) {

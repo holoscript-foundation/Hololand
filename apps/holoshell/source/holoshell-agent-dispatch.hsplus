@@ -95,9 +95,36 @@ composition "HoloShell Agent Dispatch" {
     receiptRequired: true
   }
 
+  template "LaptopReasoningJob" {
+    type: "laptop_reasoning_job"
+    targetHost: "laptop_windows"
+    lane: "codex-hardware"
+    modelFamily: "openai_codex"
+    delegationMode: "jetson_autonomous_large_prompt_router"
+    permissionEnvelope: "read_only"
+    promptHash: ""
+    reasonCodes: []
+    receiptRequired: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
   policy "DispatchDoesNotExecute" {
     appliesTo: ["agent_dispatch"]
     permissionEnvelope: "intent_scoped"
+    approvalRequired: false
+    mutating: false
+    executionAllowed: false
+    handoffRequired: true
+    receiptRequired: true
+  }
+
+  policy "LaptopReasoningIsReadOnlyDelegation" {
+    appliesTo: ["laptop_reasoning_job"]
+    sourceHost: "jetson_holoshell_surface"
+    targetHost: "laptop_windows"
+    lane: "codex-hardware"
+    permissionEnvelope: "read_only"
     approvalRequired: false
     mutating: false
     executionAllowed: false

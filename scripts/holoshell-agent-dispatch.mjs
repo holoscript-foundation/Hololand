@@ -37,6 +37,17 @@ const OLLAMA_AGENTS = [
 
 const CAPABILITIES = [
   {
+    id: 'laptop_reasoning_job',
+    label: 'Laptop Reasoning Job',
+    route: '/workflow/laptop-reasoning-job',
+    dispatchKind: 'reasoning_job',
+    permissionEnvelope: 'read_only',
+    examples: [
+      'send this large prompt to the laptop for Codex reasoning',
+      'have the laptop inspect the repo and reason through the plan',
+    ],
+  },
+  {
     id: 'founder_command',
     label: 'Founder Command',
     route: '/workflow/founder-command',
@@ -229,6 +240,56 @@ function detectOllamaAgent(text) {
   )) || null;
 }
 
+function laptopReasoningSignals(intent) {
+  const raw = String(intent || '');
+  const text = normalize(raw);
+  const wordCount = raw.split(/\s+/u).filter(Boolean).length;
+  const lineCount = raw.split(/\r?\n/u).length;
+  const signals = [];
+  let score = 0;
+
+  const explicitLaptop = /\b(laptop|windows|rtx|codex hardware|codex)\b/u.test(text);
+  const reasoningAsk = /\b(reason|reasoning|think|analyze|analyse|inspect|review|plan|large prompt|big prompt|help)\b/u.test(text);
+  const repoAsk = /\b(repo|repository|worktree|codebase|backend|frontend|docs|documentation|memory|knowledge|jetson|autonomy|cloud|local)\b/u.test(text);
+
+  if (explicitLaptop && reasoningAsk) {
+    score += 100;
+    signals.push('explicit_laptop_reasoning_request');
+  }
+  if (explicitLaptop && repoAsk) {
+    score += 30;
+    signals.push('explicit_laptop_repo_context');
+  }
+  if (raw.length >= 2400) {
+    score += 90;
+    signals.push('very_large_prompt');
+  } else if (raw.length >= 1200) {
+    score += 70;
+    signals.push('large_prompt');
+  }
+  if (wordCount >= 180 && (repoAsk || reasoningAsk)) {
+    score += 45;
+    signals.push('long_repo_or_reasoning_prompt');
+  }
+  if (lineCount >= 16 && (repoAsk || /```|diff --git|^\s*[-*]\s+/mu.test(raw))) {
+    score += 35;
+    signals.push('multi_section_prompt');
+  }
+  if (/\b(seams?|mend|hydrate|verticals?|backend|local|cloud|autonomy|jetson)\b/u.test(text) && reasoningAsk) {
+    score += 25;
+    signals.push('ecosystem_architecture_reasoning');
+  }
+
+  return {
+    score,
+    signals,
+    promptChars: raw.length,
+    wordCount,
+    lineCount,
+    needed: score >= 70,
+  };
+}
+
 function promptFromIntent(args) {
   if (args.prompt) return args.prompt;
   const raw = String(args.intent || '');
@@ -266,6 +327,10 @@ function scoreIntent(intent) {
 
   if (!text) return scores;
 
+  const laptopReasoning = laptopReasoningSignals(intent);
+  if (laptopReasoning.needed) {
+    scores.set('laptop_reasoning_job', laptopReasoning.score);
+  }
   if (isFounderFlagshipIntent(intent)) scores.set('founder_command', 99);
   if (text.includes('room marathon') || (text.includes('marathon') && text.includes('room'))) scores.set('room_marathon', 98);
   if (text.includes('kimi') && (text.includes('ollama') || text.includes('cloud'))) {
@@ -309,6 +374,29 @@ function bestCapability(intent) {
 function buildRouteBody(capability, args, agent) {
   const text = normalize(args.intent);
   if (!capability) return {};
+  if (capability.id === 'laptop_reasoning_job') {
+    const prompt = promptFromIntent(args) || args.prompt || args.intent;
+    const reasoning = laptopReasoningSignals(args.intent);
+    return {
+      actor: args.actor,
+      jobType: 'reasoning',
+      delegationMode: 'jetson_autonomous_large_prompt_router',
+      sourceHost: 'jetson_holoshell_surface',
+      targetHost: 'laptop_windows',
+      lane: 'codex-hardware',
+      modelFamily: 'openai_codex',
+      permissionEnvelope: 'read_only',
+      prompt,
+      promptHash: hashValue(prompt || 'empty'),
+      reasonCodes: reasoning.signals,
+      promptChars: reasoning.promptChars,
+      wordCount: reasoning.wordCount,
+      requestedReturn: 'reasoned_summary_with_receipt',
+      receiptRequired: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    };
+  }
   if (capability.id === 'founder_command') {
     return {
       actor: args.actor,
@@ -475,6 +563,10 @@ function buildReceipt(args) {
       targetApp: routeBody.app || '',
       targetUrlHost: routeBody.url ? new URL(routeBody.url).host : '',
       promptPresent: Boolean(routeBody.prompt),
+      targetHost: routeBody.targetHost || '',
+      reasoningLane: routeBody.lane || '',
+      delegationMode: routeBody.delegationMode || '',
+      reasonCodes: routeBody.reasonCodes || [],
       rawIntentStoredLocallyOnly: true,
     },
     output: {
@@ -496,6 +588,8 @@ function persist(args, receipt) {
 function assertSelfTest() {
   const cases = [
     ['open Claude and start a chat', 'claude_chat', 'workflow'],
+    ['send this large prompt to the laptop for Codex reasoning', 'laptop_reasoning_job', 'reasoning_job'],
+    ['have the laptop inspect the repo and reason through the plan', 'laptop_reasoning_job', 'reasoning_job'],
     ['launch Codex through Ollama', 'ollama_cloud_agent', 'workflow'],
     ['ollama launch hermes', 'ollama_cloud_agent', 'workflow'],
     ['open Grok Build', 'grok_build', 'workflow'],
@@ -553,4 +647,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
 }
 
-export { buildReceipt, CAPABILITIES };
+export { buildReceipt, persist, laptopReasoningSignals, CAPABILITIES };

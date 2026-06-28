@@ -36,6 +36,7 @@
     "test:holoshell-laptop-desktop-bridge": "node scripts/__tests__/holoshell-laptop-desktop-bridge.test.mjs",
     "test:holoshell-live-feed-bridge-status": "node scripts/__tests__/holoshell-live-feed-bridge-status.test.mjs",
     "test:holoshell-live-status": "node scripts/__tests__/holoshell-live-status.test.mjs",
+    "test:holoshell-laptop-reasoning": "node scripts/__tests__/holoshell-brittney-laptop-reasoning.test.mjs",
     "test:holoshell-improvement-runs": "node scripts/__tests__/holoshell-improvement-runs.test.mjs",
     "test:holoshell-grok-build": "node scripts/holoshell-grok-build-workflow.mjs --self-test",
     "test:holoshell-grok-heartbeat": "node scripts/__tests__/holoshell-grok-heartbeat.test.mjs",

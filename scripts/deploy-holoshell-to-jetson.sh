@@ -72,8 +72,10 @@ scp -i "$KEY" -q -r "$HS/compositions/skills"          "$J:$ROOT/compositions/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/serve.mjs" "$J:$SURF/packages/holoshell/"
 scp -i "$KEY" -q    "$HL/packages/holoshell/dist/operate-room.html" "$J:$SURF/packages/holoshell/dist/"
 scp -i "$KEY" -q    "$HL/scripts/holoshell-brittney-turn.mjs" "$J:$SURF/scripts/"
+scp -i "$KEY" -q    "$HL/scripts/holoshell-agent-dispatch.mjs" "$J:$SURF/scripts/"
 scp -i "$KEY" -q    "$HL/scripts/holoshell-founder-prompt-fixtures.mjs" "$J:$SURF/scripts/"
 scp -i "$KEY" -q    "$HL/apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus" "$J:$SURF/apps/holoshell/source/"
+scp -i "$KEY" -q    "$HL/apps/holoshell/source/holoshell-agent-dispatch.hsplus" "$J:$SURF/apps/holoshell/source/"
 scp -i "$KEY" -q    "$FOUNDER_FIXTURE" "$J:$SURF/.tmp/holoshell/founder-prompt-fixtures.json"
 
 if [ -f "$MODEL_LIBRARY" ]; then

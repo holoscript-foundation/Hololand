@@ -122,6 +122,14 @@ try {
   assert.doesNotMatch(guardrail.reply, /System status: online/);
   assert.equal(guardrail.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
 
+  const laptopReasoning = await postChat(
+    'Brittney, send a read-only reasoning job to the laptop Codex lane so it can inspect the repo/backend/autonomy seams and return a receipt.'
+  );
+  assert.equal(laptopReasoning.systemStatus, null);
+  assert.doesNotMatch(laptopReasoning.reply, /System status: online/);
+  assert.ok(laptopReasoning.proposals.some((proposal) => proposal.operation === 'dispatch_laptop_reasoning_job'));
+  assert.equal(laptopReasoning.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
+
   const serveSource = readFileSync(resolve('packages/holoshell/serve.mjs'), 'utf8');
   assert.match(serveSource, /tegrastatsGpuSnapshot/);
   assert.match(serveSource, /Number\.isFinite/);
