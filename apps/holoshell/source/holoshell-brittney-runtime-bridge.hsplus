@@ -22,6 +22,9 @@ composition "HoloShell Brittney Runtime Bridge" {
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     latestConversationPlanReceipt: ".tmp/holoshell/brittney-conversation-plan-latest.json"
+    conversationPlanDispatcherSource: "apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus"
+    conversationPlanDispatcherScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
+    latestConversationPlanDispatchReceipt: ".tmp/holoshell/conversation-plan-dispatch-latest.json"
     latestContextReceipt: ".tmp/holoshell/brittney-context.json"
     latestFounderPromptFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
     latestHardwareActionReceipt: ".tmp/holoshell/action-latest.json"
@@ -140,6 +143,8 @@ composition "HoloShell Brittney Runtime Bridge" {
     trigger: "commence_all"
     modelRole: "voice_and_context_only"
     dispatcherRole: "receipt_backed_router"
+    dispatcherSource: "apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus"
+    dispatcherScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
     permissionEnvelope: "read_only"
     approvalRequired: false
     receiptRequired: true
@@ -186,6 +191,8 @@ composition "HoloShell Brittney Runtime Bridge" {
   policy "ConversationPlanDispatchBoundary" {
     appliesTo: ["commence_all", "dispatch_conversation_plan", "conversation_plan_packet"]
     requiredInput: "recent_turn_history"
+    dispatcherSource: "apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus"
+    dispatcherScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
     triggerRequires: "explicit_commence_all_turn"
     modelAuthority: "voice_and_context_only"
     dispatcherAuthority: "receipt_backed_router"

@@ -1,0 +1,211 @@
+// HoloShell Conversation Plan Dispatcher
+//
+// Source contract for turning Brittney's multi-turn conversation-plan packet
+// into bounded HoloMesh room tasks and local-agent routing receipts. The
+// dispatcher is not Brittney's brain and not a UI surface; it is the receipt
+// backed routing layer after an explicit commence-all turn.
+
+composition "HoloShell Conversation Plan Dispatcher" {
+  config {
+    title: "HoloShell Conversation Plan Dispatcher"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
+    brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    latestConversationPlanReceipt: ".tmp/holoshell/brittney-conversation-plan-latest.json"
+    latestDispatchReceipt: ".tmp/holoshell/conversation-plan-dispatch-latest.json"
+    dispatchReceiptDir: ".tmp/holoshell/conversation-plan-dispatches"
+    roomTaskBatchReceipt: ".tmp/holoshell/conversation-plan-room-tasks-latest.json"
+    browserBootstrap: ".tmp/holoshell/conversation-plan-dispatch-latest.js"
+    roomAddTasksHelper: "C:/Users/josep/.ai-ecosystem/scripts/room-add-tasks.mjs"
+    roomClaimHelper: "C:/Users/josep/.ai-ecosystem/scripts/room-patch-task.mjs"
+  }
+
+  state {
+    dispatchStatus: "unknown"
+    dispatchId: ""
+    planId: ""
+    planStatus: "unknown"
+    planValidationStatus: "unknown"
+    targetCount: 0
+    roomTaskCount: 0
+    roomTasksFiled: false
+    roomTaskClaimed: false
+    mutationExecuted: false
+    completionClaimAllowed: false
+    downstreamReceiptsRequired: true
+  }
+
+  channel "holoshell:conversation-plan:input" {
+    type: "request_response"
+    priority: "critical"
+    description: "Ready conversation-plan packet produced by Brittney after explicit commence all"
+  }
+
+  channel "holoshell:conversation-plan:dispatch-receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Dispatcher receipt describing route targets, gates, and room mutations"
+  }
+
+  channel "holoshell:conversation-plan:room-tasks" {
+    type: "append_only"
+    priority: "high"
+    description: "Structured HoloMesh task batch derived from the conversation plan"
+  }
+
+  channel "holoshell:conversation-plan:local-agent-route" {
+    type: "append_only"
+    priority: "high"
+    description: "Bounded local Jetson, laptop, and source-validation routes"
+  }
+
+  channel "holoshell:conversation-plan:downstream-receipts" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipts required before any completion claim is allowed"
+  }
+
+  template "ConversationPlanDispatchReceipt" {
+    type: "conversation_plan_dispatch_receipt"
+    receiptType: "hololand.holoshell.conversation-plan-dispatch.v0.1.0"
+    dispatchId: ""
+    planId: ""
+    status: "ready_to_route"
+    planValidationStatus: "passed"
+    permissionEnvelope: "read_only"
+    defaultExecutionMode: "plan_only"
+    mutationExecuted: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    completionClaimAllowed: false
+    downstreamReceiptsRequired: true
+    receiptRequired: true
+  }
+
+  template "ConversationPlanDispatchTarget" {
+    type: "conversation_plan_dispatch_target"
+    id: ""
+    lane: ""
+    executor: ""
+    permissionEnvelope: "read_only"
+    mayExecuteByDefault: false
+    receiptRequired: true
+  }
+
+  template "ConversationPlanRoomTaskBatch" {
+    type: "conversation_plan_room_task_batch"
+    planId: ""
+    tasks: []
+    helper: "C:/Users/josep/.ai-ecosystem/scripts/room-add-tasks.mjs"
+    defaultMode: "write_batch_receipt_only"
+    verificationRequired: true
+  }
+
+  policy "PlanMustBeReady" {
+    appliesTo: ["dispatch_conversation_plan"]
+    requiredSchema: "hololand.holoshell.conversation-plan.v0.1.0"
+    requiredPlanStatus: "ready_to_dispatch"
+    requiredTrigger: "explicit_commence_all_turn"
+    requiredOperation: "dispatch_conversation_plan"
+    completionClaimAllowed: false
+    receiptRequired: true
+  }
+
+  policy "DefaultPlanOnly" {
+    appliesTo: ["conversation_plan_dispatch"]
+    defaultExecutionMode: "plan_only"
+    mutating: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "RoomMutationRequiresExplicitExecuteFlag" {
+    appliesTo: ["room_task_filing", "room_task_claim"]
+    helperRequired: true
+    helperMustVerifyPersistedIds: true
+    explicitExecuteFlagRequired: true
+    mutationRecordedInReceipt: true
+    receiptRequired: true
+  }
+
+  policy "CompletionClaimsBlockedUntilDownstreamReceipts" {
+    appliesTo: ["room_task", "local_agent_route", "source_validation_route", "owned_metal_route"]
+    completionClaimAllowed: false
+    requiredBeforeCompletion: [
+      "room_task_done_receipt",
+      "local_agent_result_receipt",
+      "holoscript_source_validation_receipt"
+    ]
+    receiptRequired: true
+  }
+
+  action apply_conversation_plan(plan) {
+    state.planId = plan.planId
+    state.planStatus = plan.summary.status
+    state.planValidationStatus = plan.summary.dispatchReady ? "passed" : "failed"
+    emit("holoshell:conversation-plan:input", {
+      action: "conversation_plan_applied",
+      plan_id: state.planId,
+      plan_status: state.planStatus,
+      dispatch_ready: plan.summary.dispatchReady,
+      commence_all: plan.trigger.commenceAll,
+      permission_envelope: plan.summary.permissionEnvelope,
+      completion_claim_allowed: plan.dispatchBoundary.completionClaimAllowed,
+      receipt_required: true
+    })
+  }
+
+  action emit_dispatch_receipt(receipt) {
+    state.dispatchId = receipt.dispatchId
+    state.dispatchStatus = receipt.summary.status
+    state.planId = receipt.summary.planId
+    state.planValidationStatus = receipt.summary.planValidationStatus
+    state.targetCount = receipt.summary.targetCount
+    state.roomTaskCount = receipt.summary.roomTaskCount
+    state.roomTasksFiled = receipt.summary.roomTasksFiled
+    state.roomTaskClaimed = receipt.summary.roomTaskClaimed
+    state.mutationExecuted = receipt.summary.mutationExecuted
+    state.completionClaimAllowed = receipt.summary.completionClaimAllowed
+    state.downstreamReceiptsRequired = receipt.summary.downstreamReceiptsRequired
+    emit("holoshell:conversation-plan:dispatch-receipt", {
+      action: "conversation_plan_dispatch_receipt_applied",
+      dispatch_id: state.dispatchId,
+      status: state.dispatchStatus,
+      plan_id: state.planId,
+      plan_validation_status: state.planValidationStatus,
+      target_count: state.targetCount,
+      room_task_count: state.roomTaskCount,
+      room_tasks_filed: state.roomTasksFiled,
+      room_task_claimed: state.roomTaskClaimed,
+      mutation_executed: state.mutationExecuted,
+      completion_claim_allowed: state.completionClaimAllowed,
+      downstream_receipts_required: state.downstreamReceiptsRequired,
+      receipt_required: true
+    })
+  }
+
+  action emit_room_task_batch(batch) {
+    emit("holoshell:conversation-plan:room-tasks", {
+      action: "conversation_plan_room_tasks_ready",
+      plan_id: batch.planId,
+      task_count: batch.tasks.length,
+      helper: "C:/Users/josep/.ai-ecosystem/scripts/room-add-tasks.mjs",
+      default_mode: "write_batch_receipt_only",
+      verification_required: true,
+      receipt_required: true
+    })
+  }
+
+  action emit_local_agent_routes(receipt) {
+    emit("holoshell:conversation-plan:local-agent-route", {
+      action: "conversation_plan_local_routes_ready",
+      plan_id: receipt.summary.planId,
+      targets: receipt.targets,
+      may_execute_by_default: false,
+      downstream_receipts_required: true,
+      receipt_required: true
+    })
+  }
+}

@@ -92,6 +92,12 @@ assert.equal(finalReceipt.summary.conversationPlanTurnCount, plan.summary.turnCo
 assert.ok(proposal, 'commence all must create a conversation-plan dispatch proposal');
 assert.equal(proposal.objectId, 'conversation-plan');
 assert.equal(proposal.planId, plan.planId);
+assert.equal(proposal.planReceipt, plan.output.latestPath);
+assert.equal(proposal.dispatcherSource, 'apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus');
+assert.equal(proposal.dispatcherScript, 'scripts/holoshell-conversation-plan-dispatcher.mjs');
+assert.equal(proposal.executionDefault, 'plan_only_until_explicit_execute_flag');
+assert.equal(proposal.downstreamReceiptsRequired, true);
+assert.equal(proposal.completionClaimAllowed, false);
 assert.equal(proposal.mutating, false);
 assert.equal(proposal.approvalRequired, false);
 assert.equal(proposal.receiptRequired, true);
