@@ -238,6 +238,61 @@ function Invoke-Remote {
   return Invoke-External -FilePath $script:SshBin -Arguments $args -TimeoutSec 180
 }
 
+function Get-LocalSha256 {
+  param([string]$PathValue)
+  return (Get-FileHash -Algorithm SHA256 -LiteralPath $PathValue).Hash.ToLowerInvariant()
+}
+
+function Get-RemoteSha256 {
+  param([string]$RemotePath)
+  $result = Invoke-Remote ("sha256sum " + (Quote-RemotePath $RemotePath))
+  $hash = (($result.Stdout -split '\s+') | Where-Object { $_ } | Select-Object -First 1)
+  if ($hash -notmatch '^[a-fA-F0-9]{64}$') {
+    throw "remote sha256sum did not return a sha256 for $RemotePath"
+  }
+  return $hash.ToLowerInvariant()
+}
+
+function Test-JetsonChatWrapperParity {
+  $pairs = @(
+    @{
+      Name = 'holoshell-serve'
+      RelativePath = 'packages/holoshell/serve.mjs'
+      LocalPath = Join-Path $Hololand 'packages\holoshell\serve.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'packages/holoshell/serve.mjs'
+    },
+    @{
+      Name = 'brittney-turn'
+      RelativePath = 'scripts/holoshell-brittney-turn.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-brittney-turn.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-brittney-turn.mjs'
+    }
+  )
+
+  $checks = @()
+  foreach ($pair in $pairs) {
+    $localHash = Get-LocalSha256 $pair.LocalPath
+    $remoteHash = Get-RemoteSha256 $pair.RemotePath
+    $matches = $localHash -eq $remoteHash
+    $checks += [ordered]@{
+      name = $pair.Name
+      relativePath = $pair.RelativePath
+      localSha256 = $localHash
+      remoteSha256 = $remoteHash
+      matches = $matches
+      remotePath = $pair.RemotePath
+    }
+  }
+
+  $mismatches = @($checks | Where-Object { -not $_.matches })
+  if ($mismatches.Count -gt 0) {
+    $details = ($mismatches | ForEach-Object { "$($_.relativePath) local=$($_.localSha256) remote=$($_.remoteSha256)" }) -join '; '
+    throw "Jetson chat wrapper parity mismatch after deploy: $details"
+  }
+
+  return $checks
+}
+
 function Copy-ToJetson {
   param(
     [string]$Source,
@@ -329,11 +384,14 @@ $receipt = [ordered]@{
     verifyChatRequested = [bool]($VerifyChat -or $Restart)
     planOnly = [bool]$PlanOnly
     copiedCount = 0
+    parityStatus = 'not_checked'
+    parityCheckedCount = 0
     serviceStatus = 'not_requested'
     chatStatus = 'not_requested'
   }
   policy = [ordered]@{
     mutationRequiresRestartFlag = $true
+    jetsonChatWrapperParityRequired = $true
     sshBatchMode = $true
     strictHostKeyChecking = 'accept-new'
     sshKeyPathIncluded = $false
@@ -354,6 +412,7 @@ $receipt = [ordered]@{
 
 if ($PlanOnly) {
   $receipt.summary.copiedCount = ($copyPlan | Where-Object { $_.Required -or (Test-Path -LiteralPath $_.Source) }).Count
+  $receipt.summary.parityStatus = 'not_checked_plan_only'
   if ($Json) {
     $receipt | ConvertTo-Json -Depth 8
   } else {
@@ -408,6 +467,12 @@ foreach ($entry in $copyPlan) {
   Copy-ToJetson -Source $entry.Source -Destination $entry.Destination -Recursive:([bool]$entry.Recursive)
   $receipt.summary.copiedCount += 1
 }
+
+Write-Deploy 'checking Jetson chat wrapper parity ...'
+$parity = Test-JetsonChatWrapperParity
+$receipt.summary.parityStatus = 'pass'
+$receipt.summary.parityCheckedCount = $parity.Count
+$receipt.parity = $parity
 
 if ($Restart) {
   Write-Deploy 'restarting holoshell-surface ...'

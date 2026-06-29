@@ -148,6 +148,37 @@ node_path() {
 SSH_KEY="$(tool_path "$KEY")"
 SSH_OPTS=(-i "$SSH_KEY" -o BatchMode=yes -o "ConnectTimeout=${JETSON_SSH_CONNECT_TIMEOUT:-10}" -o StrictHostKeyChecking=accept-new)
 
+remote_quote() {
+  local value="$1"
+  case "$value" in
+    *$'\n'*|*$'\r'*|*$'\0'*|*"'"*) echo "[deploy] unsafe remote path: $value" >&2; exit 1 ;;
+  esac
+  printf "'%s'" "$value"
+}
+
+local_sha256() {
+  "$NODE_BIN" -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); console.log(createHash('sha256').update(readFileSync(process.argv[1])).digest('hex'))" "$1"
+}
+
+remote_sha256() {
+  local remote_path="$1"
+  "$SSH_BIN" "${SSH_OPTS[@]}" "$J" "sha256sum $(remote_quote "$remote_path")" | awk '{print $1}'
+}
+
+check_wrapper_parity() {
+  local local_path="$1"
+  local remote_path="$2"
+  local label="$3"
+  local local_hash remote_hash
+  local_hash="$(local_sha256 "$local_path")"
+  remote_hash="$(remote_sha256 "$remote_path")"
+  if [ "$local_hash" != "$remote_hash" ]; then
+    echo "[deploy] Jetson chat wrapper parity mismatch for $label: local=$local_hash remote=$remote_hash" >&2
+    exit 1
+  fi
+  echo "[deploy] parity ok $label sha256=$local_hash"
+}
+
 echo "[deploy] HoloScript repo: $HS"
 echo "[deploy] Jetson target: $J"
 echo "[deploy] ssh: $SSH_BIN | scp: $SCP_BIN | key: <configured>"
@@ -179,6 +210,10 @@ if [ -f "$MODEL_LIBRARY" ]; then
 else
   echo "[deploy] model library not found at $MODEL_LIBRARY; live server will use installed Ollama list only"
 fi
+
+echo "[deploy] checking Jetson chat wrapper parity ..."
+check_wrapper_parity "$HL/packages/holoshell/serve.mjs" "$SURF/packages/holoshell/serve.mjs" "packages/holoshell/serve.mjs"
+check_wrapper_parity "$HL/scripts/holoshell-brittney-turn.mjs" "$SURF/scripts/holoshell-brittney-turn.mjs" "scripts/holoshell-brittney-turn.mjs"
 
 if [ "${1:-}" = "--restart" ]; then
   echo "[deploy] restarting holoshell-surface ..."

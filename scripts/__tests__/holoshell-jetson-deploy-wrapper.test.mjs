@@ -20,6 +20,10 @@ assert.match(bash, /BatchMode=yes/, 'bash wrapper must use batch SSH');
 assert.match(bash, /StrictHostKeyChecking=accept-new/, 'bash wrapper must avoid interactive host-key prompts');
 assert.match(bash, /tool_path/, 'bash wrapper must convert local paths for Windows executables');
 assert.match(bash, /powershell\.exe/, 'bash wrapper must be able to discover the Windows profile from WSL or Git Bash');
+assert.match(bash, /check_wrapper_parity/, 'bash wrapper must compare local and Jetson wrapper hashes');
+assert.match(bash, /packages\/holoshell\/serve\.mjs/, 'bash wrapper must parity-check serve.mjs');
+assert.match(bash, /scripts\/holoshell-brittney-turn\.mjs/, 'bash wrapper must parity-check Brittney turn wrapper');
+assert.match(bash, /Jetson chat wrapper parity mismatch/, 'bash wrapper must fail loudly on hash mismatch');
 
 const powershell = readFileSync(psPath, 'utf8');
 assert.match(powershell, /Resolve-JetsonTarget/, 'PowerShell wrapper must resolve target host/IP');
@@ -27,6 +31,10 @@ assert.match(powershell, /ssh\.exe/, 'PowerShell wrapper must prefer Windows Ope
 assert.match(powershell, /scp\.exe/, 'PowerShell wrapper must prefer Windows scp');
 assert.match(powershell, /Invoke-ChatReceipt/, 'PowerShell wrapper must verify live Brittney chat');
 assert.match(powershell, /\/api\/brittney\/chat/, 'PowerShell wrapper must call the live chat route');
+assert.match(powershell, /Test-JetsonChatWrapperParity/, 'PowerShell wrapper must compare local and Jetson wrapper hashes');
+assert.match(powershell, /Get-FileHash -Algorithm SHA256/, 'PowerShell wrapper must hash local files');
+assert.match(powershell, /sha256sum/, 'PowerShell wrapper must hash remote Jetson files');
+assert.match(powershell, /Jetson chat wrapper parity mismatch after deploy/, 'PowerShell wrapper must fail loudly on hash mismatch');
 assert.match(powershell, /sshKeyPathIncluded = \$false/, 'PowerShell wrapper receipt must hide raw key paths');
 assert.match(powershell, /sudo -n systemctl restart holoshell-surface/, 'PowerShell wrapper restart must be non-interactive');
 
@@ -60,7 +68,10 @@ if (probe.status === 0) {
   assert.equal(receipt.summary.planOnly, true);
   assert.equal(receipt.summary.restartRequested, true);
   assert.equal(receipt.summary.verifyChatRequested, true);
+  assert.equal(receipt.summary.parityStatus, 'not_checked_plan_only');
+  assert.equal(receipt.summary.parityCheckedCount, 0);
   assert.match(receipt.summary.target, /^username@/);
+  assert.equal(receipt.policy.jetsonChatWrapperParityRequired, true);
   assert.equal(receipt.policy.sshBatchMode, true);
   assert.equal(receipt.policy.sshKeyPathIncluded, false);
   assert.equal(receipt.resolved.sshKeyPathIncluded, false);
