@@ -246,6 +246,7 @@ The production terminal projection is source-backed by:
 
 ```text
 source/holoshell-operator-terminal.hsplus
+source/holoshell-browser-terminal-coupling.hsplus
 scripts/holoshell-operator-terminal.mjs
 docs/OPERATOR_TERMINAL.md
 ```
@@ -272,6 +273,17 @@ pnpm run holoshell:operator-terminal -- --agent --json
 The terminal does not store private state or bypass approvals. Mutating actions
 still route through HoloShell approval bundles, service managers, desktop
 bridge consent, and receipt control.
+
+The browser and terminal are coupled through the read-only session endpoint:
+
+```text
+GET /api/operator-terminal/session
+```
+
+`Brittney Studio.lnk` opens the browser cockpit and, unless launched with
+`-NoTerminal`, a visible operator terminal that refreshes the terminal receipt.
+The browser remains the chat and approval surface; the terminal remains the
+execution/evidence projection bound to the same session id and receipt ledger.
 
 ## OS UI Capture Bridge
 

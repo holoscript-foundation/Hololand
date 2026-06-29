@@ -6,15 +6,15 @@ so agents and product surfaces do not have to rediscover the shape of
 
 ## Current Validation Snapshot
 
-Latest local receipt: `.tmp/holoshell/source-validation.json` (2026-05-23).
+Latest local receipt: `.tmp/holoshell/source-validation.json` (2026-06-29).
 
 Summary from the receipt:
 
 | Field    | Value                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Status   | `pass`                                                                                     |
-| Sources  | **121/121 committed** (2026-05-23)                                                        |
-| Formats  | 21 `.holo`, 20 `.hs`, 77 `.hsplus`                                                        |
+| Sources  | **131/131 passed** (2026-06-29)                                                           |
+| Formats  | 23 `.holo`, 20 `.hs`, 88 `.hsplus`                                                        |
 | Failures | 0 failures, 0 timeouts                                                                     |
 
 This map is the navigation layer. The validation receipt is the current parse
@@ -30,6 +30,7 @@ contracts.
 | Render slice                   | `apps/holoshell/source/holoshell-shell-render.holo`              |
 | User shell projection          | `apps/holoshell/source/holoshell-user-shell-projection.hsplus` |
 | Operator terminal              | `apps/holoshell/source/holoshell-operator-terminal.hsplus`     |
+| Browser-terminal coupling      | `apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus` |
 | Founder host                   | `apps/holoshell/source/holoshell-founder-host.hsplus`          |
 | Native wrapper                 | `apps/holoshell/source/holoshell-native-wrapper.hsplus`        |
 | Startup integration            | `apps/holoshell/source/holoshell-startup-integration.hsplus`   |

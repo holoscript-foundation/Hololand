@@ -37,6 +37,7 @@
     "test:holoshell-live-feed-bridge-status": "node scripts/__tests__/holoshell-live-feed-bridge-status.test.mjs",
     "test:holoshell-live-status": "node scripts/__tests__/holoshell-live-status.test.mjs",
     "test:holoshell-brittney-cockpit": "node scripts/__tests__/holoshell-brittney-cockpit.test.mjs",
+    "test:holoshell-browser-terminal-coupling": "node scripts/__tests__/holoshell-browser-terminal-coupling.test.mjs",
     "test:holoshell-laptop-reasoning": "node scripts/__tests__/holoshell-brittney-laptop-reasoning.test.mjs && node scripts/__tests__/holoshell-laptop-reasoning-worker.test.mjs && node scripts/__tests__/holoshell-laptop-reasoning-bridge.test.mjs && node scripts/__tests__/holoshell-laptop-reasoning-bridge-service.test.mjs && node scripts/__tests__/holoshell-live-feed-laptop-reasoning.test.mjs && node scripts/__tests__/holoshell-brittney-laptop-result-ingestion.test.mjs",
     "test:holoshell-laptop-reasoning-bridge-service": "node scripts/__tests__/holoshell-laptop-reasoning-bridge-service.test.mjs",
     "test:holoshell-improvement-runs": "node scripts/__tests__/holoshell-improvement-runs.test.mjs",

@@ -30,6 +30,8 @@ composition "OperateRoom" {
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
     brittney_cockpit_source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     brittney_cockpit_endpoint: "GET /api/cockpit/capsule"
+    browser_terminal_coupling_source: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
+    operator_terminal_session_endpoint: "GET /api/operator-terminal/session"
     desktop_bridge_endpoint: "GET /api/desktop-control/bridge"
     desktop_bridge_report_endpoint: "POST /api/desktop-control/bridge/report"
     laptop_desktop_bridge_endpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
@@ -53,6 +55,7 @@ composition "OperateRoom" {
     last_improvement_run_id: ""
     last_improvement_run_count: 0
     last_cockpit_capsule_status: ""
+    last_operator_terminal_status: ""
   }
 
   object "root" {
@@ -80,6 +83,8 @@ composition "OperateRoom" {
     // Daimon's remembered context (once emerged) rides along via rehydration.
     // The compact cockpit strip consumes GET /api/cockpit/capsule, whose source
     // contract is apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus.
+    // Its Terminal card consumes GET /api/operator-terminal/session, whose source
+    // contract binds browser chat and terminal evidence to one HoloShell session.
     // Improvement batches use POST /api/improvement-runs, then capped codebase-fix
     // shakedowns through POST /api/improvement-runs/:runId/execute. Counted runs
     // require patch + validation evidence; HoloTune waits until fixes pass review.

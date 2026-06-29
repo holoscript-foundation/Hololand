@@ -183,6 +183,34 @@ function compileOperateRoomShell(holoComposition) {
       line-height: 1.35;
       overflow-wrap: anywhere;
     }
+    .cockpit-action-grid {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .cockpit-action-card {
+      min-height: 42px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #c9d1d9;
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.2;
+      text-align: left;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+    .cockpit-action-card[data-hologate="true"] {
+      border-color: #8957e5;
+    }
+    .cockpit-action-card:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
     .improvement-grid {
       display: grid;
       grid-template-columns: minmax(180px, 1fr) 78px 86px 86px 78px;
@@ -198,6 +226,9 @@ function compileOperateRoomShell(holoComposition) {
         gap: 4px;
       }
       .cockpit-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .cockpit-action-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .improvement-grid {
@@ -285,13 +316,79 @@ const runtimeScript = `  <script>
       var detail = lane.detail ? ' - ' + lane.detail : '';
       return value + detail;
     }
+    function _cardText(card) {
+      var action = card.primaryAction || card.lane || card.method || 'action';
+      var gate = card.holoGateRequired ? 'HoloGate' : card.permissionEnvelope;
+      return card.label + ' - ' + action + ' / ' + gate;
+    }
+    function _runCockpitActionCard(card, button) {
+      var original = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Planning...';
+      var request = card.method === 'POST'
+        ? fetch(card.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              intent: card.intent || card.label,
+              sourceCardId: card.id,
+              planOnly: true
+            })
+          })
+        : fetch(card.href, { cache: 'no-store' });
+      request
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+          if (!result.ok || result.data.error) throw new Error(result.data.error || 'request_failed');
+          var data = result.data;
+          var receipt = data.planId || data.receipt?.planId || data.status || 'receipt ready';
+          button.textContent = 'Receipt';
+          _bMsg('Cockpit card', card.label + '\\n' + receipt + '\\n' + (card.preflightPath ? card.preflightPath.requiredSequence.join(' -> ') : card.permissionEnvelope), '#3fb950');
+        })
+        .catch(function(e) {
+          button.textContent = 'Blocked';
+          _bMsg('Cockpit card', card.label + ' blocked: ' + e.message, '#f85149');
+        })
+        .finally(function() {
+          setTimeout(function() {
+            button.disabled = false;
+            button.textContent = original;
+          }, 1200);
+        });
+    }
+    function _renderCockpitActionCards(capsule) {
+      var mount = document.getElementById('cockpit-action-cards');
+      if (!mount) return;
+      mount.textContent = '';
+      var cards = ((capsule && capsule.actionCards) || []).filter(function(card) {
+        return card && (card.primaryAction || card.id === 'desktop_control_plan' || card.id === 'context_capsule');
+      }).slice(0, 8);
+      if (!cards.length) {
+        mount.textContent = 'no cards reported';
+        return;
+      }
+      cards.forEach(function(card) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cockpit-action-card';
+        button.dataset.cardId = card.id || '';
+        button.dataset.hologate = card.holoGateRequired ? 'true' : 'false';
+        button.title = _cardText(card);
+        button.textContent = card.label || card.id || 'Action';
+        button.onclick = function() { _runCockpitActionCard(card, button); };
+        mount.appendChild(button);
+      });
+    }
     function _renderCockpitCapsule(capsule) {
       _setText('cockpit-runtime', _laneText(_lane(capsule, 'runtime_truth')));
       _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
       _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
+      _setText('cockpit-windows', _laneText(_lane(capsule, 'window_awareness')));
+      _setText('cockpit-terminal', _laneText(_lane(capsule, 'operator_terminal')));
       var cards = (capsule && capsule.actionCards) || [];
       _setText('cockpit-actions', cards.slice(0, 4).map(function(card) { return card.label + ' [' + card.permissionEnvelope + ']'; }).join(' | ') || 'no cards reported');
+      _renderCockpitActionCards(capsule);
     }
     function loadCockpitCapsule() {
       fetch('/api/cockpit/capsule', { cache: 'no-store' })
@@ -560,8 +657,11 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
         '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
         '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Terminal</strong><span id="cockpit-terminal">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Windows</strong><span id="cockpit-windows">checking</span></div>' +
         '<div class="cockpit-card"><strong>Tools</strong><span id="cockpit-actions">checking</span></div>' +
         '</section>' +
+        '<section id="cockpit-action-cards" class="cockpit-action-grid" aria-label="Brittney action cards"></section>' +
         '<div id="improvement-run-panel" style="flex:0 0 auto;margin:14px 0 0 0;padding:12px;border:1px solid #30363d;border-radius:8px;background:#0d1117">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">' +
         '<strong style="font-size:13px;color:#c9d1d9;font-weight:650">Codebase Fix Shakedown</strong>' +

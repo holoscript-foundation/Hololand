@@ -21,7 +21,10 @@
   (Pin a desktop shortcut to that command — see the README block at the bottom.)
 #>
 
-param([switch]$Headless)  # OPTIONAL: boot the stack but don't open the UI surfaces (APIs-only).
+param(
+  [switch]$Headless,    # OPTIONAL: boot the stack but don't open the UI surfaces (APIs-only).
+  [switch]$NoTerminal   # OPTIONAL: open the browser only; skip the read-only operator terminal.
+)
                           # NOTE: opening a browser to actually use a surface is FINE for anyone
                           # incl. agents (open -> use -> close). The real Desktop anti-pattern is
                           # FLASHING windows / program-output windows — handled by -WindowStyle
@@ -38,6 +41,10 @@ $StudioPort  = 3101                                                   # Studio /
 function Test-LocalPort([int]$Port) {
   $c = New-Object Net.Sockets.TcpClient
   try { $c.Connect('127.0.0.1', $Port); $true } catch { $false } finally { $c.Close() }
+}
+
+function Quote-PowerShellSingle([string]$Value) {
+  "'" + ($Value -replace "'", "''") + "'"
 }
 
 # 0) Self-install the desktop icon if missing — so running this once (you OR an agent) gives
@@ -81,6 +88,33 @@ if (-not $surfaceUp) {
 
 # 3) Open the screen onto the Jetson (skip with -Headless / APIs-only).
 if (-not $Headless) { Start-Process $JetsonSurface }
+
+# 4) Open the paired read-only operator terminal. This is a visible interactive
+#    projection, not a service helper: it refreshes the operator-terminal receipt
+#    and stays bound to the same Brittney/HoloShell session the browser shows.
+if ((-not $Headless) -and (-not $NoTerminal)) {
+  $repo = Quote-PowerShellSingle $Hololand
+  $terminalCommand = @"
+Set-Location $repo
+Write-Host '[Brittney Studio] browser cockpit: $JetsonSurface'
+Write-Host '[Brittney Studio] refreshing read-only operator terminal receipt...'
+if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+  pnpm run holoshell:operator-terminal
+} else {
+  corepack pnpm run holoshell:operator-terminal
+}
+Write-Host ''
+Write-Host '[Brittney Studio] receipt: .tmp/holoshell/operator-terminal.json'
+"@
+  Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Normal -ArgumentList @(
+    '-NoExit',
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    $terminalCommand
+  )
+}
 
 Write-Host "[Brittney Studio] surface: $(if($surfaceUp){'OK'}else{'DOWN'}) ($JetsonSurface) | $jetson | brain+agents+surface all on the Jetson (`$0)"
 

@@ -1,0 +1,168 @@
+// HoloShell Browser-Terminal Coupling
+//
+// Canonical source for the dual-surface Brittney Studio session. The browser
+// remains the chat, approval, and cockpit surface. The terminal is the
+// execution/evidence projection bound to the same session and receipt stream.
+
+composition "HoloShell Browser Terminal Coupling" {
+  config {
+    title: "Browser Terminal Coupling"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    browserSurface: "Brittney Studio browser cockpit"
+    terminalSurface: "HoloShell operator terminal"
+    browserAdapter: "packages/holoshell/serve.mjs"
+    compilerBridge: "packages/holoshell/compile.mjs"
+    launcher: "scripts/brittney-studio-launch.ps1"
+    terminalAdapter: "scripts/holoshell-operator-terminal.mjs"
+    cockpitSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    terminalSource: "apps/holoshell/source/holoshell-operator-terminal.hsplus"
+    sessionEndpoint: "GET /api/operator-terminal/session"
+    cockpitEndpoint: "GET /api/cockpit/capsule"
+    chatEndpoint: "POST /api/brittney/chat"
+    terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    terminalRefreshCommand: "pnpm run holoshell:operator-terminal -- --agent --json"
+    receiptRequired: true
+  }
+
+  state {
+    sessionStatus: "unknown"
+    sharedSessionId: ""
+    browserStatus: "unknown"
+    terminalStatus: "unknown"
+    terminalReceiptStatus: "unknown"
+    terminalReceiptAgeMs: 0
+    terminalReceiptHash: ""
+    browserIsPrimaryConversationSurface: true
+    terminalIsExecutionEvidenceSurface: true
+    directTerminalMutationAllowed: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:browser-terminal:session" {
+    type: "request_response"
+    priority: "critical"
+    description: "Shared Brittney Studio session state consumed by browser and terminal surfaces"
+  }
+
+  channel "holoshell:browser-terminal:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipt stream proving both surfaces are bound to one HoloShell session"
+  }
+
+  template "BrowserTerminalSession" {
+    type: "dual_surface_session"
+    schemaVersion: "hololand.holoshell.browser-terminal-coupling.v0.1.0"
+    source: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
+    sessionId: ""
+    status: "unknown"
+    browser: {}
+    terminal: {}
+    sharedMemory: {}
+    safety: {}
+    receiptRequired: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  template "CoupledSurface" {
+    type: "surface_binding"
+    surfaceId: ""
+    role: ""
+    status: "unknown"
+    url: ""
+    endpoint: ""
+    receipt: ""
+    permissionEnvelope: "read_only"
+    mayMutateWithoutConsent: false
+  }
+
+  room "BrowserTerminalCouplingRoom" {
+    label: "Browser And Terminal"
+    userQuestion: "Are Brittney chat and the operator terminal looking at the same session?"
+    visualForm: "dual_surface_operator_binding"
+    liveFeed: "holoshell:browser-terminal:session"
+
+    object "BrowserCockpit" using "CoupledSurface" {
+      surfaceId: "browser_cockpit"
+      role: "conversation_approval_context"
+      status: $browserStatus
+      endpoint: "GET /api/cockpit/capsule"
+      permissionEnvelope: "read_only"
+      mayMutateWithoutConsent: false
+    }
+
+    object "OperatorTerminal" using "CoupledSurface" {
+      surfaceId: "operator_terminal"
+      role: "execution_evidence_receipts"
+      status: $terminalStatus
+      endpoint: "GET /api/operator-terminal/session"
+      receipt: ".tmp/holoshell/operator-terminal.json"
+      permissionEnvelope: "read_only_projection"
+      mayMutateWithoutConsent: false
+    }
+  }
+
+  policy "OneSessionTwoSurfaces" {
+    appliesTo: ["browser_cockpit", "operator_terminal", "brittney_turn", "context_capsule"]
+    oneSharedSessionIdRequired: true
+    browserOwnsConversationAndApprovals: true
+    terminalOwnsExecutionEvidenceOnly: true
+    terminalMayNotForkChatBrain: true
+    terminalMayNotStorePrivateState: true
+    receiptRequired: true
+  }
+
+  policy "TerminalCannotBypassHoloGate" {
+    appliesTo: ["terminal_intent", "terminal_command", "guarded_execute", "desktop_action", "host_mutation"]
+    requiredSequenceBeforeMutation: ["identify", "scope", "preflight", "fresh_gesture_proof", "consent_token", "execution_receipt", "log"]
+    directTerminalMutationAllowed: false
+    browserLoadMaySpawnTerminal: false
+    launcherMayOpenTerminalProjection: true
+    endpointMayExecuteTerminalCommand: false
+    receiptRequired: true
+  }
+
+  policy "ContextCapsuleIsSharedMemory" {
+    appliesTo: ["compaction", "handoff", "room_marathon", "local_terminal", "browser_chat"]
+    requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
+    browserMaySummarizeTerminalReceipts: true
+    terminalMayPrintBrowserUrl: true
+    bothSurfacesUseSameReceiptLedger: true
+    receiptRequired: true
+  }
+
+  action consume_browser_terminal_session(session) {
+    state.sessionStatus = session.status
+    state.sharedSessionId = session.sessionId
+    state.browserStatus = session.browser.status
+    state.terminalStatus = session.terminal.status
+    state.terminalReceiptStatus = session.terminal.receiptStatus
+    state.terminalReceiptAgeMs = session.terminal.receiptAgeMs || 0
+    state.terminalReceiptHash = session.terminal.receiptHash || ""
+    state.browserIsPrimaryConversationSurface = session.safety.browserIsPrimaryConversationSurface
+    state.terminalIsExecutionEvidenceSurface = session.safety.terminalIsExecutionEvidenceSurface
+    state.directTerminalMutationAllowed = session.safety.directTerminalMutationAllowed
+    state.destructiveActionsTaken = session.destructiveActionsTaken
+    state.desktopAutomationExecuted = session.desktopAutomationExecuted
+
+    emit("holoshell:browser-terminal:receipt", {
+      action: "browser_terminal_session_consumed",
+      status: state.sessionStatus,
+      session_id: state.sharedSessionId,
+      browser_status: state.browserStatus,
+      terminal_status: state.terminalStatus,
+      terminal_receipt_status: state.terminalReceiptStatus,
+      terminal_receipt_age_ms: state.terminalReceiptAgeMs,
+      terminal_receipt_hash: state.terminalReceiptHash,
+      browser_primary_conversation_surface: state.browserIsPrimaryConversationSurface,
+      terminal_execution_evidence_surface: state.terminalIsExecutionEvidenceSurface,
+      direct_terminal_mutation_allowed: state.directTerminalMutationAllowed,
+      destructive_actions_taken: state.destructiveActionsTaken,
+      desktop_automation_executed: state.desktopAutomationExecuted,
+      receipt_required: true
+    })
+  }
+}

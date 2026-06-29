@@ -25,6 +25,18 @@ const DIST_DIR = join(__dirname, 'dist');
 const HTML_PATH = join(DIST_DIR, 'operate-room.html');
 const BRITTNEY_COCKPIT_CAPSULE_SCHEMA = 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0';
 const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus';
+const REPO_ROOT = join(__dirname, '..', '..');
+const HOLOSHELL_TMP_DIR = process.env.HOLOSHELL_TMP_DIR || join(REPO_ROOT, '.tmp', 'holoshell');
+const LEGACY_WINDOW_INVENTORY_SOURCE = 'apps/holoshell/source/holoshell-legacy-window-inventory.hsplus';
+const OPERATOR_BRIEF_SOURCE = 'apps/holoshell/source/holoshell-operator-brief.hsplus';
+const OPERATOR_TERMINAL_SESSION_SCHEMA = 'hololand.holoshell.browser-terminal-coupling.v0.1.0';
+const OPERATOR_TERMINAL_COUPLING_SOURCE = 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus';
+const OPERATOR_TERMINAL_SOURCE = 'apps/holoshell/source/holoshell-operator-terminal.hsplus';
+const OPERATOR_TERMINAL_RECEIPT =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_RECEIPT ||
+  join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal.json');
+const OPERATOR_TERMINAL_REFRESH_COMMAND = 'pnpm run holoshell:operator-terminal -- --agent --json';
+const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
 // Bind host. Default loopback (the laptop-local case). On the JETSON — where this
@@ -174,6 +186,197 @@ function executionHistory() {
   }));
 }
 
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function readHoloShellTmpJson(fileName) {
+  const filePath = join(HOLOSHELL_TMP_DIR, fileName);
+  if (!existsSync(filePath)) return null;
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function shortWindowLabel(window, index) {
+  return String(
+    window?.appLabel
+      || window?.label
+      || window?.appName
+      || window?.titleLabel
+      || `Window ${index + 1}`
+  ).slice(0, 44);
+}
+
+function normalizeCockpitWindow(window, index) {
+  const id = String(window?.windowId || window?.id || `window_${index + 1}`);
+  const appName = String(window?.appName || '').slice(0, 40);
+  const label = shortWindowLabel(window, index);
+  return {
+    id,
+    label,
+    appName,
+    titleLabel: String(window?.titleLabel || 'redacted_window').slice(0, 48),
+    surfaceClass: String(window?.surfaceClass || window?.archetype || 'legacy_window').slice(0, 48),
+    foreground: Boolean(window?.foreground),
+    pidKnown: Number.isInteger(Number(window?.pid)),
+    rawTitleHidden: true,
+    actions: ['focus_window', 'launch_app', 'open_url'],
+  };
+}
+
+function buildWindowAwareness() {
+  const legacyWindows = readHoloShellTmpJson('legacy-window-inventory.json');
+  const operatorBrief = readHoloShellTmpJson('operator-brief.json');
+  const windows = safeArray(legacyWindows?.windows).slice(0, 8).map(normalizeCockpitWindow);
+  const activeWindow = windows.find((window) => window.foreground) || windows[0] || null;
+  const legacySummary = legacyWindows?.summary || {};
+  const operatorLegacy = operatorBrief?.legacy || {};
+  const peers = operatorBrief?.peers || {};
+  const operatorNextActions = safeArray(operatorBrief?.nextActions).slice(0, 3).map((action, index) => ({
+    id: `operator_next_${index + 1}`,
+    source: String(action.source || 'operator_brief').slice(0, 48),
+    priority: String(action.priority || 'medium').slice(0, 16),
+    action: String(action.action || '').slice(0, 180),
+  }));
+  const visibleWindowCount = legacySummary.visibleWindowCount || operatorLegacy.visibleWindowCount || 0;
+  const peerWindowCount = legacySummary.aiPeerWindowCount ?? legacySummary.peerWindowCount ?? peers.windowInstanceCount ?? operatorLegacy.peerWindowCount ?? 0;
+  const shellWindowCount = legacySummary.shellWindowCount ?? peers.shellWindowInstanceCount ?? operatorLegacy.shellWindowCount ?? 0;
+  const rawWindowTitlesIncluded = Boolean(
+    legacyWindows?.safety?.rawWindowTitlesIncluded
+      || legacyWindows?.receipt?.rawWindowTitlesIncluded
+      || operatorBrief?.safety?.rawWindowTitlesIncluded
+      || operatorBrief?.receipt?.rawWindowTitlesIncluded
+  );
+  const destructiveActionsTaken = Boolean(legacyWindows?.safety?.destructiveActionsTaken || operatorBrief?.safety?.destructiveActionsTaken);
+  return {
+    status: windows.length ? 'windows_visible' : (operatorBrief ? 'operator_brief_only' : 'window_receipts_missing'),
+    sourceAnchors: {
+      legacyWindowInventory: LEGACY_WINDOW_INVENTORY_SOURCE,
+      operatorBrief: OPERATOR_BRIEF_SOURCE,
+      tmpDir: HOLOSHELL_TMP_DIR === join(REPO_ROOT, '.tmp', 'holoshell') ? '.tmp/holoshell' : '[external-holoshell-tmp-dir]',
+    },
+    summary: {
+      visibleWindowCount,
+      peerWindowCount,
+      shellWindowCount,
+      activeWindowCount: activeWindow ? 1 : 0,
+      candidateWindowCount: windows.length,
+      operatorBriefStatus: operatorBrief?.status || 'missing',
+      rawWindowTitlesIncluded,
+    },
+    activeWindow,
+    windows,
+    operatorNextActions,
+    safety: {
+      observeOnly: true,
+      rawWindowTitlesIncluded,
+      rawWindowTitlesHidden: !rawWindowTitlesIncluded,
+      destructiveActionsTaken,
+      desktopAutomationExecuted: false,
+      mutationRequiresHoloGate: true,
+    },
+    receipts: {
+      legacyWindowInventoryHash: legacyWindows?.receipt?.windowInventoryHash || null,
+      operatorBriefHash: operatorBrief?.receipt?.briefHash || null,
+    },
+  };
+}
+
+function desktopPreflightPath(primaryAction, options = {}) {
+  const admitted = primaryAction === 'open_url';
+  return {
+    primaryAction,
+    planEndpoint: 'POST /api/desktop-control/plan',
+    bridgePreflightEndpoint: 'POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/preflight',
+    gestureProofEndpoint: 'POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/gesture-proof',
+    consentTokenEndpoint: 'POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/consent-token',
+    executionEndpoint: 'POST http://127.0.0.1:{8751|8752|8753}/api/desktop-control/execute',
+    requiredSequence: ['desktop_control_plan', 'laptop_bridge_preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt'],
+    planOnlyUntilConsentToken: true,
+    executionAllowedFromCockpit: false,
+    admittedExecutor: admitted,
+    allOtherDesktopActionsRemainPlanOnly: !admitted,
+    receiptRequired: true,
+    target: options.target || null,
+  };
+}
+
+function desktopActionCard({ id, label, primaryAction, target = null, intent, permissionEnvelope = 'guarded_execute' }) {
+  return {
+    id,
+    label,
+    method: 'POST',
+    href: '/api/desktop-control/plan',
+    lane: 'desktop_control',
+    primaryAction,
+    target,
+    intent,
+    permissionEnvelope,
+    mayExecuteWithoutConsent: false,
+    planOnly: true,
+    holoGateRequired: true,
+    receiptRequired: true,
+    preflightPath: desktopPreflightPath(primaryAction, { target }),
+  };
+}
+
+function buildWindowActionCards(windowAwareness) {
+  return safeArray(windowAwareness.windows).slice(0, 3).map((window) => desktopActionCard({
+    id: `focus_window_${window.id}`,
+    label: `Focus ${window.label}`.slice(0, 56),
+    primaryAction: 'focus_window',
+    target: {
+      windowId: window.id,
+      label: window.label,
+      appName: window.appName,
+      rawTitleHidden: true,
+    },
+    intent: `Focus the visible ${window.label} window without clicking content or changing state.`,
+  }));
+}
+
+function buildToolPreflightCards(windowAwareness) {
+  const active = windowAwareness.activeWindow;
+  const selectedTarget = active ? {
+    windowId: active.id,
+    label: active.label,
+    appName: active.appName,
+    rawTitleHidden: true,
+  } : {
+    windowId: '',
+    label: 'selected window',
+    appName: '',
+    rawTitleHidden: true,
+  };
+  const appLabel = selectedTarget.appName || selectedTarget.label || 'selected app';
+  return [
+    desktopActionCard({
+      id: 'focus_window_preflight',
+      label: 'Plan Focus Window',
+      primaryAction: 'focus_window',
+      target: selectedTarget,
+      intent: `Plan how to focus ${selectedTarget.label} without clicking content or changing state.`,
+    }),
+    desktopActionCard({
+      id: 'launch_app_preflight',
+      label: 'Plan Launch App',
+      primaryAction: 'launch_app',
+      target: { appName: appLabel, rawTitleHidden: true },
+      intent: `Plan how to launch ${appLabel} without executing the launch until HoloGate consent exists.`,
+    }),
+    desktopActionCard({
+      id: 'open_url_preflight',
+      label: 'Plan Open URL',
+      primaryAction: 'open_url',
+      target: { url: 'https://example.com/status', rawTitleHidden: true },
+      intent: 'Open URL https://example.com/status in the default browser after HoloGate consent.',
+    }),
+  ];
+}
+
 function looksLikeDesktopControlIntent(message) {
   return /\b(screen|desktop|window|app|application|browser|chrome|edge|excel|word|powerpoint|terminal|button|click|type|hotkey|keyboard|mouse|focus|open|launch|control|save|submit|scroll|tab)\b/iu.test(String(message || ''));
 }
@@ -186,8 +389,7 @@ function parseJsonFromNodeOutput(output) {
 }
 
 function desktopControlPlanFor(intent, options = {}) {
-  const repoRoot = join(__dirname, '..', '..');
-  const planScript = join(repoRoot, 'scripts', 'holoshell-desktop-control-plan.mjs');
+  const planScript = join(REPO_ROOT, 'scripts', 'holoshell-desktop-control-plan.mjs');
   const args = [
     planScript,
     '--intent',
@@ -198,7 +400,7 @@ function desktopControlPlanFor(intent, options = {}) {
   ];
   if (options.selfTest) args.push('--self-test');
   const out = execFileSync('node', args, {
-    cwd: repoRoot,
+    cwd: REPO_ROOT,
     encoding: 'utf8',
     timeout: 20_000,
     maxBuffer: 8 * 1024 * 1024,
@@ -490,6 +692,15 @@ function readJsonFileIfPresent(filePath) {
   try {
     if (!filePath || !existsSync(filePath)) return null;
     return JSON.parse(readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function fileAgeMs(filePath, nowMs = Date.now()) {
+  try {
+    if (!filePath || !existsSync(filePath)) return null;
+    return Math.max(0, nowMs - statSync(filePath).mtimeMs);
   } catch {
     return null;
   }
@@ -1480,6 +1691,125 @@ function publicShellUrl() {
   return `http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}`;
 }
 
+function sharedHoloShellSessionId() {
+  return process.env.HOLOSHELL_SESSION_ID || `holoshell:${HOST}:${PORT}`;
+}
+
+function buildOperatorTerminalSession() {
+  const liveStatus = buildLiveStatusSnapshot();
+  const terminalReceipt = readJsonFileIfPresent(OPERATOR_TERMINAL_RECEIPT);
+  const receiptAgeMs = fileAgeMs(OPERATOR_TERMINAL_RECEIPT);
+  const receiptObserved = terminalReceipt?.schemaVersion === 'hololand.holoshell.operator-terminal.v0.1.0';
+  const receiptFresh = receiptObserved && (receiptAgeMs === null || receiptAgeMs <= OPERATOR_TERMINAL_FRESHNESS_MS);
+  const terminalStatus = !receiptObserved ? 'needs_refresh' : (receiptFresh ? 'ready' : 'stale');
+  const sessionReady = liveStatus.status === 'online' && terminalStatus === 'ready';
+  const sessionStatus = sessionReady ? 'coupled' : 'attention';
+  const receiptStatus = !receiptObserved ? 'missing' : (receiptFresh ? 'fresh' : 'stale');
+  const terminalLabels = Array.isArray(terminalReceipt?.humanContract?.labels)
+    ? terminalReceipt.humanContract.labels
+    : [];
+  const terminalCommands = Array.isArray(terminalReceipt?.commands?.human)
+    ? terminalReceipt.commands.human.map((command) => ({
+        id: command.id,
+        label: command.label,
+        flow: command.flow,
+        permissionEnvelope: command.permissionEnvelope,
+        approvalRequired: command.approvalRequired,
+        receipt: command.receipt,
+      }))
+    : [];
+
+  return {
+    schemaVersion: OPERATOR_TERMINAL_SESSION_SCHEMA,
+    source: OPERATOR_TERMINAL_COUPLING_SOURCE,
+    generatedAt: new Date().toISOString(),
+    sessionId: sharedHoloShellSessionId(),
+    status: sessionStatus,
+    browser: {
+      surfaceId: 'browser_cockpit',
+      role: 'conversation_approval_context',
+      status: liveStatus.status === 'online' ? 'ready' : 'attention',
+      url: liveStatus.route.url,
+      chatEndpoint: liveStatus.route.chatEndpoint,
+      cockpitCapsuleEndpoint: liveStatus.route.cockpitCapsuleEndpoint,
+      operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      permissionEnvelope: 'read_only',
+      mayMutateWithoutConsent: false,
+    },
+    terminal: {
+      surfaceId: 'operator_terminal',
+      role: 'execution_evidence_receipts',
+      status: terminalStatus,
+      receiptStatus,
+      receiptPath: OPERATOR_TERMINAL_RECEIPT,
+      receiptAgeMs,
+      freshnessMs: OPERATOR_TERMINAL_FRESHNESS_MS,
+      receiptHash: terminalReceipt?.receipt?.terminalHash || null,
+      source: OPERATOR_TERMINAL_SOURCE,
+      adapter: 'scripts/holoshell-operator-terminal.mjs',
+      launcher: 'scripts/brittney-studio-launch.ps1',
+      mode: terminalReceipt?.summary?.mode || 'agent',
+      labels: terminalLabels,
+      commands: terminalCommands,
+      refreshCommand: OPERATOR_TERMINAL_REFRESH_COMMAND,
+      jsonCommand: terminalReceipt?.agentContract?.jsonCommand || OPERATOR_TERMINAL_REFRESH_COMMAND,
+      primarySurfaceUrl: terminalReceipt?.route?.primarySurfaceUrl || liveStatus.route.url,
+      laptopBridgeStatus: terminalReceipt?.route?.laptopBridgeStatus || 'check_required',
+      permissionEnvelope: 'read_only_projection',
+      mayMutateWithoutConsent: false,
+    },
+    sharedMemory: {
+      contextCapsuleSchema: 'hololand.holoshell.context-capsule.v0.1.0',
+      requiredFields: ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command'],
+      browserWrites: ['chat_turns', 'approval_state', 'context_capsule'],
+      terminalWrites: ['command_results', 'test_logs', 'agent_run_receipts'],
+      receiptLedger: '.tmp/holoshell/',
+      sessionId: sharedHoloShellSessionId(),
+    },
+    actionCards: [
+      {
+        id: 'refresh_operator_terminal_receipt',
+        label: 'Refresh Terminal Receipt',
+        method: 'terminal_command',
+        command: OPERATOR_TERMINAL_REFRESH_COMMAND,
+        lane: 'operator_terminal',
+        permissionEnvelope: 'read_only_receipt_refresh',
+        mayExecuteWithoutConsent: true,
+        endpointExecutesCommand: false,
+        receiptRequired: true,
+      },
+      {
+        id: 'open_browser_cockpit',
+        label: 'Open Browser Cockpit',
+        method: 'GET',
+        href: liveStatus.route.url,
+        lane: 'browser_cockpit',
+        permissionEnvelope: 'read_only',
+        mayExecuteWithoutConsent: true,
+        receiptRequired: false,
+      },
+    ],
+    safety: {
+      browserIsPrimaryConversationSurface: true,
+      terminalIsExecutionEvidenceSurface: true,
+      terminalMayForkChatBrain: false,
+      directTerminalMutationAllowed: false,
+      endpointMayExecuteTerminalCommand: false,
+      terminalSpawnedByEndpoint: false,
+      terminalMutationRequires: ['identify', 'scope', 'preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt', 'log'],
+      rawSecretsIncluded: false,
+      rawCommandsIncludedForHuman: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    nextSafeStep: terminalStatus === 'ready'
+      ? 'Use the browser for Brittney chat and approvals; use the terminal receipt as execution evidence.'
+      : `Refresh the read-only terminal receipt with ${OPERATOR_TERMINAL_REFRESH_COMMAND}, then keep mutations behind preflight -> consent-token -> receipt.`,
+  };
+}
+
 function buildLiveStatusSnapshot() {
   const pending = pendingConsents();
   const executions = executionHistory();
@@ -1497,6 +1827,7 @@ function buildLiveStatusSnapshot() {
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
+      operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
@@ -1515,6 +1846,8 @@ function buildLiveStatusSnapshot() {
       'receipt_backed_status',
       'desktop_control_plan',
       'brittney_desktop_cockpit',
+      'browser_terminal_coupling',
+      'operator_terminal_session',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -1746,6 +2079,8 @@ function liveStatusResponseEnvelope(snapshot) {
 function buildBrittneyCockpitCapsule() {
   const liveStatus = buildLiveStatusSnapshot();
   const desktopBridge = desktopBridgeStatusSnapshot();
+  const operatorTerminal = buildOperatorTerminalSession();
+  const windowAwareness = buildWindowAwareness();
   const improvementRuns = improvementRunHistory();
   const latestRun = improvementRuns[0] || null;
   const bridgeReady = desktopBridge.status === 'ready';
@@ -1754,7 +2089,9 @@ function buildBrittneyCockpitCapsule() {
   const routeStatus = liveStatus.route?.chatEndpoint && liveStatus.route?.desktopControlEndpoint ? 'ready' : 'attention';
   const contextCarryStatus = 'ready';
   const desktopBridgeStatus = bridgeReady ? 'ready' : (bridgeAttention ? 'attention' : desktopBridge.status || 'unknown');
-  const toolActionStatus = 'plan_only';
+  const operatorTerminalStatus = operatorTerminal.terminal.status === 'ready' ? 'ready' : 'attention';
+  const windowAwarenessStatus = windowAwareness.status === 'windows_visible' ? 'ready' : 'attention';
+  const toolActionStatus = 'window_preflights_ready';
   const cockpitLanes = [
     {
       id: 'runtime_truth',
@@ -1799,6 +2136,28 @@ function buildBrittneyCockpitCapsule() {
       receiptRequired: true,
     },
     {
+      id: 'operator_terminal',
+      label: 'Terminal',
+      status: operatorTerminalStatus,
+      value: operatorTerminal.terminal.status,
+      detail: operatorTerminal.terminal.receiptHash
+        ? `receipt ${String(operatorTerminal.terminal.receiptHash).slice(0, 12)}; age ${operatorTerminal.terminal.receiptAgeMs ?? 'unknown'}ms`
+        : `receipt ${operatorTerminal.terminal.receiptStatus}; ${operatorTerminal.terminal.refreshCommand}`,
+      sourceEndpoint: 'GET /api/operator-terminal/session',
+      permissionEnvelope: 'read_only_projection',
+      receiptRequired: true,
+    },
+    {
+      id: 'window_awareness',
+      label: 'Windows',
+      status: windowAwarenessStatus,
+      value: windowAwareness.status,
+      detail: `${windowAwareness.summary.visibleWindowCount} visible; ${windowAwareness.summary.peerWindowCount} peer; ${windowAwareness.summary.shellWindowCount} shell`,
+      sourceEndpoint: 'GET /api/cockpit/capsule',
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
       id: 'tool_action_cards',
       label: 'Tools',
       status: toolActionStatus,
@@ -1809,7 +2168,7 @@ function buildBrittneyCockpitCapsule() {
       receiptRequired: true,
     },
   ];
-  const actionCards = [
+  const baseActionCards = [
     {
       id: 'refresh_runtime_truth',
       label: 'Runtime Truth',
@@ -1860,7 +2219,21 @@ function buildBrittneyCockpitCapsule() {
       mayExecuteWithoutConsent: true,
       receiptRequired: true,
     },
+    {
+      id: 'operator_terminal_session',
+      label: 'Terminal Session',
+      method: 'GET',
+      href: '/api/operator-terminal/session',
+      lane: 'operator_terminal',
+      permissionEnvelope: 'read_only_projection',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
   ];
+  const windowActionCards = buildWindowActionCards(windowAwareness);
+  const toolPreflightCards = buildToolPreflightCards(windowAwareness);
+  const actionCards = [...baseActionCards, ...toolPreflightCards, ...windowActionCards];
+  const preflightPaths = toolPreflightCards.map((card) => card.preflightPath);
   return {
     schemaVersion: BRITTNEY_COCKPIT_CAPSULE_SCHEMA,
     source: BRITTNEY_COCKPIT_SOURCE,
@@ -1872,18 +2245,26 @@ function buildBrittneyCockpitCapsule() {
       routeStatus,
       contextCarryStatus,
       desktopBridgeStatus,
+      operatorTerminalStatus,
+      windowAwarenessStatus,
       toolActionStatus,
       cockpitLaneCount: cockpitLanes.length,
       actionCardCount: actionCards.length,
+      windowActionCardCount: windowActionCards.length,
+      preflightPathCount: preflightPaths.length,
       latestImprovementRunId: latestRun?.runId || '',
     },
     route: {
       ...liveStatus.route,
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
+      operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
     },
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    windowAwareness,
+    preflightPaths,
+    operatorTerminal,
     contextCapsuleTemplate: {
       schemaVersion: 'hololand.holoshell.context-capsule.v0.1.0',
       requiredFields: ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command'],
@@ -1896,9 +2277,11 @@ function buildBrittneyCockpitCapsule() {
       desktopMutationRequires: ['desktop_control_plan', 'laptop_bridge_preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt'],
       admittedExecutorActions: ['open_url'],
       allOtherDesktopActionsRemainPlanOnly: true,
+      browserTerminalCouplingRequires: ['shared_session_id', 'terminal_receipt', 'context_capsule', 'hologate_receipt'],
       secretsIncluded: false,
-      rawWindowTitlesIncluded: false,
-      destructiveActionsTaken: false,
+      rawWindowTitlesIncluded: windowAwareness.safety.rawWindowTitlesIncluded,
+      rawWindowTitlesHidden: windowAwareness.safety.rawWindowTitlesHidden,
+      destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
       desktopAutomationExecuted: false,
     },
     receipts: {
@@ -1907,10 +2290,14 @@ function buildBrittneyCockpitCapsule() {
       recentExecutionCount: liveStatus.recentExecutionCount,
       latestImprovementRunId: latestRun?.runId || '',
       latestImprovementRunReceipt: latestRun?.receiptPath || null,
+      operatorTerminalReceiptHash: operatorTerminal.terminal.receiptHash,
+      operatorTerminalReceiptStatus: operatorTerminal.terminal.receiptStatus,
+      legacyWindowInventoryHash: windowAwareness.receipts.legacyWindowInventoryHash,
+      operatorBriefHash: windowAwareness.receipts.operatorBriefHash,
     },
-    destructiveActionsTaken: false,
+    destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
     desktopAutomationExecuted: false,
-    nextSafeStep: 'Carry this capsule into the next agent turn, then request desktop execution only through preflight -> consent-token -> receipt.',
+    nextSafeStep: 'Carry this capsule into the next agent turn, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
   };
 }
 
@@ -2013,6 +2400,11 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/cockpit/capsule') {
     respond(res, buildBrittneyCockpitCapsule());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/operator-terminal/session') {
+    respond(res, buildOperatorTerminalSession());
     return;
   }
 

@@ -18,8 +18,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     operatorBriefSource: "apps/holoshell/source/holoshell-operator-brief.hsplus"
     windowInventorySource: "apps/holoshell/source/holoshell-legacy-window-inventory.hsplus"
     desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
+    browserTerminalCouplingSource: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
     capsuleEndpoint: "GET /api/cockpit/capsule"
     liveStatusEndpoint: "GET /api/live-status"
+    operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
     chatEndpoint: "POST /api/brittney/chat"
     desktopPlanEndpoint: "POST /api/desktop-control/plan"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
@@ -33,9 +35,13 @@ composition "HoloShell Brittney Desktop Cockpit" {
     routeStatus: "unknown"
     contextCarryStatus: "unknown"
     desktopBridgeStatus: "unknown"
+    operatorTerminalStatus: "unknown"
+    windowAwarenessStatus: "unknown"
     toolActionStatus: "unknown"
     cockpitLaneCount: 0
     actionCardCount: 0
+    windowActionCardCount: 0
+    preflightPathCount: 0
     pendingConsentCount: 0
     recentExecutionCount: 0
     latestImprovementRunId: ""
@@ -58,6 +64,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     status: "ready"
     cockpitLanes: []
     actionCards: []
+    windowAwareness: {}
+    preflightPaths: []
     contextCapsuleTemplate: {}
     safety: {}
     receipts: {}
@@ -87,6 +95,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
     lane: ""
     permissionEnvelope: "read_only"
     mayExecuteWithoutConsent: false
+    planOnly: true
+    holoGateRequired: true
+    primaryAction: ""
+    target: {}
+    preflightPath: {}
     receiptRequired: true
   }
 
@@ -124,6 +137,20 @@ composition "HoloShell Brittney Desktop Cockpit" {
       status: $desktopBridgeStatus
     }
 
+    object "OperatorTerminal" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Terminal"
+      status: $operatorTerminalStatus
+    }
+
+    object "WindowAwareness" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Windows"
+      status: $windowAwarenessStatus
+    }
+
     object "ToolActions" {
       type: "ui"
       uiType: "cockpit_action_stack"
@@ -151,11 +178,30 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receiptRequired: true
   }
 
+  policy "WindowAwarePreflightCards" {
+    appliesTo: ["window_awareness", "focus_window_preflight", "launch_app_preflight", "open_url_preflight"]
+    consumes: ["legacy_window_inventory", "operator_brief"]
+    rawWindowTitlesIncluded: false
+    planOnlyUntilConsentToken: true
+    requiredSequence: ["desktop_control_plan", "laptop_bridge_preflight", "fresh_gesture_proof", "consent_token", "execution_receipt"]
+    receiptRequired: true
+  }
+
   policy "ContextCapsuleCarriesIdentityAcrossCompaction" {
     appliesTo: ["agent_handoff", "room_marathon", "local_to_cloud_family_handoff", "brittney_turn"]
     requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
     preservesIdentityAcrossTurns: true
     graphRagQuestionRequiredWhenTruthIsUnknown: true
+    receiptRequired: true
+  }
+
+  policy "BrowserTerminalCouplingIsOneSession" {
+    appliesTo: ["browser_cockpit", "operator_terminal", "brittney_chat", "terminal_receipt"]
+    source: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
+    sessionEndpoint: "GET /api/operator-terminal/session"
+    browserIsPrimaryConversationSurface: true
+    terminalIsExecutionEvidenceSurface: true
+    terminalMayBypassHoloGate: false
     receiptRequired: true
   }
 
@@ -165,9 +211,13 @@ composition "HoloShell Brittney Desktop Cockpit" {
     state.routeStatus = capsule.summary.routeStatus
     state.contextCarryStatus = capsule.summary.contextCarryStatus
     state.desktopBridgeStatus = capsule.summary.desktopBridgeStatus
+    state.operatorTerminalStatus = capsule.summary.operatorTerminalStatus
+    state.windowAwarenessStatus = capsule.summary.windowAwarenessStatus
     state.toolActionStatus = capsule.summary.toolActionStatus
     state.cockpitLaneCount = capsule.summary.cockpitLaneCount
     state.actionCardCount = capsule.summary.actionCardCount
+    state.windowActionCardCount = capsule.summary.windowActionCardCount
+    state.preflightPathCount = capsule.summary.preflightPathCount
     state.pendingConsentCount = capsule.receipts.pendingConsentCount
     state.recentExecutionCount = capsule.receipts.recentExecutionCount
     state.latestImprovementRunId = capsule.receipts.latestImprovementRunId
@@ -181,9 +231,13 @@ composition "HoloShell Brittney Desktop Cockpit" {
       routes: state.routeStatus,
       contextCarry: state.contextCarryStatus,
       desktopBridge: state.desktopBridgeStatus,
+      operatorTerminal: state.operatorTerminalStatus,
+      windowAwareness: state.windowAwarenessStatus,
       toolActions: state.toolActionStatus,
       cockpitLanes: state.cockpitLaneCount,
       actionCards: state.actionCardCount,
+      windowActionCards: state.windowActionCardCount,
+      preflightPaths: state.preflightPathCount,
       pendingConsents: state.pendingConsentCount,
       recentExecutions: state.recentExecutionCount,
       latestImprovementRun: state.latestImprovementRunId,
