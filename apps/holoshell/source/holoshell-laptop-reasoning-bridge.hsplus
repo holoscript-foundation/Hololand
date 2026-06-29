@@ -21,6 +21,7 @@ composition "HoloShell Laptop Reasoning Bridge" {
     remoteDispatchDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/agent-dispatches"
     localResultDir: ".tmp/holoshell/laptop-reasoning-results"
     remoteResultDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/laptop-reasoning-results"
+    httpResultReportEndpoint: "POST /api/laptop-reasoning/report"
     latestBridgeReceipt: ".tmp/holoshell/laptop-reasoning-bridge-latest.json"
     latestResultReceipt: ".tmp/holoshell/laptop-reasoning-result-latest.json"
   }
@@ -108,6 +109,16 @@ composition "HoloShell Laptop Reasoning Bridge" {
     remoteWriteScope: "laptop-reasoning-results"
     allowedRemoteMutation: "append_result_receipt"
     forbiddenRemoteMutation: ["source_edit", "service_restart", "secret_write"]
+    receiptRequired: true
+  }
+
+  policy "HttpResultReportIsReceiptOnlyFallback" {
+    appliesTo: ["remote_result_push", "ssh_unavailable", "brittney_pingback"]
+    reportEndpoint: "POST /api/laptop-reasoning/report"
+    allowedRemoteMutation: "replace_latest_and_archive_result_receipt"
+    modelInvocationPerformedByBridge: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
     receiptRequired: true
   }
 

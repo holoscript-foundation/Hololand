@@ -18,6 +18,7 @@ composition "HoloShell Browser Terminal Coupling" {
     cockpitSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     terminalSource: "apps/holoshell/source/holoshell-operator-terminal.hsplus"
     sessionEndpoint: "GET /api/operator-terminal/session"
+    terminalReportEndpoint: "POST /api/operator-terminal/report"
     cockpitEndpoint: "GET /api/cockpit/capsule"
     chatEndpoint: "POST /api/brittney/chat"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
@@ -131,6 +132,16 @@ composition "HoloShell Browser Terminal Coupling" {
     browserMaySummarizeTerminalReceipts: true
     terminalMayPrintBrowserUrl: true
     bothSurfacesUseSameReceiptLedger: true
+    receiptRequired: true
+  }
+
+  policy "TerminalReceiptCanReturnOverHttp" {
+    appliesTo: ["operator_terminal", "terminal_receipt", "jetson_holoshell_surface"]
+    reportEndpoint: "POST /api/operator-terminal/report"
+    allowedMutation: "replace_latest_operator_terminal_receipt"
+    endpointMayExecuteTerminalCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
     receiptRequired: true
   }
 

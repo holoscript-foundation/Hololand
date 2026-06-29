@@ -71,13 +71,83 @@ async function getJson(path) {
   return body;
 }
 
+async function postJson(path, payload) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  return body;
+}
+
 try {
   await waitForServer();
 
   const liveStatus = await getJson('/api/live-status');
   assert.equal(liveStatus.status, 'online');
   assert.equal(liveStatus.route.cockpitCapsuleEndpoint, 'GET /api/cockpit/capsule');
+  assert.equal(liveStatus.route.laptopReasoningReportEndpoint, 'POST /api/laptop-reasoning/report');
+  assert.equal(liveStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
   assert.ok(liveStatus.capabilities.includes('brittney_desktop_cockpit'));
+
+  const laptopReport = await postJson('/api/laptop-reasoning/report', {
+    schemaVersion: 'hololand.holoshell.laptop-reasoning-result.v0.1.0',
+    resultId: 'laptop_reasoning_result_http_fixture',
+    generatedAt: new Date().toISOString(),
+    status: 'completed',
+    sourceAnchors: {
+      workerScript: 'scripts/holoshell-laptop-reasoning-worker.mjs',
+    },
+    inputDispatch: {
+      dispatchId: 'hsdispatch-http-fixture',
+      lane: 'laptop-hardware',
+    },
+    result: {
+      modelInvocationPerformed: false,
+      deterministicReceiptOnly: true,
+      reasoningExecutionMode: 'receipt_consumption_only',
+    },
+    brittneyPingback: {
+      status: 'ready_for_brittney',
+    },
+    summary: {
+      status: 'completed',
+      resultId: 'laptop_reasoning_result_http_fixture',
+      dispatchId: 'hsdispatch-http-fixture',
+      lane: 'laptop-hardware',
+      reasoningExecutionMode: 'receipt_consumption_only',
+      modelInvocationPerformed: false,
+      deterministicReceiptOnly: true,
+      laptopGpuStatus: 'reported',
+      laptopGpuSummary: 'Fixture RTX: 0% GPU, 256/6144 MiB, no compute process reported',
+      laptopGpuProcessCount: 0,
+      brittneyPingbackStatus: 'ready_for_brittney',
+    },
+  });
+  assert.equal(laptopReport.schemaVersion, 'hololand.holoshell.laptop-reasoning-report-response.v0.1.0');
+  assert.equal(laptopReport.status, 'completed');
+  assert.equal(laptopReport.resultId, 'laptop_reasoning_result_http_fixture');
+  assert.equal(laptopReport.lane, 'laptop-hardware');
+  assert.equal(laptopReport.modelInvocationPerformed, false);
+  assert.equal(laptopReport.brittneyPingbackStatus, 'ready_for_brittney');
+
+  const reportedLiveStatus = await getJson('/api/live-status');
+  assert.equal(reportedLiveStatus.laptopReasoning.status, 'completed');
+  assert.equal(reportedLiveStatus.laptopReasoning.resultId, 'laptop_reasoning_result_http_fixture');
+  assert.equal(reportedLiveStatus.laptopReasoning.gpuStatus, 'reported');
+  assert.equal(reportedLiveStatus.laptopReasoning.pingbackStatus, 'ready_for_brittney');
+
+  const windowReport = await postJson(
+    '/api/window-awareness/report',
+    JSON.parse(readFileSync(join(tmpDir, 'legacy-window-inventory.json'), 'utf8')),
+  );
+  assert.equal(windowReport.schemaVersion, 'hololand.holoshell.window-awareness-report-response.v0.1.0');
+  assert.equal(windowReport.status, 'windows_visible');
+  assert.equal(windowReport.visibleWindowCount >= 1, true);
+  assert.equal(windowReport.rawWindowTitlesIncluded, false);
 
   const capsule = await getJson('/api/cockpit/capsule');
   assert.equal(capsule.schemaVersion, 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0');
@@ -98,6 +168,7 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
   assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
+  assert.equal(capsule.summary.laptopReasoningPingbackStatus, 'ready_for_brittney');
   assert.equal(capsule.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(capsule.actionCards.some((card) => card.id === 'desktop_control_plan' && card.permissionEnvelope === 'read_only_plan'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));

@@ -68,6 +68,9 @@ try {
   assert.ok(status.systemStatus.laneCount >= 7);
   assert.equal(status.systemStatus.route.improvementRunEndpoint, 'POST /api/improvement-runs');
   assert.equal(status.systemStatus.route.desktopBridgeReportEndpoint, 'POST /api/desktop-control/bridge/report');
+  assert.equal(status.systemStatus.route.laptopReasoningReportEndpoint, 'POST /api/laptop-reasoning/report');
+  assert.equal(status.systemStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
+  assert.equal(status.systemStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
   assert.ok(status.systemStatus.capabilities.includes('vision_model_routing'));
   assert.ok(status.systemStatus.capabilities.includes('improvement_run_queue'));
   assert.ok(status.systemStatus.capabilities.includes('codebase_fix_shakedown'));

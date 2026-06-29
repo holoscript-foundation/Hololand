@@ -32,10 +32,13 @@ composition "OperateRoom" {
     brittney_cockpit_endpoint: "GET /api/cockpit/capsule"
     laptop_reasoning_source: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
     laptop_reasoning_lane: "laptop-hardware"
+    laptop_reasoning_report_endpoint: "POST /api/laptop-reasoning/report"
     browser_terminal_coupling_source: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
     operator_terminal_session_endpoint: "GET /api/operator-terminal/session"
+    operator_terminal_report_endpoint: "POST /api/operator-terminal/report"
     desktop_bridge_endpoint: "GET /api/desktop-control/bridge"
     desktop_bridge_report_endpoint: "POST /api/desktop-control/bridge/report"
+    window_awareness_report_endpoint: "POST /api/window-awareness/report"
     laptop_desktop_bridge_endpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
     laptop_desktop_bridge_fallback_endpoint: "GET http://127.0.0.1:8752/api/desktop-control/bridge"
     laptop_desktop_bridge_tertiary_endpoint: "GET http://127.0.0.1:8753/api/desktop-control/bridge"
@@ -89,6 +92,10 @@ composition "OperateRoom" {
     // contract is apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus.
     // Its Terminal card consumes GET /api/operator-terminal/session, whose source
     // contract binds browser chat and terminal evidence to one HoloShell session.
+    // When SSH receipt mirroring is unavailable, the laptop can POST terminal,
+    // reasoning, and window-awareness receipts back through /api/operator-terminal/report,
+    // /api/laptop-reasoning/report, and /api/window-awareness/report, matching the
+    // desktop bridge report lane.
     // Its Reasoning card uses the laptop-hardware lane so Brittney can distinguish
     // receipt-only completion from actual GPU-backed model invocation.
     // Improvement batches use POST /api/improvement-runs, then capped codebase-fix

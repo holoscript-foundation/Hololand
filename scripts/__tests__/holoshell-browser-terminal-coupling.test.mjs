@@ -96,11 +96,24 @@ async function getJson(path) {
   return body;
 }
 
+async function postJson(path, payload) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  return body;
+}
+
 try {
   await waitForServer();
 
   const liveStatus = await getJson('/api/live-status');
   assert.equal(liveStatus.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
+  assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
 
@@ -125,6 +138,49 @@ try {
   assert.equal(session.desktopAutomationExecuted, false);
   assert.match(session.nextSafeStep, /browser for Brittney chat and approvals/);
 
+  const reported = await postJson('/api/operator-terminal/report', {
+    schemaVersion: 'hololand.holoshell.operator-terminal.v0.1.0',
+    generatedAt: new Date().toISOString(),
+    route: {
+      primarySurfaceUrl: 'http://holojetson.local:8747',
+      laptopBridgeStatus: 'ready',
+    },
+    summary: {
+      mode: 'agent',
+      status: 'ready',
+    },
+    commands: {
+      human: [
+        {
+          id: 'ask_brittney',
+          label: 'Ask Brittney',
+          flow: 'brittney_turn',
+          permissionEnvelope: 'read_only_or_guarded_by_intent',
+          approvalRequired: 'classified_by_intent',
+          receipt: '.tmp/holoshell/brittney-turn-latest.json',
+        },
+      ],
+    },
+    humanContract: {
+      labels: ['Ask Brittney'],
+    },
+    agentContract: {
+      jsonCommand: 'node scripts/holoshell-operator-terminal.mjs --agent --json',
+    },
+    receipt: {
+      terminalHash: 'terminal-post-hash',
+    },
+  });
+  assert.equal(reported.schemaVersion, 'hololand.holoshell.operator-terminal-report-response.v0.1.0');
+  assert.equal(reported.status, 'ready');
+  assert.equal(reported.receiptHash, 'terminal-post-hash');
+  assert.equal(reported.destructiveActionsTaken, false);
+  assert.equal(reported.desktopAutomationExecuted, false);
+  assert.match(readFileSync(terminalReceiptPath, 'utf8'), /terminal-post-hash/);
+
+  const reportedSession = await getJson('/api/operator-terminal/session');
+  assert.equal(reportedSession.terminal.receiptHash, 'terminal-post-hash');
+
   const capsule = await getJson('/api/cockpit/capsule');
   assert.equal(capsule.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.ok(capsule.cockpitLanes.some((lane) =>
@@ -138,7 +194,7 @@ try {
     && card.permissionEnvelope === 'read_only_projection'
   ));
   assert.equal(capsule.operatorTerminal.sessionId, 'test-browser-terminal-session');
-  assert.equal(capsule.receipts.operatorTerminalReceiptHash, 'terminal-test-hash');
+  assert.equal(capsule.receipts.operatorTerminalReceiptHash, 'terminal-post-hash');
   assert.equal(capsule.safety.browserTerminalCouplingRequires.includes('shared_session_id'), true);
 
   const source = readFileSync(resolve('apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'), 'utf8');

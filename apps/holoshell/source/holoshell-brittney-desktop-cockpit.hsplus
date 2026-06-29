@@ -24,6 +24,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     capsuleEndpoint: "GET /api/cockpit/capsule"
     liveStatusEndpoint: "GET /api/live-status"
     operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
+    operatorTerminalReportEndpoint: "POST /api/operator-terminal/report"
+    laptopReasoningReportEndpoint: "POST /api/laptop-reasoning/report"
+    windowAwarenessReportEndpoint: "POST /api/window-awareness/report"
     chatEndpoint: "POST /api/brittney/chat"
     desktopPlanEndpoint: "POST /api/desktop-control/plan"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
@@ -196,6 +199,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
   policy "WindowAwarePreflightCards" {
     appliesTo: ["window_awareness", "focus_window_preflight", "launch_app_preflight", "open_url_preflight"]
     consumes: ["legacy_window_inventory", "operator_brief"]
+    reportEndpoint: "POST /api/window-awareness/report"
     rawWindowTitlesIncluded: false
     planOnlyUntilConsentToken: true
     requiredSequence: ["desktop_control_plan", "laptop_bridge_preflight", "fresh_gesture_proof", "consent_token", "execution_receipt"]
@@ -225,9 +229,23 @@ composition "HoloShell Brittney Desktop Cockpit" {
     source: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
     bridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
     lane: "laptop-hardware"
+    reportEndpoint: "POST /api/laptop-reasoning/report"
     requireBrittneyPingback: true
     distinguishReceiptOnlyFromModelInvocation: true
     gpuTelemetryVisible: true
+    receiptRequired: true
+  }
+
+  policy "LaptopReceiptsCanReturnOverHttpWhenSshIsUnavailable" {
+    appliesTo: ["laptop_reasoning", "operator_terminal", "window_awareness", "brittney_cockpit"]
+    terminalReportEndpoint: "POST /api/operator-terminal/report"
+    laptopReasoningReportEndpoint: "POST /api/laptop-reasoning/report"
+    windowAwarenessReportEndpoint: "POST /api/window-awareness/report"
+    allowedMutation: "receipt_write_only"
+    endpointMayExecuteTerminalCommand: false
+    modelInvocationPerformedByEndpoint: false
+    desktopAutomationExecuted: false
+    destructiveActionsTaken: false
     receiptRequired: true
   }
 

@@ -28,15 +28,18 @@ const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-deskto
 const REPO_ROOT = join(__dirname, '..', '..');
 const HOLOSHELL_TMP_DIR = process.env.HOLOSHELL_TMP_DIR || join(REPO_ROOT, '.tmp', 'holoshell');
 const LEGACY_WINDOW_INVENTORY_SOURCE = 'apps/holoshell/source/holoshell-legacy-window-inventory.hsplus';
+const LEGACY_WINDOW_INVENTORY_SCHEMA = 'hololand.holoshell.legacy-window-inventory.v0.1.0';
 const OPERATOR_BRIEF_SOURCE = 'apps/holoshell/source/holoshell-operator-brief.hsplus';
 const OPERATOR_TERMINAL_SESSION_SCHEMA = 'hololand.holoshell.browser-terminal-coupling.v0.1.0';
 const OPERATOR_TERMINAL_COUPLING_SOURCE = 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus';
 const OPERATOR_TERMINAL_SOURCE = 'apps/holoshell/source/holoshell-operator-terminal.hsplus';
+const OPERATOR_TERMINAL_RECEIPT_SCHEMA = 'hololand.holoshell.operator-terminal.v0.1.0';
 const OPERATOR_TERMINAL_RECEIPT =
   process.env.HOLOSHELL_OPERATOR_TERMINAL_RECEIPT ||
   join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal.json');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
+const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
 // Bind host. Default loopback (the laptop-local case). On the JETSON — where this
@@ -198,6 +201,19 @@ function readHoloShellTmpJson(fileName) {
   } catch {
     return null;
   }
+}
+
+function writeHoloShellTmpJson(fileName, value) {
+  const filePath = join(HOLOSHELL_TMP_DIR, fileName);
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  return filePath;
+}
+
+function writeJsonFile(filePath, value) {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  return filePath;
 }
 
 function shortWindowLabel(window, index) {
@@ -1333,6 +1349,102 @@ function writeDesktopBridgeReport(report) {
   return withPath;
 }
 
+function unwrapSchemaPayload(payload = {}, schemaVersion, keys = []) {
+  if (payload?.schemaVersion === schemaVersion) return payload;
+  for (const key of keys) {
+    if (payload?.[key]?.schemaVersion === schemaVersion) return payload[key];
+  }
+  return payload;
+}
+
+function normalizeLaptopReasoningResultReport(payload = {}) {
+  const incoming = unwrapSchemaPayload(payload, LAPTOP_REASONING_RESULT_SCHEMA, ['receipt', 'laptopReasoningResult']);
+  if (incoming.schemaVersion !== LAPTOP_REASONING_RESULT_SCHEMA) {
+    throw new Error(`expected ${LAPTOP_REASONING_RESULT_SCHEMA}`);
+  }
+  const serverReceivedAt = new Date().toISOString();
+  const resultId = String(incoming.resultId || incoming.summary?.resultId || '').trim();
+  if (!resultId) throw new Error('laptop reasoning resultId is required');
+  const status = String(incoming.status || incoming.summary?.status || '').trim() || 'reported';
+  return {
+    ...incoming,
+    status,
+    serverReceivedAt,
+    reportSource: 'http_laptop_reasoning_report',
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  };
+}
+
+function writeLaptopReasoningResultReport(report) {
+  const latestPath = writeHoloShellTmpJson('laptop-reasoning-result-latest.json', report);
+  const resultDir = join(HOLOSHELL_TMP_DIR, 'laptop-reasoning-results');
+  mkdirSync(resultDir, { recursive: true });
+  const archivePath = join(resultDir, `${report.resultId}.json`);
+  const withOutput = {
+    ...report,
+    output: {
+      ...(report.output || {}),
+      latestPath,
+      archivePath,
+    },
+  };
+  writeJsonFile(latestPath, withOutput);
+  writeJsonFile(archivePath, withOutput);
+  return withOutput;
+}
+
+function normalizeOperatorTerminalReport(payload = {}) {
+  const incoming = unwrapSchemaPayload(payload, OPERATOR_TERMINAL_RECEIPT_SCHEMA, ['receipt', 'terminal']);
+  if (incoming.schemaVersion !== OPERATOR_TERMINAL_RECEIPT_SCHEMA) {
+    throw new Error(`expected ${OPERATOR_TERMINAL_RECEIPT_SCHEMA}`);
+  }
+  return {
+    ...incoming,
+    serverReceivedAt: new Date().toISOString(),
+    reportSource: 'http_operator_terminal_report',
+    safety: {
+      ...(incoming.safety || {}),
+      readOnlyByDefault: true,
+      directMutationAllowed: false,
+      rawSecretsIncluded: false,
+      rawCommandsIncludedForHuman: false,
+    },
+  };
+}
+
+function writeOperatorTerminalReport(report) {
+  return {
+    ...report,
+    output: writeJsonFile(OPERATOR_TERMINAL_RECEIPT, report),
+  };
+}
+
+function normalizeWindowAwarenessReport(payload = {}) {
+  const incoming = unwrapSchemaPayload(payload, LEGACY_WINDOW_INVENTORY_SCHEMA, ['receipt', 'windowInventory']);
+  if (incoming.schemaVersion !== LEGACY_WINDOW_INVENTORY_SCHEMA) {
+    throw new Error(`expected ${LEGACY_WINDOW_INVENTORY_SCHEMA}`);
+  }
+  return {
+    ...incoming,
+    serverReceivedAt: new Date().toISOString(),
+    reportSource: 'http_window_awareness_report',
+    safety: {
+      ...(incoming.safety || {}),
+      rawWindowTitlesIncluded: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+  };
+}
+
+function writeWindowAwarenessReport(report) {
+  return {
+    ...report,
+    output: writeHoloShellTmpJson('legacy-window-inventory.json', report),
+  };
+}
+
 function normalizeStringList(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 20);
@@ -1871,9 +1983,12 @@ function buildLiveStatusSnapshot() {
       chatEndpoint: 'POST /api/brittney/chat',
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      operatorTerminalReportEndpoint: 'POST /api/operator-terminal/report',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
+      laptopReasoningReportEndpoint: 'POST /api/laptop-reasoning/report',
+      windowAwarenessReportEndpoint: 'POST /api/window-awareness/report',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
       holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
@@ -2494,6 +2609,30 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'POST' && path === '/api/operator-terminal/report') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const report = writeOperatorTerminalReport(normalizeOperatorTerminalReport(payload));
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.operator-terminal-report-response.v0.1.0',
+          status: report.summary?.status || 'reported',
+          receiptHash: report.receipt?.terminalHash || null,
+          output: report.output,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+          receipt: report,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
+    return;
+  }
+
   if (req.method === 'GET' && path === '/api/improvement-runs') {
     respond(res, {
       schemaVersion: 'hololand.holoshell.improvement-run-history.v0.1.0',
@@ -2546,6 +2685,62 @@ async function handleRequest(req, res) {
           destructiveActionsTaken: false,
           desktopAutomationExecuted: false,
           approvalRequiredForDesktopAutomation: true,
+          receipt: report,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/laptop-reasoning/report') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const report = writeLaptopReasoningResultReport(normalizeLaptopReasoningResultReport(payload));
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.laptop-reasoning-report-response.v0.1.0',
+          status: report.status || report.summary?.status || 'reported',
+          resultId: report.resultId || report.summary?.resultId || '',
+          dispatchId: report.summary?.dispatchId || report.inputDispatch?.dispatchId || '',
+          lane: report.summary?.lane || report.inputDispatch?.lane || 'laptop-hardware',
+          modelInvocationPerformed: Boolean(report.summary?.modelInvocationPerformed),
+          gpuStatus: report.summary?.laptopGpuStatus || report.targetHostChecks?.gpu?.status || 'not_reported',
+          gpuSummary: report.summary?.laptopGpuSummary || report.targetHostChecks?.gpu?.summary || '',
+          brittneyPingbackStatus: report.summary?.brittneyPingbackStatus || report.brittneyPingback?.status || '',
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+          receipt: report,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/window-awareness/report') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const report = writeWindowAwarenessReport(normalizeWindowAwarenessReport(payload));
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.window-awareness-report-response.v0.1.0',
+          status: report.summary?.visibleWindowCount ? 'windows_visible' : 'reported',
+          visibleWindowCount: report.summary?.visibleWindowCount || 0,
+          peerWindowCount: report.summary?.peerWindowCount || 0,
+          shellWindowCount: report.summary?.shellWindowCount || 0,
+          rawWindowTitlesIncluded: false,
+          output: report.output,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
           receipt: report,
         });
       } catch (err) {
