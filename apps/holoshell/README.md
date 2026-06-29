@@ -267,7 +267,7 @@ pnpm run holoshell:operator-terminal
 Agent mode is canonical JSON for automation and HoloMesh peers:
 
 ```powershell
-pnpm run holoshell:operator-terminal -- --agent --json
+node scripts/holoshell-operator-terminal.mjs --agent --json
 ```
 
 The terminal does not store private state or bypass approvals. Mutating actions

@@ -452,7 +452,7 @@ function buildCommands() {
     human: HUMAN_COMMAND_ROUTES.map(routeSummaryForHuman),
     routes: HUMAN_COMMAND_ROUTES.map(routeSummaryForAgent),
     agent: [
-      { id: 'agent_json', command: 'pnpm run holoshell:operator-terminal -- --agent --json', produces: '.tmp/holoshell/operator-terminal.json' },
+      { id: 'agent_json', command: 'node scripts/holoshell-operator-terminal.mjs --agent --json', produces: '.tmp/holoshell/operator-terminal.json' },
       { id: 'refresh_live_feed', command: 'node scripts/holoshell-live-feed.mjs', produces: '.tmp/holoshell/live-feed.json' },
       { id: 'refresh_operator_brief', command: 'pnpm run holoshell:operator-brief', produces: '.tmp/holoshell/operator-brief.json' },
       { id: 'refresh_services', command: 'pnpm run holoshell:service-supervisor', produces: '.tmp/holoshell/service-supervisor.json' },
@@ -600,7 +600,7 @@ function createTerminalReceipt(args, feeds) {
     agentContract: {
       mode: 'agent',
       output: '.tmp/holoshell/operator-terminal.json',
-      jsonCommand: 'pnpm run holoshell:operator-terminal -- --agent --json',
+      jsonCommand: 'node scripts/holoshell-operator-terminal.mjs --agent --json',
       requiredBeforeAction: ['operatorBrief', 'serviceSupervisor', 'agentLanes', 'readinessEvidence'],
       missingReceipts,
       sourceReceiptHashes: hashes,

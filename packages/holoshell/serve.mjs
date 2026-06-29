@@ -35,7 +35,7 @@ const OPERATOR_TERMINAL_SOURCE = 'apps/holoshell/source/holoshell-operator-termi
 const OPERATOR_TERMINAL_RECEIPT =
   process.env.HOLOSHELL_OPERATOR_TERMINAL_RECEIPT ||
   join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal.json');
-const OPERATOR_TERMINAL_REFRESH_COMMAND = 'pnpm run holoshell:operator-terminal -- --agent --json';
+const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);

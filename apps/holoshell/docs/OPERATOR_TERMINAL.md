@@ -77,7 +77,7 @@ automation.
 Agent mode is machine-readable and receipt-first:
 
 ```powershell
-pnpm run holoshell:operator-terminal -- --agent --json
+node scripts/holoshell-operator-terminal.mjs --agent --json
 ```
 
 Agents should consume `.tmp/holoshell/operator-terminal.json` before touching

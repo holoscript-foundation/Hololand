@@ -98,7 +98,10 @@ if ((-not $Headless) -and (-not $NoTerminal)) {
 Set-Location $repo
 Write-Host '[Brittney Studio] browser cockpit: $JetsonSurface'
 Write-Host '[Brittney Studio] refreshing read-only operator terminal receipt...'
-if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-operator-terminal.mjs')) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+  node scripts\holoshell-operator-terminal.mjs
+} elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
+  `$env:CI = 'true'
   pnpm run holoshell:operator-terminal
 } else {
   corepack pnpm run holoshell:operator-terminal

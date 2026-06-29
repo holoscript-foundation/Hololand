@@ -42,7 +42,7 @@ writeFileSync(terminalReceiptPath, `${JSON.stringify({
     labels: ['Ask Brittney', 'Show Receipts'],
   },
   agentContract: {
-    jsonCommand: 'pnpm run holoshell:operator-terminal -- --agent --json',
+    jsonCommand: 'node scripts/holoshell-operator-terminal.mjs --agent --json',
   },
   receipt: {
     terminalHash: 'terminal-test-hash',
@@ -114,7 +114,7 @@ try {
   assert.equal(session.terminal.status, 'ready');
   assert.equal(session.terminal.receiptStatus, 'fresh');
   assert.equal(session.terminal.receiptHash, 'terminal-test-hash');
-  assert.equal(session.terminal.refreshCommand, 'pnpm run holoshell:operator-terminal -- --agent --json');
+  assert.equal(session.terminal.refreshCommand, 'node scripts/holoshell-operator-terminal.mjs --agent --json');
   assert.deepEqual(session.sharedMemory.requiredFields, ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command']);
   assert.equal(session.safety.browserIsPrimaryConversationSurface, true);
   assert.equal(session.safety.terminalIsExecutionEvidenceSurface, true);
@@ -148,6 +148,7 @@ try {
 
   const launcher = readFileSync(resolve('scripts/brittney-studio-launch.ps1'), 'utf8');
   assert.match(launcher, /\[switch\]\$NoTerminal/);
+  assert.match(launcher, /node scripts\\holoshell-operator-terminal\.mjs/);
   assert.match(launcher, /pnpm run holoshell:operator-terminal/);
   assert.match(launcher, /-WindowStyle Normal/);
 
