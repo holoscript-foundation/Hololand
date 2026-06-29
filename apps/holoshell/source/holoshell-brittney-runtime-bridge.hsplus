@@ -21,6 +21,7 @@ composition "HoloShell Brittney Runtime Bridge" {
     turnBridgeScript: "scripts/holoshell-brittney-turn.mjs"
     hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
     latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+    latestConversationPlanReceipt: ".tmp/holoshell/brittney-conversation-plan-latest.json"
     latestContextReceipt: ".tmp/holoshell/brittney-context.json"
     latestFounderPromptFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
     latestHardwareActionReceipt: ".tmp/holoshell/action-latest.json"
@@ -36,6 +37,10 @@ composition "HoloShell Brittney Runtime Bridge" {
     runtimeEventCount: 0
     toolCallCount: 0
     actionProposalCount: 0
+    conversationPlanStatus: "idle"
+    conversationPlanId: ""
+    conversationPlanTurnCount: 0
+    conversationPlanDispatchReady: false
     founderPromptFixtureCount: 0
     founderPromptFixtureCorpusHash: ""
     contextStatus: "unknown"
@@ -66,6 +71,12 @@ composition "HoloShell Brittney Runtime Bridge" {
     type: "append_only"
     priority: "critical"
     description: "Read-only and guarded shell-object proposals created from Brittney turns"
+  }
+
+  channel "holoshell:brittney:conversation-plan" {
+    type: "append_only"
+    priority: "critical"
+    description: "Multi-turn planning packet that turns explicit commence-all language into dispatcher proposals"
   }
 
   channel "holoshell:hardware:action-request" {
@@ -119,6 +130,21 @@ composition "HoloShell Brittney Runtime Bridge" {
     receiptRequired: true
   }
 
+  template "ConversationPlanPacket" {
+    type: "conversation_plan_packet"
+    actor: "brittney"
+    status: "idle"
+    planId: ""
+    turnCount: 0
+    questionTurnCount: 0
+    trigger: "commence_all"
+    modelRole: "voice_and_context_only"
+    dispatcherRole: "receipt_backed_router"
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
   template "TurnReceipt" {
     type: "receipt"
     receiptType: "hololand.holoshell.brittney-turn.v0.1.0"
@@ -154,6 +180,18 @@ composition "HoloShell Brittney Runtime Bridge" {
     maximumSelectedFixtureCount: 3
     fullCorpusInPrompt: false
     useAsInspirationOnly: true
+    receiptRequired: true
+  }
+
+  policy "ConversationPlanDispatchBoundary" {
+    appliesTo: ["commence_all", "dispatch_conversation_plan", "conversation_plan_packet"]
+    requiredInput: "recent_turn_history"
+    triggerRequires: "explicit_commence_all_turn"
+    modelAuthority: "voice_and_context_only"
+    dispatcherAuthority: "receipt_backed_router"
+    completionClaimsRequireDownstreamReceipts: true
+    permissionEnvelope: "read_only"
+    approvalRequired: false
     receiptRequired: true
   }
 
@@ -221,6 +259,25 @@ composition "HoloShell Brittney Runtime Bridge" {
     }
   }
 
+  action record_conversation_plan(plan) {
+    state.conversationPlanStatus = plan.summary.status
+    state.conversationPlanId = plan.planId
+    state.conversationPlanTurnCount = plan.summary.turnCount
+    state.conversationPlanDispatchReady = plan.summary.dispatchReady
+    emit("holoshell:brittney:conversation-plan", {
+      action: "conversation_plan_recorded",
+      plan_id: state.conversationPlanId,
+      status: state.conversationPlanStatus,
+      turn_count: state.conversationPlanTurnCount,
+      dispatch_ready: state.conversationPlanDispatchReady,
+      permission_envelope: plan.summary.permissionEnvelope,
+      model_role: plan.dispatchBoundary.modelRole,
+      dispatcher_role: plan.dispatchBoundary.dispatcherRole,
+      completion_claim_allowed: plan.dispatchBoundary.completionClaimAllowed,
+      receipt_required: true
+    })
+  }
+
   action apply_turn_receipt(receipt) {
     state.currentTurnId = receipt.turnId
     state.bridgeStatus = receipt.summary.status
@@ -230,6 +287,10 @@ composition "HoloShell Brittney Runtime Bridge" {
     state.runtimeEventCount = receipt.summary.eventCount
     state.toolCallCount = receipt.summary.toolCallCount
     state.actionProposalCount = receipt.summary.actionProposalCount
+    state.conversationPlanStatus = receipt.summary.conversationPlanStatus
+    state.conversationPlanId = receipt.summary.conversationPlanId
+    state.conversationPlanTurnCount = receipt.summary.conversationPlanTurnCount
+    state.conversationPlanDispatchReady = receipt.summary.conversationPlanDispatchReady
     state.founderPromptFixtureCount = receipt.summary.founderPromptFixtureCount
     state.founderPromptFixtureCorpusHash = receipt.summary.founderPromptFixtureCorpusHash
     state.contextStatus = receipt.summary.contextStatus
@@ -245,6 +306,10 @@ composition "HoloShell Brittney Runtime Bridge" {
       event_count: state.runtimeEventCount,
       tool_calls: state.toolCallCount,
       proposals: state.actionProposalCount,
+      conversation_plan_status: state.conversationPlanStatus,
+      conversation_plan_id: state.conversationPlanId,
+      conversation_plan_turn_count: state.conversationPlanTurnCount,
+      conversation_plan_dispatch_ready: state.conversationPlanDispatchReady,
       founder_prompt_fixtures: state.founderPromptFixtureCount,
       founder_prompt_fixture_corpus: state.founderPromptFixtureCorpusHash,
       context_status: state.contextStatus,

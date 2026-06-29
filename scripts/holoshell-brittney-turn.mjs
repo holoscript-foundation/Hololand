@@ -20,6 +20,7 @@ const DEFAULT_FOUNDER_PROMPTS = path.join(DEFAULT_TMP, 'founder-prompt-fixtures.
 const DEFAULT_AGENT_DISPATCH = path.join(DEFAULT_TMP, 'agent-dispatch-latest.json');
 const DEFAULT_AGENT_DISPATCH_JS = path.join(DEFAULT_TMP, 'agent-dispatch-latest.js');
 const DEFAULT_AGENT_DISPATCH_DIR = path.join(DEFAULT_TMP, 'agent-dispatches');
+const DEFAULT_CONVERSATION_PLAN = path.join(DEFAULT_TMP, 'brittney-conversation-plan-latest.json');
 const DEFAULT_LAPTOP_REASONING_RESULT = path.join(DEFAULT_TMP, 'laptop-reasoning-result-latest.json');
 const DEFAULT_LAPTOP_REASONING_RESULT_DIR = path.join(DEFAULT_TMP, 'laptop-reasoning-results');
 const LAPTOP_REASONING_TARGET_HOST = 'laptop_windows';
@@ -36,6 +37,7 @@ function parseArgs(argv) {
     turnsDir: DEFAULT_TURNS_DIR,
     latestOutput: DEFAULT_LATEST,
     jsOutput: DEFAULT_JS_OUTPUT,
+    conversationPlanOutput: DEFAULT_CONVERSATION_PLAN,
     relational: false,
   };
 
@@ -52,6 +54,7 @@ function parseArgs(argv) {
     else if (arg === '--turns-dir') args.turnsDir = argv[++index];
     else if (arg === '--latest-output') args.latestOutput = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
+    else if (arg === '--conversation-plan-output') args.conversationPlanOutput = argv[++index];
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -79,6 +82,8 @@ Options:
   --turns-dir <path>           Receipt history directory. Defaults to .tmp/holoshell/brittney-turns.
   --latest-output <path>       Latest receipt path. Defaults to .tmp/holoshell/brittney-turn-latest.json.
   --js-output <path>           Browser bootstrap path. Defaults to .tmp/holoshell/brittney-turn-latest.js.
+  --conversation-plan-output <path>
+                               Latest conversation-plan packet. Defaults to .tmp/holoshell/brittney-conversation-plan-latest.json.
   -h, --help                   Show this help.
 `);
 }
@@ -187,6 +192,149 @@ function createActionProposals(prompt) {
   }
 
   return proposals.slice(0, 5);
+}
+
+function looksLikeCommenceAllIntent(prompt) {
+  return /\b(commence|begin|start|run|execute|do)\s+(all|everything|the\s+plan|it)\b/i.test(String(prompt || ''));
+}
+
+function conversationPlanningSignals(prompt) {
+  const text = String(prompt || '').toLowerCase();
+  const signals = [];
+  const add = (name, pattern) => {
+    if (pattern.test(text)) signals.push(name);
+  };
+  add('planning', /\b(plan|planning|roadmap|sequence|steps?|priorit(y|ize)|question|clarif(y|ication)|ask|confirm|wait)\b/i);
+  add('native_holoscript', /\b(native|holoscript|renderer|engine|language|source|gate|golden)\b/i);
+  add('orchestration', /\b(orchestrator|dispatcher|translator|route|routing|dispatch|proposal|proposals|agent|fleet|mesh|room)\b/i);
+  add('local_fleet', /\b(local|jetson|laptop|owned|fleet|hardware|gpu)\b/i);
+  add('anti_theatre', /\b(theatre|theater|pretend|claim|receipt|proof|blocked|execution|executed|follow[-\s]?through)\b/i);
+  return signals;
+}
+
+function loadPriorConversationTurns(turnsDir, promptHash) {
+  const dir = resolveRepoPath(turnsDir);
+  if (!existsSync(dir)) return [];
+  let files = [];
+  try {
+    files = readdirSync(dir).filter((file) => file.endsWith('.json'));
+  } catch {
+    files = [];
+  }
+  const turns = [];
+  for (const file of files) {
+    const receipt = readJson(path.join(turnsDir, file), null);
+    if (!receipt?.prompt || receipt.promptHash === promptHash) continue;
+    turns.push({
+      turnId: receipt.turnId || '',
+      generatedAt: receipt.generatedAt || '',
+      prompt: String(receipt.prompt || ''),
+      promptHash: receipt.promptHash || hashText(receipt.prompt || ''),
+      finalText: String(receipt.result?.finalText || receipt.result?.rawFinalText || ''),
+      proposalCount: Number(receipt.summary?.actionProposalCount || 0),
+      status: receipt.summary?.status || (receipt.result?.ok ? 'completed' : 'unknown'),
+    });
+  }
+  turns.sort((left, right) => String(left.generatedAt).localeCompare(String(right.generatedAt)));
+  return turns;
+}
+
+function buildConversationPlanPacket({ args, generatedAt, promptHash }) {
+  const currentPrompt = String(args.prompt || '');
+  const currentSignals = conversationPlanningSignals(currentPrompt);
+  const commenceAll = looksLikeCommenceAllIntent(currentPrompt);
+  const priorTurns = loadPriorConversationTurns(args.turnsDir, promptHash).slice(-8);
+  const planningTurns = priorTurns
+    .map((turn) => ({ ...turn, signals: conversationPlanningSignals(turn.prompt) }))
+    .filter((turn) => turn.signals.length > 0)
+    .slice(-5);
+  const questionTurnCount = planningTurns.filter((turn) =>
+    /\?|\b(question|ask|clarify|which|what|why|how|should)\b/i.test(turn.prompt)
+  ).length;
+  const allSignals = [...new Set([...planningTurns.flatMap((turn) => turn.signals), ...currentSignals])].sort();
+  const readyToDispatch = commenceAll && planningTurns.length >= 2;
+  const status = readyToDispatch
+    ? 'ready_to_dispatch'
+    : (planningTurns.length || currentSignals.length ? 'collecting' : 'idle');
+  const planId = stableId('conversation_plan', [
+    promptHash,
+    planningTurns.map((turn) => turn.promptHash).join(':'),
+    status,
+  ].join(':'));
+  const latestPath = resolveRepoPath(args.conversationPlanOutput || DEFAULT_CONVERSATION_PLAN);
+  return {
+    schemaVersion: 'hololand.holoshell.conversation-plan.v0.1.0',
+    planId,
+    generatedAt,
+    status,
+    actor: 'brittney',
+    sourceAnchors: {
+      source: 'apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus',
+      adapter: 'scripts/holoshell-brittney-turn.mjs',
+      turnsDir: args.turnsDir,
+    },
+    trigger: {
+      promptHash,
+      promptPreview: truncate(currentPrompt, 220),
+      commenceAll,
+      signals: currentSignals,
+    },
+    summary: {
+      status,
+      turnCount: planningTurns.length,
+      questionTurnCount,
+      signalCount: allSignals.length,
+      signals: allSignals,
+      dispatchReady: readyToDispatch,
+      dispatchOperation: readyToDispatch ? 'dispatch_conversation_plan' : '',
+      permissionEnvelope: 'read_only',
+      approvalRequired: false,
+      receiptRequired: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+    turns: planningTurns.map((turn) => ({
+      turnId: turn.turnId,
+      promptHash: turn.promptHash,
+      generatedAt: turn.generatedAt,
+      promptPreview: truncate(turn.prompt, 220),
+      responsePreview: truncate(turn.finalText, 260),
+      proposalCount: turn.proposalCount,
+      signals: turn.signals,
+    })),
+    dispatchBoundary: {
+      modelRole: 'voice_and_context_only',
+      dispatcherRole: 'receipt_backed_router',
+      followThroughRequires: [
+        'conversation_plan_receipt',
+        'explicit_commence_all_turn',
+        'downstream_receipts_before_completion_claims',
+      ],
+      completionClaimAllowed: false,
+    },
+    output: {
+      latestPath,
+    },
+  };
+}
+
+function createConversationPlanProposal(plan) {
+  if (plan?.summary?.dispatchReady !== true) return null;
+  return {
+    id: stableId('proposal', `conversation-plan:${plan.planId}`),
+    objectId: 'conversation-plan',
+    label: 'Conversation Plan Dispatch',
+    operation: 'dispatch_conversation_plan',
+    permissionEnvelope: plan.summary.permissionEnvelope,
+    mutating: false,
+    approvalRequired: false,
+    receiptRequired: true,
+    planId: plan.planId,
+    turnCount: plan.summary.turnCount,
+    questionTurnCount: plan.summary.questionTurnCount,
+    sourceTurnIds: plan.turns.map((turn) => turn.turnId).filter(Boolean),
+    reason: 'User said commence all after prior planning turns; route through dispatcher proposals and receipts, not internal Brittney authority.',
+  };
 }
 
 function looksLikePlainTextToolCall(text) {
@@ -866,6 +1014,24 @@ async function runTurn(args) {
   if (recall.recalled.length) {
     shellContext.recalledContext = recall.recalled;
   }
+  const conversationPlan = buildConversationPlanPacket({ args, generatedAt, promptHash });
+  if (conversationPlan.status !== 'idle') {
+    shellContext.conversationPlan = {
+      status: conversationPlan.status,
+      planId: conversationPlan.planId,
+      commenceAll: conversationPlan.trigger.commenceAll,
+      turnCount: conversationPlan.summary.turnCount,
+      questionTurnCount: conversationPlan.summary.questionTurnCount,
+      signals: conversationPlan.summary.signals,
+      dispatchReady: conversationPlan.summary.dispatchReady,
+      permissionEnvelope: conversationPlan.summary.permissionEnvelope,
+      receiptRequired: true,
+      note: conversationPlan.summary.dispatchReady
+        ? 'The user said commence all after prior planning turns. Stage dispatcher proposals only; do not claim downstream agents completed work until receipts arrive.'
+        : 'Conversation planning context is being collected. Ask clarifying questions or wait for an explicit commence all turn before dispatch.',
+    };
+    writeJson(conversationPlan.output.latestPath, conversationPlan);
+  }
   // Route across the owned-GPU fleet (both cards as one); safe single-host fallback.
   const fleet = await resolveFleetRoute(holoscriptRoot, args.selfTest);
   const ollamaHost = fleet.ollamaHost;
@@ -895,6 +1061,7 @@ async function runTurn(args) {
       generatedAt: founderPromptFixtures.generatedAt,
       source: founderPromptFixtures.source,
     },
+    conversationPlan,
   };
   runtime.laptopReasoningDelegation = createLaptopReasoningDelegation(args);
   runtime.laptopReasoningResult = findLaptopReasoningResultForDelegation(runtime.laptopReasoningDelegation);
@@ -990,10 +1157,13 @@ ${toneInstruction}`;
       const laptopInstruction = laptopReasoningResultReady(runtime.laptopReasoningResult)
         ? ' If shellContext.laptopReasoningResult is present, mention that Brittney received the laptop hardware pingback, summarize the result receipt briefly, and distinguish receipt-only completion from GPU-backed model inference.'
         : ' If shellContext.laptopReasoningDelegation is present, mention that the Jetson staged a laptop reasoning job receipt and do not claim the laptop has completed it yet.';
+      const conversationPlanInstruction = runtime.conversationPlan.summary.dispatchReady
+        ? ' If shellContext.conversationPlan.dispatchReady is true, say the dispatcher has a receipt-backed conversation plan proposal ready; do not claim the plan was executed or completed.'
+        : ' If shellContext.conversationPlan is present but not dispatchReady, use it only as planning context and avoid execution claims.';
       session.push('user', JSON.stringify({
         userPrompt: args.prompt,
         shellContext,
-        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}${laptopInstruction}`,
+        instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}${laptopInstruction}${conversationPlanInstruction}`,
       }));
     }
     const ac = new AbortController();
@@ -1029,6 +1199,7 @@ ${toneInstruction}`;
   }
 
   const proposals = [
+    createConversationPlanProposal(runtime.conversationPlan),
     createLaptopReasoningProposal(runtime.laptopReasoningDelegation),
     ...createActionProposals(args.prompt),
   ].filter(Boolean);
@@ -1060,6 +1231,8 @@ ${toneInstruction}`;
       bridgeScript: 'scripts/holoshell-brittney-turn.mjs',
       brittneyContext: '.tmp/holoshell/brittney-context.json',
       founderPromptFixtures: DEFAULT_FOUNDER_PROMPTS,
+      conversationPlanSource: 'apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus',
+      conversationPlanReceipt: args.conversationPlanOutput,
       agentDispatchSource: 'apps/holoshell/source/holoshell-agent-dispatch.hsplus',
       agentDispatchScript: 'scripts/holoshell-agent-dispatch.mjs',
       laptopReasoningResultSource: 'apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus',
@@ -1116,6 +1289,15 @@ ${toneInstruction}`;
       founderPromptFixtureAvailableCount: runtime.founderPromptFixtures.availableCount,
       founderPromptFixtureCorpusHash: runtime.founderPromptFixtures.corpusHash,
       founderPromptFixtureSourceKinds: runtime.founderPromptFixtures.sourceKinds,
+      conversationPlanStatus: runtime.conversationPlan.status,
+      conversationPlanId: runtime.conversationPlan.planId,
+      conversationPlanTurnCount: runtime.conversationPlan.summary.turnCount,
+      conversationPlanQuestionTurnCount: runtime.conversationPlan.summary.questionTurnCount,
+      conversationPlanSignalCount: runtime.conversationPlan.summary.signalCount,
+      conversationPlanSignals: runtime.conversationPlan.summary.signals,
+      conversationPlanCommenceAll: Boolean(runtime.conversationPlan.trigger.commenceAll),
+      conversationPlanDispatchReady: Boolean(runtime.conversationPlan.summary.dispatchReady),
+      conversationPlanReceipt: runtime.conversationPlan.output.latestPath,
       laptopReasoningDelegationStatus: runtime.laptopReasoningDelegation.status,
       laptopReasoningDispatchId: runtime.laptopReasoningDelegation.dispatchId || '',
       laptopReasoningTargetHost: runtime.laptopReasoningDelegation.targetHost || '',
