@@ -22,6 +22,20 @@ proof path. Do not chase stale workspace/package errors merely to make the old
 monorepo feel alive. Fix package graph issues only when they block the active
 builder proof loop or a still-running deployment.
 
+## 30/60-Day Canonicality Rule
+
+HoloLand moves fast enough that age flips the burden of proof. Work older than
+30 days is suspect unless it clearly supports the builder-proof loop, a current
+deployment, the HoloScript source contract, or the Frontier Shard product
+north-star. Work older than 60 days is archive-by-default unless it has explicit
+current evidence.
+
+This is not an auto-delete rule. It is a canonicality rule: old HoloLand work
+must prove why it still belongs in the active source path. Old model weights,
+checkpoints, generated artifacts, package-garden experiments, and local runtime
+debris belong in artifact/archive lanes or retirement plans, not in the active
+canonical product surface.
+
 ## Enterprise Package Gates
 
 HoloLand packages are for businesses and enterprise deployments, not for human
