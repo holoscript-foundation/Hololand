@@ -18,6 +18,11 @@ The central product question is not "can every stale HoloLand package install?"
 It is "can an agent build something real in HoloScript, see it run, and leave
 evidence that the language drove the result?"
 
+2026-06-29 update: HoloLand packages are enterprise and business deployment
+assemblies. They consume and combine HoloScript packages, then double as
+benchmarks/gates for whether HoloScript can support a real business workflow.
+They are not human-user package surfaces.
+
 ## What This Replaces
 
 This reboot supersedes the old default behavior where agents treated package
@@ -48,6 +53,28 @@ A HoloLand reboot slice is done only when it proves this loop end to end:
 
 If a change does not move one of those steps forward, it is probably not reboot
 work.
+
+## Enterprise Package Gate
+
+An enterprise package is a vertical HoloLand assembly for business use cases
+such as a healthcare room, retail showroom, factory twin, real-estate
+walkthrough, training simulation, customer support world, robot operations
+center, or Twin Earth venue.
+
+Each enterprise package must declare:
+
+- the business workflow it proves
+- the HoloScript packages, traits, schemas, validators, and runtime primitives it
+  consumes
+- the HoloScript benchmark or acceptance gate it represents
+- the source, validation, runtime/render, interaction, and hardware/browser
+  receipt evidence required for promotion
+- any reusable capability that belongs upstream in HoloScript before the package
+  can be considered healthy
+
+Promotion fails when the package only proves local TypeScript behavior, hides a
+missing HoloScript primitive behind HoloLand-specific glue, or cannot leave a
+receipt that ties the business workflow back to HoloScript source.
 
 ## Keep
 
@@ -107,6 +134,7 @@ When a package install fails, classify it before fixing it:
 | Failure type | Action |
 |---|---|
 | Blocks Agent Builder Proof 0 | Fix narrowly and validate. |
+| Blocks an enterprise package gate | Fix narrowly if the package is already tied to HoloScript source and receipts; otherwise define the missing gate first. |
 | Blocks an active deployment | Fix narrowly and validate. |
 | Exposes stale legacy package graph only | Record as migration debt; do not chase during reboot work. |
 | Reveals a missing HoloScript runtime/compiler primitive | Build or file the gap upstream in HoloScript. |

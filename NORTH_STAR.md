@@ -22,6 +22,19 @@ proof path. Do not chase stale workspace/package errors merely to make the old
 monorepo feel alive. Fix package graph issues only when they block the active
 builder proof loop or a still-running deployment.
 
+## Enterprise Package Gates
+
+HoloLand packages are for businesses and enterprise deployments, not for human
+users to install as a developer-facing package marketplace. Human users should
+experience worlds, workspaces, agents, receipts, and deployed operations.
+
+A HoloLand package is healthy only when it composes upstream HoloScript packages
+into a business solution and also acts as a HoloScript benchmark gate. Each
+package should prove a real vertical workflow, expose which HoloScript
+primitives it depends on, run validation/runtime/render/interaction receipts,
+and push missing reusable primitives back upstream to HoloScript instead of
+papering them over locally.
+
 ## This project's rules
 
 1. **Build gaps in HoloScript first.** HoloLand consumes HoloScript packages, schemas, traits, compilers, validation receipts, and runtime primitives.
@@ -31,6 +44,7 @@ builder proof loop or a still-running deployment.
 5. **Brittney is product-critical when she operates the proof loop.** Agent orchestration logic may live here when it helps agents build and verify HoloScript, but document the HoloScript boundary.
 6. **Don't break existing deployments.** Someone might still be running this.
 7. **Use HoloScript tools first.** Before changing behavior, read `docs/AGENT_HOLOSCRIPT_TOOLING.md` and `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`.
+8. **Enterprise packages gate HoloScript.** Business packages must benchmark upstream HoloScript capabilities and record upstream gaps instead of becoming local rewrites.
 
 ## What to check before asking the user
 
