@@ -1,6 +1,12 @@
 # HoloLand Purpose
 
-HoloLand is the gamer-facing proof world for native HoloScript.
+HoloLand is the builder-proof surface for native HoloScript.
+
+2026-06-29 reboot: the active repo purpose is to prove that agents can author
+HoloScript source, validate it, execute it, render it, interact with it, and
+leave receipts on real hardware. The older gamer-facing frontier/MMO direction
+is product context, not permission to revive every historical package or R3F
+demo surface.
 
 HoloScript defines the semantics: world rules, traits, runtime behavior,
 validation, compilers, and provenance. HoloLand makes those semantics visible
@@ -22,8 +28,8 @@ does not mean making Brittney a single locked cloud endpoint.
 
 ## One Sentence
 
-HoloLand is where native HoloScript becomes a persistent game world people and
-agents can enter.
+HoloLand is where native HoloScript becomes something agents can build, run,
+see, inspect, and receipt.
 
 ## Product Authority
 
@@ -44,7 +50,8 @@ operation, creator workflow, or visual/UX choice, keep it in HoloLand.
 | Area | HoloLand responsibility |
 |---|---|
 | Runtime embodiment | Load, execute, and materialize HoloScript-authored worlds. |
-| Product experience | Players, creators, portals, discovery, identity, parties, events, and publishing. |
+| Builder proof experience | Agent builder shells, render/runtime surfaces, source-to-receipt flows, and inspectable live proofs. |
+| Product experience | Players, creators, portals, discovery, identity, parties, events, and publishing when they are downstream of the builder proof. |
 | Assets and worlds | Game assets, zones, shards, NPCs, encounters, item arcs, maps, lore, art direction, and world composition authored with HoloScript. |
 | HoloLand-specific tools | Gamer/creator/runtime tools that HoloScript does not need as developer substrate. |
 | Twin Earth robot/AI substrate | Geo-anchored world state, robot and AI actor identity, sensor feeds, actuator permissions, fleet tasks, safety envelopes, operational receipts, and real-world-to-game synchronization. |
@@ -67,21 +74,21 @@ operation, creator workflow, or visual/UX choice, keep it in HoloLand.
 
 ## Proof Policy
 
-HoloLand proves that **native HoloScript features** can operate a real game
-world. It is not primarily a proof that HoloScript can export to every
-competitor runtime or compiler target.
+HoloLand proves that **native HoloScript features** can render and run through
+agent-operated builder flows. It is not primarily a proof that HoloScript can
+export to every competitor runtime or compiler target.
 
 Compiler/export targets matter for developers. HoloLand's proof loop is
 different:
 
 ```text
-HoloScript source -> HoloLand asset/world/tool -> gamer-facing experience -> receipt -> upstream substrate gap if needed
+agent intent -> HoloScript source -> validation -> execution/render -> live interaction -> receipt -> upstream substrate gap if needed
 ```
 
 If a Unity, Unreal, Three.js, React, WebGPU, or other compiler target helps
-HoloLand ship a surface, it can be used as an implementation bridge. The product
-claim should still be: "native HoloScript authored this world and its rules,"
-not "HoloLand is a demo of competitor compiler parity."
+HoloLand ship a surface, it can be used as an implementation bridge. The proof
+claim should still be: "an agent built and verified this from native HoloScript
+source," not "HoloLand is a demo of competitor compiler parity."
 
 ## Forks And Trust
 
@@ -160,5 +167,5 @@ HoloScript is the developer substrate. HoloLand is the gamer proof world.
 ```
 
 Do not describe HoloLand as only a metaverse, a Three.js app, a Vite starter, or
-a no-code builder. Those are surfaces. The purpose is to prove that HoloScript
-can operate a living world for players.
+a no-code builder. Those are surfaces. The active purpose is to prove that
+HoloScript can be built, rendered, run, and inspected by agents.

@@ -4,26 +4,30 @@
 **Last reviewed:** 2026-05-07
 **Status:** Authoritative agent workflow for the HoloLand platform/product repo
 
-HoloLand is the gamer-facing product/world layer. HoloScript is the developer
-substrate. Agents should use HoloScript tools to understand, validate, generate,
-and prove HoloLand worlds, assets, and product tools, while only pushing generic
-substrate gaps upstream to HoloScript.
+HoloLand is the builder-proof surface for HoloScript. HoloScript is the
+developer substrate. Agents should use HoloScript tools to understand,
+validate, generate, execute, render, and receipt HoloScript-authored artifacts
+inside HoloLand. The active repo goal is proof that agents can build with the
+language, not restoration of every historical Hololand package.
+
+See [`docs/specs/HOLOLAND_BUILDER_PROOF_REBOOT.md`](specs/HOLOLAND_BUILDER_PROOF_REBOOT.md).
 
 ## First Principles
 
-1. HoloLand is the product/platform experience that fully utilizes HoloScript.
+1. HoloLand is the builder-proof experience that fully utilizes HoloScript.
 2. HoloScript owns language, traits, compilers, validation, agent tools, and semantic world definitions.
 3. TypeScript in HoloLand is allowed as bootstrap, bridge, runtime infrastructure, hardware integration, and tests.
 4. Gameplay, world rules, simulation, IoT twin behavior, creator templates, quests, NPC behavior, and live-world semantics must have `.holo`, `.hs`, or `.hsplus` source.
-5. HoloLand owns game assets, worlds, product tools, player UX, art direction, and gamer-facing proof loops that HoloScript does not need as developer substrate.
+5. HoloLand owns proof loops that HoloScript does not need as developer substrate: agent builder shells, live render surfaces, interaction receipts, and hardware validation harnesses.
 6. HoloLand owns Twin Earth robot/AI operational substrate: actor identity, geospatial world state, sensor feeds, actuator permissions, task plans, safety envelopes, and real-world action receipts.
 7. If HoloLand and HoloScript disagree about reusable language/runtime semantics, HoloScript wins. If the question is HoloLand's look, feel, content, player fantasy, or product direction, the founder team decides.
+8. Package install failures in stale legacy packages are not automatically HoloLand work. Fix them only when they block the active builder proof loop or a still-running deployment.
 
 ## Repository Map
 
 | Repository | Local path | Agent posture |
 |---|---|---|
-| HoloLand | `C:/Users/josep/Documents/GitHub/Hololand` | Platform/product experience, docs, examples, runtime references, HoloScript consumption surface. |
+| HoloLand | `C:/Users/josep/Documents/GitHub/Hololand` | Builder-proof experience, docs, live render/runtime references, HoloScript consumption surface. |
 | HoloScript | `C:/Users/josep/Documents/GitHub/HoloScript` | Source of truth for language, traits, parser, compilers, MCP tools, Absorb, HoloMesh, and runtime primitives. |
 | ai-ecosystem | `C:/Users/josep/.ai-ecosystem` | Team protocol, knowledge, board, cross-repo decisions. Do not write HoloLand docs there. |
 
@@ -35,6 +39,7 @@ Before editing, classify the request:
 |---|---|
 | Documentation, migration guide, agent guide | Edit HoloLand docs directly. |
 | Critical bug in existing HoloLand deployment | Fix narrowly, validate locally, preserve deployments. |
+| Legacy package install/dependency failure | Fix only if it blocks the builder proof loop or an active deployment; otherwise record as migration debt. |
 | New world/gameplay/VR feature | Implement in HoloLand using `.holo`, `.hs`, or `.hsplus`; upstream only missing reusable HoloScript primitives, validators, receipts, or runtime capabilities. |
 | HoloLand-specific asset/world/tool | Keep in HoloLand when it serves gamers, creators, shards, NPCs, encounters, visual direction, or live runtime operations rather than general HoloScript developers. |
 | Twin Earth robot/AI feature | Keep HoloLand product semantics in HoloLand: robot/AI actor registration, sensor/actuator binding, task planning, safety envelopes, geospatial operations, and action receipts. Upstream only reusable primitives and validators. |
