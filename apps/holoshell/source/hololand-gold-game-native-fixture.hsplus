@@ -1,0 +1,230 @@
+// HoloLand Gold Game Native Fixture
+//
+// Canonical HoloScript-owned source for the current gold game semantics. Legacy
+// demos, TSX/R3F views, and HTML surfaces may project this behavior, but they do
+// not own the game loop, quest state, interaction model, or reward semantics.
+
+composition "HoloLand Gold Game Native Fixture" {
+  config {
+    title: "HoloLand Gold Game"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    nativeFixtureId: "hololand.gold-game.native-fixture"
+    canonicalBehaviorSource: "apps/holoshell/source/hololand-gold-game-native-fixture.hsplus"
+    legacyGoldDemoSource: "examples/hololand-central/public/zones/holoplus_gold.hsplus"
+    legacyLegendsSource: "examples/hololand-legends/game.hsplus"
+    gameSystemTemplateSource: "packages/components/templates/game-systems.holo"
+    brittneyGameModuleSource: "packages/platform/library/src/AI/BrittneyGameModule.hsplus"
+    semanticIrReceiptSchema: "hololand.gold-game-native-fixture.v0.1.0"
+    latestReceipt: ".tmp/gold-game-native-fixture/receipt.json"
+    checkCommand: "pnpm run check:gold-game-native-fixture"
+    legacyUiRole: "adapter_evidence_only"
+    legacyR3FRole: "adapter_evidence_only"
+    nativeRendererRole: "adapter_projection_only"
+  }
+
+  state {
+    fixtureStatus: "unknown"
+    currentScene: "central_hub"
+    playerAvatarStatus: "ready"
+    brittneyAgentStatus: "ready"
+    activeQuestCount: 0
+    completedQuestCount: 0
+    rewardLedgerCount: 0
+    interactionCount: 0
+    gameLoopTickCount: 0
+    lastReceiptHash: ""
+  }
+
+  channel "hololand:gold-game:semantic-ir" {
+    type: "append_only"
+    priority: "critical"
+    description: "Native gold game semantic IR emitted before adapter projection"
+  }
+
+  channel "hololand:gold-game:interaction" {
+    type: "request_response"
+    priority: "high"
+    description: "Player, Brittney, and object interactions consumed by the game loop"
+  }
+
+  template "GoldGameSemanticIR" {
+    type: "gold_game_semantic_ir"
+    source: "apps/holoshell/source/hololand-gold-game-native-fixture.hsplus"
+    schemaVersion: "hololand.gold-game-native-fixture.v0.1.0"
+    requiredSemantics: ["scene", "player", "brittney_agent", "interactive_object", "game_loop", "input", "quest", "dialogue", "reward", "progression", "ui_status", "receipt"]
+    evidenceSources: ["examples/hololand-central/public/zones/holoplus_gold.hsplus", "examples/hololand-legends/game.hsplus", "packages/components/templates/game-systems.holo"]
+    sourceOwnedByHoloScript: true
+    adapterMayOnlyProject: true
+    receiptRequired: true
+  }
+
+  template "GoldGameLoop" {
+    type: "game_loop"
+    tickRate: "native_runtime"
+    phases: ["input", "simulation", "interaction", "quest", "reward", "render_receipt"]
+    inputActions: ["move_player", "talk_to_brittney", "grab_interactive_box", "open_status_panel"]
+    simulationState: ["currentScene", "playerAvatarStatus", "brittneyAgentStatus", "activeQuestCount", "rewardLedgerCount"]
+    emits: ["hololand:gold-game:interaction", "hololand:gold-game:semantic-ir"]
+    sourceOwnedByHoloScript: true
+    receiptRequired: true
+  }
+
+  template "GoldSceneCentralHub" {
+    type: "scene"
+    sceneId: "central_hub"
+    label: "HoloScript+ Evolution"
+    visibleObjects: ["CentralHub", "HeroAvatar", "BrittneyAgent", "InteractiveBox", "QuestStatusPanel", "RewardLedger"]
+    environment: "sunset_grid"
+    cameraMode: "native_renderer_projection"
+    sourceOwnedByHoloScript: true
+  }
+
+  template "GoldPlayerAvatar" {
+    type: "player"
+    avatarId: "HeroAvatar"
+    spawnScene: "central_hub"
+    movementModel: "four_directional_grid_or_room_space"
+    inventory: []
+    questJournal: []
+    canTalkToBrittney: true
+    canGrabInteractiveBox: true
+    sourceOwnedByHoloScript: true
+  }
+
+  template "GoldBrittneyAgent" {
+    type: "brittney_agent"
+    agentId: "BrittneyAgent"
+    label: "Talk to Brittney"
+    role: "npc_operator_guide"
+    dialogueSource: "packages/components/templates/game-systems.holo#DialogueSystem"
+    generationSource: "packages/platform/library/src/AI/BrittneyGameModule.hsplus"
+    canStartQuest: true
+    canGenerateDialogue: true
+    canExplainHoloScriptSource: true
+    sourceOwnedByHoloScript: true
+  }
+
+  template "GoldInteractiveBox" {
+    type: "interactive_object"
+    objectId: "InteractiveBox"
+    label: "Grab Me"
+    interactions: ["hover", "grab", "release", "quest_objective_progress"]
+    physics: ["collidable", "grabbable"]
+    rewards: ["gold_token", "xp", "source_receipt_credit"]
+    sourceOwnedByHoloScript: true
+  }
+
+  template "GoldQuestSystemBinding" {
+    type: "quest"
+    systemTemplate: "QuestSystem"
+    source: "packages/components/templates/game-systems.holo"
+    activeQuest: "learn_the_native_source"
+    objectives: ["talk_to_brittney", "inspect_central_hub", "grab_interactive_box", "open_receipt"]
+    rewards: ["gold_token", "xp", "receipt_badge"]
+    sourceOwnedByHoloScript: true
+    receiptRequired: true
+  }
+
+  template "GoldUiStatusProjection" {
+    type: "ui_status"
+    statusPanels: ["QuestStatusPanel", "RewardLedger", "ReceiptPanel"]
+    visibleFields: ["currentScene", "activeQuestCount", "completedQuestCount", "rewardLedgerCount", "lastReceiptHash"]
+    legacyUiRole: "adapter_evidence_only"
+    sourceOwnedByHoloScript: true
+  }
+
+  template "GoldFixtureReceipt" {
+    type: "gold_game_native_fixture_receipt"
+    schemaVersion: "hololand.gold-game-native-fixture.v0.1.0"
+    source: "apps/holoshell/source/hololand-gold-game-native-fixture.hsplus"
+    semanticIrRequired: true
+    parserValidationRequired: true
+    legacyEvidenceHashRequired: true
+    sourceRequiredBeforeProjection: true
+    handAuthoredUiMayNotOwnBehavior: true
+    adapterMayOnlyProject: true
+    receiptRequired: true
+  }
+
+  room "GoldGameCentralHub" {
+    label: "Gold Game"
+    userQuestion: "What playable HoloLand semantics are active?"
+    visualForm: "native_game_fixture"
+    liveFeed: "hololand:gold-game:semantic-ir"
+
+    object "CentralHub" {
+      type: "game_object"
+      role: "world_anchor"
+      label: "HoloScript+ Evolution"
+      interactive: true
+    }
+
+    object "HeroAvatar" {
+      type: "player"
+      role: "local_player"
+      canMove: true
+      canInteract: true
+    }
+
+    object "BrittneyAgent" {
+      type: "npc"
+      role: "operator_guide"
+      dialogue: "DialogueSystem"
+      questSource: "GoldQuestSystemBinding"
+    }
+
+    object "InteractiveBox" {
+      type: "game_object"
+      role: "quest_objective"
+      grabbable: true
+      rewardOnInteract: true
+    }
+  }
+
+  policy "GoldGameSourceOwnsBehavior" {
+    appliesTo: ["game_loop", "player", "brittney_agent", "interactive_object", "quest", "reward", "ui_status"]
+    sourceRequiredBeforeProjection: true
+    semanticIrRequired: true
+    receiptRequiredBeforeProjection: true
+    handAuthoredUiMayNotOwnBehavior: true
+    legacyUiRole: "adapter_evidence_only"
+    legacyR3FRole: "adapter_evidence_only"
+  }
+
+  policy "LegacyGoldSurfacesAreEvidence" {
+    appliesTo: ["holoplus_gold", "hololand_legends", "tsx", "r3f", "html"]
+    legacyGoldDemoSource: "examples/hololand-central/public/zones/holoplus_gold.hsplus"
+    legacyLegendsSource: "examples/hololand-legends/game.hsplus"
+    gameSystemTemplateSource: "packages/components/templates/game-systems.holo"
+    adapterMayOnlyProject: true
+    sourceRequiredBeforeProjection: true
+    receiptRequired: true
+  }
+
+  action consume_gold_game_semantic_ir(fixture) {
+    state.fixtureStatus = "ready"
+    state.currentScene = fixture.scene.sceneId
+    state.playerAvatarStatus = fixture.player.status
+    state.brittneyAgentStatus = fixture.brittneyAgent.status
+    state.activeQuestCount = fixture.quest.activeQuestCount
+    state.completedQuestCount = fixture.quest.completedQuestCount
+    state.rewardLedgerCount = fixture.reward.ledgerCount
+    state.interactionCount = fixture.interaction.count
+    state.gameLoopTickCount = fixture.gameLoop.tickCount
+    state.lastReceiptHash = fixture.receipt.receiptHash
+
+    emit("hololand:gold-game:semantic-ir", {
+      status: state.fixtureStatus,
+      scene: state.currentScene,
+      player: state.playerAvatarStatus,
+      brittney_agent: state.brittneyAgentStatus,
+      active_quests: state.activeQuestCount,
+      completed_quests: state.completedQuestCount,
+      rewards: state.rewardLedgerCount,
+      interactions: state.interactionCount,
+      game_loop_ticks: state.gameLoopTickCount,
+      receipt: state.lastReceiptHash
+    })
+  }
+}
