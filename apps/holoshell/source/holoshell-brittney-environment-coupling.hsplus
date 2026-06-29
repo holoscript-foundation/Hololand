@@ -18,7 +18,7 @@ composition "HoloShell Brittney Environment Coupling" {
     turnReceiptSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     shellWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
     skinPresetsSource: "apps/holoshell/source/holoshell-skin-presets.hsplus"
-    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.hs"
+    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.holo"
     receiptRequired: true
   }
 

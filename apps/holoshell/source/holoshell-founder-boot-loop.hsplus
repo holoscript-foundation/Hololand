@@ -10,7 +10,7 @@ composition "HoloShell Founder Boot Loop" {
     sourceLayer: "HoloScript"
     strategySource: "apps/holoshell/source/holoshell-founder-to-user-strategy.hsplus"
     worldSource: "apps/holoshell/source/holoshell-shell-world.holo"
-    renderSlice: "apps/holoshell/source/holoshell-shell-render.hs"
+    renderSlice: "apps/holoshell/source/holoshell-shell-render.holo"
     formatInventoryScript: "scripts/holoshell-format-inventory.mjs"
     bootPreviewScript: "scripts/holoshell-founder-boot-preview.mjs"
     formatInventoryReceipt: ".tmp/holoshell/format-inventory.json"

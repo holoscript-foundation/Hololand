@@ -14,7 +14,7 @@ const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 const SOURCE_ANCHORS = {
   source: 'apps/holoshell/source/holoshell-founder-host.hsplus',
   shellWorld: 'apps/holoshell/source/holoshell-shell-world.holo',
-  shellRender: 'apps/holoshell/source/holoshell-shell-render.hs',
+  shellRender: 'apps/holoshell/source/holoshell-shell-render.holo',
   shellHome: 'apps/holoshell/source/holoshell-home.hsplus',
   hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
   serviceSupervisorSource: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',

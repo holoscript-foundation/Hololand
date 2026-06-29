@@ -426,7 +426,7 @@ function intakeMapFrom(files) {
       id: 'terminal-command-bubble',
       sourcePath: terminal?.path || 'src/services/spatial/scripts/terminal-integration.hsplus',
       targetObject: 'command',
-      targetSource: 'apps/holoshell/source/holoshell-shell-render.hs',
+      targetSource: 'apps/holoshell/source/holoshell-shell-render.holo',
       adapter: 'terminal_os_object_adapter',
       nextAction: 'Render terminal_shell as a HoloShell Command bubble with guarded hardware receipts.',
     },

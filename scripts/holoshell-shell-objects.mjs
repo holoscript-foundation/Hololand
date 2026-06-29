@@ -998,7 +998,7 @@ function founderBootObjects(feeds) {
       actorLaneId: 'brittney',
       receiptTypes: ['founder_boot_preview', 'format_inventory'],
       relationships: {
-        renderSlice: preview.source?.renderSlice || 'apps/holoshell/source/holoshell-shell-render.hs',
+        renderSlice: preview.source?.renderSlice || 'apps/holoshell/source/holoshell-shell-render.holo',
         worldObjectCount: summary.worldObjectCount || 0,
         renderObjectCount: summary.renderObjectCount || 0,
         formatViewerCardCount: summary.formatViewerCardCount || 0,
@@ -3114,7 +3114,7 @@ function fixtureFeeds() {
     founderBootPreview: {
       schemaVersion: 'hololand.holoshell.founder-boot-preview.v0.1.0',
       bootId: 'founder-boot-fixture',
-      source: { world: 'apps/holoshell/source/holoshell-shell-world.holo', renderSlice: 'apps/holoshell/source/holoshell-shell-render.hs', script: 'scripts/holoshell-founder-boot-preview.mjs' },
+      source: { world: 'apps/holoshell/source/holoshell-shell-world.holo', renderSlice: 'apps/holoshell/source/holoshell-shell-render.holo', script: 'scripts/holoshell-founder-boot-preview.mjs' },
       summary: { status: 'ready', worldObjectCount: 8, renderObjectCount: 6, formatViewerCardCount: 3, userCapabilityPackCount: 2, brittneyProposalCount: 3 },
       formatViewer: { cards: [{ id: 'format.holo', label: '.holo' }, { id: 'format.hs', label: '.hs' }, { id: 'format.hsplus', label: '.hsplus' }] },
       userCapabilityPacks: [

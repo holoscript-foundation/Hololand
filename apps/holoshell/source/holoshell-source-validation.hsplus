@@ -49,7 +49,8 @@ composition "HoloShell Source Validation Guard" {
     requiredFormats: [".holo", ".hs", ".hsplus"]
     parserSourceOfTruth: "HoloScript CLI"
     failureBlocksReadinessClaim: true
-    localValidationCommand: "holoscript compile <file> --target node --output <tmp>"
+    localValidationCommand: "node [holoscript-root]/packages/cli/dist/cli.js parse <file>"
+    packageRunnerFallbackCommand: "pnpm exec holoscript parse <file>"
     receiptRequired: true
   }
 

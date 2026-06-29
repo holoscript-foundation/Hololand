@@ -11,7 +11,7 @@ composition "HoloShell Shell World" {
     avatar_source: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
     runtime_bridge_source: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     environment_coupling_source: "apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus"
-    render_slice: "apps/holoshell/source/holoshell-shell-render.hs"
+    render_slice: "apps/holoshell/source/holoshell-shell-render.holo"
     founder_command_pipeline: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     founder_intent_policy: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
     founder_command_bridge: "scripts/holoshell-founder-command.mjs"
@@ -130,7 +130,9 @@ composition "HoloShell Shell World" {
   }
 
   // Channel subscription — environmental feedback directives from Brittney action receipts
-  channel "holoshell:environment:feedback" {
+  object "EnvironmentFeedbackChannel" {
+    kind: "channel"
+    id: "holoshell:environment:feedback"
     type: "pub_sub"
     priority: "high"
     description: "Environmental effect directives from HoloShell Brittney Environment Coupling; drives LiquidDesktop visual state"

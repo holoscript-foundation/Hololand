@@ -27,7 +27,7 @@ contracts.
 | ------------------------------ | -------------------------------------------------------------- |
 | Shell behavior and permissions | `apps/holoshell/source/holoshell-home.hsplus`                  |
 | Shell world graph              | `apps/holoshell/source/holoshell-shell-world.holo`             |
-| Render slice                   | `apps/holoshell/source/holoshell-shell-render.hs`              |
+| Render slice                   | `apps/holoshell/source/holoshell-shell-render.holo`              |
 | User shell projection          | `apps/holoshell/source/holoshell-user-shell-projection.hsplus` |
 | Operator terminal              | `apps/holoshell/source/holoshell-operator-terminal.hsplus`     |
 | Founder host                   | `apps/holoshell/source/holoshell-founder-host.hsplus`          |

@@ -11,7 +11,7 @@ composition "HoloShell Founder To User Strategy" {
     wildIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
     wildIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
     shellWorld: "apps/holoshell/source/holoshell-shell-world.holo"
-    shellRenderSlice: "apps/holoshell/source/holoshell-shell-render.hs"
+    shellRenderSlice: "apps/holoshell/source/holoshell-shell-render.holo"
     derivationPolicy: "founder_surface_first_then_user_capability_packs"
   }
 

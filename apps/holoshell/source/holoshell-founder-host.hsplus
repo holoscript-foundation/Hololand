@@ -13,7 +13,7 @@ composition "HoloShell Founder Host" {
     hostReceipt: ".tmp/holoshell/founder-host.json"
     hostBootstrap: ".tmp/holoshell/founder-host.js"
     shellWorld: "apps/holoshell/source/holoshell-shell-world.holo"
-    shellRender: "apps/holoshell/source/holoshell-shell-render.hs"
+    shellRender: "apps/holoshell/source/holoshell-shell-render.holo"
     shellHome: "apps/holoshell/source/holoshell-home.hsplus"
     serviceSupervisorSource: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
     nativeWrapperSource: "apps/holoshell/source/holoshell-native-wrapper.hsplus"

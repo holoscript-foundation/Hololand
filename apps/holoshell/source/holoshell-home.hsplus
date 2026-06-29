@@ -14,7 +14,7 @@ composition "HoloShell Home" {
     operationModel: "intent_capability_receipt"
     shellModel: "holo_os_replacement"
     visualWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
-    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.hs"
+    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.holo"
     founderCommandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     founderIntentPolicySource: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
     brittneyAvatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"

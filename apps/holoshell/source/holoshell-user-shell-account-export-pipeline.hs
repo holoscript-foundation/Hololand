@@ -135,13 +135,7 @@ object "ReplayOrUndoStep" {
   permissionEnvelope: "read_only"
   founderEnvelope: "SilentInspect"
   userQuestion: "What can I redo or undo?"
-  replayLesson: [
-    "Your export receipt is saved locally. You can replay the full timeline anytime.",
-    "Provider export requests may be cancelable before they are created.",
-    "Once the provider creates the archive, the export itself cannot be undone, but you can delete the local copy.",
-    "Exporting data is NOT deleting it from the provider. Your source data is untouched.",
-    "If you imported something into HoloLand, only a redacted preview was shared. The raw archive stays local."
-  ]
+  replayLesson: ["Your export receipt is saved locally. You can replay the full timeline anytime.", "Provider export requests may be cancelable before they are created.", "Once the provider creates the archive, the export itself cannot be undone, but you can delete the local copy.", "Exporting data is NOT deleting it from the provider. Your source data is untouched.", "If you imported something into HoloLand, only a redacted preview was shared. The raw archive stays local."]
   rollbackStates: ["provider_cancel_possible", "local_delete", "receipt_delete", "hololand_import_undo"]
   output: "account_export_replay_receipt"
   receiptRequired: true

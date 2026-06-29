@@ -12,7 +12,7 @@ The loop is:
 1. Scan canonical HoloScript and wild uAA2 source as separate `.holo`, `.hs`,
    and `.hsplus` lanes.
 2. Load `holoshell-shell-world.holo` as the first-screen world graph.
-3. Embed `holoshell-shell-render.hs` as the compact render/action slice.
+3. Embed `holoshell-shell-render.holo` as the compact render/action slice.
 4. Mount a Format Viewer bubble for the three formats.
 5. Derive the first user capability packs from founder powers.
 6. Let Brittney inspect selected shell objects, explain risk, and stage

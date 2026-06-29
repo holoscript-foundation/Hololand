@@ -113,7 +113,7 @@ source/holoshell-readiness-evidence.hsplus
 source/holoshell-receipt-control.hsplus
 source/holoshell-run-custody-actions.hsplus
 source/holoshell-service-supervisor.hsplus
-source/holoshell-shell-render.hs
+source/holoshell-shell-render.holo
 source/holoshell-shell-world.holo
 source/holoshell-skin-presets.hsplus
 source/holoshell-source-validation.hsplus
@@ -516,7 +516,7 @@ From the HoloScript repo:
 ```powershell
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-home.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-shell-world.holo
-pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-shell-render.hs
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-shell-render.holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-os-ui-capture.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-skin-presets.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-brittney-presence.hsplus

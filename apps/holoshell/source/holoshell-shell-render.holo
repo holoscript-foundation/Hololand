@@ -1,6 +1,6 @@
 // HoloShell Shell Render Slice
 //
-// A simple renderable .hs scene for the first HoloShell avatar and skin proof.
+// A simple renderable .holo scene for the first HoloShell avatar and skin proof.
 // The richer graph lives in holoshell-shell-world.holo and the behavior
 // lives in holoshell-home.hsplus.
 //
@@ -10,6 +10,7 @@
 // OrbitControls are DISABLED in non-VR mode. VR mode uses XR camera rig instead.
 // Device tilt creates parallax (see prototype/local-capability-room.html tiltState).
 
+composition "HoloShell Shell Render Slice" {
 camera "StationaryViewpoint" {
   type: "perspective"
   position: { x: 0, y: 2, z: 8 }
@@ -334,4 +335,5 @@ object "ReceiptUnderlay" {
 post_processing {
   bloom: { enabled: true, intensity: 0.55, threshold: 0.72, radius: 0.65 }
   tone_mapping: { enabled: true, type: "aces", exposure: 1.05 }
+}
 }
