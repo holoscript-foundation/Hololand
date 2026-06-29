@@ -4,6 +4,11 @@
  * 
  * Detects GGUF model and starts the Brittney service on port 11435
  * for HoloScript MCP tools to use.
+ *
+ * Legacy adapter/projection only: the desktop surface contract is owned by
+ * apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus and runtime
+ * receipts. This gateway preserves older chat/API routes; it does not own the
+ * Brittney Studio desktop behavior.
  * 
  * Usage:
  *   npx tsx scripts/start-brittney.ts
@@ -94,6 +99,7 @@ const GGUF_PATHS = buildGGUFPaths();
 
 const BRITTNEY_PORT = 11435;
 const BRITTNEY_HOST = 'localhost';
+const HOLOSHELL_DESKTOP_SOURCE_CONTRACT = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus';
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL_PREFERENCE = [
   'brittney-edge:v0-4',
@@ -289,6 +295,7 @@ async function startOllamaCompatibilityGateway(model: string): Promise<void> {
           ollama: { available: true, model },
           primaryInference: 'ollama',
           gateway: 'start-brittney-ollama-compat',
+          desktopSourceContract: HOLOSHELL_DESKTOP_SOURCE_CONTRACT,
         });
         return;
       }

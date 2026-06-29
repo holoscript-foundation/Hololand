@@ -11,6 +11,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     product: "HoloShell"
     sourceLayer: "HoloScript"
     runtimeSurface: "Brittney Studio desktop app"
+    desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"
+    legacyGatewayAdapter: "scripts/start-brittney.ts"
     adapterScript: "packages/holoshell/serve.mjs"
     compilerBridge: "packages/holoshell/compile.mjs"
     operateRoomSource: "packages/holoshell/scenes/operate-room.holo"
@@ -31,6 +33,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     desktopPlanEndpoint: "POST /api/desktop-control/plan"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
     improvementRunEndpoint: "POST /api/improvement-runs"
+    operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
+    desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"
+    legacyUiRole: "adapter_projection_only"
     defaultMode: "read_only_operator_capsule"
   }
 
@@ -110,6 +116,21 @@ composition "HoloShell Brittney Desktop Cockpit" {
     primaryAction: ""
     target: {}
     preflightPath: {}
+    receiptRequired: true
+  }
+
+  template "DesktopSurfaceRouteReceipt" {
+    type: "desktop_surface_route_receipt"
+    schemaVersion: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"
+    source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"
+    legacyGatewayAdapter: "scripts/start-brittney.ts"
+    operatorTerminalAdapter: "scripts/holoshell-operator-terminal.mjs"
+    browserSurface: "http://holojetson.local:8747"
+    operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    routeProofCommand: "pnpm run check:brittney-desktop-source-contract"
+    sourceRequiredBeforeProjection: true
+    legacyUiRole: "adapter_projection_only"
     receiptRequired: true
   }
 
@@ -221,6 +242,20 @@ composition "HoloShell Brittney Desktop Cockpit" {
     browserIsPrimaryConversationSurface: true
     terminalIsExecutionEvidenceSurface: true
     terminalMayBypassHoloGate: false
+    receiptRequired: true
+  }
+
+  policy "DesktopLaunchersAreProjectionAdapters" {
+    appliesTo: ["Brittney Studio.lnk", "scripts/brittney-studio-launch.ps1", "scripts/start-brittney.ts", "legacy_browser_gateway"]
+    sourceRequiredBeforeProjection: true
+    desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"
+    legacyGatewayAdapter: "scripts/start-brittney.ts"
+    adapterMayOpenBrowserSurface: true
+    adapterMayRefreshOperatorTerminalReceipt: true
+    legacyUiMayNotOwnBehavior: true
+    legacyUiRole: "adapter_projection_only"
+    canonicalBehaviorSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    routeProofCommand: "pnpm run check:brittney-desktop-source-contract"
     receiptRequired: true
   }
 
