@@ -246,9 +246,11 @@ let UI/runtime bridges attach only where the proof loop requires them.
 1. Keep the HoloScript package-consumption boundary narrow and reject broad
    `@holoscript/*` override growth unless a proof lane or enterprise gate names
    the package.
-2. Add a machine-readable package status table with statuses:
-   `active-proof`, `bridge-debt`, `enterprise-gate`, `intake`,
-   `jetson-archive-candidate`, `local-debris`, and `watch`.
+2. Keep the shipped stale-surface inventory gate current:
+   `scripts/hololand-stale-surface-inventory.mjs` now reports
+   `active-proof`, `bridge-debt`, `jetson-archive-candidate`, and `watch`.
+   Latest receipt:
+   `docs/audits/HOLOLAND_STALE_SURFACE_INVENTORY_2026-06-29.md`.
 3. Triage every untracked `experiments/holoshell-human-os-frontier` trio into
    promote, archive, or duplicate.
 4. Convert one TS-only business example into an enterprise package gate, then
