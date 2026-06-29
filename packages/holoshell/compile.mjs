@@ -129,23 +129,24 @@ function compileOperateRoomShell(holoComposition) {
     html, body { margin: 0; min-height: 100%; background: #0d1117; }
     #holoshell-root {
       height: 100vh;
+      width: 100%;
       display: flex;
       flex-direction: column;
-      max-width: 1120px;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px clamp(12px, 2vw, 20px);
     }
     header {
       display: flex;
       align-items: baseline;
       gap: 12px;
-      padding-bottom: 14px;
+      padding-bottom: 10px;
       border-bottom: 1px solid #30363d;
       flex: 0 0 auto;
     }
     h1 {
       margin: 0;
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 700;
       line-height: 1.15;
     }
@@ -156,13 +157,13 @@ function compileOperateRoomShell(holoComposition) {
     .cockpit-grid {
       flex: 0 0 auto;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 14px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+      margin-top: 0;
     }
     .cockpit-card {
-      min-height: 76px;
-      padding: 10px;
+      min-height: 48px;
+      padding: 8px;
       border: 1px solid #30363d;
       border-radius: 8px;
       background: #0d1117;
@@ -186,18 +187,18 @@ function compileOperateRoomShell(holoComposition) {
     .cockpit-action-grid {
       flex: 0 0 auto;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 0;
     }
     .cockpit-action-card {
-      min-height: 42px;
-      padding: 8px 10px;
+      min-height: 34px;
+      padding: 7px 8px;
       border-radius: 8px;
       border: 1px solid #30363d;
       background: #161b22;
       color: #c9d1d9;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 650;
       line-height: 1.2;
       text-align: left;
@@ -220,8 +221,8 @@ function compileOperateRoomShell(holoComposition) {
     }
     .operator-state-rail {
       flex: 0 0 auto;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      margin-top: 14px;
+      grid-template-columns: minmax(0, 1fr);
+      margin-top: 0;
     }
     .operator-pill,
     .operator-alert-card,
@@ -232,8 +233,8 @@ function compileOperateRoomShell(holoComposition) {
       background: #0d1117;
     }
     .operator-pill {
-      min-height: 66px;
-      padding: 10px;
+      min-height: 48px;
+      padding: 8px;
       overflow: hidden;
     }
     .operator-pill[data-tone="ready"],
@@ -258,7 +259,7 @@ function compileOperateRoomShell(holoComposition) {
     .context-capsule-panel strong {
       display: block;
       color: #f0f6fc;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.2;
       font-weight: 700;
     }
@@ -269,21 +270,21 @@ function compileOperateRoomShell(holoComposition) {
       display: block;
       margin-top: 4px;
       color: #8b949e;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.35;
       overflow-wrap: anywhere;
     }
     .operator-alerts {
       flex: 0 0 auto;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      margin-top: 8px;
+      grid-template-columns: minmax(0, 1fr);
+      margin-top: 0;
     }
     .operator-alerts:empty {
       display: none;
     }
     .operator-alert-card {
-      min-height: 74px;
-      padding: 10px;
+      min-height: 54px;
+      padding: 8px;
     }
     .operator-alert-card button,
     .operator-turn-card button {
@@ -300,12 +301,12 @@ function compileOperateRoomShell(holoComposition) {
     }
     .context-capsule-panel {
       flex: 0 0 auto;
-      margin-top: 8px;
-      padding: 10px;
+      margin-top: 0;
+      padding: 8px;
     }
     .context-capsule-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      margin-top: 8px;
+      grid-template-columns: minmax(0, 1fr);
+      margin-top: 6px;
     }
     .operator-card-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -336,19 +337,150 @@ function compileOperateRoomShell(holoComposition) {
       border-radius: 8px;
       background: color-mix(in srgb, #58a6ff 9%, #0d1117);
     }
+    .operator-chat-shell {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(190px, 240px) minmax(460px, 1fr) minmax(220px, 280px);
+      grid-template-areas: "left chat right";
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+    .operator-side-rail {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scrollbar-width: thin;
+    }
+    .operator-left-rail {
+      grid-area: left;
+    }
+    .operator-right-rail {
+      grid-area: right;
+    }
+    .brittney-chat-panel {
+      grid-area: chat;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      background: #0d1117;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(88,166,255,0.05);
+    }
+    .brittney-chat-header {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #30363d;
+      background: #0f141b;
+    }
+    .brittney-chat-header strong {
+      color: #f0f6fc;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .brittney-chat-header span {
+      color: #8b949e;
+      font-size: 11px;
+      overflow-wrap: anywhere;
+      text-align: right;
+    }
+    .brittney-message-stream {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px;
+      background: #0b0f14;
+    }
+    .brittney-composer {
+      flex: 0 0 auto;
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid #30363d;
+      background: #0f141b;
+    }
+    #brittney-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 12px 13px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #c9d1d9;
+      font-size: 14px;
+    }
+    #brittney-send {
+      flex: 0 0 auto;
+      padding: 12px 18px;
+      border-radius: 8px;
+      border: none;
+      background: #238636;
+      color: #fff;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    #improvement-run-panel {
+      flex: 0 0 auto;
+      margin: 0;
+      padding: 8px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+    }
+    .operator-side-rail .improvement-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    #improvement-objective {
+      grid-column: 1 / -1;
+      min-width: 0;
+    }
+    #improvement-count,
+    #improvement-queue,
+    #improvement-execute,
+    #improvement-refresh {
+      min-width: 0;
+      width: auto;
+    }
     .improvement-grid {
       display: grid;
       grid-template-columns: minmax(180px, 1fr) 78px 86px 86px 78px;
       gap: 8px;
     }
-    @media (max-width: 720px) {
+    @media (max-width: 980px) {
       #holoshell-root {
+        height: auto;
+        min-height: 100vh;
         padding: 14px;
       }
       header {
         align-items: flex-start;
         flex-direction: column;
         gap: 4px;
+      }
+      .operator-chat-shell {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+          "chat"
+          "left"
+          "right";
+      }
+      .brittney-chat-panel {
+        min-height: 62vh;
+      }
+      .operator-side-rail {
+        overflow: visible;
       }
       .cockpit-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -364,6 +496,12 @@ function compileOperateRoomShell(holoComposition) {
       }
       .improvement-grid {
         grid-template-columns: minmax(0, 1fr) 76px;
+      }
+      .brittney-composer {
+        flex-wrap: wrap;
+      }
+      #brittney-input {
+        flex-basis: 100%;
       }
       #improvement-queue,
       #improvement-execute,
@@ -1042,6 +1180,57 @@ const runtimeScript = `  <script>
         })
         .catch(function(e) { _setImprovementStatus('Network error: ' + e.message, '#f85149'); });
     }
+    function _focusBrittneyChatLayout(mount) {
+      var stateRail = document.getElementById('operator-state-rail');
+      var alerts = document.getElementById('operator-alerts');
+      var cockpit = document.getElementById('brittney-cockpit');
+      var actionCards = document.getElementById('cockpit-action-cards');
+      var contextPanel = document.getElementById('context-capsule-panel');
+      var improvementPanel = document.getElementById('improvement-run-panel');
+      var messages = document.getElementById('brittney-messages');
+      var input = document.getElementById('brittney-input');
+      var send = document.getElementById('brittney-send');
+      var composer = input && input.parentElement;
+      if (!stateRail || !alerts || !cockpit || !actionCards || !contextPanel || !improvementPanel || !messages || !composer) return;
+
+      messages.removeAttribute('style');
+      messages.className = 'brittney-message-stream';
+      composer.removeAttribute('style');
+      composer.className = 'brittney-composer';
+      if (input) input.removeAttribute('style');
+      if (send) send.removeAttribute('style');
+      improvementPanel.removeAttribute('style');
+
+      var shell = document.createElement('div');
+      shell.className = 'operator-chat-shell';
+
+      var chatPanel = document.createElement('section');
+      chatPanel.id = 'brittney-chat-panel';
+      chatPanel.className = 'brittney-chat-panel';
+      chatPanel.setAttribute('aria-label', 'Brittney chat');
+      var chatHeader = document.createElement('div');
+      chatHeader.className = 'brittney-chat-header';
+      var title = document.createElement('strong');
+      title.textContent = 'Brittney';
+      var detail = document.createElement('span');
+      detail.textContent = 'local chat route with receipted agents';
+      chatHeader.append(title, detail);
+      chatPanel.append(chatHeader, messages, composer);
+
+      var leftRail = document.createElement('aside');
+      leftRail.className = 'operator-side-rail operator-left-rail';
+      leftRail.setAttribute('aria-label', 'Brittney status rails');
+      leftRail.append(alerts, stateRail, cockpit);
+
+      var rightRail = document.createElement('aside');
+      rightRail.className = 'operator-side-rail operator-right-rail';
+      rightRail.setAttribute('aria-label', 'Brittney action and context rail');
+      rightRail.append(actionCards, contextPanel, improvementPanel);
+
+      shell.append(chatPanel, leftRail, rightRail);
+      mount.textContent = '';
+      mount.appendChild(shell);
+    }
     function initBrittneyChat() {
       var mount = document.getElementById('brittney-chat-mount'); if (!mount) return;
       mount.innerHTML =
@@ -1086,6 +1275,7 @@ const runtimeScript = `  <script>
         '<input id="brittney-input" placeholder="Talk to Brittney — she manages the system, agents do the data work…" style="flex:1;padding:13px 14px;border-radius:10px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:14px" />' +
         '<button id="brittney-send" style="padding:13px 22px;border-radius:10px;border:none;background:#238636;color:#fff;font-weight:600;cursor:pointer">Send</button>' +
         '</div>';
+      _focusBrittneyChatLayout(mount);
       document.getElementById('brittney-send').addEventListener('click', sendBrittneyChat);
       document.getElementById('improvement-queue').addEventListener('click', queueImprovementRun);
       document.getElementById('improvement-execute').addEventListener('click', executeLatestImprovementRun);

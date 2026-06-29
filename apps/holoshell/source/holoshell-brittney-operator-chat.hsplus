@@ -1,9 +1,9 @@
 // HoloShell Brittney Operator Chat
 //
 // Source contract for the visible Brittney chat window. The chat is the primary
-// operator surface: cockpit data, action proposals, stale receipt prompts,
-// context carry, agent handoffs, and receipts must appear where the user talks
-// to Brittney instead of hiding as backend JSON.
+// operator surface: the conversation is the focal workbench, while cockpit data,
+// action proposals, stale receipt prompts, context carry, agent handoffs, and
+// receipts remain compact side evidence instead of burying the chat.
 
 composition "HoloShell Brittney Operator Chat" {
   config {
@@ -39,6 +39,7 @@ composition "HoloShell Brittney Operator Chat" {
     lastTurnId: ""
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+    chatLayoutMode: "center_primary_side_rails"
   }
 
   channel "holoshell:brittney:operator-chat" {
@@ -49,6 +50,8 @@ composition "HoloShell Brittney Operator Chat" {
 
   template "OperatorTruthRail" {
     type: "chat_status_rail"
+    layoutRegion: "side_rail"
+    compactByDefault: true
     showsRuntimeTruth: true
     showsJetsonRoute: true
     showsLaptopReasoningLane: true
@@ -59,6 +62,8 @@ composition "HoloShell Brittney Operator Chat" {
 
   template "EvidencePrompt" {
     type: "stale_evidence_prompt"
+    layoutRegion: "side_rail"
+    compactByDefault: true
     label: ""
     status: "unknown"
     sourceEndpoint: ""
@@ -71,6 +76,8 @@ composition "HoloShell Brittney Operator Chat" {
 
   template "ActionProposalCard" {
     type: "chat_action_proposal"
+    layoutRegion: "side_rail_or_inline_turn"
+    compactByDefault: true
     operation: ""
     lane: ""
     permissionEnvelope: "read_only"
@@ -81,6 +88,8 @@ composition "HoloShell Brittney Operator Chat" {
 
   template "ContextCapsuleDrawer" {
     type: "chat_context_capsule"
+    layoutRegion: "side_rail"
+    compactByDefault: true
     requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
     identityCarry: ["surface", "agent_family", "current_lane", "room_task_id", "handoff_source"]
     memoryInputs: ["knowledge_store", "GOLD", "repo_files", "receipts", "room_board"]
@@ -91,7 +100,19 @@ composition "HoloShell Brittney Operator Chat" {
   policy "ChatIsPrimaryOperatorSurface" {
     appliesTo: ["brittney_turn", "system_status", "next_steps", "desktop_control_plan", "agent_handoff"]
     renderInsideConversation: true
+    layoutMode: "center_primary_side_rails"
+    chatTranscriptMustBeLargestRegion: true
+    operatorEvidenceMustStayPeripheral: true
     cockpitOnlyIsInsufficient: true
+    receiptRequired: true
+  }
+
+  policy "OperatorEvidenceStaysPeripheral" {
+    appliesTo: ["operator_truth", "cockpit_lanes", "context_capsule", "action_cards", "improvement_runs"]
+    evidenceLayoutRegion: "side_rail"
+    compactByDefault: true
+    mustNotPrecedeChatAsPrimaryStack: true
+    chatTranscriptMustRemainFocusable: true
     receiptRequired: true
   }
 
@@ -176,6 +197,7 @@ composition "HoloShell Brittney Operator Chat" {
       context_capsule_visible: true,
       agent_handoff_visible: true,
       receipt_narration_visible: true,
+      chat_layout_mode: state.chatLayoutMode,
       receipt_required: true
     })
   }

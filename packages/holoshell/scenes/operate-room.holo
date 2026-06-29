@@ -110,9 +110,10 @@ composition "OperateRoom" {
     // when needed, and reports status back to the Jetson surface; desktop mutation
     // remains consent-token gated.
     // The interactive DOM (messages / input / send) is built by the runtime helper.
-    // Operator Chat v1 renders lane truth, stale-evidence prompts, context capsule
-    // carry, permission-enveloped proposal cards, agent handoff cards, and receipt
-    // narration inside the conversation. The source contract is
+    // Operator Chat v1 keeps the Brittney transcript/input as the focal workbench.
+    // Lane truth, stale-evidence prompts, context capsule carry, proposal cards,
+    // agent handoffs, and receipt narration stay compact in side rails or inline
+    // turn cards instead of stacking above the conversation. The source contract is
     // apps/holoshell/source/holoshell-brittney-operator-chat.hsplus.
     object "chat" {
       type: "main"
