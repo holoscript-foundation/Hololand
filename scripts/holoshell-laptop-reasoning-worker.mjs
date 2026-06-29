@@ -45,6 +45,14 @@ const SPEND_POLICY_REF = 'C:/Users/josep/.ai-ecosystem/SPEND.md';
 const VAST_ESCALATION_GATE_REF = 'C:/Users/josep/.ai-ecosystem/scripts/vast-escalation-gate.mjs';
 const FLEET_OUTPUT_CONTRACT_REF = 'C:/Users/josep/.ai-ecosystem/docs/contracts/fleet-output-contract.v2.schema.json';
 const LAPTOP_REASONING_LANE = 'laptop-hardware';
+const ACCEPTED_CAPABILITY_IDS = new Set([
+  'laptop_reasoning_job',
+  'laptop_reasoning_receipt_freshness',
+]);
+const ACCEPTED_SOURCE_HOSTS = new Set([
+  'jetson_holoshell_surface',
+  'holoshell_team_automation',
+]);
 
 function usage() {
   return `HoloShell laptop reasoning worker
@@ -320,12 +328,12 @@ function requiredSurfaceChecks(dispatch = {}) {
   const surfaces = body.canonicalSurfaces || {};
   const vastRequires = surfaces.vastFleet?.requires || [];
   return [
-    ['capability_id', dispatch.summary?.capabilityId === 'laptop_reasoning_job'],
+    ['capability_id', ACCEPTED_CAPABILITY_IDS.has(dispatch.summary?.capabilityId)],
     ['dispatch_kind', dispatch.summary?.dispatchKind === 'reasoning_job'],
     ['dispatch_status', dispatch.summary?.status === 'ready_to_stage'],
     ['permission_envelope', body.permissionEnvelope === 'read_only'],
     ['target_host', body.targetHost === 'laptop_windows'],
-    ['source_host', body.sourceHost === 'jetson_holoshell_surface'],
+    ['source_host', ACCEPTED_SOURCE_HOSTS.has(body.sourceHost)],
     ['lane', body.lane === LAPTOP_REASONING_LANE],
     ['agent_lane', body.agentLane === 'local'],
     ['canonical_provider_id', body.canonicalProviderId === 'laptop-ollama'],

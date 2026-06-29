@@ -94,6 +94,25 @@ assert.equal(receipt.summary.vastSpendGuardAttached, true);
 assert.equal(receipt.summary.destructiveActionsTaken, false);
 assert.equal(receipt.summary.desktopAutomationExecuted, false);
 
+const freshnessDispatch = JSON.parse(JSON.stringify(dispatch));
+freshnessDispatch.dispatchId = 'hsdispatch-laptop-receipt-freshness-test';
+freshnessDispatch.summary.capabilityId = 'laptop_reasoning_receipt_freshness';
+freshnessDispatch.summary.reasonCodes = ['scheduled_receipt_freshness'];
+freshnessDispatch.dispatch.body.sourceHost = 'holoshell_team_automation';
+freshnessDispatch.dispatch.body.workload = 'receipt_freshness_check';
+freshnessDispatch.dispatch.body.reasonCodes = ['scheduled_receipt_freshness'];
+freshnessDispatch.dispatch.body.requestedReturn = 'receipt_freshness_status';
+const freshnessReceipt = buildResultReceipt(freshnessDispatch, {
+  createdAt: CREATED_AT,
+  dispatchPath: path.join(tmp, 'laptop-receipt-freshness-dispatch.json'),
+  resultText: 'Scheduled freshness check consumed the laptop reasoning receipt contract.',
+});
+assert.equal(freshnessReceipt.status, 'completed');
+assert.equal(freshnessReceipt.summary.capabilityId, 'laptop_reasoning_receipt_freshness');
+assert.equal(freshnessReceipt.summary.brittneyPingbackStatus, 'ready_for_brittney');
+assert.equal(freshnessReceipt.summary.failedCheckCount, 0);
+assert.equal(freshnessReceipt.brittneyPingback.status, 'ready_for_brittney');
+
 const persisted = persistResultReceipt(receipt, {
   output: path.join(tmp, 'laptop-reasoning-result-latest.json'),
   resultDir: path.join(tmp, 'laptop-reasoning-results'),
