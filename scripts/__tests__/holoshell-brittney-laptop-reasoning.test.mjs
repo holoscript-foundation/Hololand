@@ -99,22 +99,22 @@ assert.ok(receipt.proposals.some((proposal) =>
   proposal.reuseBeforeBuild === true
 ));
 
-const blockedOutDir = path.join('.tmp', 'holoshell', 'self-test', 'laptop-reasoning-blocked');
-const blockedTurnsDir = path.join(blockedOutDir, 'turns');
-const blockedLatestOutput = path.join(blockedOutDir, 'brittney-turn-latest.json');
-const blockedJsOutput = path.join(blockedOutDir, 'brittney-turn-latest.js');
-const blockedResult = spawnSync(process.execPath, [
+const unsupportedOutDir = path.join('.tmp', 'holoshell', 'self-test', 'laptop-reasoning-unsupported');
+const unsupportedTurnsDir = path.join(unsupportedOutDir, 'turns');
+const unsupportedLatestOutput = path.join(unsupportedOutDir, 'brittney-turn-latest.json');
+const unsupportedJsOutput = path.join(unsupportedOutDir, 'brittney-turn-latest.js');
+const unsupportedResult = spawnSync(process.execPath, [
   'scripts/holoshell-brittney-turn.mjs',
   '--prompt',
   'hello',
   '--json',
   '--self-test',
   '--turns-dir',
-  blockedTurnsDir,
+  unsupportedTurnsDir,
   '--latest-output',
-  blockedLatestOutput,
+  unsupportedLatestOutput,
   '--js-output',
-  blockedJsOutput,
+  unsupportedJsOutput,
 ], {
   cwd: REPO_ROOT,
   encoding: 'utf8',
@@ -122,32 +122,20 @@ const blockedResult = spawnSync(process.execPath, [
   maxBuffer: 16 * 1024 * 1024,
 });
 
-assert.equal(blockedResult.status, 0, `blocked Brittney turn failed:\nSTDOUT:\n${blockedResult.stdout}\nSTDERR:\n${blockedResult.stderr}`);
-const blockedFirstBrace = blockedResult.stdout.indexOf('{');
-assert.ok(blockedFirstBrace >= 0, 'blocked turn stdout must contain JSON receipt');
-const blockedReceipt = JSON.parse(blockedResult.stdout.slice(blockedFirstBrace));
-const blockedDelegation = blockedReceipt.runtime.laptopReasoningDelegation;
+assert.equal(unsupportedResult.status, 0, `unsupported Brittney turn failed:\nSTDOUT:\n${unsupportedResult.stdout}\nSTDERR:\n${unsupportedResult.stderr}`);
+const unsupportedFirstBrace = unsupportedResult.stdout.indexOf('{');
+assert.ok(unsupportedFirstBrace >= 0, 'unsupported turn stdout must contain JSON receipt');
+const unsupportedReceipt = JSON.parse(unsupportedResult.stdout.slice(unsupportedFirstBrace));
+const unsupportedDelegation = unsupportedReceipt.runtime.laptopReasoningDelegation;
 
-assert.equal(blockedDelegation.status, 'blocked');
-assert.equal(blockedDelegation.capabilityId, 'laptop_reasoning_job');
-assert.equal(blockedDelegation.blockedReason, 'laptop_reasoning_dispatch_not_stageable');
-assert.equal(blockedDelegation.summaryStatus, 'blocked');
-assert.equal(blockedDelegation.dispatchStatus, 'blocked');
-assert.equal(blockedDelegation.route, '');
-assert.ok(blockedDelegation.stageBlockers.includes('summary.status'));
-assert.ok(blockedDelegation.stageBlockers.includes('dispatch.status'));
-assert.ok(blockedDelegation.stageBlockers.includes('summary.route'));
-assert.ok(blockedDelegation.stageBlockers.includes('dispatch.route'));
-assert.ok(blockedDelegation.stageBlockers.includes('dispatch.body'));
-assert.ok(existsSync(blockedDelegation.dispatchReceiptPath), `expected blocked dispatch receipt at ${blockedDelegation.dispatchReceiptPath}`);
-
-const blockedDispatchReceipt = JSON.parse(readFileSync(blockedDelegation.dispatchReceiptPath, 'utf8'));
-assert.equal(blockedDispatchReceipt.summary.status, 'blocked');
-assert.equal(blockedDispatchReceipt.dispatch.status, 'blocked');
-assert.deepEqual(blockedDispatchReceipt.dispatch.body, {});
-assert.equal(blockedReceipt.summary.laptopReasoningDelegationStatus, 'blocked');
-assert.equal(blockedReceipt.shellContext.laptopReasoningDelegation, undefined);
-assert.ok(!blockedReceipt.proposals.some((proposal) => proposal.operation === 'dispatch_laptop_reasoning_job'));
-assert.ok(!blockedReceipt.result.finalText.includes('I staged a read-only laptop reasoning job'));
+assert.equal(unsupportedDelegation.status, 'not_needed');
+assert.equal(unsupportedDelegation.capabilityId, '');
+assert.equal(unsupportedDelegation.confidence, 0);
+assert.equal(unsupportedDelegation.receiptRequired, false);
+assert.equal(unsupportedReceipt.summary.laptopReasoningDelegationStatus, 'not_needed');
+assert.equal(unsupportedReceipt.summary.laptopReasoningDispatchId, '');
+assert.equal(unsupportedReceipt.shellContext.laptopReasoningDelegation, undefined);
+assert.ok(!unsupportedReceipt.proposals.some((proposal) => proposal.operation === 'dispatch_laptop_reasoning_job'));
+assert.ok(!unsupportedReceipt.result.finalText.includes('I staged a read-only laptop reasoning job'));
 
 console.log('HoloShell Brittney laptop reasoning delegation test passed.');

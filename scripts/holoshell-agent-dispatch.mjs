@@ -39,6 +39,7 @@ const VAST_ESCALATION_GATE_REF = 'C:/Users/josep/.ai-ecosystem/scripts/vast-esca
 const FLEET_OUTPUT_CONTRACT_REF = 'C:/Users/josep/.ai-ecosystem/docs/contracts/fleet-output-contract.v2.schema.json';
 const HOLOTUNE_TRAIN_REF = 'C:/Users/josep/.ai-ecosystem/compositions/holotune-train.hsplus';
 const LAPTOP_REASONING_LANE = 'laptop-hardware';
+const MIN_DISPATCH_CONFIDENCE = 50;
 
 const OLLAMA_AGENTS = [
   { slug: 'claude', label: 'Claude Code', aliases: ['claude code', 'anthropic'] },
@@ -467,7 +468,7 @@ function scoreIntent(intent) {
   if (!text) return scores;
 
   const laptopReasoning = laptopReasoningSignals(intent);
-  if (laptopReasoning.needed) {
+  if (laptopReasoning.score > 0) {
     scores.set('laptop_reasoning_job', laptopReasoning.score);
   }
   if (isFounderFlagshipIntent(intent)) scores.set('founder_command', 99);
@@ -506,6 +507,9 @@ function bestCapability(intent) {
   const scores = scoreIntent(intent);
   const ranked = [...scores.entries()].sort((left, right) => right[1] - left[1]);
   const [id, confidence] = ranked[0] || ['', 0];
+  if (confidence < MIN_DISPATCH_CONFIDENCE) {
+    return { capability: null, confidence, ranked };
+  }
   const capability = CAPABILITIES.find((item) => item.id === id) || null;
   return { capability, confidence, ranked };
 }
@@ -631,7 +635,7 @@ function buildReceipt(args) {
   const intent = String(args.intent || '').trim();
   const { capability, confidence, ranked } = bestCapability(intent);
   const agent = detectOllamaAgent(intent);
-  const blocked = !capability || confidence < 50;
+  const blocked = !capability || confidence < MIN_DISPATCH_CONFIDENCE;
   const routeBody = buildRouteBody(capability, args, agent);
   const dispatchId = `hsdispatch-${Date.now().toString(36)}-${shortHash({ intent, actor: args.actor }, 10)}`;
   const dispatchReceiptPath = resolveRepoPath(path.join(args.dispatchDir, `${dispatchId}.json`));
@@ -790,6 +794,13 @@ function assertSelfTest() {
   }
   const unsupported = buildReceipt({ actor: 'brittney', intent: 'make the moon purple', prompt: '', output: DEFAULT_OUTPUT, jsOutput: DEFAULT_JS_OUTPUT, dispatchDir: DEFAULT_DISPATCH_DIR });
   if (unsupported.summary.status !== 'blocked') failures.push('unsupported intent should block');
+  if (unsupported.summary.capabilityId) failures.push('unsupported intent should not select a capability');
+  const weakLaptop = buildReceipt({ actor: 'brittney', intent: 'reason about the local backend', prompt: '', output: DEFAULT_OUTPUT, jsOutput: DEFAULT_JS_OUTPUT, dispatchDir: DEFAULT_DISPATCH_DIR });
+  if (weakLaptop.summary.status !== 'blocked') failures.push('weak laptop reasoning intent should block');
+  if (weakLaptop.summary.capabilityId) failures.push('weak laptop reasoning intent should not select a capability');
+  if (!weakLaptop.match.evidence.some((item) => item.capabilityId === 'laptop_reasoning_job')) {
+    failures.push('weak laptop reasoning intent should keep match evidence');
+  }
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 

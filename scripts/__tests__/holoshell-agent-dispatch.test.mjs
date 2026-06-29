@@ -64,3 +64,21 @@ assert.equal(lofiOnly.dispatch.body.action, 'open_url');
 
 const unsupported = receiptFor('make the moon purple');
 assert.equal(unsupported.summary.status, 'blocked');
+assert.equal(unsupported.summary.capabilityId, '');
+assert.equal(unsupported.summary.capabilityLabel, '');
+assert.equal(unsupported.summary.dispatchKind, 'unsupported');
+assert.equal(unsupported.summary.route, '');
+assert.equal(unsupported.match.capabilityId, '');
+assert.equal(unsupported.match.confidence, 0);
+assert.deepEqual(unsupported.match.evidence, []);
+assert.deepEqual(unsupported.dispatch.body, {});
+
+const weakLaptopReasoning = receiptFor('reason about the local backend');
+assert.equal(weakLaptopReasoning.summary.status, 'blocked');
+assert.equal(weakLaptopReasoning.summary.capabilityId, '');
+assert.equal(weakLaptopReasoning.summary.route, '');
+assert.equal(weakLaptopReasoning.match.confidence, 25);
+assert.deepEqual(weakLaptopReasoning.dispatch.body, {});
+assert.ok(weakLaptopReasoning.match.evidence.some((item) =>
+  item.capabilityId === 'laptop_reasoning_job' && item.score === 25
+));
