@@ -1,0 +1,54 @@
+{
+  "schema": "hololand-jetson-archive-receipt/v0.1.0",
+  "generatedAt": "2026-06-29T21:55:44.781Z",
+  "purpose": "Archive HoloLand 60-day stale source surfaces before removing them from active source.",
+  "preRemovalCommit": "7de0cda1554f36196132e45abc9e4985b920e420",
+  "archives": [
+    {
+      "kind": "tracked",
+      "localPath": ".tmp/hololand/jetson-archive-ar/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz",
+      "remote": "username@holojetson.local",
+      "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz",
+      "paths": [
+        "packages/ar/detection",
+        "packages/ar/embeddings"
+      ],
+      "bytes": 26907,
+      "sha256": "f606b49e6505981ee84223449afd0b3e7afbe96265a37f30ef8063de23056fde",
+      "remoteVerification": {
+        "archiveName": "hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz",
+        "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz",
+        "sha256": "f606b49e6505981ee84223449afd0b3e7afbe96265a37f30ef8063de23056fde",
+        "bytes": 26907,
+        "verified": true
+      }
+    }
+  ],
+  "manifest": {
+    "localPath": "docs/audits/hololand-jetson-archive-2026-06-29-ar.json",
+    "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-jetson-archive-2026-06-29-ar.json"
+  },
+  "archivedPaths": [
+    {
+      "path": "packages/ar/detection",
+      "trackedFiles": 12,
+      "localFiles": 12,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 7de0cda1554f36196132e45abc9e4985b920e420 -- packages/ar/detection"
+    },
+    {
+      "path": "packages/ar/embeddings",
+      "trackedFiles": 10,
+      "localFiles": 10,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 7de0cda1554f36196132e45abc9e4985b920e420 -- packages/ar/embeddings"
+    }
+  ],
+  "restoreCommands": [
+    "git checkout 7de0cda1554f36196132e45abc9e4985b920e420 -- packages/ar/detection packages/ar/embeddings",
+    "scp username@holojetson.local:/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz .tmp/hololand/restore/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz",
+    "tar -xzf .tmp/hololand/restore/hololand-stale-surfaces-7de0cda1554f.tracked.tar.gz -C C:\\Users\\josep\\Documents\\GitHub\\Hololand"
+  ]
+}

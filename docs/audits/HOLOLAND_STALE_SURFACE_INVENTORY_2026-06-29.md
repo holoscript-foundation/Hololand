@@ -9,6 +9,10 @@ Receipt:
   `docs/audits/HOLOLAND_JETSON_ARCHIVE_RECEIPT_2026-06-29.md`
 - Machine manifest:
   `docs/audits/hololand-jetson-archive-2026-06-29-reboot.json`
+- AR follow-up summary:
+  `docs/audits/HOLOLAND_JETSON_AR_ARCHIVE_RECEIPT_2026-06-29.md`
+- AR follow-up machine manifest:
+  `docs/audits/hololand-jetson-archive-2026-06-29-ar.json`
 
 ## Purpose
 
@@ -54,6 +58,17 @@ The remaining archive candidates are `packages/ar/detection` and
 `packages/ar/embeddings`. They were not part of the first 17-path archive batch
 and should go through the same receipt-first Jetson archive lane before any
 future active-source retirement.
+
+AR follow-up verification on 2026-06-29 after archiving and staging those two
+paths for retirement:
+
+| Status | Count |
+| --- | ---: |
+| `active-proof` | 11 |
+| `bridge-debt` | 12 |
+| `watch` | 45 |
+
+No `jetson-archive-candidate` bucket remained in that verification run.
 
 ## Protected Active-Proof Surfaces
 
