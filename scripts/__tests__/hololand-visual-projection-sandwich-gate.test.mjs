@@ -11,6 +11,8 @@ const OUTPUT_DIR = path.join(REPO_ROOT, '.tmp', 'hololand', 'self-test', 'visual
 const RECEIPT_PATH = path.join(OUTPUT_DIR, 'receipt.json');
 const HTML_PATH = path.join(OUTPUT_DIR, 'gate.html');
 const JS_PATH = path.join(OUTPUT_DIR, 'gate-receipt.js');
+const BROWSER_RECEIPT_PATH = path.join(OUTPUT_DIR, 'browser-receipt.json');
+const BROWSER_JS_PATH = path.join(OUTPUT_DIR, 'browser-receipt.js');
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -119,5 +121,43 @@ assert.match(html, /inspect_location/);
 assert.match(html, /compare_routes/);
 assert.match(html, /review_geofence/);
 assert.match(html, /Interaction receipt pending/);
+
+run(process.execPath, [
+  'scripts/hololand-visual-projection-sandwich-browser-receipt.mjs',
+  '--html',
+  HTML_PATH,
+  '--output-dir',
+  OUTPUT_DIR,
+  '--output',
+  BROWSER_RECEIPT_PATH,
+  '--js-output',
+  BROWSER_JS_PATH,
+  '--json',
+], {
+  timeout: 120_000,
+});
+
+const browserReceipt = readJson(BROWSER_RECEIPT_PATH);
+assert.equal(browserReceipt.schema, 'hololand.visual-projection-sandwich-browser-receipt.v0.1.0');
+assert.equal(browserReceipt.status, 'pass');
+assert.equal(browserReceipt.interaction.status, 'pass');
+assert.equal(browserReceipt.state.assertions.rootVisible, true);
+assert.equal(browserReceipt.state.assertions.workflowVisible, true);
+assert.equal(browserReceipt.state.assertions.projectionVisible, true);
+assert.equal(browserReceipt.state.assertions.adapterVisible, true);
+assert.equal(browserReceipt.state.assertions.sourceSemanticsVisible, true);
+assert.equal(browserReceipt.state.assertions.sourceSemanticsNotRewritten, true);
+assert.equal(browserReceipt.state.assertions.validationVisible, true);
+assert.equal(browserReceipt.state.assertions.interactionsVisible, true);
+assert.equal(browserReceipt.state.assertions.responsibilitiesVisible, true);
+assert.equal(browserReceipt.state.assertions.packageListVisible, true);
+assert.equal(browserReceipt.state.assertions.receiptVisible, true);
+assert.equal(browserReceipt.state.assertions.interactionCaptured, true);
+assert.equal(browserReceipt.state.assertions.embeddedReceiptPresent, true);
+assert.match(browserReceipt.evidence.screenshotSha256, /^[a-f0-9]{64}$/);
+assert.match(browserReceipt.evidence.domSha256, /^[a-f0-9]{64}$/);
+assert.ok(existsSync(path.resolve(REPO_ROOT, browserReceipt.evidence.screenshot)), 'screenshot file missing');
+assert.ok(existsSync(path.resolve(REPO_ROOT, browserReceipt.evidence.dom)), 'DOM file missing');
+assert.ok(existsSync(BROWSER_JS_PATH), 'browser receipt bootstrap JS missing');
 
 console.log('hololand visual projection sandwich gate test passed');
