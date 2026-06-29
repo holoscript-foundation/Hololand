@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -81,6 +81,48 @@ const idempotent = processPendingDispatches({
 });
 assert.equal(idempotent.summary.processedCount, 0);
 assert.ok(idempotent.skipped.some((item) => item.reason === 'already_processed'));
+
+const staleDispatchDir = path.join(tmp, 'stale-dispatches');
+mkdirSync(staleDispatchDir, { recursive: true });
+const staleDispatch = JSON.parse(JSON.stringify(persistedDispatch));
+staleDispatch.dispatchId = 'hsdispatch-stale-blocked';
+staleDispatch.dispatch.body.lane = 'codex-hardware';
+writeFileSync(
+  path.join(staleDispatchDir, `${staleDispatch.dispatchId}.json`),
+  `${JSON.stringify(staleDispatch, null, 2)}\n`,
+  'utf8'
+);
+
+const staleFirst = processPendingDispatches({
+  once: true,
+  dispatchDir: staleDispatchDir,
+  inboxDir: path.join(tmp, 'stale-inbox'),
+  resultDir: path.join(tmp, 'stale-results'),
+  resultOutput: path.join(tmp, 'stale-latest-result.json'),
+  bridgeOutput: path.join(tmp, 'stale-bridge.json'),
+  statePath: path.join(tmp, 'stale-state.json'),
+  createdAt: CREATED_AT,
+});
+assert.equal(staleFirst.summary.processedCount, 1);
+assert.equal(staleFirst.summary.blockedResultCount, 1);
+
+const staleMigrated = processPendingDispatches({
+  once: true,
+  dispatchDir: staleDispatchDir,
+  inboxDir: path.join(tmp, 'stale-inbox-fresh'),
+  resultDir: path.join(tmp, 'stale-results'),
+  resultOutput: path.join(tmp, 'stale-latest-result-fresh.json'),
+  bridgeOutput: path.join(tmp, 'stale-bridge-fresh.json'),
+  statePath: path.join(tmp, 'stale-fresh-state.json'),
+  createdAt: CREATED_AT,
+});
+assert.equal(staleMigrated.summary.processedCount, 0);
+assert.equal(staleMigrated.summary.migratedCount, 1);
+assert.equal(staleMigrated.summary.retiredBlockedResultCount, 1);
+assert.ok(staleMigrated.skipped.some((item) => item.reason === 'retired_existing_blocked_result'));
+const healedState = JSON.parse(readFileSync(path.join(tmp, 'stale-fresh-state.json'), 'utf8'));
+assert.equal(healedState.processedDispatchIds['hsdispatch-stale-blocked'].status, 'blocked');
+assert.equal(healedState.migratedDispatchIds['hsdispatch-stale-blocked'].reason, 'retired_existing_blocked_result');
 
 const cliReceipt = JSON.parse(execFileSync(NODE, [
   'scripts/holoshell-laptop-reasoning-bridge.mjs',

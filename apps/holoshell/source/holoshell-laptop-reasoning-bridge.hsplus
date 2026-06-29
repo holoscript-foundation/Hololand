@@ -36,8 +36,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     latestModelInvocationPerformed: false
     pulledCount: 0
     processedCount: 0
+    migratedCount: 0
     pushedCount: 0
     errorCount: 0
+    retiredBlockedResultCount: 0
     pullRemote: false
     pushRemote: false
     sourceHost: "jetson_holoshell_surface"
@@ -73,8 +75,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     status: "completed"
     pulledCount: 0
     processedCount: 0
+    migratedCount: 0
     pushedCount: 0
     errorCount: 0
+    retiredBlockedResultCount: 0
     latestDispatchId: ""
     latestResultId: ""
     latestLane: "laptop-hardware"
@@ -91,6 +95,8 @@ composition "HoloShell Laptop Reasoning Bridge" {
     appliesTo: ["laptop_reasoning_bridge"]
     permissionEnvelope: "read_only"
     modelInvocationPerformedByBridge: false
+    staleDispatchPolicy: "reuse_existing_result_receipt_and_migrate_state"
+    blockedResultPolicy: "retire_existing_blocked_result_receipt_without_rerun"
     mutatingDesktop: false
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -116,8 +122,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     state.latestModelInvocationPerformed = receipt.summary.latestModelInvocationPerformed
     state.pulledCount = receipt.summary.pulledCount
     state.processedCount = receipt.summary.processedCount
+    state.migratedCount = receipt.summary.migratedCount
     state.pushedCount = receipt.summary.pushedCount
     state.errorCount = receipt.summary.errorCount
+    state.retiredBlockedResultCount = receipt.summary.retiredBlockedResultCount
     state.pullRemote = receipt.mode.pullRemote
     state.pushRemote = receipt.mode.pushRemote
     emit("holoshell:laptop-reasoning:local-results", {
@@ -132,8 +140,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
       latest_model_invocation_performed: state.latestModelInvocationPerformed,
       pulled_count: state.pulledCount,
       processed_count: state.processedCount,
+      migrated_count: state.migratedCount,
       pushed_count: state.pushedCount,
       error_count: state.errorCount,
+      retired_blocked_result_count: state.retiredBlockedResultCount,
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true

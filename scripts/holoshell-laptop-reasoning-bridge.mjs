@@ -249,6 +249,32 @@ function jsonFiles(dirPath) {
     .map((entry) => path.join(resolved, entry.name));
 }
 
+function readExistingResultIndex(resultDir = DEFAULT_RESULT_DIR) {
+  const index = new Map();
+  for (const resultPath of jsonFiles(resultDir)) {
+    try {
+      const receipt = JSON.parse(readFileSync(resultPath, 'utf8'));
+      if (receipt.schemaVersion !== 'hololand.holoshell.laptop-reasoning-result.v0.1.0') continue;
+      const dispatchId = receipt.inputDispatch?.dispatchId || receipt.summary?.dispatchId || '';
+      if (!dispatchId) continue;
+      const candidate = {
+        dispatchId,
+        resultId: receipt.resultId || receipt.summary?.resultId || path.basename(resultPath, '.json'),
+        status: receipt.status || receipt.summary?.status || 'unknown',
+        generatedAt: receipt.generatedAt || '',
+        generatedAtMs: Date.parse(receipt.generatedAt || '') || 0,
+        resultPath: normalizeReceiptPath(resultPath),
+      };
+      const previous = index.get(dispatchId);
+      if (!previous || candidate.generatedAtMs >= previous.generatedAtMs) index.set(dispatchId, candidate);
+    } catch {
+      // Ignore malformed historical receipts; processPendingDispatches reports
+      // parse errors only for active dispatch inputs, not archival result scans.
+    }
+  }
+  return index;
+}
+
 function isLaptopReasoningDispatch(receipt = {}) {
   return receipt.summary?.capabilityId === 'laptop_reasoning_job'
     && receipt.summary?.dispatchKind === 'reasoning_job'
@@ -311,10 +337,13 @@ export function processPendingDispatches(options = {}) {
   state.processedDispatchIds ||= {};
   state.pushedResultIds ||= {};
   state.remotePulled ||= {};
+  state.migratedDispatchIds ||= {};
+  const existingResults = readExistingResultIndex(options.resultDir || DEFAULT_RESULT_DIR);
   const pulled = pullRemoteDispatches(options, state);
   for (const item of pulled) state.remotePulled[item.name] = at;
 
   const processed = [];
+  const migrated = [];
   const skipped = [];
   const errors = [];
   for (const dispatchPath of collectDispatchPaths(options)) {
@@ -331,6 +360,38 @@ export function processPendingDispatches(options = {}) {
       }
       if (state.processedDispatchIds[dispatchId]) {
         skipped.push({ dispatchId, dispatchPath: normalizeReceiptPath(resolvedDispatchPath), reason: 'already_processed' });
+        continue;
+      }
+      const existingResult = existingResults.get(dispatchId);
+      if (existingResult) {
+        const reason = existingResult.status === 'blocked'
+          ? 'retired_existing_blocked_result'
+          : 'migrated_existing_result_receipt';
+        const migratedItem = {
+          dispatchId,
+          resultId: existingResult.resultId,
+          status: existingResult.status,
+          dispatchPath: normalizeReceiptPath(resolvedDispatchPath),
+          resultPath: existingResult.resultPath,
+          reason,
+        };
+        state.processedDispatchIds[dispatchId] = {
+          processedAt: existingResult.generatedAt || at,
+          resultId: existingResult.resultId,
+          status: existingResult.status,
+          migratedAt: at,
+          migratedFrom: existingResult.resultPath,
+          migrationReason: reason,
+        };
+        state.migratedDispatchIds[dispatchId] = {
+          migratedAt: at,
+          resultId: existingResult.resultId,
+          status: existingResult.status,
+          resultPath: existingResult.resultPath,
+          reason,
+        };
+        migrated.push(migratedItem);
+        skipped.push(migratedItem);
         continue;
       }
 
@@ -375,6 +436,7 @@ export function processPendingDispatches(options = {}) {
   writeState(state, options);
   const blockedResultCount = processed.filter((item) => item.status === 'blocked').length;
   const partialResultCount = processed.filter((item) => item.status === 'partial').length;
+  const retiredBlockedResultCount = migrated.filter((item) => item.reason === 'retired_existing_blocked_result').length;
   const bridgeStatus = errors.length
     ? (processed.length ? 'partial' : 'blocked')
     : (blockedResultCount ? 'partial' : 'completed');
@@ -412,16 +474,19 @@ export function processPendingDispatches(options = {}) {
     },
     pulled,
     processed,
+    migrated,
     skipped,
     errors,
     summary: {
       status: bridgeStatus,
       pulledCount: pulled.length,
       processedCount: processed.length,
+      migratedCount: migrated.length,
       skippedCount: skipped.length,
       errorCount: errors.length,
       blockedResultCount,
       partialResultCount,
+      retiredBlockedResultCount,
       pushedCount: processed.filter((item) => item.remote).length,
       latestResultId: processed.at(-1)?.resultId || '',
       latestDispatchId: processed.at(-1)?.dispatchId || '',
