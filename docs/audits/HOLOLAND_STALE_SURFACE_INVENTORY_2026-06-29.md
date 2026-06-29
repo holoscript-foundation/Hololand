@@ -1,6 +1,14 @@
 # HoloLand Stale Surface Inventory - 2026-06-29
 
-Status: shipped inventory gate. No archive, delete, or move was executed.
+Status: shipped inventory gate. The first 17 `jetson-archive-candidate`
+surfaces were archived to Jetson and retired from active source on 2026-06-29.
+
+Receipt:
+
+- Human summary:
+  `docs/audits/HOLOLAND_JETSON_ARCHIVE_RECEIPT_2026-06-29.md`
+- Machine manifest:
+  `docs/audits/hololand-jetson-archive-2026-06-29-reboot.json`
 
 ## Purpose
 
@@ -24,7 +32,7 @@ node scripts/hololand-stale-surface-inventory.mjs --json
 
 ## Current Summary
 
-Real HoloLand scan on 2026-06-29:
+Initial real HoloLand scan on 2026-06-29:
 
 | Status | Count | Meaning |
 | --- | ---: | --- |
@@ -32,6 +40,20 @@ Real HoloLand scan on 2026-06-29:
 | `bridge-debt` | 12 | Mixed HoloScript plus JS/TS bridge code; quarantine, do not celebrate. |
 | `watch` | 45 | Has deployment/proof references or is not old enough for archive default. |
 | `jetson-archive-candidate` | 17 | Older than 60 days, no HoloScript source, no active proof/deployment evidence. |
+
+Post-retirement verification on 2026-06-29:
+
+| Status | Count |
+| --- | ---: |
+| `active-proof` | 11 |
+| `bridge-debt` | 12 |
+| `watch` | 43 |
+| `jetson-archive-candidate` | 2 |
+
+The remaining archive candidates are `packages/ar/detection` and
+`packages/ar/embeddings`. They were not part of the first 17-path archive batch
+and should go through the same receipt-first Jetson archive lane before any
+future active-source retirement.
 
 ## Protected Active-Proof Surfaces
 
@@ -90,8 +112,9 @@ The first machine-readable pass identified these candidates:
 | `packages/platform/lifecycle` | 115d | 0 | 4 | 0 |
 | `packages/platform/tools` | 106d | 0 | 8 | 0 |
 
-Before any move to Jetson, each candidate still needs a manifest with original
-path, reason, commit, checksum, and restore command.
+These candidates were archived to Jetson at
+`/mnt/nvme/archives/hololand/2026-06-29-reboot` with original path, pre-removal
+commit, checksum, and restore commands recorded in the machine manifest.
 
 ## Validation
 

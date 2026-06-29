@@ -1,0 +1,208 @@
+{
+  "schema": "hololand-jetson-archive-receipt/v0.1.0",
+  "generatedAt": "2026-06-29T21:25:30.287Z",
+  "purpose": "Archive HoloLand 60-day stale source surfaces before removing them from active source.",
+  "preRemovalCommit": "3542e685d0ef271026839814eab85711031dd566",
+  "archives": [
+    {
+      "kind": "tracked",
+      "localPath": ".tmp/hololand/jetson-archive/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz",
+      "remote": "username@holojetson.local",
+      "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz",
+      "paths": [
+        "examples/05-desktop-app",
+        "examples/06-mobile-app",
+        "examples/08-progressive-vr",
+        "examples/09-multiplayer-lobby",
+        "examples/10-collaborative-building",
+        "examples/11-social-hub",
+        "examples/12-multi-user-ar",
+        "examples/compilation-demo",
+        "examples/hybrid-dashboard",
+        "packages/adapters/shared",
+        "packages/platform/evaluation",
+        "packages/platform/frontend",
+        "packages/platform/generation",
+        "packages/platform/holofilter",
+        "packages/platform/lifecycle",
+        "packages/platform/tools"
+      ],
+      "bytes": 631038,
+      "sha256": "5eb2789940b6bb804fb5cd726612cb57757a59b131db125bb6163103ee833aa5",
+      "remoteVerification": {
+        "archiveName": "hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz",
+        "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz",
+        "sha256": "5eb2789940b6bb804fb5cd726612cb57757a59b131db125bb6163103ee833aa5",
+        "bytes": 631038,
+        "verified": true
+      }
+    },
+    {
+      "kind": "local-only",
+      "localPath": ".tmp/hololand/jetson-archive/hololand-stale-surfaces-3542e685d0ef.local.tar.gz",
+      "remote": "username@holojetson.local",
+      "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.local.tar.gz",
+      "paths": [
+        "examples/compiled-outputs"
+      ],
+      "bytes": 46889,
+      "sha256": "ae2aaca7cff616f2bdf41335127681099437e0b83692c1110d04d62e2626ad3a",
+      "remoteVerification": {
+        "archiveName": "hololand-stale-surfaces-3542e685d0ef.local.tar.gz",
+        "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.local.tar.gz",
+        "sha256": "ae2aaca7cff616f2bdf41335127681099437e0b83692c1110d04d62e2626ad3a",
+        "bytes": 46889,
+        "verified": true
+      }
+    }
+  ],
+  "manifest": {
+    "localPath": "docs/audits/hololand-jetson-archive-2026-06-29-reboot.json",
+    "remotePath": "/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-jetson-archive-2026-06-29-reboot.json"
+  },
+  "archivedPaths": [
+    {
+      "path": "examples/05-desktop-app",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/05-desktop-app"
+    },
+    {
+      "path": "examples/06-mobile-app",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/06-mobile-app"
+    },
+    {
+      "path": "examples/08-progressive-vr",
+      "trackedFiles": 17,
+      "localFiles": 17,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/08-progressive-vr"
+    },
+    {
+      "path": "examples/09-multiplayer-lobby",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/09-multiplayer-lobby"
+    },
+    {
+      "path": "examples/10-collaborative-building",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/10-collaborative-building"
+    },
+    {
+      "path": "examples/11-social-hub",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/11-social-hub"
+    },
+    {
+      "path": "examples/12-multi-user-ar",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/12-multi-user-ar"
+    },
+    {
+      "path": "examples/compilation-demo",
+      "trackedFiles": 10,
+      "localFiles": 10,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/compilation-demo"
+    },
+    {
+      "path": "examples/compiled-outputs",
+      "trackedFiles": 0,
+      "localFiles": 286,
+      "localOnly": true,
+      "exists": true,
+      "restoreCommand": "tar -xzf <archive> -C <repo> examples/compiled-outputs"
+    },
+    {
+      "path": "examples/hybrid-dashboard",
+      "trackedFiles": 11,
+      "localFiles": 11,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/hybrid-dashboard"
+    },
+    {
+      "path": "packages/adapters/shared",
+      "trackedFiles": 8,
+      "localFiles": 8,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/adapters/shared"
+    },
+    {
+      "path": "packages/platform/evaluation",
+      "trackedFiles": 20,
+      "localFiles": 20,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/evaluation"
+    },
+    {
+      "path": "packages/platform/frontend",
+      "trackedFiles": 204,
+      "localFiles": 204,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/frontend"
+    },
+    {
+      "path": "packages/platform/generation",
+      "trackedFiles": 10,
+      "localFiles": 10,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/generation"
+    },
+    {
+      "path": "packages/platform/holofilter",
+      "trackedFiles": 11,
+      "localFiles": 11,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/holofilter"
+    },
+    {
+      "path": "packages/platform/lifecycle",
+      "trackedFiles": 4,
+      "localFiles": 4,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/lifecycle"
+    },
+    {
+      "path": "packages/platform/tools",
+      "trackedFiles": 8,
+      "localFiles": 8,
+      "localOnly": false,
+      "exists": true,
+      "restoreCommand": "git checkout 3542e685d0ef271026839814eab85711031dd566 -- packages/platform/tools"
+    }
+  ],
+  "restoreCommands": [
+    "git checkout 3542e685d0ef271026839814eab85711031dd566 -- examples/05-desktop-app examples/06-mobile-app examples/08-progressive-vr examples/09-multiplayer-lobby examples/10-collaborative-building examples/11-social-hub examples/12-multi-user-ar examples/compilation-demo examples/hybrid-dashboard packages/adapters/shared packages/platform/evaluation packages/platform/frontend packages/platform/generation packages/platform/holofilter packages/platform/lifecycle packages/platform/tools",
+    "scp username@holojetson.local:/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz .tmp/hololand/restore/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz",
+    "tar -xzf .tmp/hololand/restore/hololand-stale-surfaces-3542e685d0ef.tracked.tar.gz -C C:\\Users\\josep\\Documents\\GitHub\\Hololand",
+    "scp username@holojetson.local:/mnt/nvme/archives/hololand/2026-06-29-reboot/hololand-stale-surfaces-3542e685d0ef.local.tar.gz .tmp/hololand/restore/hololand-stale-surfaces-3542e685d0ef.local.tar.gz",
+    "tar -xzf .tmp/hololand/restore/hololand-stale-surfaces-3542e685d0ef.local.tar.gz -C C:\\Users\\josep\\Documents\\GitHub\\Hololand"
+  ]
+}
