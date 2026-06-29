@@ -40,6 +40,7 @@
     "shardId": "frontier-shard-0-alpha",
     "zoneId": "waymark-glen",
     "twinEarthAnchorId": "twin-universe-anchor-phx-001",
+    "twinUniverseAnchorId": "twin-universe-anchor-phx-001",
     "targetType": "zone",
     "entityIds": ["npc_mira_wayfinder", "anchor_waymark_001"]
   },

@@ -82,8 +82,17 @@ check(
   schema.$defs?.hololandTarget?.anyOf?.some((entry) => entry.required?.includes('twinEarthAnchorId')),
   'hololandTarget must allow/require twinEarthAnchorId evidence'
 );
+check(
+  schema.$defs?.hololandTarget?.anyOf?.some((entry) => entry.required?.includes('twinUniverseAnchorId')),
+  'hololandTarget must allow/require twinUniverseAnchorId evidence'
+);
 requirePath(example, 'hololandTarget.zoneId');
 requirePath(example, 'hololandTarget.twinEarthAnchorId');
+requirePath(example, 'hololandTarget.twinUniverseAnchorId');
+
+const aliasPlan = manifest.compatibilityAliases || {};
+check(aliasPlan.familyIds?.twin_earth === 'twin_universe', 'manifest must map twin_earth family alias to twin_universe');
+check(aliasPlan.receiptFields?.twinEarthAnchorId === 'twinUniverseAnchorId', 'manifest must map twinEarthAnchorId receipt alias');
 
 const trustStatuses = new Set(schema.$defs?.holoscriptArtifact?.properties?.sourceTrustStatus?.enum || []);
 for (const status of ['official', 'third-party-conformance-pass', 'sandboxed-experimental', 'rejected', 'unknown']) {
@@ -95,14 +104,39 @@ for (const evidenceType of ['browser-screenshot', 'webgpu-audit', 'xr-profile', 
   check(evidenceTypes.has(evidenceType), `hardware/browser evidence type missing ${evidenceType}`);
 }
 
+const toolFamilies = new Set(schema.$defs?.toolTrace?.properties?.toolFamily?.enum || []);
+for (const family of ['twin_earth', 'twin_universe', 'twin_earth_robot_ai', 'twin_universe_robot_ai']) {
+  check(toolFamilies.has(family), `toolFamily enum missing ${family}`);
+}
+
+const targetTypes = new Set(schema.$defs?.hololandTarget?.properties?.targetType?.enum || []);
+for (const targetType of ['twin-earth-anchor', 'twin-universe-anchor']) {
+  check(targetTypes.has(targetType), `hololandTarget.targetType enum missing ${targetType}`);
+}
+
 const runtimeStatuses = new Set(schema.$defs?.runtimeOutcome?.properties?.status?.enum || []);
 for (const status of ['previewed', 'applied', 'rejected', 'rolled-back', 'failed']) {
   check(runtimeStatuses.has(status), `runtimeOutcome.status enum missing ${status}`);
+}
+const actionTypes = new Set(schema.$defs?.runtimeOutcome?.properties?.actionType?.enum || []);
+for (const actionType of ['twin-earth-anchor-update', 'twin-universe-anchor-update']) {
+  check(actionTypes.has(actionType), `runtimeOutcome.actionType enum missing ${actionType}`);
 }
 
 const rollbackStrategies = new Set(schema.$defs?.rollback?.properties?.strategy?.enum || []);
 for (const strategy of ['automatic', 'manual', 'immutable-receipt-only']) {
   check(rollbackStrategies.has(strategy), `rollback.strategy enum missing ${strategy}`);
+}
+
+const actorScopes = new Set(schema.$defs?.actor?.properties?.authorityScope?.enum || []);
+const securityPermissions = new Set(schema.$defs?.security?.properties?.permission?.enum || []);
+const securitySandboxes = new Set(schema.$defs?.security?.properties?.sandbox?.enum || []);
+for (const scope of ['twin-earth-write', 'twin-universe-write']) {
+  check(actorScopes.has(scope), `actor.authorityScope enum missing ${scope}`);
+  check(securityPermissions.has(scope), `security.permission enum missing ${scope}`);
+}
+for (const sandbox of ['twin-earth-safety', 'twin-universe-safety']) {
+  check(securitySandboxes.has(sandbox), `security.sandbox enum missing ${sandbox}`);
 }
 
 check(Array.isArray(example.hardwareBrowserEvidence.evidenceRefs), 'example hardwareBrowserEvidence.evidenceRefs must be an array');

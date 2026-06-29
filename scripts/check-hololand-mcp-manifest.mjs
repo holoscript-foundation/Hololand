@@ -18,6 +18,7 @@ check(manifest.sourcePackage === '@hololand/mcp-server', 'sourcePackage must be 
 
 const validBuckets = ['keep', 'rename', 'delegate', 'deprecate', 'test'];
 const dispositions = manifest.existingToolDisposition || {};
+const compatibilityAliases = manifest.compatibilityAliases || {};
 const mappedTools = new Map();
 
 for (const bucket of validBuckets) {
@@ -49,8 +50,13 @@ for (const bucket of validBuckets) {
 }
 
 const familyIds = new Set((manifest.requiredFamilies || []).map((family) => family.id));
+const familyAliases = new Map();
 for (const family of manifest.requiredFamilies || []) {
   check(Array.isArray(family.sovereignTools) && family.sovereignTools.length > 0, `family ${family.id} must list sovereignTools`);
+  for (const alias of family.aliases || []) {
+    check(typeof alias === 'string' && alias.length > 0, `family ${family.id} alias must be a non-empty string`);
+    familyAliases.set(alias, family.id);
+  }
   for (const tool of family.sovereignTools || []) {
     check(tool.startsWith('hololand_'), `family ${family.id} contains non-sovereign tool ${tool}`);
   }
@@ -70,6 +76,15 @@ for (const family of requiredFamilies) {
   check(familyIds.has(family), `required family missing: ${family}`);
 }
 
+check(compatibilityAliases.familyIds?.twin_earth === 'twin_universe', 'compatibilityAliases must map twin_earth to twin_universe');
+check(compatibilityAliases.familyIds?.twin_earth_robot_ai === 'twin_universe_robot_ai', 'compatibilityAliases must map twin_earth_robot_ai to twin_universe_robot_ai');
+check(familyAliases.get('twin_universe') === 'twin_earth', 'twin_earth family must expose twin_universe alias');
+check(familyAliases.get('twin_universe_robot_ai') === 'twin_earth_robot_ai', 'twin_earth_robot_ai family must expose twin_universe_robot_ai alias');
+check(
+  compatibilityAliases.toolIds?.hololand_twin_earth_operational_graph_query === 'hololand_twin_universe_operational_graph_query',
+  'compatibilityAliases must map the Twin Universe operational graph tool alias'
+);
+
 for (const [tool, entry] of mappedTools) {
   check(familyIds.has(entry.family), `${tool} references unknown family ${entry.family}`);
 }
@@ -83,6 +98,9 @@ const receiptFields = new Set(manifest.crossMcpReceiptEnvelope?.requiredFields |
 for (const field of ['sourceTrustStatus', 'holoscriptValidation', 'runtimeOutcome', 'hardwareEvidence', 'rollbackPlan']) {
   check(receiptFields.has(field), `receipt envelope missing required field ${field}`);
 }
+const conditionalFields = new Set(manifest.crossMcpReceiptEnvelope?.conditionalFields || []);
+check(conditionalFields.has('twinEarthAnchorId'), 'receipt envelope must preserve legacy twinEarthAnchorId field');
+check(conditionalFields.has('twinUniverseAnchorId'), 'receipt envelope must expose canonical twinUniverseAnchorId alias');
 
 const observedTools = new Set();
 const namePattern = /name:\s*['"]([^'"]+)['"]/g;

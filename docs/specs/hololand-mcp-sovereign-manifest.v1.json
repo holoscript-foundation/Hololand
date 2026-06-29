@@ -5,6 +5,25 @@
   "status": "architecture-manifest",
   "sourcePackage": "@hololand/mcp-server",
   "sourcePackageVersion": "1.0.0",
+  "compatibilityAliases": {
+    "rationale": "Twin Universe is canonical product vocabulary. twin_earth and twin-earth remain legacy wire identifiers so existing MCP callers, receipts, and persisted manifests keep verifying.",
+    "familyIds": {
+      "twin_earth": "twin_universe",
+      "twin_earth_robot_ai": "twin_universe_robot_ai"
+    },
+    "toolIds": {
+      "hololand_twin_earth_register_robot": "hololand_twin_universe_register_robot",
+      "hololand_twin_earth_register_ai_actor": "hololand_twin_universe_register_ai_actor",
+      "hololand_twin_earth_operational_graph_query": "hololand_twin_universe_operational_graph_query"
+    },
+    "receiptFields": {
+      "twinEarthAnchorId": "twinUniverseAnchorId",
+      "twin-earth-anchor": "twin-universe-anchor",
+      "twin-earth-anchor-update": "twin-universe-anchor-update",
+      "twin-earth-write": "twin-universe-write",
+      "twin-earth-safety": "twin-universe-safety"
+    }
+  },
   "registeredToolSources": [
     {
       "sourceCategory": "core-world-service",
@@ -124,6 +143,7 @@
     },
     {
       "id": "twin_earth",
+      "aliases": ["twin_universe"],
       "description": "Create real-world anchors and AR overlays with privacy receipts.",
       "sovereignTools": [
         "hololand_create_geo_anchor",
@@ -136,6 +156,7 @@
     },
     {
       "id": "twin_earth_robot_ai",
+      "aliases": ["twin_universe_robot_ai"],
       "description": "Register and coordinate robot and AI actors in Twin Universe with capability, permission, and safety checks.",
       "sovereignTools": [
         "hololand_twin_earth_register_robot",
@@ -255,6 +276,7 @@
     "conditionalFields": [
       "zoneId",
       "twinEarthAnchorId",
+      "twinUniverseAnchorId",
       "robotId",
       "aiActorId",
       "sensorFeedId",

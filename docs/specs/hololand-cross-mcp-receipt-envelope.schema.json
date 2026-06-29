@@ -86,7 +86,7 @@
         },
         "authorityScope": {
           "type": "string",
-          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "robot-ai-operate", "admin"]
+          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "twin-universe-write", "robot-ai-operate", "admin"]
         }
       }
     },
@@ -105,7 +105,7 @@
         },
         "toolFamily": {
           "type": "string",
-          "enum": ["asset_world_building", "shard_world", "frontier_gameplay", "twin_earth", "twin_earth_robot_ai", "creator_publishing", "agent_stewardship", "runtime_receipt", "hardware_validation", "trust_fork_admission"]
+          "enum": ["asset_world_building", "shard_world", "frontier_gameplay", "twin_earth", "twin_universe", "twin_earth_robot_ai", "twin_universe_robot_ai", "creator_publishing", "agent_stewardship", "runtime_receipt", "hardware_validation", "trust_fork_admission"]
         },
         "mcpServer": {
           "type": "string",
@@ -196,7 +196,8 @@
       "required": ["worldId", "shardId", "targetType"],
       "anyOf": [
         { "required": ["zoneId"] },
-        { "required": ["twinEarthAnchorId"] }
+        { "required": ["twinEarthAnchorId"] },
+        { "required": ["twinUniverseAnchorId"] }
       ],
       "properties": {
         "worldId": {
@@ -215,9 +216,13 @@
           "type": "string",
           "minLength": 3
         },
+        "twinUniverseAnchorId": {
+          "type": "string",
+          "minLength": 3
+        },
         "targetType": {
           "type": "string",
-          "enum": ["world", "shard", "zone", "twin-earth-anchor", "robot-ai-operation", "creator-submission", "player-state"]
+          "enum": ["world", "shard", "zone", "twin-earth-anchor", "twin-universe-anchor", "robot-ai-operation", "creator-submission", "player-state"]
         },
         "entityIds": {
           "type": "array",
@@ -236,7 +241,7 @@
         },
         "actionType": {
           "type": "string",
-          "enum": ["asset-build", "zone-publish", "world-update", "shard-event", "twin-earth-anchor-update", "robot-task", "ai-actor-action", "creator-publish", "reward", "moderation"]
+          "enum": ["asset-build", "zone-publish", "world-update", "shard-event", "twin-earth-anchor-update", "twin-universe-anchor-update", "robot-task", "ai-actor-action", "creator-publish", "reward", "moderation"]
         },
         "mutationHash": {
           "type": "string",
@@ -333,7 +338,7 @@
       "properties": {
         "permission": {
           "type": "string",
-          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "robot-ai-operate", "admin"]
+          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "twin-universe-write", "robot-ai-operate", "admin"]
         },
         "worldWriteAuthorityGate": {
           "type": "string",
@@ -341,7 +346,7 @@
         },
         "sandbox": {
           "type": "string",
-          "enum": ["none", "browser", "runtime-adapter", "twin-earth-safety", "robot-ai-safety"]
+          "enum": ["none", "browser", "runtime-adapter", "twin-earth-safety", "twin-universe-safety", "robot-ai-safety"]
         },
         "signatureVerified": {
           "type": "boolean"
