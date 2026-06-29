@@ -189,9 +189,20 @@ function shellQuote(text) {
   return `'${String(text).replace(/'/g, `'\\''`)}'`;
 }
 
-function sshBaseArgs(options = {}) {
+function sshOptionArgs(options = {}) {
+  const connectTimeoutSeconds = Number.isFinite(Number(options.sshConnectTimeoutSeconds))
+    ? Math.max(1, Number(options.sshConnectTimeoutSeconds))
+    : 10;
   const args = [];
   if (options.sshKey) args.push('-i', options.sshKey);
+  args.push('-o', 'BatchMode=yes');
+  args.push('-o', `ConnectTimeout=${connectTimeoutSeconds}`);
+  args.push('-o', 'StrictHostKeyChecking=accept-new');
+  return args;
+}
+
+function sshBaseArgs(options = {}) {
+  const args = sshOptionArgs(options);
   args.push(options.remoteHost);
   return args;
 }
@@ -210,8 +221,7 @@ function runSsh(remoteCommand, options = {}) {
 }
 
 function runScp(from, to, options = {}) {
-  const args = [];
-  if (options.sshKey) args.push('-i', options.sshKey);
+  const args = sshOptionArgs(options);
   args.push(from, to);
   const result = spawnSync('scp.exe', args, {
     cwd: REPO_ROOT,

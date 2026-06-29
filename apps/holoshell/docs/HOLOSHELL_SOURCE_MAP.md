@@ -65,6 +65,7 @@ contracts.
 | Network freshness watch              | `apps/holoshell/source/holoshell-network-freshness-watch.hsplus`            |
 | Network change sentinel              | `apps/holoshell/source/holoshell-network-change-sentinel.hsplus`            |
 | Network sentinel service             | `apps/holoshell/source/holoshell-network-sentinel-service.hsplus`           |
+| Laptop reasoning bridge service      | `apps/holoshell/source/holoshell-laptop-reasoning-bridge-service.hsplus`    |
 | Package custody                      | `apps/holoshell/source/holoshell-package-custody.hsplus`                    |
 | Device safety lab                    | `apps/holoshell/source/holoshell-device-safety-lab.holo`                    |
 | Device safety lab policy             | `apps/holoshell/source/holoshell-device-safety-lab-policy.hsplus`           |

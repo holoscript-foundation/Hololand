@@ -24,15 +24,18 @@ const receipt = JSON.parse(readFileSync(OUTPUT, 'utf8'));
 
 assert.equal(receipt.schemaVersion, 'hololand.holoshell.service-supervisor.v0.1.0');
 assert.equal(receipt.summary.requiredAttentionCount, 0);
-assert.equal(receipt.summary.managedPidServiceCount, 2);
-assert.equal(receipt.summary.verifiedPidServiceCount, 2);
+assert.equal(receipt.summary.requiredServiceCount, 2);
+assert.equal(receipt.summary.managedPidServiceCount, 3);
+assert.equal(receipt.summary.verifiedPidServiceCount, 3);
 assert.equal(receipt.summary.heartbeatOnlyServiceCount, 1);
 assert.equal(receipt.summary.localDaemonServiceCount, 1);
+assert.equal(receipt.summary.remoteReceiptBridgeServiceCount, 1);
 assert.equal(receipt.policy.arbitraryProcessStopAllowed, false);
 assert.equal(receipt.policy.forceKillAllowed, false);
 assert.equal(receipt.receipt.destructiveActionsTaken, false);
 assert.equal(receipt.receipt.rawCommandLineIncluded, false);
 assert.equal(receipt.services.some((service) => service.serviceId === 'network-sentinel-service' && service.pidCommandVerified), true);
+assert.equal(receipt.services.some((service) => service.serviceId === 'laptop-reasoning-bridge-service' && service.pidCommandVerified), true);
 assert.equal(receipt.services.some((service) => service.serviceId === 'holoshell-control-daemon' && service.pidCommandVerified), true);
 
 console.log('HoloShell service supervisor test passed.');

@@ -1,0 +1,176 @@
+// HoloShell Laptop Reasoning Bridge Service
+//
+// Product source for running the laptop reasoning bridge as a managed local
+// service. The manager owns PID custody, safe restarts, and redacted service
+// receipts while the bridge itself only pulls dispatch receipts and mirrors
+// result receipts back to the Jetson HoloShell surface.
+
+composition "HoloShell Laptop Reasoning Bridge Service" {
+  config {
+    title: "Laptop Reasoning Bridge Service"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    bridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
+    bridgeScript: "scripts/holoshell-laptop-reasoning-bridge.mjs"
+    workerSource: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
+    workerScript: "scripts/holoshell-laptop-reasoning-worker.mjs"
+    managerScript: "scripts/holoshell-laptop-reasoning-bridge-service.mjs"
+    serviceReceipt: ".tmp/holoshell/laptop-reasoning-bridge-service.json"
+    serviceBootstrap: ".tmp/holoshell/laptop-reasoning-bridge-service.js"
+    pidFile: ".tmp/holoshell/laptop-reasoning-bridge-service.pid"
+    logFile: ".tmp/holoshell/laptop-reasoning-bridge-service.log"
+    serviceState: ".tmp/holoshell/laptop-reasoning-bridge-service-state.json"
+    bridgeReceipt: ".tmp/holoshell/laptop-reasoning-bridge-latest.json"
+    resultReceipt: ".tmp/holoshell/laptop-reasoning-result-latest.json"
+    localInboxDir: ".tmp/holoshell/laptop-reasoning-service-inbox"
+    localResultDir: ".tmp/holoshell/laptop-reasoning-results"
+    remoteDispatchDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/agent-dispatches"
+    remoteResultDir: "/mnt/nvme/holo/holoshell-surface/.tmp/holoshell/laptop-reasoning-results"
+    defaultIntervalMs: 10000
+    restartPolicy: "ensure_restarts_offline_or_stale_verified_bridge_watchers"
+    mode: "managed_remote_receipt_bridge"
+  }
+
+  state {
+    serviceStatus: "unknown"
+    serviceMode: "managed_remote_receipt_bridge"
+    pid: 0
+    pidAlive: false
+    pidCommandVerified: false
+    restartCount: 0
+    lastStartedAt: ""
+    lastBridgeReceiptAt: ""
+    bridgeReceiptAgeMs: 0
+    staleBridgeReceipt: false
+    bridgeStatus: "unknown"
+    latestDispatchId: ""
+    latestResultId: ""
+    pulledCount: 0
+    processedCount: 0
+    pushedCount: 0
+    errorCount: 0
+    pullRemote: true
+    pushRemote: true
+    remoteHostConfigured: false
+    remoteWriteScope: "laptop-reasoning-results"
+    remoteMutationLimitedToResultReceipts: true
+    rawCommandLineIncluded: false
+    sshKeyPathIncluded: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:laptop-reasoning:bridge-service" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Managed Windows service health for the Jetson-to-laptop reasoning bridge"
+  }
+
+  template "LaptopReasoningBridgeServiceHealth" {
+    type: "service_health"
+    serviceMode: "managed_remote_receipt_bridge"
+    serviceStatus: "unknown"
+    pidAlive: false
+    pidCommandVerified: false
+    bridgeStatus: "unknown"
+    restartPolicy: "ensure_restarts_offline_or_stale_verified_bridge_watchers"
+    receiptRequired: true
+    privacyScope: "local_receipt_only"
+  }
+
+  room "LaptopReasoningBridgeServiceRoom" {
+    label: "Laptop Reasoning Bridge Service"
+    userQuestion: "Is the Windows laptop autonomously pulling Jetson reasoning jobs and returning receipts?"
+    visualForm: "service_health_lane"
+    liveFeed: "holoshell:laptop-reasoning:bridge-service"
+
+    object "ManagedLaptopReasoningBridge" using "LaptopReasoningBridgeServiceHealth" {
+      label: "Laptop Reasoning Bridge"
+      serviceStatus: $serviceStatus
+      pidAlive: $pidAlive
+      pidCommandVerified: $pidCommandVerified
+      bridgeStatus: $bridgeStatus
+      restartCount: $restartCount
+      lastStartedAt: $lastStartedAt
+      lastBridgeReceiptAt: $lastBridgeReceiptAt
+      bridgeReceiptAgeMs: $bridgeReceiptAgeMs
+      staleBridgeReceipt: $staleBridgeReceipt
+      latestDispatchId: $latestDispatchId
+      latestResultId: $latestResultId
+      processedCount: $processedCount
+      pushedCount: $pushedCount
+      errorCount: $errorCount
+    }
+  }
+
+  policy "VerifiedBridgePidCustodyOnly" {
+    appliesTo: ["start", "stop", "restart", "ensure", "status"]
+    exactPidRequired: true
+    stopOnlyVerifiedLaptopReasoningBridgePid: true
+    unverifiedPidStopRefused: true
+    arbitraryProcessStartAllowed: false
+    arbitraryProcessStopAllowed: false
+    forceKillAllowed: false
+    receiptRequired: true
+  }
+
+  policy "RemoteWritesAreResultReceiptsOnly" {
+    appliesTo: ["remote_result_push", "service_receipt", "live_feed", "brittney_context"]
+    pullRemoteDispatchReceipts: true
+    pushRemoteResultReceipts: true
+    remoteWriteScope: "laptop-reasoning-results"
+    remoteMutationLimitedToResultReceipts: true
+    forbiddenRemoteMutation: ["source_edit", "service_restart", "secret_write"]
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "RedactedServiceHealthOnly" {
+    appliesTo: ["service_receipt", "live_feed", "brittney_context"]
+    rawCommandLineIncluded: false
+    sshKeyPathIncluded: false
+    rawRemoteHostIncluded: false
+    localReceiptOnly: true
+  }
+
+  action consume_service_health(health) {
+    state.serviceStatus = health.summary.serviceStatus
+    state.serviceMode = health.summary.serviceMode
+    state.pid = health.summary.pid
+    state.pidAlive = health.summary.pidAlive
+    state.pidCommandVerified = health.summary.pidCommandVerified
+    state.restartCount = health.summary.restartCount
+    state.lastStartedAt = health.summary.lastStartedAt
+    state.lastBridgeReceiptAt = health.summary.lastBridgeReceiptAt
+    state.bridgeReceiptAgeMs = health.summary.bridgeReceiptAgeMs
+    state.staleBridgeReceipt = health.summary.staleBridgeReceipt
+    state.bridgeStatus = health.summary.bridgeStatus
+    state.latestDispatchId = health.summary.latestDispatchId
+    state.latestResultId = health.summary.latestResultId
+    state.pulledCount = health.summary.pulledCount
+    state.processedCount = health.summary.processedCount
+    state.pushedCount = health.summary.pushedCount
+    state.errorCount = health.summary.errorCount
+    state.remoteHostConfigured = health.summary.remoteHostConfigured
+    state.remoteMutationLimitedToResultReceipts = health.policy.remoteMutationLimitedToResultReceipts
+    state.rawCommandLineIncluded = health.receipt.rawCommandLineIncluded
+    state.sshKeyPathIncluded = health.process.sshKeyPathIncluded
+    state.destructiveActionsTaken = health.receipt.destructiveActionsTaken
+    state.desktopAutomationExecuted = health.receipt.desktopAutomationExecuted
+
+    emit("holoshell:laptop-reasoning:bridge-service", {
+      status: state.serviceStatus,
+      pid_alive: state.pidAlive,
+      pid_verified: state.pidCommandVerified,
+      bridge_status: state.bridgeStatus,
+      latest_dispatch_id: state.latestDispatchId,
+      latest_result_id: state.latestResultId,
+      processed_count: state.processedCount,
+      pushed_count: state.pushedCount,
+      error_count: state.errorCount,
+      remote_receipts_only: state.remoteMutationLimitedToResultReceipts,
+      receiptHash: health.receipt.snapshotHash
+    })
+  }
+}

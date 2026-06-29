@@ -14,6 +14,11 @@ composition "HoloShell Service Supervisor" {
     supervisorBootstrap: ".tmp/holoshell/service-supervisor.js"
     networkSentinelServiceSource: "apps/holoshell/source/holoshell-network-sentinel-service.hsplus"
     networkSentinelServiceReceipt: ".tmp/holoshell/network-sentinel-service.json"
+    laptopReasoningBridgeServiceSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge-service.hsplus"
+    laptopReasoningBridgeServiceReceipt: ".tmp/holoshell/laptop-reasoning-bridge-service.json"
+    laptopReasoningBridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
+    laptopReasoningBridgeReceipt: ".tmp/holoshell/laptop-reasoning-bridge-latest.json"
+    laptopReasoningResultReceipt: ".tmp/holoshell/laptop-reasoning-result-latest.json"
     grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
     grokHeartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
     controlDaemonServiceSource: "apps/holoshell/source/holoshell-control-daemon-service.hsplus"
@@ -38,10 +43,16 @@ composition "HoloShell Service Supervisor" {
     verifiedPidServiceCount: 0
     heartbeatOnlyServiceCount: 0
     localDaemonServiceCount: 0
+    remoteReceiptBridgeServiceCount: 0
     controlDaemonServiceStatus: "unknown"
     controlDaemonPidCommandVerified: false
     controlDaemonLoopbackReachable: false
     controlDaemonExecuteEnabled: false
+    laptopReasoningBridgeServiceStatus: "unknown"
+    laptopReasoningBridgePidCommandVerified: false
+    laptopReasoningBridgeStatus: "unknown"
+    laptopReasoningProcessedCount: 0
+    laptopReasoningPushedCount: 0
     actionRequiredCount: 0
     serviceMutationTaken: false
     destructiveActionsTaken: false
@@ -84,6 +95,10 @@ composition "HoloShell Service Supervisor" {
       optional_offline: $optionalOfflineServiceCount
       actions_required: $actionRequiredCount
       verified_pid_services: $verifiedPidServiceCount
+      remote_receipt_bridge_services: $remoteReceiptBridgeServiceCount
+      laptop_reasoning_bridge: $laptopReasoningBridgeServiceStatus
+      laptop_reasoning_processed: $laptopReasoningProcessedCount
+      laptop_reasoning_pushed: $laptopReasoningPushedCount
       destructive_actions_taken: $destructiveActionsTaken
     }
   }
@@ -120,10 +135,16 @@ composition "HoloShell Service Supervisor" {
     state.verifiedPidServiceCount = snapshot.summary.verifiedPidServiceCount
     state.heartbeatOnlyServiceCount = snapshot.summary.heartbeatOnlyServiceCount
     state.localDaemonServiceCount = snapshot.summary.localDaemonServiceCount
+    state.remoteReceiptBridgeServiceCount = snapshot.summary.remoteReceiptBridgeServiceCount
     state.controlDaemonServiceStatus = snapshot.summary.controlDaemonServiceStatus
     state.controlDaemonPidCommandVerified = snapshot.summary.controlDaemonPidCommandVerified
     state.controlDaemonLoopbackReachable = snapshot.summary.controlDaemonLoopbackReachable
     state.controlDaemonExecuteEnabled = snapshot.summary.controlDaemonExecuteEnabled
+    state.laptopReasoningBridgeServiceStatus = snapshot.summary.laptopReasoningBridgeServiceStatus
+    state.laptopReasoningBridgePidCommandVerified = snapshot.summary.laptopReasoningBridgePidCommandVerified
+    state.laptopReasoningBridgeStatus = snapshot.summary.laptopReasoningBridgeStatus
+    state.laptopReasoningProcessedCount = snapshot.summary.laptopReasoningProcessedCount
+    state.laptopReasoningPushedCount = snapshot.summary.laptopReasoningPushedCount
     state.actionRequiredCount = snapshot.summary.actionRequiredCount
     state.serviceMutationTaken = snapshot.receipt.serviceMutationTaken
     state.destructiveActionsTaken = snapshot.receipt.destructiveActionsTaken
@@ -135,6 +156,10 @@ composition "HoloShell Service Supervisor" {
       required_online: state.requiredOnlineServiceCount,
       attention: state.requiredAttentionCount,
       optional_offline: state.optionalOfflineServiceCount,
+      remote_receipt_bridge_services: state.remoteReceiptBridgeServiceCount,
+      laptop_reasoning_bridge_status: state.laptopReasoningBridgeStatus,
+      laptop_reasoning_processed: state.laptopReasoningProcessedCount,
+      laptop_reasoning_pushed: state.laptopReasoningPushedCount,
       service_mutation_taken: state.serviceMutationTaken,
       receiptHash: snapshot.receipt.snapshotHash
     })

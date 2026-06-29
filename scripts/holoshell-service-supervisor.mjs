@@ -203,6 +203,22 @@ function refreshControlDaemonService(args) {
   };
 }
 
+function refreshLaptopReasoningBridgeService(args) {
+  const command = [
+    'scripts/holoshell-laptop-reasoning-bridge-service.mjs',
+    args.action === 'ensure' ? '--ensure' : '--status',
+    '--tmp-dir',
+    args.tmpDir,
+  ];
+  const result = runNode(command);
+  const receipt = readJson(path.join(args.tmpDir, 'laptop-reasoning-bridge-service.json'), {});
+  return {
+    result,
+    receipt,
+    serviceMutationTaken: Boolean(receipt?.receipt?.serviceMutationTaken),
+  };
+}
+
 function httpGetJson(url, timeoutMs) {
   return new Promise((resolve) => {
     const request = http.get(url, { timeout: timeoutMs }, (response) => {
@@ -268,6 +284,54 @@ function serviceFromNetworkSentinel(receipt, commandResult) {
     staleHeartbeat: Boolean(summary.staleHeartbeat),
     restartPolicy: summary.restartPolicy || 'unknown',
     stopPolicy: policy.stopOnlyVerifiedSentinelPid ? 'verified_pid_only' : 'unknown',
+    forceKillAllowed: Boolean(policy.forceKillAllowed),
+    actionRequired: actionRequiredFor({ requiredForAutonomy: true, status }),
+    managerExitStatus: commandResult?.status ?? null,
+    managerOk: Boolean(commandResult?.ok),
+    rawCommandLineIncluded: Boolean(receipt?.receipt?.rawCommandLineIncluded),
+  };
+}
+
+function serviceFromLaptopReasoningBridge(manager) {
+  const receipt = manager?.receipt || {};
+  const summary = receipt?.summary || {};
+  const policy = receipt?.policy || {};
+  const commandResult = manager?.result || {};
+  const status = summary.serviceStatus || (commandResult?.ok ? 'unknown' : 'missing');
+  return {
+    serviceId: 'laptop-reasoning-bridge-service',
+    label: 'Laptop Reasoning Bridge Service',
+    serviceKind: 'managed_remote_receipt_bridge',
+    requiredForAutonomy: true,
+    status,
+    normalizedStatus: normalizeStatus(status, true),
+    source: 'apps/holoshell/source/holoshell-laptop-reasoning-bridge-service.hsplus',
+    bridgeSource: 'apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus',
+    adapter: 'scripts/holoshell-laptop-reasoning-bridge-service.mjs',
+    bridgeAdapter: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
+    receiptPath: '.tmp/holoshell/laptop-reasoning-bridge-service.json',
+    bridgeReceiptPath: '.tmp/holoshell/laptop-reasoning-bridge-latest.json',
+    resultReceiptPath: '.tmp/holoshell/laptop-reasoning-result-latest.json',
+    pid: summary.pid || 0,
+    pidAlive: Boolean(summary.pidAlive),
+    pidCommandVerified: Boolean(summary.pidCommandVerified),
+    lastBridgeReceiptAt: summary.lastBridgeReceiptAt || '',
+    bridgeReceiptAgeMs: summary.bridgeReceiptAgeMs ?? null,
+    staleBridgeReceipt: Boolean(summary.staleBridgeReceipt),
+    bridgeStatus: summary.bridgeStatus || 'unknown',
+    pulledCount: summary.pulledCount || 0,
+    processedCount: summary.processedCount || 0,
+    pushedCount: summary.pushedCount || 0,
+    errorCount: summary.errorCount || 0,
+    latestDispatchId: summary.latestDispatchId || '',
+    latestResultId: summary.latestResultId || '',
+    remoteHostConfigured: Boolean(summary.remoteHostConfigured),
+    pullRemote: Boolean(summary.pullRemote),
+    pushRemote: Boolean(summary.pushRemote),
+    restartPolicy: summary.restartPolicy || 'unknown',
+    stopPolicy: policy.stopOnlyVerifiedLaptopReasoningBridgePid ? 'verified_pid_only' : 'unknown',
+    remoteWriteScope: policy.remoteWriteScope || 'unknown',
+    remoteMutationLimitedToResultReceipts: Boolean(policy.remoteMutationLimitedToResultReceipts),
     forceKillAllowed: Boolean(policy.forceKillAllowed),
     actionRequired: actionRequiredFor({ requiredForAutonomy: true, status }),
     managerExitStatus: commandResult?.status ?? null,
@@ -351,9 +415,10 @@ function summarizeServices(services, action, serviceMutationTaken) {
   const optionalOffline = offline.filter((service) => !service.requiredForAutonomy);
   const requiredAttention = required.filter((service) => service.normalizedStatus !== 'online');
   const actionRequired = services.filter((service) => service.actionRequired);
-  const managedPid = services.filter((service) => ['managed_pid_watch', 'managed_loopback_daemon'].includes(service.serviceKind));
+  const managedPid = services.filter((service) => service.serviceKind.startsWith('managed_'));
   const verifiedPid = managedPid.filter((service) => service.pidCommandVerified);
   const controlDaemon = services.find((service) => service.serviceId === 'holoshell-control-daemon');
+  const laptopReasoningBridge = services.find((service) => service.serviceId === 'laptop-reasoning-bridge-service');
   const status = requiredAttention.length
     ? 'attention_required'
     : optionalOffline.length
@@ -377,10 +442,16 @@ function summarizeServices(services, action, serviceMutationTaken) {
     verifiedPidServiceCount: verifiedPid.length,
     heartbeatOnlyServiceCount: services.filter((service) => service.serviceKind === 'receipt_heartbeat').length,
     localDaemonServiceCount: services.filter((service) => ['http_loopback_daemon', 'managed_loopback_daemon'].includes(service.serviceKind)).length,
+    remoteReceiptBridgeServiceCount: services.filter((service) => service.serviceKind === 'managed_remote_receipt_bridge').length,
     controlDaemonServiceStatus: controlDaemon?.status || 'unknown',
     controlDaemonPidCommandVerified: Boolean(controlDaemon?.pidCommandVerified),
     controlDaemonLoopbackReachable: Boolean(controlDaemon?.loopbackReachable),
     controlDaemonExecuteEnabled: Boolean(controlDaemon?.executeEnabled),
+    laptopReasoningBridgeServiceStatus: laptopReasoningBridge?.status || 'unknown',
+    laptopReasoningBridgePidCommandVerified: Boolean(laptopReasoningBridge?.pidCommandVerified),
+    laptopReasoningBridgeStatus: laptopReasoningBridge?.bridgeStatus || 'unknown',
+    laptopReasoningProcessedCount: laptopReasoningBridge?.processedCount || 0,
+    laptopReasoningPushedCount: laptopReasoningBridge?.pushedCount || 0,
     actionRequiredCount: actionRequired.length,
     serviceMutationTaken,
     nextRequiredAction: actionRequired[0]
@@ -397,12 +468,18 @@ async function createSupervisor(args, fixtures = null) {
   const network = fixtures?.network || refreshNetworkSentinelService(args);
   const grokHeartbeat = fixtures?.grokHeartbeat || readJson(path.join(args.tmpDir, 'grok-heartbeat.json'), {});
   const controlDaemon = fixtures?.controlDaemon || refreshControlDaemonService(args);
+  const laptopReasoningBridge = fixtures?.laptopReasoningBridge || refreshLaptopReasoningBridgeService(args);
   const services = [
     serviceFromNetworkSentinel(network.receipt, network.result),
+    serviceFromLaptopReasoningBridge(laptopReasoningBridge),
     serviceFromGrokHeartbeat(grokHeartbeat, nowMs, args.heartbeatStaleMs),
     serviceFromControlDaemon(controlDaemon, args.skipControlProbe, args.controlEndpoint),
   ];
-  const summary = summarizeServices(services, args.action, Boolean(network.serviceMutationTaken || controlDaemon.serviceMutationTaken));
+  const summary = summarizeServices(
+    services,
+    args.action,
+    Boolean(network.serviceMutationTaken || laptopReasoningBridge.serviceMutationTaken || controlDaemon.serviceMutationTaken)
+  );
   const controlService = services.find((service) => service.serviceId === 'holoshell-control-daemon');
   const hashInput = {
     schemaVersion: SCHEMA_VERSION,
@@ -418,6 +495,8 @@ async function createSupervisor(args, fixtures = null) {
       source: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
       adapter: 'scripts/holoshell-service-supervisor.mjs',
       networkSentinelService: 'scripts/holoshell-network-sentinel-service.mjs',
+      laptopReasoningBridgeService: 'scripts/holoshell-laptop-reasoning-bridge-service.mjs',
+      laptopReasoningBridge: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       controlDaemonService: 'scripts/holoshell-control-daemon-service.mjs',
       controlDaemon: 'scripts/holoshell-control-daemon.mjs',
@@ -506,6 +585,45 @@ function fixtureNetworkReceipt() {
   };
 }
 
+function fixtureLaptopReasoningBridgeService() {
+  return {
+    result: { ok: true, status: 0 },
+    serviceMutationTaken: false,
+    receipt: {
+      schemaVersion: 'hololand.holoshell.laptop-reasoning-bridge-service.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        serviceStatus: 'online',
+        serviceMode: 'managed_remote_receipt_bridge',
+        pid: 5280,
+        pidAlive: true,
+        pidCommandVerified: true,
+        lastBridgeReceiptAt: new Date(Date.now() - 1000).toISOString(),
+        bridgeReceiptAgeMs: 1000,
+        staleBridgeReceipt: false,
+        bridgeStatus: 'completed',
+        pulledCount: 1,
+        processedCount: 1,
+        pushedCount: 1,
+        errorCount: 0,
+        latestDispatchId: 'hsdispatch-fixture',
+        latestResultId: 'laptop_reasoning_result_fixture',
+        remoteHostConfigured: true,
+        pullRemote: true,
+        pushRemote: true,
+        restartPolicy: 'ensure_restarts_offline_or_stale_verified_bridge_watchers',
+      },
+      policy: {
+        stopOnlyVerifiedLaptopReasoningBridgePid: true,
+        remoteWriteScope: 'laptop-reasoning-results',
+        remoteMutationLimitedToResultReceipts: true,
+        forceKillAllowed: false,
+      },
+      receipt: { rawCommandLineIncluded: false },
+    },
+  };
+}
+
 function fixtureGrokHeartbeat() {
   return {
     schemaVersion: 'hololand.holoshell.grok-heartbeat.v0.1.0',
@@ -522,18 +640,20 @@ function fixtureGrokHeartbeat() {
 function assertSelfTest(snapshot) {
   const failures = [];
   if (snapshot.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
-  if (snapshot.summary.requiredServiceCount !== 1) failures.push('expected one required service');
+  if (snapshot.summary.requiredServiceCount !== 2) failures.push('expected two required services');
   if (snapshot.summary.requiredAttentionCount !== 0) failures.push('required service should be healthy');
-  if (snapshot.summary.managedPidServiceCount !== 2) failures.push('expected two managed PID services');
-  if (snapshot.summary.verifiedPidServiceCount !== 2) failures.push('expected two verified PID services');
+  if (snapshot.summary.managedPidServiceCount !== 3) failures.push('expected three managed PID services');
+  if (snapshot.summary.verifiedPidServiceCount !== 3) failures.push('expected three verified PID services');
   if (snapshot.summary.heartbeatOnlyServiceCount !== 1) failures.push('expected heartbeat-only service');
   if (snapshot.summary.localDaemonServiceCount !== 1) failures.push('expected local daemon service');
+  if (snapshot.summary.remoteReceiptBridgeServiceCount !== 1) failures.push('expected remote receipt bridge service');
   if (!['ready', 'ready_with_optional_offline'].includes(snapshot.summary.status)) failures.push(`unexpected status ${snapshot.summary.status}`);
   if (snapshot.policy.arbitraryProcessStopAllowed !== false) failures.push('arbitrary stop must be disabled');
   if (snapshot.policy.forceKillAllowed !== false) failures.push('force kill must be disabled');
   if (snapshot.receipt.destructiveActionsTaken !== false) failures.push('self-test must be non-destructive');
   if (snapshot.receipt.rawCommandLineIncluded !== false) failures.push('raw commands must stay hidden');
   if (!snapshot.services.some((service) => service.serviceId === 'network-sentinel-service' && service.pidCommandVerified)) failures.push('network service must be verified');
+  if (!snapshot.services.some((service) => service.serviceId === 'laptop-reasoning-bridge-service' && service.pidCommandVerified)) failures.push('laptop reasoning bridge service must be verified');
   if (!snapshot.services.some((service) => service.serviceId === 'holoshell-control-daemon' && service.pidCommandVerified)) failures.push('control daemon service must be verified');
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
@@ -545,6 +665,7 @@ try {
   const fixtures = args.selfTest
     ? {
         network: fixtureNetworkReceipt(),
+        laptopReasoningBridge: fixtureLaptopReasoningBridgeService(),
         grokHeartbeat: fixtureGrokHeartbeat(),
         controlDaemon: fixtureControlDaemonService(),
       }
