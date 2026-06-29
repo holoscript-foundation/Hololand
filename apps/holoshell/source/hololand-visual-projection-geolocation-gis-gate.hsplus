@@ -1,0 +1,153 @@
+// HoloLand Visual Projection Sandwich: Geolocation GIS Map Room
+//
+// HoloScript owns the base visual projection manifest. HoloLand owns the
+// enterprise visual/runtime sandwich that turns the projection into a polished
+// room with agents, receipts, multiplayer review, and hardware proof.
+
+composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
+  config {
+    gateId: "geolocation-gis-map-room"
+    title: "Geolocation GIS Map Room"
+    packageClass: "enterprise_business_solution"
+    businessWorkflow: "field_operations_map_review"
+    humanUserSurface: "deployed_hololand_room"
+    developerPackageSurface: false
+    sourceLayer: "HoloScript"
+    visualProjectionSchema: "holoscript.visual.projection.v1"
+    sourceProjectionPackageScope: "holoscript"
+    sourceProjectionPackageName: "plugin-geolocation-gis"
+    sourceProjectionId: "geolocation-gis.base-map-room"
+    hololandPluginScope: "hololand"
+    hololandPluginName: "plugin-geolocation-gis"
+    sourcePath: "apps/holoshell/source/hololand-visual-projection-geolocation-gis-gate.hsplus"
+    manifestPath: "apps/holoshell/enterprise-gates/geolocation-gis-map-room/package-gate.json"
+    runnerCommand: "node scripts/hololand-visual-projection-sandwich-gate.mjs"
+    validationTool: "mcp__holoscript.validate_holoscript"
+    renderOutput: ".tmp/hololand/visual-projection-sandwich/geolocation-gis-map-room/gate.html"
+    receiptOutput: ".tmp/hololand/visual-projection-sandwich/geolocation-gis-map-room/receipt.json"
+  }
+
+  state {
+    sourceProjectionStatus: "required"
+    hololandAdapterStatus: "declared"
+    sourceSemanticsRewritten: false
+    validationStatus: "required"
+    runtimeStatus: "required"
+    renderStatus: "required"
+    interactionStatus: "required"
+    enterpriseReceiptStatus: "required"
+    localRewriteStatus: "blocked"
+  }
+
+  channel "hololand:visual-projection-sandwich:geolocation-gis" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipts proving HoloLand consumes the HoloScript GIS visual projection without rewriting source semantics"
+  }
+
+  template "VisualProjectionSandwichReceipt" {
+    type: "visual_projection_sandwich_receipt"
+    receiptType: "hololand.visual-projection-sandwich.geolocation-gis.v0.1.0"
+    benchmarkGate: "holoscript_visual_projection_geolocation_gis"
+    requiredFields: [
+      "source_projection_schema",
+      "source_projection_package",
+      "source_projection_id",
+      "hololand_plugin_id",
+      "object_mappings",
+      "panel_mappings",
+      "interaction_verbs",
+      "source_semantics_rewritten",
+      "hololand_visual_responsibilities",
+      "render_output",
+      "interaction_receipt"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "HoloScriptOwnsBaseProjection" {
+    appliesTo: ["visual_projection_manifest", "object_mapping", "panel_mapping", "interaction_verb"]
+    contractOwner: "HoloScript"
+    visualProjectionSchema: "holoscript.visual.projection.v1"
+    sourceProjectionId: "geolocation-gis.base-map-room"
+    sourceSemanticsRewritten: false
+    localRewriteAllowed: false
+    validationFailureBlocksPromotion: true
+  }
+
+  policy "HoloLandOwnsVisualSandwich" {
+    appliesTo: ["room_composition", "avatar_presence", "enterprise_review", "hardware_receipt"]
+    contractOwner: "HoloLand"
+    sourceSemanticsOwner: "HoloScript"
+    hololandPluginScope: "hololand"
+    hololandPluginName: "plugin-geolocation-gis"
+    adapterRole: "visual_runtime_sandwich"
+    multiplayerReviewAllowed: true
+    receiptRequired: true
+  }
+
+  policy "EnterpriseVisualPackagesAreGates" {
+    appliesTo: ["enterprise_package", "visual_adapter", "benchmark_gate"]
+    humanUserPackageSurface: false
+    enterpriseDeploymentSurface: true
+    consumesHoloScriptPackages: true
+    actsAsHoloScriptBenchmarkGate: true
+    packageGraphRestorationRequired: false
+    receiptRequired: true
+  }
+
+  action accept_holoscript_visual_projection(projection) {
+    state.sourceProjectionStatus = "accepted"
+    state.sourceSemanticsRewritten = false
+
+    emit("hololand:visual-projection-sandwich:geolocation-gis", {
+      action: "holoscript_visual_projection_accepted",
+      source_projection_schema: config.visualProjectionSchema,
+      source_projection_package_scope: config.sourceProjectionPackageScope,
+      source_projection_package_name: config.sourceProjectionPackageName,
+      source_projection_id: config.sourceProjectionId,
+      source_semantics_rewritten: false,
+      object_mappings: projection.objectMappings,
+      panel_mappings: projection.panelMappings,
+      interaction_verbs: projection.interactions,
+      receipt_required: true
+    })
+  }
+
+  action compose_hololand_visual_sandwich(adapter) {
+    state.hololandAdapterStatus = "composed"
+    state.runtimeStatus = "ready"
+    state.renderStatus = "ready"
+
+    emit("hololand:visual-projection-sandwich:geolocation-gis", {
+      action: "hololand_visual_sandwich_composed",
+      hololand_plugin_scope: config.hololandPluginScope,
+      hololand_plugin_name: config.hololandPluginName,
+      adapter_role: "visual_runtime_sandwich",
+      visual_responsibilities: adapter.visualResponsibilities,
+      source_semantics_owner: "HoloScript",
+      source_semantics_rewritten: false
+    })
+  }
+
+  action capture_visual_projection_receipt(receipt) {
+    state.validationStatus = receipt.validation.status
+    state.runtimeStatus = receipt.runtime.status
+    state.renderStatus = receipt.render.status
+    state.interactionStatus = receipt.interaction.status
+    state.enterpriseReceiptStatus = receipt.enterpriseReceipt.status
+
+    emit("hololand:visual-projection-sandwich:geolocation-gis", {
+      action: "visual_projection_sandwich_receipt_captured",
+      status: receipt.status,
+      source_projection_id: config.sourceProjectionId,
+      hololand_plugin_scope: config.hololandPluginScope,
+      hololand_plugin_name: config.hololandPluginName,
+      validation_status: state.validationStatus,
+      render_output: receipt.render.html,
+      interaction_status: state.interactionStatus,
+      enterprise_receipt_status: state.enterpriseReceiptStatus
+    })
+  }
+}

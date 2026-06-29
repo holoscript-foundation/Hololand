@@ -1,0 +1,149 @@
+{
+  "schema": "hololand.visual-projection-sandwich-gate.v0.1.0",
+  "id": "geolocation-gis-map-room",
+  "title": "Geolocation GIS Map Room",
+  "vertical": "geolocation_gis",
+  "packageClass": "enterprise_business_solution",
+  "humanUserSurface": "deployed_hololand_room",
+  "developerPackageSurface": false,
+  "sourcePath": "apps/holoshell/source/hololand-visual-projection-geolocation-gis-gate.hsplus",
+  "businessWorkflow": {
+    "id": "field_operations_map_review",
+    "summary": "A field operations team reviews points, routes, geofences, and agent recommendations inside a Hololand map room.",
+    "actors": [
+      "field_operations_lead",
+      "dispatcher",
+      "customer_success_manager",
+      "agent_copilot"
+    ],
+    "criticalPath": [
+      "load_holoscript_visual_projection",
+      "compose_hololand_visual_sandwich",
+      "inspect_location",
+      "compare_routes",
+      "review_geofence",
+      "capture_enterprise_map_receipt"
+    ]
+  },
+  "sourceProjection": {
+    "contractOwner": "HoloScript",
+    "schemaVersion": "holoscript.visual.projection.v1",
+    "sourcePackage": "@holoscript/plugin-geolocation-gis",
+    "projectionId": "geolocation-gis.base-map-room",
+    "displayName": "Geolocation GIS Base Map Room",
+    "sourcePathHint": "../HoloScript/packages/plugins/geolocation-gis-plugin/visual.projection.json",
+    "requiredObjectMappings": [
+      "map-layer",
+      "poi-marker",
+      "route-path",
+      "geofence-zone"
+    ],
+    "requiredPanelMappings": [
+      "location-detail-panel",
+      "route-timeline-panel",
+      "geo-receipt-panel"
+    ],
+    "requiredInteractions": [
+      "inspect_location",
+      "compare_routes",
+      "review_geofence"
+    ]
+  },
+  "hololandLayer": {
+    "adapterId": "@hololand/plugin-geolocation-gis",
+    "adapterRole": "visual_runtime_sandwich",
+    "sourceSemanticsOwner": "HoloScript",
+    "sourceSemanticsRewritten": false,
+    "visualResponsibilities": [
+      "spatial_map_room_composition",
+      "avatar_and_agent_presence",
+      "enterprise_review_panels",
+      "multiplayer_route_discussion",
+      "hardware_browser_render_receipt",
+      "interaction_receipt_capture"
+    ],
+    "promotionSurface": "Hololand deployable room",
+    "localRewriteAllowed": false
+  },
+  "holoscriptPackages": [
+    {
+      "name": "@holoscript/plugin-geolocation-gis",
+      "gates": [
+        "visual_projection_manifest",
+        "map_layer_mapping",
+        "route_mapping",
+        "geofence_mapping"
+      ]
+    },
+    {
+      "name": "@holoscript/visual",
+      "gates": [
+        "visual_projection_schema",
+        "manifest_validation",
+        "remix_seed"
+      ]
+    },
+    {
+      "name": "@holoscript/core",
+      "gates": [
+        "composition",
+        "state",
+        "emit"
+      ]
+    },
+    {
+      "name": "@holoscript/agent-protocol",
+      "gates": [
+        "agent_action",
+        "handoff_context",
+        "interaction_receipt"
+      ]
+    }
+  ],
+  "benchmarkGates": [
+    {
+      "id": "holoscript_visual_projection_geolocation_gis",
+      "description": "HoloScript can provide a base visual projection manifest and Hololand can consume it as an enterprise visual room without rewriting source semantics.",
+      "mustProve": [
+        "holoscript_projection_contract_named",
+        "hololand_visual_adapter_declared",
+        "source_semantics_not_rewritten",
+        "enterprise_interactions_preserved",
+        "render_and_interaction_receipts_required"
+      ]
+    }
+  ],
+  "requiredReceipts": [
+    "source",
+    "visual_projection_source",
+    "validation",
+    "hololand_visual_adapter",
+    "runtime",
+    "render",
+    "interaction",
+    "enterprise_receipt"
+  ],
+  "promotion": {
+    "status": "adapter_contract_ready",
+    "requires": [
+      "mcp__holoscript.validate_holoscript pass",
+      "HoloScript visual projection manifest validation pass",
+      "Hololand visual sandwich gate receipt pass",
+      "browser or hardware interaction receipt pass before deployment"
+    ],
+    "blocksOn": [
+      "local rewrite of source projection semantics",
+      "missing HoloScript visual projection receipt",
+      "missing Hololand adapter receipt",
+      "missing interaction receipt"
+    ]
+  },
+  "openWork": [
+    {
+      "id": "hololand-visual-runtime-adapter",
+      "owner": "HoloLand",
+      "description": "Implement the polished runtime adapter that turns the projection contract into a live multiplayer map room.",
+      "localRewriteAllowed": false
+    }
+  ]
+}
