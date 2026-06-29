@@ -1,0 +1,44 @@
+{
+  "schema": "hololand-model-artifact-lanes/v0.1.0",
+  "description": "Brittney model weights are runtime artifacts, not canonical HoloLand source. Prefer explicit paths or artifact roots before repo-local fallback paths.",
+  "explicitModelPathEnv": "BRITTNEY_MODEL_PATH",
+  "artifactRootEnv": [
+    "BRITTNEY_MODEL_ROOT",
+    "HOLOLAND_MODEL_ROOT",
+    "HOLOLAND_ARTIFACT_MODEL_ROOT"
+  ],
+  "stableArtifactLane": "Jetson /mnt/nvme/holo/models/hololand, or an equivalent mounted path passed through an artifact-root env var.",
+  "maxRepoLocalAgeDays": 60,
+  "localDebtRoots": [
+    "models",
+    ".proprietary/models"
+  ],
+  "models": [
+    {
+      "id": "brittney-qwen-v43-q8_0",
+      "file": "brittney-qwen-v43-q8_0.gguf",
+      "artifactLane": "stable-model-artifacts",
+      "repoFallback": "models/brittney-qwen-v43-q8_0.gguf",
+      "notes": "Legacy local fallback retained only so existing developer checkouts do not break before weights move to the artifact lane."
+    },
+    {
+      "id": "brittney-qwen-v23",
+      "file": "brittney-qwen-v23.gguf",
+      "artifactLane": "stable-model-artifacts",
+      "repoFallback": "models/brittney-qwen-v23.gguf"
+    },
+    {
+      "id": "brittney-service-v23",
+      "file": "brittney-qwen-v23.gguf",
+      "artifactLane": "stable-model-artifacts",
+      "repoFallback": "packages/brittney/service/models/brittney-qwen-v23.gguf"
+    },
+    {
+      "id": "brittney-v1-expert",
+      "file": "brittney-v1-expert.gguf",
+      "artifactLane": "stable-model-artifacts",
+      "repoFallback": ".proprietary/models/brittney-v1-expert.gguf",
+      "notes": "Proprietary fallback is age-prune debt; keep only manifests/download references in canonical source."
+    }
+  ]
+}

@@ -62,6 +62,38 @@ weights to the stable artifact lane and make runtime startup resolve them from a
 declared artifact location instead of assuming canonical source checkout
 storage.
 
+## Follow-Through Shipped
+
+This follow-through slice added a model artifact-lane resolver and checker:
+
+- `config/model-artifact-lanes.json`
+- `scripts/check-model-artifact-lanes.mjs`
+- `scripts/__tests__/check-model-artifact-lanes.test.mjs`
+- `scripts/start-brittney.ts`
+
+The startup path now prefers:
+
+1. `BRITTNEY_MODEL_PATH`
+2. `BRITTNEY_MODEL_ROOT`
+3. `HOLOLAND_MODEL_ROOT`
+4. `HOLOLAND_ARTIFACT_MODEL_ROOT`
+5. repo-local fallbacks for compatibility only
+
+Focused validation:
+
+- `node scripts/__tests__/check-model-artifact-lanes.test.mjs`
+- `node scripts/check-model-artifact-lanes.mjs --self-test`
+- `node scripts/check-model-artifact-lanes.mjs --json`
+
+The checker currently reports the two expected repo-local violations:
+
+- `models/brittney-qwen-v43-q8_0.gguf`, 122 days old
+- `.proprietary/models/brittney-v1-expert.gguf`, 155 days old
+
+Broad TypeScript validation is blocked by unrelated legacy adapter parse errors
+under `packages/adapters/three/src/react/studio/**`; this is package-garden
+debt, not a model-lane regression.
+
 ## Source Cleanup Buckets
 
 ### Archive Unless Current Deployment Or Frontier Shard

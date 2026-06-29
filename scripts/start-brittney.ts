@@ -10,7 +10,7 @@
  *   npm run brittney
  */
 
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { spawn, exec } from 'child_process';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import path from 'path';
@@ -20,13 +20,77 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 
-// GGUF model locations (in priority order)
-const GGUF_PATHS = [
-  path.join(ROOT, 'models', 'brittney-qwen-v43-q8_0.gguf'),
-  path.join(ROOT, 'models', 'brittney-qwen-v23.gguf'),
-  path.join(ROOT, 'packages', 'brittney', 'service', 'models', 'brittney-qwen-v23.gguf'),
-  process.env.BRITTNEY_MODEL_PATH || '',
-].filter(Boolean);
+interface ModelArtifactEntry {
+  file: string;
+  repoFallback?: string;
+}
+
+interface ModelArtifactLaneConfig {
+  explicitModelPathEnv?: string;
+  artifactRootEnv?: string[];
+  models?: ModelArtifactEntry[];
+}
+
+const FALLBACK_MODEL_LANE_CONFIG: Required<ModelArtifactLaneConfig> = {
+  explicitModelPathEnv: 'BRITTNEY_MODEL_PATH',
+  artifactRootEnv: ['BRITTNEY_MODEL_ROOT', 'HOLOLAND_MODEL_ROOT', 'HOLOLAND_ARTIFACT_MODEL_ROOT'],
+  models: [
+    { file: 'brittney-qwen-v43-q8_0.gguf', repoFallback: 'models/brittney-qwen-v43-q8_0.gguf' },
+    { file: 'brittney-qwen-v23.gguf', repoFallback: 'models/brittney-qwen-v23.gguf' },
+    { file: 'brittney-qwen-v23.gguf', repoFallback: 'packages/brittney/service/models/brittney-qwen-v23.gguf' },
+  ],
+};
+
+function loadModelLaneConfig(): Required<ModelArtifactLaneConfig> {
+  const configPath = path.join(ROOT, 'config', 'model-artifact-lanes.json');
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as ModelArtifactLaneConfig;
+    return {
+      explicitModelPathEnv: parsed.explicitModelPathEnv || FALLBACK_MODEL_LANE_CONFIG.explicitModelPathEnv,
+      artifactRootEnv: parsed.artifactRootEnv?.length
+        ? parsed.artifactRootEnv
+        : FALLBACK_MODEL_LANE_CONFIG.artifactRootEnv,
+      models: parsed.models?.length ? parsed.models : FALLBACK_MODEL_LANE_CONFIG.models,
+    };
+  } catch {
+    return FALLBACK_MODEL_LANE_CONFIG;
+  }
+}
+
+function splitEnvPaths(value: string | undefined): string[] {
+  return String(value || '')
+    .split(path.delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return [...new Set(paths.filter(Boolean))];
+}
+
+// GGUF model locations (in priority order): explicit path, artifact roots, then
+// repo-local compatibility fallbacks. Repo-local weights are canonicality debt.
+function buildGGUFPaths(): string[] {
+  const config = loadModelLaneConfig();
+  const paths: string[] = [];
+  const explicitPath = process.env[config.explicitModelPathEnv];
+  if (explicitPath) paths.push(path.resolve(explicitPath));
+
+  const artifactRoots = config.artifactRootEnv.flatMap((envName) => splitEnvPaths(process.env[envName]));
+  for (const artifactRoot of artifactRoots) {
+    for (const model of config.models) {
+      paths.push(path.resolve(artifactRoot, model.file));
+    }
+  }
+
+  for (const model of config.models) {
+    if (model.repoFallback) paths.push(path.resolve(ROOT, model.repoFallback));
+  }
+
+  return uniquePaths(paths);
+}
+
+const GGUF_PATHS = buildGGUFPaths();
 
 const BRITTNEY_PORT = 11435;
 const BRITTNEY_HOST = 'localhost';
@@ -91,6 +155,17 @@ function findGGUFModel(): string | null {
     }
   }
   return null;
+}
+
+function isRepoLocalFallbackModel(modelPath: string): boolean {
+  const relativePath = path.relative(ROOT, modelPath).replace(/\\/g, '/');
+  return !relativePath.startsWith('..')
+    && !path.isAbsolute(relativePath)
+    && (
+      relativePath.startsWith('models/')
+      || relativePath.startsWith('.proprietary/models/')
+      || relativePath.startsWith('packages/brittney/service/models/')
+    );
 }
 
 async function findOllamaBrittneyModel(): Promise<string | null> {
@@ -459,6 +534,9 @@ async function main() {
     console.log('   Expected locations:');
     GGUF_PATHS.forEach(p => console.log(`   - ${p}`));
     console.log('');
+    console.log('   Preferred setup: set BRITTNEY_MODEL_PATH, BRITTNEY_MODEL_ROOT,');
+    console.log('   HOLOLAND_MODEL_ROOT, or HOLOLAND_ARTIFACT_MODEL_ROOT to an artifact-lane path.');
+    console.log('');
     console.log('   Download the model:');
     console.log('   npm run brittney:download');
     console.log('');
@@ -466,6 +544,11 @@ async function main() {
   }
   
   console.log(`✅ Found GGUF model: ${path.basename(modelPath)}`);
+  if (isRepoLocalFallbackModel(modelPath)) {
+    console.log('⚠️  Using repo-local GGUF fallback. This is supported for compatibility,');
+    console.log('   but model weights should move to the artifact lane and be referenced');
+    console.log('   with BRITTNEY_MODEL_PATH or a *_MODEL_ROOT environment variable.');
+  }
   console.log('');
   
   await startBrittneyService({
