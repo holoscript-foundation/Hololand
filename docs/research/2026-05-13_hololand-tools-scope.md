@@ -11,6 +11,11 @@ linked_directions: "D.043, D.040, D.026, F.037, F.046, F.047"
 
 # HoloLand Tools Scope — Product vs Substrate Split
 
+> Vocabulary note (2026-06-29): Twin Universe is the canonical HoloLand product
+> vocabulary after commit `aa4d20b`. This audit preserves `twin_earth` and
+> `hololand_twin_earth_*` only as legacy paths, tool names, or compatibility
+> identifiers.
+
 > **Source task**: `task_1778618247917_ufnr` — [canary][hololand-tools] Scope HoloLand-specific tools HoloScript does not need  
 > **Audit date**: 2026-05-13  
 > **Auditor**: claude1 (claude-code)  
@@ -18,9 +23,9 @@ linked_directions: "D.043, D.040, D.026, F.037, F.046, F.047"
 
 ## 1. Executive Summary
 
-HoloLand is the **product runtime** (universe-twin, VR/AR worlds, Twin Earth substrate). HoloScript is the **substrate** (IR, compilers, traits, identity, signing). The MCP server currently hosts 35+ HoloLand-specific tools inside `packages/mcp-server/src/hololand-mcp-tools.ts`. This audit inventories every tool, maps it to the product/substrate boundary, and marks whether it stays HoloLand-local or requires upstream HoloScript substrate.
+HoloLand is the **product runtime** (universe-twin, VR/AR worlds, Twin Universe substrate). HoloScript is the **substrate** (IR, compilers, traits, identity, signing). The MCP server currently hosts 35+ HoloLand-specific tools inside `packages/mcp-server/src/hololand-mcp-tools.ts`. This audit inventories every tool, maps it to the product/substrate boundary, and marks whether it stays HoloLand-local or requires upstream HoloScript substrate.
 
-**Key finding**: 31 tools are **HoloLand-local** (world/Shard/Zone/Place/Quest CRUD, MMO operations, Twin Earth receipts, NPC management). 4 tools are **substrate-bound** (training data generation, BYOK status, NPC dialogue generation, Brittney NPC mode) because they depend on upstream LLM infrastructure, model providers, or Brittney configuration that lives in HoloScript core.
+**Key finding**: 31 tools are **HoloLand-local** (world/Shard/Zone/Place/Quest CRUD, MMO operations, Twin Universe receipts, NPC management). 4 tools are **substrate-bound** (training data generation, BYOK status, NPC dialogue generation, Brittney NPC mode) because they depend on upstream LLM infrastructure, model providers, or Brittney configuration that lives in HoloScript core.
 
 ## 2. Methodology
 
@@ -30,7 +35,7 @@ Boundary rule (from `NORTH_STAR.md` §0.4.4 and `research/2026-05-13_twin-earth-
 
 A tool is **HoloLand-local** if:
 - It manipulates HoloLand runtime state (worlds, shards, zones, places, quests, NPCs in-world).
-- It emits Twin Earth receipts or captures runtime artifacts.
+- It emits Twin Universe receipts or captures runtime artifacts.
 - It has no dependency on HoloScript core compilation, parsing, or LLM infrastructure.
 
 A tool is **substrate-bound** if:
@@ -74,7 +79,7 @@ A tool is **substrate-bound** if:
 | `update_zone` | Update zone | **HoloLand-local** | Mutates zone state. |
 | `delete_zone` | Delete zone | **HoloLand-local** | Registry mutation. |
 | `list_zones` | List zones | **HoloLand-local** | Query only. |
-| `create_place` | Create Twin Earth place | **HoloLand-local** | Place is a geo-bound venue in HoloLand. |
+| `create_place` | Create Twin Universe place | **HoloLand-local** | Place is a geo-bound venue in HoloLand. |
 | `get_place` | Retrieve place | **HoloLand-local** | Read-only. |
 | `update_place` | Update place | **HoloLand-local** | Mutates place state. |
 | `delete_place` | Delete place | **HoloLand-local** | Registry mutation. |
@@ -85,7 +90,7 @@ A tool is **substrate-bound** if:
 | `delete_location_quest` | Delete quest | **HoloLand-local** | Registry mutation. |
 | `list_location_quests` | List quests | **HoloLand-local** | Query only. |
 | `hololand_publish_zone` | Publish zone live | **HoloLand-local** | Marks zone as published with tier gate. Product-layer publishing action. |
-| `hololand_create_geo_anchor` | Bind GPS to Place/Zone | **HoloLand-local** | Geo-fencing anchor for Twin Earth. No substrate dependency. |
+| `hololand_create_geo_anchor` | Bind GPS to Place/Zone | **HoloLand-local** | Geo-fencing anchor for Twin Universe. No substrate dependency. |
 
 ### 3.4 NPC / Gameplay QA (Mixed)
 
@@ -117,7 +122,7 @@ A tool is **substrate-bound** if:
 | Training Data / Intelligence | 0 | 1 | 1 |
 | **Grand Total** | **27** | **4** | **31** |
 
-*Note: The 35 tools counted in `hololand-mcp-tools.ts` include the 4 substrate-bound tools above plus `generate_hololand_training` (1) and the NPC dialogue/BYOK/Brittney tools (3). The remaining 31 are HoloLand-local. The `hololand_twin_earth_*` contract tools referenced in `research/2026-05-13_twin-earth-substrate-contract.md` §9 are not yet implemented in `hololand-mcp-tools.ts`; when they land, they will be HoloLand-local because they manipulate Twin Earth substrate state.*
+*Note: The 35 tools counted in `hololand-mcp-tools.ts` include the 4 substrate-bound tools above plus `generate_hololand_training` (1) and the NPC dialogue/BYOK/Brittney tools (3). The remaining 31 are HoloLand-local. The `hololand_twin_earth_*` contract tools referenced in `research/2026-05-13_twin-earth-substrate-contract.md` §9 are not yet implemented in `hololand-mcp-tools.ts`; when they land, they will be HoloLand-local because they manipulate Twin Universe substrate state through legacy compatibility names.*
 
 ## 5. Recommendations
 
@@ -165,7 +170,7 @@ This shrinks the handler surface and removes the name-by-name enumeration that c
 | `packages/mcp-server/src/handlers.ts` | 386–429 | Giant `if` block dispatching HoloLand tools. |
 | `packages/mcp-server/src/security/tool-scopes.ts` | 62–95 | Scope map for HoloLand CRUD + product actions. |
 | `packages/hololand-platform/README.md` | 1–33 | Confirms HoloLand consumes upstream HoloScript primitives. |
-| `research/2026-05-13_twin-earth-substrate-contract.md` | 299–308 | MCP manifest expectations for Twin Earth substrate. |
+| `research/2026-05-13_twin-earth-substrate-contract.md` | 299–308 | MCP manifest expectations for the legacy Twin Earth contract now mapped to Twin Universe vocabulary. |
 
 ## 7. Acceptance Criteria (from task_1778618247917_ufnr)
 
@@ -182,5 +187,5 @@ This shrinks the handler surface and removes the name-by-name enumeration that c
 - `packages/mcp-server/src/handlers.ts` — Main dispatcher
 - `packages/mcp-server/src/security/tool-scopes.ts` — OAuth scope mapping
 - `packages/hololand-platform/README.md` — Platform/substrate relationship
-- `research/2026-05-13_twin-earth-substrate-contract.md` — Twin Earth substrate contract
+- `research/2026-05-13_twin-earth-substrate-contract.md` — legacy Twin Earth substrate contract mapped to Twin Universe vocabulary
 - `NORTH_STAR.md` §0.4.4 — HoloLand = universe-twin; HoloScript = substrate

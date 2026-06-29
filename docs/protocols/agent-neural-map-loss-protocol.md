@@ -6,6 +6,10 @@
 > **Date**: 2026-05-13  
 > **Canonical Path**: `docs/protocols/agent-neural-map-loss-protocol.md`
 
+> **Vocabulary note (2026-06-29):** Twin Universe is the canonical HoloLand
+> product vocabulary after commit `aa4d20b`. This protocol keeps legacy
+> `twin_earth` only where a wire/tool identifier requires compatibility.
+
 ---
 
 ## 1. Overview
@@ -16,7 +20,7 @@ This document makes the "agent neural-map lost" protocol explicit for three Holo
 
 1. **NPCs** in live worlds — render-state event protocol
 2. **Player-bound assistant agents** (Brittney, etc.) — restoration from seed
-3. **Twin Earth / Frontier MMO shards** — disposable-map-by-default architecture
+3. **Twin Universe / Frontier MMO shards** — disposable-map-by-default architecture
 
 ---
 
@@ -120,7 +124,7 @@ Brittney has three deployment routes (local, BYOK, managed). The restoration pat
 
 ---
 
-## 4. Twin Earth / Frontier MMO Shards
+## 4. Twin Universe / Frontier MMO Shards
 
 ### 4.1 Disposable-Map-by-Default Architecture
 
@@ -153,9 +157,9 @@ Because NPCs are seeds by default, shard-split (load-shedding) and shard-merge (
 2. **Merge** — Coalesce seed rows into destination shard. On collision (same NPC ID), pick the seed with the later `lastMergedAt` timestamp.
 3. **Gossip preservation** — Cross-NPC reputation deltas written before destroy are in the seed's `@reputationLedger`. They move with the seed.
 
-### 4.4 Twin Earth Slice
+### 4.4 Twin Universe Slice
 
-The `examples/twin-earth/first_playable_slice.holo` proves this protocol in the smallest possible artifact:
+The `examples/twin-universe/first_playable_slice.holo` proves this protocol in the smallest possible artifact:
 
 - `EarthLayer` binds player identity (wallet) to the shard.
 - `LocationAwareQuest` triggers NPC hydrate when the player enters a geo-fenced region.
@@ -200,7 +204,7 @@ The test simulates the full lifecycle (hydrate → tick → merge → destroy) a
 - D.043 (`memory/direction_disposable-neural-maps-durable-identity.md`)
 - D.040 (`memory/direction_three-population-trait-library.md`)
 - `research/2026-05-12_d043-hololand-frontier-npc-lens.md`
-- `examples/twin-earth/first_playable_slice.holo`
+- `examples/twin-universe/first_playable_slice.holo`
 - `docs/specs/frontier-encounter-manifest.holo`
 - F.002 (Wallets are identity, keys are sessions)
 - W.GOLD.189 (Algebraic Trust)

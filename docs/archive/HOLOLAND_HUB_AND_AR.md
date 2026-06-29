@@ -2,6 +2,11 @@
 
 **Vision: A Ready Player One Universe Intersecting VR and AR**
 
+> Vocabulary note (2026-06-29): This archived concept preserves original
+> "Digital Twin Earth" wording. Current HoloLand product language uses
+> Twin Universe for this layer; Twin Earth survives only as legacy historical
+> vocabulary and compatibility identifiers.
+
 ## 🎯 Concept Overview
 
 The Hololand ecosystem consists of **Three Plains of Reality** — interconnected but distinct experiences that together form a complete metaverse bridging virtual and physical worlds.

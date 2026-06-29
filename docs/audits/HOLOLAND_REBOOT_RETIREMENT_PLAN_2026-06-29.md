@@ -29,12 +29,16 @@ new shape, HoloLand packages are enterprise/business assemblies that depend on
 and combine upstream HoloScript packages. They double as benchmarks and gates
 for HoloScript. Human users do not need a visible package surface here.
 
+> Vocabulary note (2026-06-29): Twin Universe is the canonical HoloLand product
+> vocabulary after commit `aa4d20b`. Twin Earth remains only as a legacy
+> historical term or compatibility/wire identifier.
+
 ## Canonical Anchors
 
 - `NORTH_STAR.md`: HoloLand proves HoloScript can be authored, validated,
   executed/rendered, interacted with, and receipted.
 - `docs/HOLOLAND_PURPOSE.md`: HoloLand owns lived runtime embodiment, builder
-  proof, product experience downstream of proof, worlds/assets, Twin Earth,
+  proof, product experience downstream of proof, worlds/assets, Twin Universe,
   hardware reality, and agent presence.
 - `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`: hand-authored TypeScript/TSX behavior is
   migration debt unless it keeps a named migration alive, bridges runtime output,
@@ -84,10 +88,10 @@ Keep these surfaces active and make them easier for agents to find:
 
 | Surface | Status | Why it stays |
 | --- | --- | --- |
-| `source/**` | active proof kernel | Canonical HoloLand HoloScript source spine: runtime atlas, domains, VR layers, Twin Earth layer, receipts, verticals, and proofs. |
+| `source/**` | active proof kernel | Canonical HoloLand HoloScript source spine: runtime atlas, domains, VR layers, Twin Universe layer, receipts, verticals, and proofs. |
 | `apps/holoshell/source/**` | active proof kernel | Dense HoloScript/HoloScript-plus source for HoloShell, builder proof, Human OS rooms, and agent-operable runtime flows. |
 | `apps/holoshell/enterprise-gates/**` | active gate surface | Enterprise gates define business benchmarks for HoloScript. Keep and expand even if the implementations call receipt scripts. |
-| HoloScript-heavy examples | active examples | Keep `examples/01-hello-vr-world`, `02-physics-playground`, `03-vr-shop`, `14-holoscript-survival-benchmark`, `fresh`, `headless`, `native-authoring-pipeline`, `twin-earth`, and HoloScript-backed `demos`. |
+| HoloScript-heavy examples | active examples | Keep `examples/01-hello-vr-world`, `02-physics-playground`, `03-vr-shop`, `14-holoscript-survival-benchmark`, `fresh`, `headless`, `native-authoring-pipeline`, `twin-universe`, and HoloScript-backed `demos`. |
 | `packages/platform/library` | active library | HoloScript-heavy package surface that can become upstream package-consumption proof. |
 | `packages/components` | active library | HoloScript-only components are aligned with source-first package gates. |
 | `packages/holoshell` | active bridge | Small HoloScript-oriented package; keep if it remains tied to HoloShell proof flows. |
@@ -165,7 +169,7 @@ them into source-first benchmark gates:
 | `examples/09-quality-showcase` | archive/watch | Quality proof should be a receipt gate, not a TS-only showcase. |
 | `examples/10-collaborative-building` | archive | Scaffold-like TS-only example; no HoloScript source. |
 | `examples/11-social-hub` | archive | Scaffold-like TS-only example; no HoloScript source. |
-| `examples/12-multi-user-ar` | archive/watch | AR proof belongs in Twin Earth or hardware receipts, not TS-only package demo. |
+| `examples/12-multi-user-ar` | archive/watch | AR proof belongs in Twin Universe or hardware receipts, not TS-only package demo. |
 | `examples/13-universal-dashboard` | archive | Dashboard proof should become an enterprise gate if still wanted. |
 | `examples/compilation-demo` | archive/watch | Compilation proof belongs in HoloScript package gates and receipts. |
 | `examples/hololand-landing` | archive | Marketing/landing surface is not the builder-proof product. |
@@ -185,7 +189,7 @@ These package buckets should stop receiving feature work until they either:
 | Candidate | Proposed action | Story |
 | --- | --- | --- |
 | `packages/adapters/**` | archive or convert to generated target fixtures | The adapter bucket is TS-only in the scan. R3F/Three/etc. should be compile targets or bridge fixtures, not hand-authored product truth. |
-| `packages/ar/**` | archive/watch by package | The AR bucket is TS-only in the scan. Keep only the pieces that directly support Twin Earth, hardware receipts, or active deployments. |
+| `packages/ar/**` | archive/watch by package | The AR bucket is TS-only in the scan. Keep only the pieces that directly support Twin Universe, hardware receipts, or active deployments. |
 | `packages/shared/ui` | archive/watch | TS-only UI package. HoloLand should not be a human-facing UI kit unless generated/consumed by proof flows. |
 | `packages/shared/inference` | archive/watch | TS-only inference package plus nested lockfile. Keep only with an active enterprise gate or runtime receipt. |
 | `packages/spatial-builder` | archive/watch | TS-only spatial builder package. If the builder matters, reboot it as HoloScript source plus receipt. |
@@ -233,7 +237,7 @@ The reboot should start with five narrow, source-first lanes:
    package assembly. It should combine upstream HoloScript packages and emit a
    receipt.
 3. Frontier Shard 0 - native HoloScript source to world/runtime receipt.
-4. Twin Earth Micro-Slice - native HoloScript source to earth-layer player-loop
+4. Twin Universe Micro-Slice - native HoloScript source to earth-layer player-loop
    receipt.
 5. NPC Steward / Care Ethics Gate - native HoloScript source to behavior,
    reputation, and safety receipt.

@@ -4,6 +4,11 @@
 **Status:** Incident review
 **Scope:** HoloLand product doctrine, HoloScript runtime/package history, paper programs, MCP/RCP/CLI canaries, Twin Earth robot/AI substrate, and fork trust boundaries.
 
+> Vocabulary note (2026-06-29): This postmortem preserves the May 2026
+> "Twin Earth" incident language. Current HoloLand product vocabulary is
+> Twin Universe; Twin Earth remains legacy terminology and a compatibility
+> identifier in older tools, receipts, and tasks.
+
 ## Incident
 
 The ecosystem had important substrate ideas that were either deleted, retired,

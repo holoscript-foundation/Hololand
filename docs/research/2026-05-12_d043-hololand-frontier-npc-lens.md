@@ -11,6 +11,10 @@ linked_directions: "D.043, D.040, D.013, D.016, D.026"
 
 # D.043 lens on the Shangri-La Frontier NPC thread
 
+> Vocabulary note (2026-06-29): Twin Universe is the current HoloLand product
+> vocabulary. This May memo preserves Twin Earth only where it quotes or names
+> historical board tasks and research provenance.
+
 > Founder direction 2026-05-12: "look at [D.043] at the level of HoloLand with Frontier-level NPCs." This memo is the **lifecycle lens** on top of the existing SLF NPC architecture — it does not redo the trait design (already done in `2026-05-10_shangri-la-frontier-npc-feel.md` + EVOLVED/EXTENSION/AUTONOMIZE/GROW + UAA2-TIE-IN). It names how D.043's disposable-neural-maps + durable-identity posture is what lets the existing architecture actually scale to Frontier-shard counts AND deliver "this NPC remembered me" at every encounter.
 
 ## The product story in one paragraph
@@ -53,11 +57,11 @@ For each of the 5 sovereign traits + `@avatarIntent`, the work surface is the sa
 
 This shape is the same as the `HoloScriptAgentRuntime.hydrate(seed)` gap-build task (`task_1778620436307_rktu`). The Frontier-NPC use case is the proving ground: when hydrate works for an NPC, it works for a HoloMesh agent and a uaa2 orchestration executor (D.040 — three-population trait library, one substrate).
 
-## Cross-link to Twin Earth / Frontier MMO board canaries
+## Cross-link to Twin Universe / Frontier MMO board canaries
 
-The board canaries filed in last 4h by peer Codex hardware on the Twin Earth / Frontier MMO direction are the consumers of this lens:
+The board canaries filed in last 4h by peer Codex hardware on the Twin Universe (then Twin Earth) / Frontier MMO direction are the consumers of this lens:
 
-- `task_1778102670927_5r0p` (P1 CLAIMED) **Define Twin Earth as playable game-layer slice** — the disposable-map / hydrate-on-encounter lifecycle is what makes Twin Earth's "playable slice" architecturally distinct from a static game world
+- `task_1778102670927_5r0p` (P1 CLAIMED) **Define Twin Earth as playable game-layer slice** — the disposable-map / hydrate-on-encounter lifecycle is what makes the Twin Universe playable slice, filed under the older Twin Earth name, architecturally distinct from a static game world
 - `task_1778616474061_c7s1` (P2) **Map Frontier Shard 0 across browser and apps** — Shard 0's NPC seed-pool storage + hydrate-on-vicinity protocol is the concrete substrate this lens defines
 - `task_1778616474061_1ede` (P2) **Define premium MMO shard architecture targets** — economics-from-D.043 are the targets ($X/shard/day, N idle NPCs at substrate cost, M active at compute cost)
 - `task_1778616474061_3yjb` (P2) **Add EarthLayer/GeoAnchor/Place/PrivacyRule upstream plan** — `@reputationLedger` durable-layer privacy boundary is the same boundary as PrivacyRule; both want CAEL-signed substrate entries with 90-day TTL default
@@ -97,5 +101,5 @@ Paper candidates this feeds:
 - 2026-05-10_shangri-la-frontier-npc-feel-UAA2-TIE-IN.md (Gem 1-4 substrate fit, 17 `@hololand/*` stubs as targets)
 - 2026-05-10_shangri-la-frontier-npc-feel-EXTENSION.md (W.508 `@avatarIntent` for prone-bed v3)
 - HoloScriptAgentRuntime.ts (canonical TS substrate, founder ruling Q2 this session)
-- Twin Earth board canaries: task_1778102670927_5r0p + task_1778616474061_c7s1/_1ede/_3yjb
+- Twin Universe / legacy Twin Earth board canaries: task_1778102670927_5r0p + task_1778616474061_c7s1/_1ede/_3yjb
 - task_1778620436307_rktu (HoloScriptAgentRuntime.hydrate gap-build — D.043 substrate work item)
