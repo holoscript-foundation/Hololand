@@ -28,12 +28,15 @@ composition "HoloShell Brittney Runtime Bridge" {
     latestContextReceipt: ".tmp/holoshell/brittney-context.json"
     latestFounderPromptFixtureReceipt: ".tmp/holoshell/founder-prompt-fixtures.json"
     latestHardwareActionReceipt: ".tmp/holoshell/action-latest.json"
+    routingIntentField: "routingIntent"
+    modelPromptField: "modelPrompt"
   }
 
   state {
     bridgeStatus: "unknown"
     currentTurnId: ""
     currentPrompt: ""
+    currentRoutingIntent: ""
     runtimeStatus: "unknown"
     lastFinalText: ""
     lastError: ""
@@ -105,6 +108,8 @@ composition "HoloShell Brittney Runtime Bridge" {
     actor: "user"
     targetRuntime: "@holoscript/aibrittney"
     prompt: ""
+    routingIntent: ""
+    modelPrompt: ""
     shellContextIncluded: true
     contextPacketIncluded: true
     contextPacketReceipt: ".tmp/holoshell/brittney-context.json"
@@ -202,6 +207,17 @@ composition "HoloShell Brittney Runtime Bridge" {
     receiptRequired: true
   }
 
+  policy "RuntimeRoutingIntentBoundary" {
+    appliesTo: ["agent_dispatch", "conversation_plan_packet", "shell_action_proposal", "laptop_reasoning_job"]
+    routingIntentSource: "human_or_operator_message"
+    modelPromptMayInclude: ["daimon_rehydration", "live_status_brief", "semantic_recall", "context_packet"]
+    contextMayGroundReply: true
+    contextMayTriggerDispatch: false
+    laptopDispatchRequires: "current_turn_ready_to_stage_agent_dispatch_receipt"
+    nonReceiptedLaptopDispatchNarration: "forbidden"
+    receiptRequired: true
+  }
+
   policy "RuntimeGuardedTurn" {
     appliesTo: ["open_app", "open_file", "open_browser", "start_agent", "focus_captured_window", "focus_window", "hotkey", "click_control", "type_text"]
     permissionEnvelope: "guarded_execute"
@@ -218,10 +234,12 @@ composition "HoloShell Brittney Runtime Bridge" {
 
   action submit_runtime_turn(turnRequest) {
     state.currentPrompt = turnRequest.prompt
+    state.currentRoutingIntent = turnRequest.routingIntent != "" ? turnRequest.routingIntent : turnRequest.prompt
     state.avatarPipelineStage = "processing"
     emit("holoshell:brittney:turn", {
       action: "runtime_turn_submitted",
       prompt: state.currentPrompt,
+      routing_intent: state.currentRoutingIntent,
       target_runtime: "@holoscript/aibrittney",
       shell_context_included: true,
       context_packet_included: true,

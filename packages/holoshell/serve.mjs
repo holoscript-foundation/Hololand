@@ -2813,10 +2813,10 @@ async function handleRequest(req, res) {
           : null;
         // If the daimon has emerged, prime Brittney with its remembered context (rehydration).
         const preamble = await daimonRehydration();
-        const prompt = [preamble, liveStatus ? formatLiveStatusBrief(liveStatus) : '', message]
+        const prompt = [preamble, message]
           .filter(Boolean)
           .join('\n\n');
-        const args = [turnScript, '--prompt', prompt, '--json'];
+        const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json'];
         if (selfTest) args.push('--self-test');
         if (relational) args.push('--relational');
         const out = execFileSync('node', args, {

@@ -38,6 +38,7 @@ function parseArgs(argv) {
     latestOutput: DEFAULT_LATEST,
     jsOutput: DEFAULT_JS_OUTPUT,
     conversationPlanOutput: DEFAULT_CONVERSATION_PLAN,
+    routingIntent: '',
     relational: false,
   };
 
@@ -55,6 +56,7 @@ function parseArgs(argv) {
     else if (arg === '--latest-output') args.latestOutput = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--conversation-plan-output') args.conversationPlanOutput = argv[++index];
+    else if (arg === '--routing-intent') args.routingIntent = argv[++index];
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -84,6 +86,7 @@ Options:
   --js-output <path>           Browser bootstrap path. Defaults to .tmp/holoshell/brittney-turn-latest.js.
   --conversation-plan-output <path>
                                Latest conversation-plan packet. Defaults to .tmp/holoshell/brittney-conversation-plan-latest.json.
+  --routing-intent <text>      Human/operator intent used for dispatch classification. Defaults to --prompt.
   -h, --help                   Show this help.
 `);
 }
@@ -194,6 +197,10 @@ function createActionProposals(prompt) {
   return proposals.slice(0, 5);
 }
 
+function routingIntent(args) {
+  return String(args.routingIntent || args.prompt || '');
+}
+
 function looksLikeCommenceAllIntent(prompt) {
   return /\b(commence|begin|start|run|execute|do)\s+(all|everything|the\s+plan|it)\b/i.test(String(prompt || ''));
 }
@@ -240,7 +247,7 @@ function loadPriorConversationTurns(turnsDir, promptHash) {
 }
 
 function buildConversationPlanPacket({ args, generatedAt, promptHash }) {
-  const currentPrompt = String(args.prompt || '');
+  const currentPrompt = routingIntent(args);
   const currentSignals = conversationPlanningSignals(currentPrompt);
   const commenceAll = looksLikeCommenceAllIntent(currentPrompt);
   const priorTurns = loadPriorConversationTurns(args.turnsDir, promptHash).slice(-8);
@@ -378,6 +385,29 @@ function userFacingFinalText({ prompt, finalText, resultOk, proposals }) {
     : "I don't have a working capability for that yet.";
 }
 
+function hasUnsupportedLaptopDispatchClaim(text) {
+  const value = String(text || '');
+  return /\bhsdispatch-[a-z0-9-]+\b/i.test(value)
+    || /\bdispatch_laptop_reasoning_job\b/i.test(value)
+    || /\blaptop reasoning (?:job|delegation|dispatch)\b[^\n.]{0,160}\b(?:initiated|awaiting|staged|dispatched|confirm|receipt required)\b/i.test(value);
+}
+
+function sanitizeLaptopReasoningFinalText(text, delegation) {
+  const finalText = String(text || '').trim();
+  if (!finalText || delegation?.status === 'delegated' || !hasUnsupportedLaptopDispatchClaim(finalText)) {
+    return finalText;
+  }
+  const safeLines = finalText
+    .split(/\r?\n/u)
+    .filter((line) => !hasUnsupportedLaptopDispatchClaim(line))
+    .map((line) => line.trimEnd());
+  while (safeLines.length && !safeLines[0].trim()) safeLines.shift();
+  while (safeLines.length && !safeLines[safeLines.length - 1].trim()) safeLines.pop();
+  const safeBody = safeLines.join('\n').trim();
+  const boundary = 'No laptop reasoning job is staged in this turn because no valid ready_to_stage dispatch receipt exists.';
+  return safeBody ? `${safeBody}\n\n${boundary}` : boundary;
+}
+
 function laptopReasoningStageBlockers(receipt) {
   const summary = receipt?.summary || {};
   const dispatch = receipt?.dispatch || {};
@@ -449,10 +479,11 @@ function createBlockedLaptopReasoningDelegation(persisted, stageBlockers) {
 }
 
 function createLaptopReasoningDelegation(args) {
+  const intent = routingIntent(args);
   const dispatchArgs = {
     actor: 'brittney',
-    intent: args.prompt,
-    prompt: args.prompt,
+    intent,
+    prompt: intent,
     output: DEFAULT_AGENT_DISPATCH,
     jsOutput: DEFAULT_AGENT_DISPATCH_JS,
     dispatchDir: DEFAULT_AGENT_DISPATCH_DIR,
@@ -990,10 +1021,12 @@ async function recallSemanticContext({
 
 async function runTurn(args) {
   const generatedAt = new Date().toISOString();
-  const turnId = stableId('brittney_turn', `${generatedAt}:${args.prompt}`);
-  const promptHash = hashText(args.prompt);
+  const intent = routingIntent(args);
+  const modelPrompt = String(args.prompt || intent);
+  const turnId = stableId('brittney_turn', `${generatedAt}:${intent}`);
+  const promptHash = hashText(intent);
   const shellContext = createShellContext();
-  const founderPromptFixtures = loadFounderPromptFixtures({ prompt: args.prompt });
+  const founderPromptFixtures = loadFounderPromptFixtures({ prompt: intent });
   if (founderPromptFixtures.selected.length) {
     shellContext.founderPromptFixtures = {
       source: founderPromptFixtures.source,
@@ -1011,7 +1044,7 @@ async function runTurn(args) {
   // owned fleet, $0). Best-effort — enriches the model's context only, never a UI
   // panel (F.124). Attached to shellContext so it flows into the turn prompt below.
   const recall = await recallSemanticContext({
-    prompt: args.prompt,
+    prompt: intent,
     promptHash,
     turnsDir: args.turnsDir,
     holoscriptRoot,
@@ -1068,6 +1101,7 @@ async function runTurn(args) {
       source: founderPromptFixtures.source,
     },
     conversationPlan,
+    routingIntentProvided: Boolean(args.routingIntent),
   };
   runtime.laptopReasoningDelegation = createLaptopReasoningDelegation(args);
   runtime.laptopReasoningResult = findLaptopReasoningResultForDelegation(runtime.laptopReasoningDelegation);
@@ -1158,7 +1192,7 @@ ${toneInstruction}`;
       const founderNote = founderPromptFixtures.selected.length
         ? `\n\n(Founder-language inspiration from local fixtures: ${founderPromptFixtures.selected.map((entry) => truncate(entry.inspiration, 80)).join(' | ')}. Use as direction; do not quote at length. Do not promise, claim, or announce mutating/destructive work from this inspiration; frame it as a receipt-required proposal.)`
         : '';
-      session.push('user', `${args.prompt}${recalledNote}${ambientNote}${founderNote}`);
+      session.push('user', `${modelPrompt}${recalledNote}${ambientNote}${founderNote}`);
     } else {
       const laptopInstruction = laptopReasoningResultReady(runtime.laptopReasoningResult)
         ? ' If shellContext.laptopReasoningResult is present, mention that Brittney received the laptop hardware pingback, summarize the result receipt briefly, and distinguish receipt-only completion from GPU-backed model inference.'
@@ -1167,7 +1201,8 @@ ${toneInstruction}`;
         ? ' If shellContext.conversationPlan.dispatchReady is true, say the dispatcher has a receipt-backed conversation plan proposal ready; do not claim the plan was executed or completed.'
         : ' If shellContext.conversationPlan is present but not dispatchReady, use it only as planning context and avoid execution claims.';
       session.push('user', JSON.stringify({
-        userPrompt: args.prompt,
+        userPrompt: intent,
+        modelPrompt,
         shellContext,
         instruction: `Answer as Brittney inside HoloShell. Keep it concise and receipt-aware.${recallInstruction}${fixtureInstruction}${laptopInstruction}${conversationPlanInstruction}`,
       }));
@@ -1207,20 +1242,21 @@ ${toneInstruction}`;
   const proposals = [
     createConversationPlanProposal(runtime.conversationPlan),
     createLaptopReasoningProposal(runtime.laptopReasoningDelegation),
-    ...createActionProposals(args.prompt),
+    ...createActionProposals(intent),
   ].filter(Boolean);
   const delegatedToLaptop = runtime.laptopReasoningDelegation.status === 'delegated';
   const laptopResultReady = laptopReasoningResultReady(runtime.laptopReasoningResult);
-  const finalText = delegatedToLaptop && !result.ok && !String(result.finalText || '').trim()
+  const unsanitizedFinalText = delegatedToLaptop && !result.ok && !String(result.finalText || '').trim()
     ? (laptopResultReady
       ? laptopReasoningCompletedText(runtime.laptopReasoningResult)
       : laptopReasoningDelegatedText(runtime.laptopReasoningDelegation))
     : userFacingFinalText({
-    prompt: args.prompt,
+    prompt: intent,
     finalText: result.finalText,
     resultOk: result.ok,
     proposals,
   });
+  const finalText = sanitizeLaptopReasoningFinalText(unsanitizedFinalText, runtime.laptopReasoningDelegation);
   const finalAvatar = events.length ? events[events.length - 1].avatar : mapEventToAvatar('error');
   const status = result.ok ? 'completed' : (laptopResultReady ? runtime.laptopReasoningResult.status : (delegatedToLaptop ? 'delegated' : 'blocked'));
 
@@ -1228,7 +1264,7 @@ ${toneInstruction}`;
     schemaVersion: SCHEMA_VERSION,
     turnId,
     generatedAt,
-    prompt: args.prompt,
+    prompt: intent,
     promptHash,
     sourceAnchors: {
       source: 'apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus',
@@ -1248,6 +1284,10 @@ ${toneInstruction}`;
       laptopReasoningBridge: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
       holoscriptRoot,
       runtimePackageDist: path.resolve(holoscriptRoot, 'packages', 'aibrittney', 'dist'),
+    },
+    modelPrompt: modelPrompt === intent ? undefined : {
+      promptHash: hashText(modelPrompt),
+      promptPreview: truncate(modelPrompt, 320),
     },
     runtime,
     shellContext,

@@ -52,6 +52,10 @@ async function postChat(message) {
   return body;
 }
 
+function readTurnReceipt(turnId) {
+  return JSON.parse(readFileSync(resolve('.tmp', 'holoshell', 'brittney-turns', `${turnId}.json`), 'utf8'));
+}
+
 try {
   await waitForServer();
 
@@ -99,6 +103,21 @@ try {
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_model_library'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_holoclaw_skill_shelf'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'queue_codebase_fix_shakedown_batch'));
+  assert.ok(!status.proposals.some((proposal) => proposal.operation === 'dispatch_laptop_reasoning_job'));
+  const statusReceipt = readTurnReceipt(status.turnId);
+  assert.equal(statusReceipt.prompt, 'whats the status of the system?');
+  assert.equal(statusReceipt.runtime.routingIntentProvided, true);
+  assert.notEqual(statusReceipt.runtime.laptopReasoningDelegation.status, 'delegated');
+
+  const gaps = await postChat('what are your edges and gaps?');
+  assert.equal(gaps.systemStatus, null);
+  assert.ok(!gaps.proposals.some((proposal) => proposal.operation === 'dispatch_laptop_reasoning_job'));
+  assert.doesNotMatch(gaps.reply, /hsdispatch-/i);
+  assert.doesNotMatch(gaps.reply, /initiated and is awaiting result/i);
+  const gapsReceipt = readTurnReceipt(gaps.turnId);
+  assert.equal(gapsReceipt.prompt, 'what are your edges and gaps?');
+  assert.equal(gapsReceipt.runtime.routingIntentProvided, true);
+  assert.notEqual(gapsReceipt.runtime.laptopReasoningDelegation.status, 'delegated');
 
   const next = await postChat('what are our next steps?');
   assert.match(next.reply, /Next steps, grounded in live HoloShell state/);
