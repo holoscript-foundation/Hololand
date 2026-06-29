@@ -39,7 +39,7 @@
     "worldId": "frontier-shard-0",
     "shardId": "frontier-shard-0-alpha",
     "zoneId": "waymark-glen",
-    "twinEarthAnchorId": "twin-earth-anchor-phx-001",
+    "twinEarthAnchorId": "twin-universe-anchor-phx-001",
     "targetType": "zone",
     "entityIds": ["npc_mira_wayfinder", "anchor_waymark_001"]
   },
@@ -49,7 +49,7 @@
     "mutationHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
     "startedAt": "2026-05-12T21:17:00.000Z",
     "completedAt": "2026-05-12T21:17:45.000Z",
-    "affectedRefs": ["world:frontier-shard-0", "shard:frontier-shard-0-alpha", "zone:waymark-glen", "anchor:twin-earth-anchor-phx-001"],
+    "affectedRefs": ["world:frontier-shard-0", "shard:frontier-shard-0-alpha", "zone:waymark-glen", "anchor:twin-universe-anchor-phx-001"],
     "summary": "Published the validated source into the alpha shard as a receipted zone update."
   },
   "hardwareBrowserEvidence": {
@@ -70,7 +70,7 @@
   "rollback": {
     "available": true,
     "strategy": "manual",
-    "plan": "Restore the pre-publish shard snapshot and remove the Twin Earth anchor binding.",
+    "plan": "Restore the pre-publish shard snapshot and remove the Twin Universe anchor binding.",
     "rollbackRef": ".tmp/receipts/frontier-zone-anchor-001-rollback-plan.json",
     "expiresAt": "2026-05-19T21:18:00.000Z"
   },

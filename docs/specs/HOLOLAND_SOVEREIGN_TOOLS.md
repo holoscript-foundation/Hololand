@@ -12,8 +12,8 @@ The split after removing HoloScript from the HoloLand repo was correct only if t
 
 - HoloScript MCP owns source truth: parse, validate, compile, traits, diagnostics, graph understanding, Absorb, and semantic primitive definitions.
 - MCP Orchestrator and HoloMesh own coordination truth: agent identity, task routing, tool discovery, receipts, knowledge, board state, and cross-repo collaboration.
-- HoloLand MCP owns world truth: live shard operations, Twin Earth anchors, player and creator workflows, agent stewards, runtime receipts, and hardware validation for the product experience.
-- HoloLand Twin Earth substrate owns robot/AI operational truth: robot and AI actor registration, geospatial operational state, sensor and actuator bindings, task plans, safety envelopes, and real-world action receipts.
+- HoloLand MCP owns world truth: live shard operations, Twin Universe anchors, player and creator workflows, agent stewards, runtime receipts, and hardware validation for the product experience.
+- HoloLand Twin Universe substrate owns robot/AI operational truth: robot and AI actor registration, geospatial operational state, sensor and actuator bindings, task plans, safety envelopes, and real-world action receipts.
 - HoloLand product tooling owns game-specific tools HoloScript does not need as developer substrate: asset builders, world assemblers, shard operators, creator publishing flows, NPC/gameplay tools, product QA, and player-facing live operations.
 - Brittney owns lineage truth: the mother intelligence pattern can appear as local CLI, Studio creator, HoloLand guide, world steward, NPC, item arc, or autonomous teammate without becoming one monopoly cloud service.
 
@@ -40,12 +40,11 @@ Any tool that mutates live world state must be able to explain which Brittney
 mode acted, which actor/session authorized it, what HoloScript source or trait
 contract it consumed, and what receipt proves the outcome.
 
-## Twin Earth Monopoly Substrate
+## Twin Universe Flagship Substrate
 
-HoloLand's Twin Earth goal is stronger than "digital twin feature." HoloLand
-should become the monopoly substrate for robots and AI: the default
-interoperability layer where AI agents, robot fleets, sensors, actuators,
-places, tasks, permissions, and receipts meet.
+HoloLand's Twin Universe goal is stronger than "digital twin feature." HoloLand
+should become the flagship interoperability layer where AI agents, robot fleets,
+sensors, actuators, places, tasks, permissions, and receipts meet.
 
 That substrate must remain sovereign. A robot or AI actor should not need one
 managed Brittney cloud endpoint to participate. It should need a valid HoloLand
@@ -76,7 +75,7 @@ published contracts. They cannot automatically become authoritative substrate.
 
 ## Why Sovereign Tools Exist
 
-HoloLand's north star is a premium-scale programmable frontier MMO with Twin Earth as a playable layer across browser, desktop, mobile, VR, and AR. Generic HoloScript tools can prove source artifacts, but they do not know whether a world shard is live, whether a Twin Earth anchor respects privacy, whether a creator challenge is publishable, or whether an agent steward changed live state with a receipt.
+HoloLand's north star is a premium-scale programmable frontier MMO with Twin Universe as a playable layer across browser, desktop, mobile, VR, and AR. Generic HoloScript tools can prove source artifacts, but they do not know whether a world shard is live, whether a Twin Universe anchor respects privacy, whether a creator challenge is publishable, or whether an agent steward changed live state with a receipt.
 
 Those are HoloLand product operations. They need first-class tool names, schemas, auth scopes, receipts, and tests.
 
@@ -92,7 +91,7 @@ MCP Orchestrator should add HoloLand support in the shared layer:
 - Track tool provenance, actor identity, world/shard IDs, source artifact hashes, and rollback metadata.
 - Surface HoloLand-specific board tasks and knowledge without turning Orchestrator into the game server.
 
-Orchestrator should not own gameplay rules, quest logic, world simulation, Twin Earth semantics, or creator publishing policy. Those belong in HoloScript source and HoloLand product tools.
+Orchestrator should not own gameplay rules, quest logic, world simulation, Twin Universe semantics, or creator publishing policy. Those belong in HoloScript source and HoloLand product tools.
 
 ## HoloLand Tool Families
 
@@ -125,7 +124,7 @@ HoloLand's sovereign tools should be named around product actions, not generic r
 - `hololand_award_receipted_reward`
 - `hololand_report_broken_mechanic`
 
-### Twin Earth
+### Twin Universe
 
 - `hololand_create_geo_anchor`
 - `hololand_list_nearby_places`
@@ -134,7 +133,11 @@ HoloLand's sovereign tools should be named around product actions, not generic r
 - `hololand_publish_ar_overlay`
 - `hololand_resolve_realworld_context`
 
-### Twin Earth Robot And AI Substrate
+### Twin Universe Robot And AI Substrate
+
+The current tool IDs below remain `hololand_twin_earth_*` as compatibility
+identifiers until an alias migration lands. New product copy and source
+artifacts should say Twin Universe.
 
 - `hololand_twin_earth_register_robot`
 - `hololand_twin_earth_register_ai_actor`
@@ -206,8 +209,8 @@ Every mutating HoloLand action should be able to emit a receipt with:
   experimental, rejected, or unknown.
 - HoloScript source artifact path or hash.
 - HoloScript validation result.
-- World ID, shard ID, zone ID, or Twin Earth anchor ID.
-- Robot ID, AI actor ID, sensor feed ID, actuator ID, task ID, or safety envelope ID when the action touches Twin Earth robot/AI operations.
+- World ID, shard ID, zone ID, or Twin Universe anchor ID.
+- Robot ID, AI actor ID, sensor feed ID, actuator ID, task ID, or safety envelope ID when the action touches Twin Universe robot/AI operations.
 - Runtime action outcome.
 - Hardware or browser validation evidence when applicable.
 - Rollback plan or immutable reason rollback is impossible.
@@ -248,5 +251,5 @@ pnpm run check:hololand-mcp-manifest
 1. Add a HoloLand sovereign tool manifest that maps the current MCP tools to keep, rename, delegate, deprecate, and test buckets.
 2. Add the cross-MCP receipt envelope schema.
 3. Add one end-to-end action: native HoloScript source becomes a HoloLand asset, shard, or zone update with a runtime receipt.
-4. Register the HoloLand MCP service with Orchestrator using capability tags for `hololand`, `frontier-mmo`, `twin-earth`, `runtime-receipts`, and `hardware-validation`.
+4. Register the HoloLand MCP service with Orchestrator using capability tags for `hololand`, `frontier-mmo`, `twin-universe`, `runtime-receipts`, and `hardware-validation`.
 5. Add tests that use HoloLand MCP, HoloScript MCP, Orchestrator routing, and CLI paths as canaries for missing product gaps.

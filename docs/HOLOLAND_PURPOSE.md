@@ -20,11 +20,11 @@ HoloLand-specific tools with HoloScript as the creative substrate. HoloScript is
 for developers and ecosystem builders. HoloLand is for gamers, creators, and
 players entering a world.
 
-Twin Earth raises the ambition: HoloLand should become the monopoly substrate
-for Twin Earth for robots and AI. Here "monopoly substrate" means the default
+Twin Universe raises the ambition: HoloLand should become the flagship
 operational layer and interoperability target for geospatial twins, robot
 fleets, AI agents, sensors, actuators, tasks, permissions, and receipts. It
-does not mean making Brittney a single locked cloud endpoint.
+does not mean making Brittney a single locked cloud endpoint, and it does not
+prevent HoloScript builders from creating their own worlds from scratch.
 
 ## One Sentence
 
@@ -54,7 +54,7 @@ operation, creator workflow, or visual/UX choice, keep it in HoloLand.
 | Product experience | Players, creators, portals, discovery, identity, parties, events, and publishing when they are downstream of the builder proof. |
 | Assets and worlds | Game assets, zones, shards, NPCs, encounters, item arcs, maps, lore, art direction, and world composition authored with HoloScript. |
 | HoloLand-specific tools | Gamer/creator/runtime tools that HoloScript does not need as developer substrate. |
-| Twin Earth robot/AI substrate | Geo-anchored world state, robot and AI actor identity, sensor feeds, actuator permissions, fleet tasks, safety envelopes, operational receipts, and real-world-to-game synchronization. |
+| Twin Universe robot/AI substrate | Geo-anchored world state, robot and AI actor identity, sensor feeds, actuator permissions, fleet tasks, safety envelopes, operational receipts, and real-world-to-game synchronization. |
 | Hardware reality | Browser, desktop, WebXR, headset, AR, performance, accessibility, and device validation. |
 | Agent presence | Brittney and other agents operating inside live worlds with receipts. |
 | Platform integration | Renderer targets, host APIs, networking, storage, payments, analytics, deployment glue, and the evidence that they are driven by HoloScript source. |
@@ -98,7 +98,7 @@ does not automatically inherit HoloLand trust.
 
 Only artifacts that pass the relevant conformance, provenance, sandbox,
 permission, and receipt gates may affect HoloLand world state. This is
-especially strict for Twin Earth robot/AI operations, where source admission can
+especially strict for Twin Universe robot/AI operations, where source admission can
 touch physical context, sensors, actuators, payments, property rights, or human
 safety.
 
@@ -131,7 +131,7 @@ HoloLand-specific tools and assets can absolutely live in HoloLand. The
 constraint is source form and receipts, not that every product feature must move
 to HoloScript. HoloScript receives reusable substrate; HoloLand keeps the game.
 
-The same split applies to Twin Earth for robots and AI. Generic robot, agent,
+The same split applies to Twin Universe for robots and AI. Generic robot, agent,
 safety, and receipt primitives should move upstream when they belong to every
 HoloScript developer. HoloLand keeps the product substrate: the lived world
 state, robot and AI actor registration, geospatial operational graph, fleet and
@@ -141,7 +141,7 @@ quest workflows, player-facing permissions, and real-world action receipts.
 
 The current strategic target is a programmable living frontier MMO: a
 premium-scale game world where players explore persistent frontier zones and a
-Twin Earth layer through browser, desktop, mobile, VR, and AR apps. Twin Earth
+Twin Universe layer through browser, desktop, mobile, VR, and AR apps. Twin Universe
 is not a separate enterprise demo; it is one layer of the game, where real
 places, geospatial anchors, AR overlays, IoT/sensor context, and professional
 or civic experiences can become quests, markets, events, showrooms, classrooms,
@@ -152,7 +152,7 @@ rooms. Every world rule should have source, every agent action should leave a
 receipt, every real-world anchor should have privacy and consent semantics, and
 every hardware claim should be locally validated.
 
-For robots and AI, Twin Earth is the operational layer where virtual world
+For robots and AI, Twin Universe is the operational layer where virtual world
 state, physical context, perception, actuation, and human-facing gameplay meet.
 Robots report through HoloLand anchors, AI agents reason over places, tasks, and
 permissions, and real-world actions produce receipts that the game, operators,

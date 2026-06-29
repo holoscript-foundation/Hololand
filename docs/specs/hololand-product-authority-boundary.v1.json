@@ -154,7 +154,7 @@
     },
     {
       "id": "live-world-effects-receipted",
-      "rule": "Live-world, Twin Earth, payment, safety, robot/AI, or player-impacting changes require receipts with source, authority, runtime target, and rollback."
+      "rule": "Live-world, Twin Universe, payment, safety, robot/AI, or player-impacting changes require receipts with source, authority, runtime target, and rollback."
     }
   ],
   "prohibitedShortcuts": [

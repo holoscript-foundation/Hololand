@@ -20,7 +20,7 @@ settings can still direct the full computer through HoloScript, HoloMesh, and
 local agents.
 
 HoloShell is not a new dashboard. It is the first HoloLand surface that treats
-the local computer as a live Twin Earth object.
+the local computer as a live Twin Universe object.
 
 ## Thesis
 

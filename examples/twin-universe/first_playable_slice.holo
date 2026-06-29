@@ -1,19 +1,19 @@
-// Twin Earth First Playable Slice
-// HoloScript source-of-truth for the first HoloLand Twin Earth game-layer loop.
+// Twin Universe First Playable Slice
+// HoloScript source-of-truth for the first HoloLand Twin Universe game-layer loop.
 //
 // Product boundary:
-// - Twin Earth is a playable layer of HoloLand, not a separate enterprise demo.
+// - Twin Universe is a playable layer of HoloLand, not a separate enterprise demo.
 // - Browser can preview the same quest with coarse/manual location.
 // - Mobile/AR can bind the quest to live foreground geolocation.
 // - Consent and receipts are game mechanics, not hidden runtime side effects.
 
-composition "TwinEarthFirstPlayableSlice" {
+composition "TwinUniverseFirstPlayableSlice" {
   metadata {
-    title: "Twin Earth First Playable Slice"
+    title: "Twin Universe First Playable Slice"
     version: "0.1.0"
-    layer: "twin-earth"
+    layer: "twin-universe"
     north_star: "playable game layer across browser and apps"
-    source_contract: "HoloScript defines EarthLayer, GeoAnchor, Place, PrivacyRule, quest, VPS provider preflight, and receipts."
+    source_contract: "HoloScript defines TwinUniverseLayer, GeoAnchor, Place, PrivacyRule, quest, VPS provider preflight, and receipts."
   }
 
   environment {
@@ -63,9 +63,9 @@ composition "TwinEarthFirstPlayableSlice" {
       secret_values_in_receipts_allowed: false
     }
 
-    earth_layer: {
-      id: "twin-earth-frontier-0"
-      label: "Twin Earth Frontier Layer 0"
+    universe_layer: {
+      id: "twin-universe-frontier-0"
+      label: "Twin Universe Frontier Layer 0"
       status: "playable_slice"
       shared_state: ["identity", "inventory", "discoveries", "receipts"]
       surfaces: ["browser", "mobile-ar", "desktop", "webxr"]
@@ -126,20 +126,20 @@ composition "TwinEarthFirstPlayableSlice" {
         surfaces: ["browser", "mobile-ar"]
         player_verb: "discover"
         objective: "Enter the public anchor, confirm consent, scan the compass echo, and earn a map mark."
-        reward: { title: "Twin Earth Scout", map_mark: "pioneer-square-demo" }
+        reward: { title: "Twin Universe Scout", map_mark: "pioneer-square-demo" }
         required_receipts: ["consent_granted", "surface_entered", "vps_provider_preflight", "geoanchor_discovered", "quest_completed"]
       }
     ]
   }
 
-  template "EarthLayer" {
+  template "TwinUniverseLayer" {
     shape: "sphere"
     size: [1.8, 1.8, 1.8]
     material: { color: "#2f7dd3", emissive: "#153f66", emissiveIntensity: 0.18 }
     traits: ["game_layer", "shared_identity", "receipt_stream"]
 
     state {
-      layer_id: "twin-earth-frontier-0"
+      layer_id: "twin-universe-frontier-0"
       status: "playable_slice"
       surfaces: ["browser", "mobile-ar", "desktop", "webxr"]
     }
@@ -205,7 +205,7 @@ composition "TwinEarthFirstPlayableSlice" {
     state {
       quest_id: "local-aura-survey"
       anchor_id: "pioneer-square-compass"
-      reward_title: "Twin Earth Scout"
+      reward_title: "Twin Universe Scout"
       status: "available"
     }
 
@@ -244,8 +244,8 @@ composition "TwinEarthFirstPlayableSlice" {
     }
   }
 
-  spatial_group "TwinEarthPlayableLayer" {
-    object "EarthLayer" using "EarthLayer" {
+  spatial_group "TwinUniversePlayableLayer" {
+    object "TwinUniverseLayer" using "TwinUniverseLayer" {
       position: [0, 1.8, 0]
     }
 
@@ -290,7 +290,7 @@ composition "TwinEarthFirstPlayableSlice" {
 
   logic {
     action receipt_hash(kind, payload) {
-      return "te-" + state.seed + "-" + state.receipt_counter + "-" + kind + "-" + payload
+      return "tu-" + state.seed + "-" + state.receipt_counter + "-" + kind + "-" + payload
     }
 
     action write_receipt(kind, payload) {
@@ -396,11 +396,11 @@ composition "TwinEarthFirstPlayableSlice" {
         state.completed_events.push(quest_id)
       }
 
-      if (!state.player.titles.includes("Twin Earth Scout")) {
-        state.player.titles.push("Twin Earth Scout")
+      if (!state.player.titles.includes("Twin Universe Scout")) {
+        state.player.titles.push("Twin Universe Scout")
       }
 
-      write_receipt("quest_completed", quest_id + ":" + surface + ":Twin Earth Scout")
+      write_receipt("quest_completed", quest_id + ":" + surface + ":Twin Universe Scout")
       emit("quest_completed", quest_id)
       return true
     }
@@ -419,8 +419,8 @@ composition "TwinEarthFirstPlayableSlice" {
     }
 
     on_start {
-      write_receipt("twin_earth_bootstrap", state.earth_layer.id)
-      emit("twin_earth_slice_ready")
+      write_receipt("twin_universe_bootstrap", state.universe_layer.id)
+      emit("twin_universe_slice_ready")
     }
 
     on_browser_entry {

@@ -16,7 +16,7 @@ composition "HoloLandRuntimeAtlas" {
     central_layer: "source/layers/vr/central/hololand-central.holo"
     frontier_layer: "source/layers/vr/frontier/shard-0/frontier-shard-0.holo"
     reality_layer: "source/layers/vrr/reality-sims/reality-sims-layer.holo"
-    twin_earth_layer: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+    twin_universe_layer: "source/layers/ar/twin-universe/twin-universe-layer.holo"
 
     domains: [
       "geo",
@@ -73,9 +73,9 @@ composition "HoloLandRuntimeAtlas" {
   object "ARLayer" {
     type: "atlas_layer"
     id: "ar"
-    label: "Twin Earth"
+    label: "Twin Universe"
     role: "geospatial_reality_overlay"
-    source: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+    source: "source/layers/ar/twin-universe/twin-universe-layer.holo"
     domains: ["geo", "privacy", "receipts", "agents", "safety", "sensors", "actuators"]
     verticals: ["civic", "commerce", "education", "healthcare", "industrial", "real-estate", "robotics"]
     surfaces: ["mobile-ar", "browser"]

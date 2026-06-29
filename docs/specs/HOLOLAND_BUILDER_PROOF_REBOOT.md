@@ -59,7 +59,7 @@ work.
 An enterprise package is a vertical HoloLand assembly for business use cases
 such as a healthcare room, retail showroom, factory twin, real-estate
 walkthrough, training simulation, customer support world, robot operations
-center, or Twin Earth venue.
+center, or Twin Universe venue.
 
 Each enterprise package must declare:
 

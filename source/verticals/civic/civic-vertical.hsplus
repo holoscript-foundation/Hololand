@@ -1,4 +1,4 @@
-// Civic vertical manifest for public-space Twin Earth content.
+// Civic vertical manifest for public-space Twin Universe content.
 
 object "CivicVertical" {
   type: "runtime_vertical"

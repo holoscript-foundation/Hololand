@@ -23,7 +23,7 @@ composition "HoloLandCentral" {
     domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
     verticals: ["entertainment", "civic", "commerce", "education"]
     required_receipts: ["central_entered", "portal_used", "creator_action", "agent_action"]
-    connected_layers: ["frontier-shard-0", "twin-earth-layer-0", "reality-sims-layer-0"]
+    connected_layers: ["frontier-shard-0", "twin-universe-layer-0", "reality-sims-layer-0"]
     receipt_envelope: "source/domains/receipts/runtime-receipt-envelope.hsplus"
     production_proof: "source/proofs/central-frontier-receipt-proof.hsplus"
   }
@@ -34,7 +34,7 @@ composition "HoloLandCentral" {
     material: { color: "#1d3557", emissive: "#2563eb", emissiveIntensity: 0.16 }
     traits: ["portal_directory", "cross_layer", "receipt_emitting"]
     state {
-      destinations: ["frontier-shard-0", "twin-earth-layer-0", "reality-sims-layer-0"]
+      destinations: ["frontier-shard-0", "twin-universe-layer-0", "reality-sims-layer-0"]
       primary_destination_source: "source/layers/vr/frontier/shard-0/frontier-shard-0.holo"
       receipt_kind: "portal_used"
     }

@@ -9,13 +9,13 @@ composition "GeoDomainAuthority" {
   }
 
   state {
-    owns: ["EarthCell", "GeoAnchor", "Place", "coordinate_frame", "accuracy_policy", "surface_mapping"]
+    owns: ["RealityCell", "GeoAnchor", "Place", "coordinate_frame", "accuracy_policy", "surface_mapping"]
     requiredReceipts: ["geoanchor_discovered", "place_entered", "place_policy_checked"]
     failClosedWhen: ["missing_place_policy", "insufficient_accuracy", "untrusted_anchor_source"]
   }
 
   policy "GeoAnchorAdmission" {
-    appliesTo: ["GeoAnchor", "Place", "EarthCell"]
+    appliesTo: ["GeoAnchor", "Place", "RealityCell"]
     coordinateFrameRequired: true
     placePolicyRequired: true
     privacyRuleRequired: true

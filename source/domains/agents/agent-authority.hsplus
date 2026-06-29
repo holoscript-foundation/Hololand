@@ -1,4 +1,4 @@
-// Agent authority contract for HoloLand Central, Frontier, and Twin Earth.
+// Agent authority contract for HoloLand Central, Frontier, and Twin Universe.
 
 composition "AgentDomainAuthority" {
   config {

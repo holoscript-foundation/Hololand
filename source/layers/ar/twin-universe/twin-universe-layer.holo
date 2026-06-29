@@ -1,13 +1,13 @@
-// Twin Earth Layer
+// Twin Universe Layer
 // Geospatial AR and browser-preview runtime surface.
 
-composition "TwinEarthLayer" {
+composition "TwinUniverseLayer" {
   metadata {
-    title: "Twin Earth Layer"
+    title: "Twin Universe Layer"
     version: "0.1.0"
     layer: "ar"
     atlas: "source/runtime-atlas.holo"
-    evidence: "examples/twin-earth/first_playable_slice.holo"
+    evidence: "examples/twin-universe/first_playable_slice.holo"
   }
 
   environment {
@@ -20,7 +20,7 @@ composition "TwinEarthLayer" {
   }
 
   state {
-    place_id: "twin-earth-layer-0"
+    place_id: "twin-universe-layer-0"
     domains: ["geo", "privacy", "receipts", "agents", "safety", "sensors", "actuators"]
     verticals: ["civic", "commerce", "education", "healthcare", "industrial", "real-estate", "robotics"]
     required_receipts: ["consent_granted", "surface_entered", "geoanchor_discovered", "action_completed"]
@@ -28,11 +28,11 @@ composition "TwinEarthLayer" {
     background_location_default: "deny"
   }
 
-  template "EarthCell" {
+  template "RealityCell" {
     shape: "hex"
     size: [2.4, 0.08, 2.4]
     material: { color: "#0f766e", opacity: 0.72 }
-    traits: ["earth_cell", "domain_registry", "vertical_registry"]
+    traits: ["reality_cell", "domain_registry", "vertical_registry"]
     state {
       coordinate_frame: "WGS84"
       authority: "place_policy"
@@ -62,8 +62,8 @@ composition "TwinEarthLayer" {
     }
   }
 
-  spatial_group "TwinEarthEntry" {
-    object "EarthCell" using "EarthCell" {
+  spatial_group "TwinUniverseEntry" {
+    object "RealityCell" using "RealityCell" {
       position: [0, 0.04, -2]
     }
 
@@ -83,14 +83,14 @@ composition "TwinEarthLayer" {
         payload: payload,
         layer: "ar",
         place_id: state.place_id,
-        source: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+        source: "source/layers/ar/twin-universe/twin-universe-layer.holo"
       })
       return true
     }
 
     on_start {
       write_receipt("surface_entered", "browser_preview")
-      emit("twin_earth_layer_ready")
+      emit("twin_universe_layer_ready")
     }
   }
 }

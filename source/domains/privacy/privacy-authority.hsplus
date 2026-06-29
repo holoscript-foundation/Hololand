@@ -1,4 +1,4 @@
-// Privacy authority contract for HoloLand places and Twin Earth.
+// Privacy authority contract for HoloLand places and Twin Universe.
 
 composition "PrivacyDomainAuthority" {
   config {
@@ -17,7 +17,7 @@ composition "PrivacyDomainAuthority" {
   }
 
   policy "ForegroundLocationOnly" {
-    appliesTo: ["mobile-ar", "twin-earth", "geoanchor_discovery"]
+    appliesTo: ["mobile-ar", "twin-universe", "geoanchor_discovery"]
     foregroundOnly: true
     backgroundTrackingAllowed: false
     preciseLocationRequiresExplicitScope: true

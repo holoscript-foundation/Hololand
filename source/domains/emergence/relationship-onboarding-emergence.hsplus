@@ -7,6 +7,12 @@
 // - session-length similarity to extractive games falsifies the non-extraction claim
 
 module RelationshipOnboardingEmergence {
+  config {
+    domain: "emergence"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+  }
+
   state {
     family_id: string
     soul_id: string
@@ -19,6 +25,15 @@ module RelationshipOnboardingEmergence {
 
     family_surface_economy_visible: boolean
     creator_surface_economy_visible: boolean
+    requiredReceipts: ["emergence_credit_receipted", "compulsive_use_falsifier"]
+  }
+
+  policy "NonExtractiveRelationshipEmergence" {
+    metric: "held_out_learning_progress"
+    forbiddenProxy: "session_length_similarity_to_extractive_games"
+    familySurfaceEconomyVisible: false
+    creatorSurfaceEconomyVisible: true
+    receiptRequired: true
   }
 
   action score_interaction(

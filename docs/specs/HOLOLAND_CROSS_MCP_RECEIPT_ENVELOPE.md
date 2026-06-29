@@ -15,7 +15,7 @@ HoloScript source -> HoloScript validation -> MCP/Orchestrator trace -> HoloLand
 ```
 
 This envelope is required for HoloLand tools that mutate world, shard, zone,
-Twin Earth anchor, player, creator, robot, AI, sensor, actuator, payment,
+Twin Universe anchor, player, creator, robot, AI, sensor, actuator, payment,
 inventory, reward, moderation, or safety state.
 
 ## Required Evidence
@@ -27,7 +27,7 @@ Every receipt must include:
 - HoloScript artifact path, hash, repository, and source trust status.
 - HoloScript validation result, validator, validation time, and diagnostics
   hash or explicit diagnostics absence.
-- HoloLand world ID, shard ID, and the zone ID or Twin Earth anchor ID affected
+- HoloLand world ID, shard ID, and the zone ID or Twin Universe anchor ID affected
   by the action.
 - Runtime outcome, mutation hash, affected references, and timing.
 - Hardware or browser evidence when applicable, or an explicit not-applicable

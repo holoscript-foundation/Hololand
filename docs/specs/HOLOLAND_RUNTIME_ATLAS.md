@@ -3,24 +3,24 @@
 **Status:** Architecture and source layout directive
 **Date:** 2026-05-19
 **Source layer:** HoloScript remains canonical for runtime-visible behavior
-**Scope:** HoloLand runtime files, Twin Earth, HoloLand Central, verticals, domains, and receipts
+**Scope:** HoloLand runtime files, Twin Universe, HoloLand Central, verticals, domains, and receipts
 
 ## Thesis
 
 HoloLand should not be organized like a normal application that happens to
-render Earth. It should be organized like a living Earth runtime.
+render rooms. It should be organized like a living twin-universe runtime.
 
 The runtime atlas has four orthogonal axes:
 
 | Axis | Question | Examples |
 |---|---|---|
 | Layer | Which reality surface is active? | VR, VRR, AR |
-| Place | Where does this run? | Earth cell, public plaza, venue, home, building, shard |
+| Place | Where does this run? | Reality cell, public plaza, venue, home, building, shard |
 | Domain | What authority or runtime concern is involved? | Geo, privacy, identity, receipts, agents, safety, sensors, actuators |
 | Vertical | What lived use case is being served? | Civic, commerce, education, healthcare, industrial, real estate, robotics, entertainment |
 
 Every runtime-facing file should be locatable by at least one layer and one
-domain. Earth-bound content should also declare a place. Product slices should
+domain. Geospatial content should also declare a place. Product slices should
 declare one or more verticals.
 
 ```text
@@ -60,7 +60,7 @@ VRR owns:
 - Healthcare and education simulations.
 - Professional proofs that need 1:1 scale and traceable inputs.
 
-### AR: Twin Earth
+### AR: Twin Universe
 
 The AR layer is the live geospatial overlay. It binds real places, foreground
 location, mobile AR, privacy, consent, robot and AI participants, and action
@@ -94,7 +94,7 @@ source/
     vrr/
       reality-sims/
     ar/
-      twin-earth/
+      twin-universe/
   domains/
     geo/
     privacy/
@@ -123,7 +123,7 @@ power is being exercised?"
 
 | Domain | Owns |
 |---|---|
-| Geo | Earth cells, WGS84 anchors, spatial accuracy, place membership, surface mapping |
+| Geo | Reality cells, WGS84 anchors, spatial accuracy, place membership, surface mapping |
 | Privacy | Consent, owner policy, retention, no-background-location, residential denial defaults |
 | Receipts | Replayable proof, source provenance, action summaries, event hashes |
 | Agents | Brittney descendants, NPCs, stewards, world directors, faction actors |
@@ -172,7 +172,7 @@ moderated overlays only when consent and receipt rules are visible in source.
 Runtime files are admitted when they answer these questions:
 
 1. Which layer does this belong to?
-2. Which place or Earth cell does this affect?
+2. Which place or reality cell does this affect?
 3. Which domains grant authority?
 4. Which verticals are served?
 5. Which surfaces can enter?
@@ -266,12 +266,12 @@ source/runtime-atlas.holo
 source/layers/vr/central/hololand-central.holo
 source/layers/vr/frontier/shard-0/frontier-shard-0.holo
 source/layers/vrr/reality-sims/reality-sims-layer.holo
-source/layers/ar/twin-earth/twin-earth-layer.holo
+source/layers/ar/twin-universe/twin-universe-layer.holo
 ```
 
-The existing `examples/twin-earth/first_playable_slice.holo` remains valid
+The existing `examples/twin-universe/first_playable_slice.holo` remains valid
 evidence. The atlas promotes that direction into the runtime source tree rather
-than leaving Twin Earth as only an example.
+than leaving Twin Universe as only an example.
 
 ## HoloScript Boundary
 
@@ -290,11 +290,11 @@ Adopt the HoloLand Runtime Atlas as the organizing principle for runtime files:
 
 ```text
 HoloLand Central is the VR social frontier layer.
-Twin Earth is the geospatial reality layer.
+Twin Universe is the geospatial reality layer.
 VRR is the 1:1 simulation layer.
 Domains grant runtime authority.
 Verticals provide lived use cases.
-Places bind the atlas to Earth.
+Places bind the atlas to physical and simulated reality.
 Receipts prove every live-world mutation.
 HoloScript is the source of all world behavior.
 ```

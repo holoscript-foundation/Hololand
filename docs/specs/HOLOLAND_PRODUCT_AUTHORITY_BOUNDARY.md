@@ -40,7 +40,7 @@ the reusable substrate semantics.
    HoloScript substrate routing note.
 5. Agents, model output, forked packages, generated assets, and creator
    submissions are advisory until they pass the relevant authority gates.
-6. Live-world, Twin Earth, payment, safety, robot/AI, or player-impacting
+6. Live-world, Twin Universe, payment, safety, robot/AI, or player-impacting
    changes require receipts that identify the product authority, source
    artifact, runtime target, rollback path, and reviewer.
 7. If HoloLand and HoloScript disagree about reusable language/runtime
@@ -57,7 +57,7 @@ the reusable substrate semantics.
 | `holoScript-source-contract` | Any HoloLand feature behavior | `.holo`, `.hs`, or `.hsplus` source plus validation evidence, or an explicit bridge-only exception. |
 | `asset-world-shard-review` | Assets, world composition, zones, encounters, shard staging, and live events | Originality check, performance target, source/provenance receipt, rollback plan. |
 | `product-ux-review` | Player, creator, steward, admin, browser, desktop, mobile, VR, AR, or HoloShell UX | User-facing flow summary, hardware validation target, accessibility note, and founder-team product receipt when direction changes. |
-| `world-write-authority` | Live world state, Twin Earth, robot/AI, payment, inventory, rewards, moderation, or safety effects | Actor/session, permission, source hash, safety envelope, runtime outcome, rollback path. |
+| `world-write-authority` | Live world state, Twin Universe, robot/AI, payment, inventory, rewards, moderation, or safety effects | Actor/session, permission, source hash, safety envelope, runtime outcome, rollback path. |
 
 ## Prohibited Shortcuts
 

@@ -67,7 +67,7 @@
     "hololandMcpOwns": [
       "live-shard-operations",
       "frontier-gameplay-operations",
-      "twin-earth-anchors",
+      "twin-universe-anchors",
       "creator-publishing",
       "agent-stewardship",
       "brittney-and-npc-runtime-lineage",
@@ -136,7 +136,7 @@
     },
     {
       "id": "twin_earth_robot_ai",
-      "description": "Register and coordinate robot and AI actors in Twin Earth with capability, permission, and safety checks.",
+      "description": "Register and coordinate robot and AI actors in Twin Universe with capability, permission, and safety checks.",
       "sovereignTools": [
         "hololand_twin_earth_register_robot",
         "hololand_twin_earth_register_ai_actor",
@@ -433,12 +433,12 @@
       "index_spatial_object": {
         "family": "twin_earth_robot_ai",
         "sovereignTool": "hololand_twin_earth_operational_graph_query",
-        "reason": "Spatial indexing should live under Twin Earth operational graph semantics."
+        "reason": "Spatial indexing should live under Twin Universe operational graph semantics."
       },
       "query_spatial": {
         "family": "twin_earth_robot_ai",
         "sovereignTool": "hololand_twin_earth_operational_graph_query",
-        "reason": "Spatial reads should become Twin Earth operational graph queries."
+        "reason": "Spatial reads should become Twin Universe operational graph queries."
       },
       "semantic_spatial_query": {
         "family": "twin_earth_robot_ai",

@@ -28,12 +28,12 @@ const proofCases = [
     ],
   },
   {
-    id: 'twin-earth',
-    source: 'examples/twin-earth/first_playable_slice.holo',
-    role: 'source-to-earth-layer-player-loop-receipt',
+    id: 'twin-universe',
+    source: 'examples/twin-universe/first_playable_slice.holo',
+    role: 'source-to-twin-universe-player-loop-receipt',
     requiredSignals: [
-      ['native composition', /composition\s+"TwinEarthFirstPlayableSlice"/],
-      ['earth layer', /earth_layer\s*:/],
+      ['native composition', /composition\s+"TwinUniverseFirstPlayableSlice"/],
+      ['universe layer', /universe_layer\s*:/],
       ['geo anchors', /geo_anchors\s*:/],
       ['privacy rule', /privacy_rules\s*:/],
       ['player quest', /quest_type\s*:\s*"location_aware"/],

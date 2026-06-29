@@ -19,7 +19,7 @@ See [`docs/specs/HOLOLAND_BUILDER_PROOF_REBOOT.md`](specs/HOLOLAND_BUILDER_PROOF
 3. TypeScript in HoloLand is allowed as bootstrap, bridge, runtime infrastructure, hardware integration, and tests.
 4. Gameplay, world rules, simulation, IoT twin behavior, creator templates, quests, NPC behavior, and live-world semantics must have `.holo`, `.hs`, or `.hsplus` source.
 5. HoloLand owns proof loops that HoloScript does not need as developer substrate: agent builder shells, live render surfaces, interaction receipts, and hardware validation harnesses.
-6. HoloLand owns Twin Earth robot/AI operational substrate: actor identity, geospatial world state, sensor feeds, actuator permissions, task plans, safety envelopes, and real-world action receipts.
+6. HoloLand owns Twin Universe robot/AI operational substrate: actor identity, geospatial world state, sensor feeds, actuator permissions, task plans, safety envelopes, and real-world action receipts.
 7. HoloLand packages are enterprise/business solution assemblies that consume and combine HoloScript packages. They are also HoloScript benchmark gates, not human-user developer package surfaces.
 8. If HoloLand and HoloScript disagree about reusable language/runtime semantics, HoloScript wins. If the question is HoloLand's look, feel, content, player fantasy, or product direction, the founder team decides.
 9. Package install failures in stale legacy packages are not automatically HoloLand work. Fix them only when they block the active builder proof loop, an enterprise package gate, or a still-running deployment.
@@ -44,7 +44,7 @@ Before editing, classify the request:
 | New world/gameplay/VR feature | Implement in HoloLand using `.holo`, `.hs`, or `.hsplus`; upstream only missing reusable HoloScript primitives, validators, receipts, or runtime capabilities. |
 | HoloLand-specific asset/world/tool | Keep in HoloLand when it serves gamers, creators, shards, NPCs, encounters, visual direction, or live runtime operations rather than general HoloScript developers. |
 | Enterprise vertical package / benchmark gate | Define the business workflow, compose upstream HoloScript packages, require source/validation/runtime/render/interaction receipts, and upstream missing reusable primitives to HoloScript. |
-| Twin Earth robot/AI feature | Keep HoloLand product semantics in HoloLand: robot/AI actor registration, sensor/actuator binding, task planning, safety envelopes, geospatial operations, and action receipts. Upstream only reusable primitives and validators. |
+| Twin Universe robot/AI feature | Keep HoloLand product semantics in HoloLand: robot/AI actor registration, sensor/actuator binding, task planning, safety envelopes, geospatial operations, and action receipts. Upstream only reusable primitives and validators. |
 | External or forked HoloScript artifact | Treat as untrusted input until conformance, provenance, sandbox, permissions, and receipt gates pass. Do not give world-write, robot/AI, payment, or player-impact authority based on syntax alone. |
 | TypeScript runtime bridge | Keep TS minimal and justify why it is bridge-only. |
 | Brittney agent orchestration | May live here when it is part of HoloLand's product experience; document the HoloScript boundary. |
@@ -210,7 +210,7 @@ Do not:
 - Treat `.holo` as a decorative export after the real logic is already in TS.
 - Treat HoloLand as a compiler-parity demo for competitor runtimes. HoloLand proves native HoloScript worlds work for gamers.
 - Push HoloLand-only assets, art direction, shard tools, or gamer UX into HoloScript unless they reveal a reusable substrate gap.
-- Push Twin Earth robot/AI product operations into HoloScript unless the need is a reusable language, trait, validator, runtime, or receipt primitive.
+- Push Twin Universe robot/AI product operations into HoloScript unless the need is a reusable language, trait, validator, runtime, or receipt primitive.
 - Treat a HoloScript-looking fork, package, runtime adapter, or MCP tool as trusted because it parses.
 - Claim MCP or Absorb results without showing the tool/check used.
 - Invent HoloScript syntax without validation.

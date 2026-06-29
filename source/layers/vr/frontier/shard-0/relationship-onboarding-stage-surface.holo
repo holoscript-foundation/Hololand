@@ -2,6 +2,19 @@ composition "Relationship Onboarding Stage Surface" {
   // Family-facing funnel: no economy language, only measured soul depth.
   // Creator funnel can show earnings on day one outside this family surface.
 
+  metadata {
+    title: "Relationship Onboarding Stage Surface"
+    layer: "vr"
+    atlas: "source/runtime-atlas.holo"
+  }
+
+  state {
+    place_id: "relationship-onboarding-stage"
+    domains: ["emergence", "identity", "receipts", "privacy"]
+    verticals: ["entertainment", "education"]
+    required_receipts: ["emergence_credit_receipted", "compulsive_use_falsifier", "stage_surface_entered"]
+  }
+
   object "family_emergence_bar" {
     geometry: "panel"
     scale: [4.8, 1.2, 0.08]
@@ -50,6 +63,24 @@ composition "Relationship Onboarding Stage Surface" {
       economy_visible: false
       prompt: "take your daimon with you"
       requires_custody_score: 1
+    }
+  }
+
+  logic {
+    action write_receipt(kind, payload) {
+      emit("receipt_written", {
+        kind: kind,
+        payload: payload,
+        layer: "vr",
+        place_id: state.place_id,
+        source: "source/layers/vr/frontier/shard-0/relationship-onboarding-stage-surface.holo"
+      })
+      return true
+    }
+
+    on_start {
+      write_receipt("stage_surface_entered", state.place_id)
+      emit("relationship_onboarding_stage_surface_ready")
     }
   }
 }

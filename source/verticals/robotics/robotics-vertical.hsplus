@@ -1,4 +1,4 @@
-// Robotics vertical manifest for Twin Earth robot and AI operations.
+// Robotics vertical manifest for Twin Universe robot and AI operations.
 
 object "RoboticsVertical" {
   type: "runtime_vertical"
