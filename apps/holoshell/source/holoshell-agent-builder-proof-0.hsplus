@@ -1,0 +1,139 @@
+// HoloShell Agent Builder Proof 0
+//
+// This is the reboot tracer bullet for HoloLand:
+// agent intent -> HoloScript source -> validation -> render/run -> interaction -> receipt.
+// The source is the product contract. JavaScript in scripts/ is bridge-only.
+
+composition "HoloShell Agent Builder Proof 0" {
+  config {
+    title: "HoloShell Agent Builder Proof 0"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/holoshell-agent-builder-proof-0.hsplus"
+    builderCommand: "node scripts/holoshell-agent-builder-proof-0.mjs"
+    browserReceiptCommand: "node scripts/__tests__/holoshell-agent-builder-proof-0.test.mjs"
+    renderOutput: ".tmp/holoshell/agent-builder-proof-0/builder-proof.html"
+    receiptOutput: ".tmp/holoshell/agent-builder-proof-0/receipt.json"
+    validationTool: "mcp__holoscript.validate_holoscript"
+    bridgeScript: "scripts/holoshell-agent-builder-proof-0.mjs"
+    browserReceiptScript: "scripts/holoshell-agent-builder-proof-browser-receipt.mjs"
+  }
+
+  state {
+    agentIntentStatus: "captured"
+    sourceArtifactStatus: "inspectable"
+    validationStatus: "required"
+    renderStatus: "required"
+    runtimeStatus: "required"
+    interactionStatus: "required"
+    receiptStatus: "required"
+    packageGraphRestorationStatus: "not_required_for_this_proof"
+    r3fCompilerParityStatus: "not_the_goal"
+  }
+
+  channel "hololand:agent-builder-proof:0" {
+    type: "append_only"
+    priority: "critical"
+    description: "Agent-authored HoloScript builder proof rendered and receipted by HoloLand"
+  }
+
+  template "AgentBuilderProofReceipt" {
+    type: "agent_builder_proof_receipt"
+    receiptType: "hololand.holoshell.agent-builder-proof-0.v0.1.0"
+    requiredFields: [
+      "agent_intent",
+      "source_path",
+      "source_sha256",
+      "holoscript_validation",
+      "render_output",
+      "runtime_surface",
+      "interaction_receipt",
+      "browser_receipt"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "SourcePrecedesBridge" {
+    appliesTo: ["builder_script", "render_surface", "browser_receipt"]
+    sourceRequiredBeforeProjection: true
+    sourcePathMustBeVisible: true
+    sourceHashMustBeVisible: true
+    generatedSurfaceIsProjectionOnly: true
+    receiptRequired: true
+  }
+
+  policy "ValidateBeforeRender" {
+    appliesTo: ["agent_intent", "builder_proof", "render_surface"]
+    parserSourceOfTruth: "HoloScript MCP validate_holoscript"
+    includeWarnings: true
+    failureBlocksRenderClaim: true
+    localStructuralCheckAllowedAsBridgeGuard: true
+    receiptRequired: true
+  }
+
+  policy "RuntimeInteractionIsMandatory" {
+    appliesTo: ["browser_surface", "agent_builder_button", "receipt_panel"]
+    requiredVisibleFields: [
+      "agent_intent",
+      "source_path",
+      "validation_status",
+      "render_output",
+      "receipt_output"
+    ]
+    requiredInteraction: "click builder proof verification control"
+    interactionMustUpdateDom: true
+    browserReceiptRequired: true
+  }
+
+  policy "NotR3FCompilerTheatre" {
+    appliesTo: ["render_surface", "proof_report", "agent_handoff"]
+    compileTargetParityRequired: false
+    legacyPackageGraphRestorationRequired: false
+    proofGoal: "HoloScript language renders and runs for agents"
+    receiptRequired: true
+  }
+
+  action capture_agent_intent(intent) {
+    state.agentIntentStatus = "captured"
+
+    emit("hololand:agent-builder-proof:0", {
+      action: "agent_intent_captured",
+      intent: intent.summary,
+      source_path: config.sourcePath,
+      builder_command: config.builderCommand,
+      receipt_required: true
+    })
+  }
+
+  action accept_builder_receipt(receipt) {
+    state.sourceArtifactStatus = receipt.source.status
+    state.validationStatus = receipt.validation.status
+    state.renderStatus = receipt.render.status
+    state.runtimeStatus = receipt.runtime.status
+    state.receiptStatus = receipt.status
+
+    emit("hololand:agent-builder-proof:0", {
+      action: "builder_receipt_accepted",
+      status: receipt.status,
+      source_sha256: receipt.source.sha256,
+      validation_status: state.validationStatus,
+      render_output: receipt.render.html,
+      runtime_surface: receipt.runtime.surface,
+      browser_receipt_required: true
+    })
+  }
+
+  action accept_browser_interaction(receipt) {
+    state.interactionStatus = receipt.interaction.status
+
+    emit("hololand:agent-builder-proof:0", {
+      action: "browser_interaction_accepted",
+      status: receipt.status,
+      interaction_status: state.interactionStatus,
+      screenshot_sha256: receipt.evidence.screenshotSha256,
+      dom_sha256: receipt.evidence.domSha256,
+      receipt_required: true
+    })
+  }
+}
