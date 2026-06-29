@@ -106,6 +106,13 @@ The two repo-local GGUF weights were copied to the stable Jetson artifact lane:
 `brittney-edge:v0-4` before GGUF fallback, so laptop startup can use the current
 v0.4 model after repo-local GGUFs are removed.
 
+Local cleanup completed after the artifact receipt:
+
+- `models/brittney-qwen-v43-q8_0.gguf`: removed from the HoloLand checkout
+- `.proprietary/models/brittney-v1-expert.gguf`: removed from the HoloLand checkout
+- `node scripts/check-model-artifact-lanes.mjs --json`: `repoLocalModelDebt.ok`
+  is now `true`
+
 Broad TypeScript validation is blocked by unrelated legacy adapter parse errors
 under `packages/adapters/three/src/react/studio/**`; this is package-garden
 debt, not a model-lane regression.
