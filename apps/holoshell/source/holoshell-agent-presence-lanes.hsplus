@@ -105,6 +105,15 @@ composition "HoloShell Agent Presence Lanes" {
       semanticPrefix: "[lane:codex-hardware agent:codex surface:hardware_shell]"
     }
 
+    object "LaptopHardwareLane" using "AgentLane" {
+      laneId: "laptop-hardware"
+      label: "Laptop Hardware"
+      agentKind: "hardware"
+      surfaceKind: "windows_laptop"
+      colorHex: "#06B6D4"
+      semanticPrefix: "[lane:laptop-hardware agent:hardware surface:windows_laptop]"
+    }
+
     object "ClaudeDesktopLane" using "AgentLane" {
       laneId: "claude-desktop"
       label: "Claude Desktop"

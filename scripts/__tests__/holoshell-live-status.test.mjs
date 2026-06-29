@@ -73,8 +73,13 @@ try {
   assert.ok(status.systemStatus.capabilities.includes('codebase_fix_shakedown'));
   assert.ok(status.systemStatus.capabilities.includes('holotune_trace_deferred'));
   assert.ok(status.systemStatus.capabilities.includes('desktop_bridge_browser_report'));
+  assert.ok(status.systemStatus.capabilities.includes('laptop_hardware_reasoning_receipts'));
+  assert.equal(status.systemStatus.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(status.systemStatus.lanes.some((lane) =>
     lane.id === 'codebase_fix' && /actual patch|validation/i.test(lane.role)
+  ));
+  assert.ok(status.systemStatus.lanes.some((lane) =>
+    lane.id === 'laptop_hardware' && /GPU telemetry truth|reasoning dispatch/i.test(lane.role)
   ));
   assert.ok(status.systemStatus.lanes.some((lane) =>
     lane.id === 'vision_language' && /screen and image|vision model stack/i.test(lane.role)
@@ -87,6 +92,7 @@ try {
   assert.match(status.reply, /Improvement runs:/);
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'summarize_live_system_status'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_gpu_lane_balance'));
+  assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_laptop_hardware_reasoning_receipt'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_model_library'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'inspect_holoclaw_skill_shelf'));
   assert.ok(status.proposals.some((proposal) => proposal.operation === 'queue_codebase_fix_shakedown_batch'));
@@ -123,7 +129,7 @@ try {
   assert.equal(guardrail.receiptType, 'hololand.holoshell.brittney-turn.v0.1.0');
 
   const laptopReasoning = await postChat(
-    'Brittney, send a read-only reasoning job to the laptop Codex lane so it can inspect the repo/backend/autonomy seams and return a receipt.'
+    'Brittney, send a read-only reasoning job to the laptop hardware lane so it can inspect the repo/backend/autonomy seams and return a receipt.'
   );
   assert.equal(laptopReasoning.systemStatus, null);
   assert.doesNotMatch(laptopReasoning.reply, /System status: online/);

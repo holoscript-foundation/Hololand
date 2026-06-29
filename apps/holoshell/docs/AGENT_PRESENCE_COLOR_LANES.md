@@ -47,7 +47,8 @@ metadata are what agents trust.
 
 | Lane | Surface | Human color | ANSI | Purpose |
 | --- | --- | --- | --- | --- |
-| `codex-hardware` | Hardware shell | `#0087D7` | `38;5;33` | Local execution, build proof, hardware validation. |
+| `codex-hardware` | Hardware shell | `#0087D7` | `38;5;33` | Codex/OpenAI-family local execution, build proof, and hardware validation. |
+| `laptop-hardware` | Windows laptop | `#06B6D4` | `38;5;44` | Laptop reasoning, GPU telemetry, and validation receipts independent of agent family label. |
 | `claude-desktop` | Desktop app | `#D97706` | `38;5;208` | Reasoning partner and broad task framing. |
 | `claude-code` | IDE | `#7C3AED` | `38;5;99` | Deep codebase refactors and long-context edits. |
 | `gemini-antigravity` | Browser/vision | `#10B981` | `38;5;35` | Multimodal browser and visual verification. |
@@ -78,6 +79,7 @@ HoloShell should use active lane count as a capability signal. More live lanes
 means more available operating modes:
 
 - Codex lane active: local build, hardware, filesystem, WASM, and GPU proof.
+- Laptop hardware lane active: laptop result receipts, GPU telemetry, and model-invocation truth are visible.
 - Claude lane active: deep reasoning and long-context planning.
 - Gemini/Antigravity lane active: visual and browser witness paths.
 - Grok Build lane active: xAI coding-agent critique and peer observations.

@@ -13,7 +13,7 @@ const turnsDir = path.join(outDir, 'turns');
 
 const prompt = [
   'Brittney, this is a large reasoning ask.',
-  'Have the Jetson keep serving the app, but send a read-only reasoning job to the laptop Codex lane.',
+  'Have the Jetson keep serving the app, but send a read-only reasoning job to the laptop hardware lane.',
   'The laptop should inspect repo/autonomy/backend seams, separate cloud and local focus, and return a receipt before any mutation.',
   'We need the dispatch to happen autonomously based on the prompt shape, not because a human manually opened Codex.',
 ].join(' ');
@@ -49,7 +49,7 @@ assert.equal(delegation.dispatchKind, 'reasoning_job');
 assert.equal(delegation.permissionEnvelope, 'read_only');
 assert.equal(delegation.approvalRequired, false);
 assert.equal(delegation.targetHost, 'laptop_windows');
-assert.equal(delegation.lane, 'codex-hardware');
+assert.equal(delegation.lane, 'laptop-hardware');
 assert.equal(delegation.agentLane, 'local');
 assert.equal(delegation.canonicalProviderId, 'laptop-ollama');
 assert.equal(delegation.workload, 'heavy_reasoning');
@@ -67,7 +67,7 @@ assert.ok(existsSync(delegation.dispatchReceiptPath), `expected dispatch receipt
 const dispatchReceipt = JSON.parse(readFileSync(delegation.dispatchReceiptPath, 'utf8'));
 assert.equal(dispatchReceipt.summary.capabilityId, 'laptop_reasoning_job');
 assert.equal(dispatchReceipt.dispatch.body.targetHost, 'laptop_windows');
-assert.equal(dispatchReceipt.dispatch.body.lane, 'codex-hardware');
+assert.equal(dispatchReceipt.dispatch.body.lane, 'laptop-hardware');
 assert.equal(dispatchReceipt.dispatch.body.agentLane, 'local');
 assert.equal(dispatchReceipt.dispatch.body.canonicalProviderId, 'laptop-ollama');
 assert.equal(dispatchReceipt.dispatch.body.reuseBeforeBuild, true);

@@ -361,7 +361,7 @@ const runtimeScript = `  <script>
       if (!mount) return;
       mount.textContent = '';
       var cards = ((capsule && capsule.actionCards) || []).filter(function(card) {
-        return card && (card.primaryAction || card.id === 'desktop_control_plan' || card.id === 'context_capsule');
+        return card && (card.primaryAction || card.id === 'desktop_control_plan' || card.id === 'context_capsule' || card.id === 'laptop_reasoning_status');
       }).slice(0, 8);
       if (!cards.length) {
         mount.textContent = 'no cards reported';
@@ -384,6 +384,7 @@ const runtimeScript = `  <script>
       _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
       _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
+      _setText('cockpit-reasoning', _laneText(_lane(capsule, 'laptop_reasoning')));
       _setText('cockpit-windows', _laneText(_lane(capsule, 'window_awareness')));
       _setText('cockpit-terminal', _laneText(_lane(capsule, 'operator_terminal')));
       var cards = (capsule && capsule.actionCards) || [];
@@ -657,6 +658,7 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
         '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
         '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Reasoning</strong><span id="cockpit-reasoning">checking</span></div>' +
         '<div class="cockpit-card"><strong>Terminal</strong><span id="cockpit-terminal">checking</span></div>' +
         '<div class="cockpit-card"><strong>Windows</strong><span id="cockpit-windows">checking</span></div>' +
         '<div class="cockpit-card"><strong>Tools</strong><span id="cockpit-actions">checking</span></div>' +
@@ -689,7 +691,7 @@ const runtimeScript = `  <script>
       document.getElementById('brittney-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBrittneyChat(); });
       document.getElementById('improvement-objective').addEventListener('keydown', function(e) { if (e.key === 'Enter') queueImprovementRun(); });
       document.getElementById('brittney-input').focus();
-      _bMsg('Brittney', 'Online — routed across both owned GPUs ($0). Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
+      _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
       loadImprovementRuns();
     }
     document.addEventListener('DOMContentLoaded', initBrittneyChat);

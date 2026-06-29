@@ -35,7 +35,7 @@ assert.equal(laptopReasoning.summary.dispatchKind, 'reasoning_job');
 assert.equal(laptopReasoning.summary.permissionEnvelope, 'read_only');
 assert.equal(laptopReasoning.summary.approvalRequired, false);
 assert.equal(laptopReasoning.dispatch.body.targetHost, 'laptop_windows');
-assert.equal(laptopReasoning.dispatch.body.lane, 'codex-hardware');
+assert.equal(laptopReasoning.dispatch.body.lane, 'laptop-hardware');
 assert.equal(laptopReasoning.dispatch.body.agentLane, 'local');
 assert.equal(laptopReasoning.dispatch.body.canonicalProviderId, 'laptop-ollama');
 assert.equal(laptopReasoning.dispatch.body.workload, 'heavy_reasoning');

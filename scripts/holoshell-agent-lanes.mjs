@@ -19,6 +19,15 @@ const RESERVED_LANES = [
     color: { name: 'electric blue', hex: '#0087D7', ansiSgr: '38;5;33' },
   },
   {
+    laneId: 'laptop-hardware',
+    displayName: 'Laptop Hardware',
+    agentKind: 'hardware',
+    surfaceKind: 'windows_laptop',
+    role: 'gpu_reasoning_and_validation',
+    processHints: ['ollama', 'nvidia-smi', 'codex'],
+    color: { name: 'cyan', hex: '#06B6D4', ansiSgr: '38;5;44' },
+  },
+  {
     laneId: 'claude-desktop',
     displayName: 'Claude Desktop',
     agentKind: 'claude',
@@ -282,6 +291,7 @@ function assertSelfTest(manifest) {
   if (manifest.summary.colorLaneCount !== manifest.summary.laneCount) failures.push('lane colors must be unique');
   if (manifest.summary.semanticLaneCount !== manifest.summary.laneCount) failures.push('every lane needs semantic prefix');
   if (!manifest.lanes.some((lane) => lane.laneId === 'codex-hardware')) failures.push('missing Codex hardware lane');
+  if (!manifest.lanes.some((lane) => lane.laneId === 'laptop-hardware')) failures.push('missing laptop hardware lane');
   if (!manifest.lanes.some((lane) => lane.laneId === 'local-shell')) failures.push('missing local shell lane');
   if (!manifest.lanes.some((lane) => lane.laneId === 'grok-build')) failures.push('missing Grok Build lane');
   const grokLane = manifest.lanes.find((lane) => lane.laneId === 'grok-build');

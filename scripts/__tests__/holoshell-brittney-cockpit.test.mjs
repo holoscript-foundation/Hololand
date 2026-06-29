@@ -94,8 +94,13 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'route_health' && lane.sourceEndpoint === 'GET /api/cockpit/capsule'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'context_carry' && /goal, files, tests/.test(lane.detail)));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'desktop_bridge' && lane.receiptRequired === true));
+  assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'laptop_reasoning' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
+  assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
+  assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
+  assert.equal(capsule.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(capsule.actionCards.some((card) => card.id === 'desktop_control_plan' && card.permissionEnvelope === 'read_only_plan'));
+  assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'context_capsule' && card.href === '/api/cockpit/capsule'));
   assert.ok(capsule.windowAwareness);
   assert.equal(capsule.windowAwareness.status, 'windows_visible');
@@ -140,14 +145,18 @@ try {
   assert.match(hsplusSource, /DesktopMutationStaysBehindHoloGate/);
   assert.match(hsplusSource, /ContextCapsuleCarriesIdentityAcrossCompaction/);
   assert.match(hsplusSource, /WindowAwarePreflightCards/);
+  assert.match(hsplusSource, /LaptopReasoningPingbackIsVisible/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /brittney_cockpit_source/);
+  assert.match(operateRoomSource, /laptop_reasoning_lane: "laptop-hardware"/);
   assert.match(operateRoomSource, /GET \/api\/cockpit\/capsule/);
 
   const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
   assert.match(compileSource, /brittney-cockpit/);
   assert.match(compileSource, /loadCockpitCapsule/);
+  assert.match(compileSource, /cockpit-reasoning/);
+  assert.match(compileSource, /laptop_reasoning_status/);
   assert.match(compileSource, /cockpit-action-cards/);
   assert.match(compileSource, /\/api\/cockpit\/capsule/);
 } finally {

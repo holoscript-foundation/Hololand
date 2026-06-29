@@ -25,7 +25,7 @@ composition "HoloShell Laptop Reasoning Worker" {
     capabilityId: "laptop_reasoning_job"
     sourceHost: "jetson_holoshell_surface"
     targetHost: "laptop_windows"
-    lane: "codex-hardware"
+    lane: "laptop-hardware"
     agentLane: "local"
     canonicalProviderId: "laptop-ollama"
     workload: "heavy_reasoning"
@@ -40,6 +40,13 @@ composition "HoloShell Laptop Reasoning Worker" {
     vastSpendGuardAttached: false
     localFocusCount: 0
     cloudFocusCount: 0
+    reasoningExecutionMode: "receipt_consumption_only"
+    modelInvocationPerformed: false
+    deterministicReceiptOnly: true
+    laptopGpuStatus: "unknown"
+    laptopGpuSummary: ""
+    laptopGpuProcessCount: 0
+    brittneyPingbackStatus: "unknown"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -70,7 +77,7 @@ composition "HoloShell Laptop Reasoning Worker" {
     dispatchKind: "reasoning_job"
     sourceHost: "jetson_holoshell_surface"
     targetHost: "laptop_windows"
-    lane: "codex-hardware"
+    lane: "laptop-hardware"
     agentLane: "local"
     canonicalProviderId: "laptop-ollama"
     permissionEnvelope: "read_only"
@@ -108,11 +115,28 @@ composition "HoloShell Laptop Reasoning Worker" {
     permissionEnvelope: "read_only"
     modelInvocationPerformed: false
     deterministicReceiptOnly: true
+    reasoningExecutionMode: "receipt_consumption_only"
+    laptopGpuStatus: "reported_or_not_reported"
+    laptopGpuSummary: ""
+    brittneyPingbackStatus: "ready_for_brittney"
     goldRootStatus: "mounted_on_laptop"
     useLocalLaptopFirst: true
     useVastOnlyWithSpendGuard: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "BrittneyLaptopReasoningPingback" {
+    type: "brittney_laptop_reasoning_pingback"
+    channel: "laptop_reasoning_result"
+    target: "brittney_holoshell_turn"
+    lane: "laptop-hardware"
+    status: "ready_for_brittney"
+    modelInvocationPerformed: false
+    deterministicReceiptOnly: true
+    gpuStatus: "unknown"
+    message: ""
     receiptRequired: true
   }
 
@@ -123,6 +147,9 @@ composition "HoloShell Laptop Reasoning Worker" {
     mutating: false
     executionAllowed: false
     modelInvocationPerformedByWorker: false
+    reasoningExecutionMode: "receipt_consumption_only"
+    gpuUseClaimAllowedWithoutTelemetry: false
+    brittneyPingbackRequired: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -188,6 +215,13 @@ composition "HoloShell Laptop Reasoning Worker" {
     state.vastSpendGuardAttached = receipt.summary.vastSpendGuardAttached
     state.localFocusCount = receipt.summary.localFocusCount
     state.cloudFocusCount = receipt.summary.cloudFocusCount
+    state.reasoningExecutionMode = receipt.summary.reasoningExecutionMode
+    state.modelInvocationPerformed = receipt.summary.modelInvocationPerformed
+    state.deterministicReceiptOnly = receipt.summary.deterministicReceiptOnly
+    state.laptopGpuStatus = receipt.summary.laptopGpuStatus
+    state.laptopGpuSummary = receipt.summary.laptopGpuSummary
+    state.laptopGpuProcessCount = receipt.summary.laptopGpuProcessCount
+    state.brittneyPingbackStatus = receipt.summary.brittneyPingbackStatus
     state.destructiveActionsTaken = receipt.summary.destructiveActionsTaken
     state.desktopAutomationExecuted = receipt.summary.desktopAutomationExecuted
     emit("holoshell:laptop-reasoning:result", {
@@ -198,6 +232,11 @@ composition "HoloShell Laptop Reasoning Worker" {
       gold_root_status: state.goldRootStatus,
       gold_usable: state.goldUsable,
       vast_spend_guard_attached: state.vastSpendGuardAttached,
+      reasoning_execution_mode: state.reasoningExecutionMode,
+      model_invocation_performed: state.modelInvocationPerformed,
+      laptop_gpu_status: state.laptopGpuStatus,
+      laptop_gpu_process_count: state.laptopGpuProcessCount,
+      brittney_pingback_status: state.brittneyPingbackStatus,
       local_focus_count: state.localFocusCount,
       cloud_focus_count: state.cloudFocusCount,
       destructive_actions_taken: false,

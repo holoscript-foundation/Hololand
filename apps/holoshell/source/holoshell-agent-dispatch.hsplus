@@ -107,7 +107,7 @@ composition "HoloShell Agent Dispatch" {
   template "LaptopReasoningJob" {
     type: "laptop_reasoning_job"
     targetHost: "laptop_windows"
-    lane: "codex-hardware"
+    lane: "laptop-hardware"
     agentLane: "local"
     canonicalProviderId: "laptop-ollama"
     workload: "heavy_reasoning"
@@ -155,7 +155,7 @@ composition "HoloShell Agent Dispatch" {
     appliesTo: ["laptop_reasoning_job"]
     sourceHost: "jetson_holoshell_surface"
     targetHost: "laptop_windows"
-    lane: "codex-hardware"
+    lane: "laptop-hardware"
     agentLane: "local"
     canonicalProviderId: "laptop-ollama"
     workload: "heavy_reasoning"

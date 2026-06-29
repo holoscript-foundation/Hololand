@@ -357,6 +357,11 @@ export function processPendingDispatches(options = {}) {
         status: persisted.status,
         dispatchPath: normalizeReceiptPath(resolvedDispatchPath),
         resultPath: normalizeReceiptPath(persisted.output.archivePath),
+        lane: persisted.summary?.lane || persisted.inputDispatch?.lane || '',
+        modelInvocationPerformed: Boolean(persisted.summary?.modelInvocationPerformed),
+        laptopGpuStatus: persisted.summary?.laptopGpuStatus || '',
+        laptopGpuSummary: persisted.summary?.laptopGpuSummary || '',
+        brittneyPingbackStatus: persisted.summary?.brittneyPingbackStatus || persisted.brittneyPingback?.status || '',
         remote,
       });
     } catch (error) {
@@ -420,6 +425,11 @@ export function processPendingDispatches(options = {}) {
       pushedCount: processed.filter((item) => item.remote).length,
       latestResultId: processed.at(-1)?.resultId || '',
       latestDispatchId: processed.at(-1)?.dispatchId || '',
+      latestLane: processed.at(-1)?.lane || '',
+      latestLaptopGpuStatus: processed.at(-1)?.laptopGpuStatus || '',
+      latestLaptopGpuSummary: processed.at(-1)?.laptopGpuSummary || '',
+      latestBrittneyPingbackStatus: processed.at(-1)?.brittneyPingbackStatus || '',
+      latestModelInvocationPerformed: Boolean(processed.at(-1)?.modelInvocationPerformed),
       destructiveActionsTaken: false,
       desktopAutomationExecuted: false,
       receiptRequired: true,
@@ -448,7 +458,7 @@ export function runSelfTest(options = {}) {
       body: {
         sourceHost: 'jetson_holoshell_surface',
         targetHost: 'laptop_windows',
-        lane: 'codex-hardware',
+        lane: 'laptop-hardware',
         agentLane: 'local',
         canonicalProviderId: 'laptop-ollama',
         workload: 'heavy_reasoning',

@@ -38,6 +38,7 @@ const HOLOSHELL_SPEND_POLICY_REF = 'C:/Users/josep/.ai-ecosystem/scripts/holoshe
 const VAST_ESCALATION_GATE_REF = 'C:/Users/josep/.ai-ecosystem/scripts/vast-escalation-gate.mjs';
 const FLEET_OUTPUT_CONTRACT_REF = 'C:/Users/josep/.ai-ecosystem/docs/contracts/fleet-output-contract.v2.schema.json';
 const HOLOTUNE_TRAIN_REF = 'C:/Users/josep/.ai-ecosystem/compositions/holotune-train.hsplus';
+const LAPTOP_REASONING_LANE = 'laptop-hardware';
 
 const OLLAMA_AGENTS = [
   { slug: 'claude', label: 'Claude Code', aliases: ['claude code', 'anthropic'] },
@@ -522,7 +523,7 @@ function buildRouteBody(capability, args, agent) {
       delegationMode: 'jetson_autonomous_large_prompt_router',
       sourceHost: 'jetson_holoshell_surface',
       targetHost: 'laptop_windows',
-      lane: 'codex-hardware',
+      lane: LAPTOP_REASONING_LANE,
       agentLane: resourcePlan.agentLane,
       canonicalProviderId: resourcePlan.canonicalProviderId,
       workload: resourcePlan.workload,

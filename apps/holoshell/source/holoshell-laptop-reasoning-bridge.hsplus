@@ -30,6 +30,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     bridgeId: ""
     latestDispatchId: ""
     latestResultId: ""
+    latestLane: "laptop-hardware"
+    latestLaptopGpuStatus: "unknown"
+    latestBrittneyPingbackStatus: "unknown"
+    latestModelInvocationPerformed: false
     pulledCount: 0
     processedCount: 0
     pushedCount: 0
@@ -73,6 +77,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     errorCount: 0
     latestDispatchId: ""
     latestResultId: ""
+    latestLane: "laptop-hardware"
+    latestLaptopGpuStatus: "unknown"
+    latestBrittneyPingbackStatus: "ready_for_brittney"
+    latestModelInvocationPerformed: false
     permissionEnvelope: "read_only"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -102,6 +110,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
     state.bridgeId = receipt.bridgeId
     state.latestDispatchId = receipt.summary.latestDispatchId
     state.latestResultId = receipt.summary.latestResultId
+    state.latestLane = receipt.summary.latestLane
+    state.latestLaptopGpuStatus = receipt.summary.latestLaptopGpuStatus
+    state.latestBrittneyPingbackStatus = receipt.summary.latestBrittneyPingbackStatus
+    state.latestModelInvocationPerformed = receipt.summary.latestModelInvocationPerformed
     state.pulledCount = receipt.summary.pulledCount
     state.processedCount = receipt.summary.processedCount
     state.pushedCount = receipt.summary.pushedCount
@@ -114,6 +126,10 @@ composition "HoloShell Laptop Reasoning Bridge" {
       status: state.bridgeStatus,
       latest_dispatch_id: state.latestDispatchId,
       latest_result_id: state.latestResultId,
+      latest_lane: state.latestLane,
+      latest_laptop_gpu_status: state.latestLaptopGpuStatus,
+      latest_brittney_pingback_status: state.latestBrittneyPingbackStatus,
+      latest_model_invocation_performed: state.latestModelInvocationPerformed,
       pulled_count: state.pulledCount,
       processed_count: state.processedCount,
       pushed_count: state.pushedCount,

@@ -19,6 +19,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     windowInventorySource: "apps/holoshell/source/holoshell-legacy-window-inventory.hsplus"
     desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
     browserTerminalCouplingSource: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
+    laptopReasoningWorkerSource: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
+    laptopReasoningBridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
     capsuleEndpoint: "GET /api/cockpit/capsule"
     liveStatusEndpoint: "GET /api/live-status"
     operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
@@ -35,6 +37,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
     routeStatus: "unknown"
     contextCarryStatus: "unknown"
     desktopBridgeStatus: "unknown"
+    laptopReasoningStatus: "unknown"
+    laptopReasoningLane: "laptop-hardware"
+    laptopReasoningModelInvocationPerformed: false
+    laptopReasoningGpuStatus: "unknown"
+    laptopReasoningPingbackStatus: "unknown"
     operatorTerminalStatus: "unknown"
     windowAwarenessStatus: "unknown"
     toolActionStatus: "unknown"
@@ -137,6 +144,14 @@ composition "HoloShell Brittney Desktop Cockpit" {
       status: $desktopBridgeStatus
     }
 
+    object "LaptopReasoning" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Reasoning"
+      status: $laptopReasoningStatus
+      lane: $laptopReasoningLane
+    }
+
     object "OperatorTerminal" {
       type: "ui"
       uiType: "cockpit_lane"
@@ -205,12 +220,28 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receiptRequired: true
   }
 
+  policy "LaptopReasoningPingbackIsVisible" {
+    appliesTo: ["laptop_reasoning", "laptop_hardware", "brittney_turn"]
+    source: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
+    bridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
+    lane: "laptop-hardware"
+    requireBrittneyPingback: true
+    distinguishReceiptOnlyFromModelInvocation: true
+    gpuTelemetryVisible: true
+    receiptRequired: true
+  }
+
   action consume_cockpit_capsule(capsule) {
     state.status = capsule.status
     state.runtimeTruthStatus = capsule.summary.runtimeTruthStatus
     state.routeStatus = capsule.summary.routeStatus
     state.contextCarryStatus = capsule.summary.contextCarryStatus
     state.desktopBridgeStatus = capsule.summary.desktopBridgeStatus
+    state.laptopReasoningStatus = capsule.summary.laptopReasoningStatus
+    state.laptopReasoningLane = capsule.summary.laptopReasoningLane
+    state.laptopReasoningModelInvocationPerformed = capsule.summary.laptopReasoningModelInvocationPerformed
+    state.laptopReasoningGpuStatus = capsule.summary.laptopReasoningGpuStatus
+    state.laptopReasoningPingbackStatus = capsule.summary.laptopReasoningPingbackStatus
     state.operatorTerminalStatus = capsule.summary.operatorTerminalStatus
     state.windowAwarenessStatus = capsule.summary.windowAwarenessStatus
     state.toolActionStatus = capsule.summary.toolActionStatus
@@ -231,6 +262,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
       routes: state.routeStatus,
       contextCarry: state.contextCarryStatus,
       desktopBridge: state.desktopBridgeStatus,
+      laptopReasoning: state.laptopReasoningStatus,
+      laptopReasoningLane: state.laptopReasoningLane,
+      laptopReasoningModelInvocationPerformed: state.laptopReasoningModelInvocationPerformed,
+      laptopReasoningGpuStatus: state.laptopReasoningGpuStatus,
+      laptopReasoningPingbackStatus: state.laptopReasoningPingbackStatus,
       operatorTerminal: state.operatorTerminalStatus,
       windowAwareness: state.windowAwarenessStatus,
       toolActions: state.toolActionStatus,

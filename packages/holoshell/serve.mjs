@@ -650,6 +650,48 @@ function gpuStatusSnapshot() {
   }
 }
 
+function laptopReasoningStatusSnapshot() {
+  const bridge = readHoloShellTmpJson('laptop-reasoning-bridge-latest.json');
+  const result = readHoloShellTmpJson('laptop-reasoning-result-latest.json');
+  const service = readHoloShellTmpJson('laptop-reasoning-bridge-service.json');
+  const resultSummary = result?.summary || {};
+  const bridgeSummary = bridge?.summary || {};
+  const serviceSummary = service?.summary || {};
+  const status = resultSummary.status || bridgeSummary.status || serviceSummary.serviceStatus || 'waiting_for_dispatch';
+  const lane = resultSummary.lane || bridgeSummary.latestLane || 'laptop-hardware';
+  const modelInvocationPerformed = Boolean(resultSummary.modelInvocationPerformed);
+  const deterministicReceiptOnly = result?.result?.deterministicReceiptOnly !== undefined
+    ? Boolean(result.result.deterministicReceiptOnly)
+    : Boolean(resultSummary.deterministicReceiptOnly);
+  const gpuStatus = resultSummary.laptopGpuStatus || bridgeSummary.latestLaptopGpuStatus || 'not_reported';
+  const gpuSummary = resultSummary.laptopGpuSummary
+    || bridgeSummary.latestLaptopGpuSummary
+    || 'No laptop reasoning GPU receipt has been reported yet';
+  const pingbackStatus = resultSummary.brittneyPingbackStatus || bridgeSummary.latestBrittneyPingbackStatus || result?.brittneyPingback?.status || '';
+  const mode = resultSummary.reasoningExecutionMode || result?.result?.reasoningExecutionMode || 'waiting_for_result_receipt';
+  const detail = resultSummary.resultId
+    ? `${lane}; ${mode}; modelInvocationPerformed=${modelInvocationPerformed ? 'true' : 'false'}; ${gpuSummary}`
+    : `${lane}; ${serviceSummary.serviceStatus || bridgeSummary.status || 'waiting'}; ${gpuSummary}`;
+  return {
+    status,
+    lane,
+    resultId: resultSummary.resultId || result?.resultId || '',
+    dispatchId: resultSummary.dispatchId || result?.inputDispatch?.dispatchId || bridgeSummary.latestDispatchId || '',
+    bridgeStatus: bridgeSummary.status || 'unknown',
+    serviceStatus: serviceSummary.serviceStatus || 'unknown',
+    modelInvocationPerformed,
+    deterministicReceiptOnly,
+    reasoningExecutionMode: mode,
+    gpuStatus,
+    gpuSummary,
+    gpuUtilizationPercent: resultSummary.laptopGpuUtilizationPercent ?? null,
+    gpuProcessCount: resultSummary.laptopGpuProcessCount || 0,
+    pingbackStatus,
+    summary: detail,
+    source: result?.sourceAnchors?.workerScript || bridge?.sourceAnchors?.bridgeScript || 'scripts/holoshell-laptop-reasoning-worker.mjs',
+  };
+}
+
 function gitStatusSnapshot() {
   return SCAN_REPOS
     .filter((repo) => existsSync(join(repo.path, '.git')))
@@ -1816,6 +1858,7 @@ function buildLiveStatusSnapshot() {
   const stale = staleProcesses();
   const modelLibrary = modelLibrarySnapshot();
   const nativeResources = nativeResourceSnapshot();
+  const laptopReasoning = laptopReasoningStatusSnapshot();
   return {
     schemaVersion: 'hololand.holoshell.live-status.v0.1.0',
     generatedAt: new Date().toISOString(),
@@ -1861,6 +1904,7 @@ function buildLiveStatusSnapshot() {
       'gpu_lane_balance',
       'desktop_bridge_status',
       'desktop_bridge_browser_report',
+      'laptop_hardware_reasoning_receipts',
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
@@ -1868,6 +1912,7 @@ function buildLiveStatusSnapshot() {
       { id: 'holo_sdf_geometry', model: 'holo-sdf:v0', role: 'text/image to SDFNode geometry' },
       { id: 'vision_language', model: 'qwen3-vl:4b', role: 'vision model stack for screen and image understanding' },
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
+      { id: 'laptop_hardware', model: 'laptop-ollama receipt route', role: 'laptop reasoning dispatch/result receipts with GPU telemetry truth' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
@@ -1876,6 +1921,7 @@ function buildLiveStatusSnapshot() {
     modelLibrary,
     nativeResources,
     gpu: gpuStatusSnapshot(),
+    laptopReasoning,
     substratePressure: substratePressure(),
     worktreeHealth: worktreeHealth(),
     gitStatus: gitStatusSnapshot(),
@@ -1930,6 +1976,7 @@ function formatLiveStatusBrief(snapshot) {
     `Model library: ${modelLibrarySummary(snapshot)}`,
     `Native resources: ${nativeResourceSummary(snapshot)}`,
     `GPU telemetry: ${snapshot.gpu.summary}`,
+    `Laptop reasoning: ${snapshot.laptopReasoning.summary}`,
     `Substrate pressure: ${metricSummary(snapshot.substratePressure)}`,
     `Worktrees: ${gitSummary(snapshot.gitStatus)}`,
     `Pending consent receipts: ${snapshot.pendingConsentCount}`,
@@ -1949,7 +1996,7 @@ function buildGroundedStatusReply(snapshot, message) {
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara stays the guarded desktop automation lane at ${snapshot.route.desktopControlEndpoint}.`,
       `3. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
       `4. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
-      `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}.`,
+      `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
       `6. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
       `7. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
       `8. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
@@ -1968,6 +2015,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
     `GPU balance: ${snapshot.gpu.summary}.`,
+    `Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
     `Local guardrails: ${baseGuardrails}.`,
     `Worktrees: ${gitSummary(snapshot.gitStatus)}.`,
     `Substrate pressure: ${metricSummary(snapshot.substratePressure)}.`,
@@ -1984,6 +2032,11 @@ function liveStatusProposals(snapshot, message) {
     {
       operation: 'inspect_gpu_lane_balance',
       lane: 'owned_gpu_fleet',
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_laptop_hardware_reasoning_receipt',
+      lane: 'laptop-hardware',
       receiptRequired: true,
     },
     {
@@ -2069,6 +2122,7 @@ function liveStatusResponseEnvelope(snapshot) {
     modelLibrary: snapshot.modelLibrary,
     nativeResources: snapshot.nativeResources,
     gpu: snapshot.gpu,
+    laptopReasoning: snapshot.laptopReasoning,
     pendingConsentCount: snapshot.pendingConsentCount,
     staleProcessCount: snapshot.staleProcessCount,
     recentExecutionCount: snapshot.recentExecutionCount,
@@ -2092,6 +2146,12 @@ function buildBrittneyCockpitCapsule() {
   const operatorTerminalStatus = operatorTerminal.terminal.status === 'ready' ? 'ready' : 'attention';
   const windowAwarenessStatus = windowAwareness.status === 'windows_visible' ? 'ready' : 'attention';
   const toolActionStatus = 'window_preflights_ready';
+  const laptopReasoning = liveStatus.laptopReasoning || laptopReasoningStatusSnapshot();
+  const laptopReasoningStatus = ['completed', 'partial'].includes(laptopReasoning.status)
+    ? 'ready'
+    : ['blocked', 'error'].includes(laptopReasoning.status)
+      ? 'attention'
+      : 'waiting';
   const cockpitLanes = [
     {
       id: 'runtime_truth',
@@ -2133,6 +2193,16 @@ function buildBrittneyCockpitCapsule() {
         : `${desktopBridge.hostRole}; ${desktopBridge.expectedDaemon}`,
       sourceEndpoint: 'GET /api/desktop-control/bridge',
       permissionEnvelope: desktopBridge.approvalRequiredForDesktopAutomation ? 'guarded_execute' : 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'laptop_reasoning',
+      label: 'Reasoning',
+      status: laptopReasoningStatus,
+      value: laptopReasoning.status,
+      detail: laptopReasoning.summary,
+      sourceEndpoint: 'GET /api/live-status',
+      permissionEnvelope: 'read_only',
       receiptRequired: true,
     },
     {
@@ -2185,6 +2255,16 @@ function buildBrittneyCockpitCapsule() {
       method: 'GET',
       href: '/api/desktop-control/bridge',
       lane: 'desktop_bridge',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'laptop_reasoning_status',
+      label: 'Laptop Reasoning',
+      method: 'GET',
+      href: '/api/live-status',
+      lane: 'laptop-hardware',
       permissionEnvelope: 'read_only',
       mayExecuteWithoutConsent: true,
       receiptRequired: true,
@@ -2245,9 +2325,14 @@ function buildBrittneyCockpitCapsule() {
       routeStatus,
       contextCarryStatus,
       desktopBridgeStatus,
+      laptopReasoningStatus,
       operatorTerminalStatus,
       windowAwarenessStatus,
       toolActionStatus,
+      laptopReasoningLane: laptopReasoning.lane,
+      laptopReasoningModelInvocationPerformed: laptopReasoning.modelInvocationPerformed,
+      laptopReasoningGpuStatus: laptopReasoning.gpuStatus,
+      laptopReasoningPingbackStatus: laptopReasoning.pingbackStatus,
       cockpitLaneCount: cockpitLanes.length,
       actionCardCount: actionCards.length,
       windowActionCardCount: windowActionCards.length,
@@ -2262,6 +2347,7 @@ function buildBrittneyCockpitCapsule() {
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    laptopReasoning,
     windowAwareness,
     preflightPaths,
     operatorTerminal,

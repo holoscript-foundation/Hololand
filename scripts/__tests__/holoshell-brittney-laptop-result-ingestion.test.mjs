@@ -19,7 +19,7 @@ const env = {
 };
 const prompt = [
   `Laptop result ingestion fixture ${process.pid}-${Date.now()}.`,
-  'Have the Jetson send this large reasoning ask to the laptop Codex lane.',
+  'Have the Jetson send this large reasoning ask to the laptop hardware lane.',
   'Use GOLD, Studio, Claude injection, local/cloud focus, and Vast spend guardrails.',
 ].join(' ');
 
@@ -80,6 +80,10 @@ const workerReceipt = parseReceipt(spawnSync(process.execPath, [
 
 assert.equal(workerReceipt.summary.status, 'completed');
 assert.equal(workerReceipt.summary.dispatchId, firstTurn.runtime.laptopReasoningDelegation.dispatchId);
+assert.equal(workerReceipt.summary.lane, 'laptop-hardware');
+assert.equal(workerReceipt.summary.modelInvocationPerformed, false);
+assert.equal(workerReceipt.summary.brittneyPingbackStatus, 'ready_for_brittney');
+assert.equal(workerReceipt.brittneyPingback.target, 'brittney_holoshell_turn');
 assert.equal(workerReceipt.summary.goldUsable, true);
 assert.equal(workerReceipt.summary.vastSpendGuardAttached, true);
 
@@ -92,6 +96,9 @@ assert.equal(secondTurn.runtime.laptopReasoningResult.matchKind, 'prompt_hash');
 assert.equal(secondTurn.shellContext.laptopReasoningResult.resultId, workerReceipt.resultId);
 assert.equal(secondTurn.summary.laptopReasoningResultStatus, 'completed');
 assert.equal(secondTurn.summary.laptopReasoningResultMatchKind, 'prompt_hash');
+assert.equal(secondTurn.summary.laptopReasoningResultLane, 'laptop-hardware');
+assert.equal(secondTurn.summary.laptopReasoningResultModelInvocationPerformed, false);
+assert.equal(secondTurn.summary.laptopReasoningResultBrittneyPingbackStatus, 'ready_for_brittney');
 assert.equal(secondTurn.summary.laptopReasoningResultGoldRootStatus, 'mounted_on_laptop');
 assert.equal(secondTurn.summary.laptopReasoningResultGoldUsable, true);
 assert.equal(secondTurn.summary.laptopReasoningResultVastSpendGuardAttached, true);

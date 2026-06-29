@@ -55,11 +55,17 @@ assert.equal(bridge.summary.status, 'completed');
 assert.equal(bridge.summary.processedCount, 1);
 assert.equal(bridge.summary.errorCount, 0);
 assert.equal(bridge.summary.latestDispatchId, persistedDispatch.dispatchId);
+assert.equal(bridge.summary.latestLane, 'laptop-hardware');
+assert.equal(bridge.summary.latestModelInvocationPerformed, false);
+assert.equal(bridge.summary.latestBrittneyPingbackStatus, 'ready_for_brittney');
 assert.ok(existsSync(bridge.processed[0].resultPath));
 assert.ok(existsSync(bridge.output.bridgeOutput));
 
 const latestResult = JSON.parse(readFileSync(path.join(tmp, 'laptop-reasoning-result-latest.json'), 'utf8'));
 assert.equal(latestResult.summary.dispatchId, persistedDispatch.dispatchId);
+assert.equal(latestResult.summary.lane, 'laptop-hardware');
+assert.equal(latestResult.summary.modelInvocationPerformed, false);
+assert.equal(latestResult.summary.brittneyPingbackStatus, 'ready_for_brittney');
 assert.equal(latestResult.summary.goldUsable, true);
 assert.equal(latestResult.summary.vastSpendGuardAttached, true);
 

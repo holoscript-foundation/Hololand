@@ -30,6 +30,8 @@ composition "OperateRoom" {
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
     brittney_cockpit_source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     brittney_cockpit_endpoint: "GET /api/cockpit/capsule"
+    laptop_reasoning_source: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
+    laptop_reasoning_lane: "laptop-hardware"
     browser_terminal_coupling_source: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
     operator_terminal_session_endpoint: "GET /api/operator-terminal/session"
     desktop_bridge_endpoint: "GET /api/desktop-control/bridge"
@@ -55,6 +57,7 @@ composition "OperateRoom" {
     last_improvement_run_id: ""
     last_improvement_run_count: 0
     last_cockpit_capsule_status: ""
+    last_laptop_reasoning_status: ""
     last_operator_terminal_status: ""
   }
 
@@ -77,7 +80,8 @@ composition "OperateRoom" {
     }
 
     // The chat IS the surface. Brittney routes through POST /api/brittney/chat →
-    // the HoloShell operator loop, fleet-routed across both owned GPUs ($0). Her
+    // the HoloShell operator loop, with owned GPU routes available ($0) and
+    // receipts proving whether laptop GPU inference actually ran. Her
     // reply + any permission-enveloped action proposals come back INLINE — she
     // proposes, you read them in the conversation; there is no dashboard. The
     // Daimon's remembered context (once emerged) rides along via rehydration.
@@ -85,6 +89,8 @@ composition "OperateRoom" {
     // contract is apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus.
     // Its Terminal card consumes GET /api/operator-terminal/session, whose source
     // contract binds browser chat and terminal evidence to one HoloShell session.
+    // Its Reasoning card uses the laptop-hardware lane so Brittney can distinguish
+    // receipt-only completion from actual GPU-backed model invocation.
     // Improvement batches use POST /api/improvement-runs, then capped codebase-fix
     // shakedowns through POST /api/improvement-runs/:runId/execute. Counted runs
     // require patch + validation evidence; HoloTune waits until fixes pass review.

@@ -304,9 +304,9 @@ function createLaptopReasoningProposal(delegation) {
 
 function laptopReasoningDelegatedText(delegation) {
   return [
-    `I staged a read-only laptop reasoning job (${delegation.dispatchId}) for the Codex hardware lane.`,
+    `I staged a read-only laptop reasoning job (${delegation.dispatchId}) for the laptop hardware lane.`,
     `Target: ${delegation.targetHost}; lane: ${delegation.lane}; receipt: ${delegation.dispatchReceiptPath}.`,
-    "I won't claim the laptop has answered until a result receipt comes back.",
+    "I won't claim the laptop has answered or used the GPU until a result receipt comes back.",
   ].join(' ');
 }
 
@@ -321,6 +321,16 @@ function compactLaptopReasoningResult(receipt) {
     promptHash: receipt.inputDispatch?.promptHash || '',
     generatedAt: receipt.generatedAt || '',
     text: String(result.text || '').slice(0, 800),
+    lane: summary.lane || receipt.inputDispatch?.lane || '',
+    reasoningExecutionMode: summary.reasoningExecutionMode || result.reasoningExecutionMode || '',
+    modelInvocationPerformed: Boolean(summary.modelInvocationPerformed || result.modelInvocationPerformed),
+    deterministicReceiptOnly: Boolean(summary.deterministicReceiptOnly || result.deterministicReceiptOnly),
+    laptopGpuStatus: summary.laptopGpuStatus || result.gpuTelemetry?.status || '',
+    laptopGpuSummary: summary.laptopGpuSummary || result.gpuTelemetry?.summary || '',
+    laptopGpuUtilizationPercent: summary.laptopGpuUtilizationPercent ?? result.gpuTelemetry?.utilizationGpuPercent ?? null,
+    laptopGpuProcessCount: summary.laptopGpuProcessCount ?? result.gpuTelemetry?.activeComputeProcessCount ?? 0,
+    brittneyPingbackStatus: summary.brittneyPingbackStatus || receipt.brittneyPingback?.status || '',
+    brittneyPingbackMessage: String(receipt.brittneyPingback?.message || '').slice(0, 360),
     goldRootStatus: summary.goldRootStatus || '',
     goldUsable: Boolean(summary.goldUsable),
     vastSpendGuardAttached: Boolean(summary.vastSpendGuardAttached),
@@ -379,10 +389,17 @@ function laptopReasoningResultReady(result) {
 function laptopReasoningCompletedText(result) {
   const status = result.status === 'partial' ? 'partial result' : 'result';
   const gold = result.goldRootStatus ? ` GOLD: ${result.goldRootStatus}.` : '';
+  const gpu = result.laptopGpuSummary ? ` GPU: ${result.laptopGpuSummary}.` : '';
+  const mode = result.reasoningExecutionMode
+    ? ` Mode: ${result.reasoningExecutionMode}; modelInvocationPerformed=${result.modelInvocationPerformed ? 'true' : 'false'}.`
+    : '';
+  const ping = result.brittneyPingbackStatus
+    ? ` Pingback: ${result.brittneyPingbackStatus}.`
+    : '';
   const text = result.text ? ` ${result.text}` : '';
   return [
-    `Laptop returned a ${status} receipt (${result.resultId}) for dispatch ${result.dispatchId}.`,
-    `${gold}${text}`.trim(),
+    `Pingback received from laptop hardware: laptop returned a ${status} receipt (${result.resultId}) for dispatch ${result.dispatchId}.`,
+    `${ping}${mode}${gpu}${gold}${text}`.trim(),
   ].filter(Boolean).join(' ');
 }
 
@@ -895,7 +912,7 @@ ${toneInstruction}`;
       session.push('user', `${args.prompt}${recalledNote}${ambientNote}${founderNote}`);
     } else {
       const laptopInstruction = laptopReasoningResultReady(runtime.laptopReasoningResult)
-        ? ' If shellContext.laptopReasoningResult is present, mention that the laptop returned a result receipt and summarize it briefly.'
+        ? ' If shellContext.laptopReasoningResult is present, mention that Brittney received the laptop hardware pingback, summarize the result receipt briefly, and distinguish receipt-only completion from GPU-backed model inference.'
         : ' If shellContext.laptopReasoningDelegation is present, mention that the Jetson staged a laptop reasoning job receipt and do not claim the laptop has completed it yet.';
       session.push('user', JSON.stringify({
         userPrompt: args.prompt,
@@ -1040,6 +1057,14 @@ ${toneInstruction}`;
       laptopReasoningResultStatus: runtime.laptopReasoningResult.status || '',
       laptopReasoningResultId: runtime.laptopReasoningResult.resultId || '',
       laptopReasoningResultMatchKind: runtime.laptopReasoningResult.matchKind || '',
+      laptopReasoningResultLane: runtime.laptopReasoningResult.lane || '',
+      laptopReasoningResultMode: runtime.laptopReasoningResult.reasoningExecutionMode || '',
+      laptopReasoningResultModelInvocationPerformed: Boolean(runtime.laptopReasoningResult.modelInvocationPerformed),
+      laptopReasoningResultDeterministicReceiptOnly: Boolean(runtime.laptopReasoningResult.deterministicReceiptOnly),
+      laptopReasoningResultGpuStatus: runtime.laptopReasoningResult.laptopGpuStatus || '',
+      laptopReasoningResultGpuUtilizationPercent: runtime.laptopReasoningResult.laptopGpuUtilizationPercent ?? null,
+      laptopReasoningResultGpuProcessCount: runtime.laptopReasoningResult.laptopGpuProcessCount || 0,
+      laptopReasoningResultBrittneyPingbackStatus: runtime.laptopReasoningResult.brittneyPingbackStatus || '',
       laptopReasoningResultGoldRootStatus: runtime.laptopReasoningResult.goldRootStatus || '',
       laptopReasoningResultGoldUsable: Boolean(runtime.laptopReasoningResult.goldUsable),
       laptopReasoningResultVastSpendGuardAttached: Boolean(runtime.laptopReasoningResult.vastSpendGuardAttached),

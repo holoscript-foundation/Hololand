@@ -21,6 +21,10 @@ const bridge = {
     processedCount: 1,
     pushedCount: 1,
     errorCount: 0,
+    latestLane: 'laptop-hardware',
+    latestLaptopGpuStatus: 'reported',
+    latestBrittneyPingbackStatus: 'ready_for_brittney',
+    latestModelInvocationPerformed: false,
   },
 };
 
@@ -35,6 +39,14 @@ const result = {
     status: 'completed',
     resultId: 'laptop_reasoning_result_fixture',
     dispatchId: 'hsdispatch-fixture',
+    lane: 'laptop-hardware',
+    reasoningExecutionMode: 'receipt_consumption_only',
+    modelInvocationPerformed: false,
+    deterministicReceiptOnly: true,
+    laptopGpuStatus: 'reported',
+    laptopGpuSummary: 'Fixture RTX: 0% GPU, 256/6144 MiB, no compute process reported',
+    laptopGpuProcessCount: 0,
+    brittneyPingbackStatus: 'ready_for_brittney',
     goldRootStatus: 'mounted_on_laptop',
     goldUsable: true,
     vastSpendGuardAttached: true,
@@ -62,9 +74,17 @@ assert.equal(liveFeed.summary.laptopReasoningBridgeProcessedCount, 1);
 assert.equal(liveFeed.summary.laptopReasoningBridgePulledCount, 1);
 assert.equal(liveFeed.summary.laptopReasoningBridgePushedCount, 1);
 assert.equal(liveFeed.summary.laptopReasoningBridgeErrorCount, 0);
+assert.equal(liveFeed.summary.laptopReasoningBridgeLatestLane, 'laptop-hardware');
+assert.equal(liveFeed.summary.laptopReasoningBridgeLatestGpuStatus, 'reported');
+assert.equal(liveFeed.summary.laptopReasoningBridgeLatestPingbackStatus, 'ready_for_brittney');
 assert.equal(liveFeed.summary.laptopReasoningResultStatus, 'completed');
 assert.equal(liveFeed.summary.laptopReasoningResultId, 'laptop_reasoning_result_fixture');
 assert.equal(liveFeed.summary.laptopReasoningResultDispatchId, 'hsdispatch-fixture');
+assert.equal(liveFeed.summary.laptopReasoningResultLane, 'laptop-hardware');
+assert.equal(liveFeed.summary.laptopReasoningResultMode, 'receipt_consumption_only');
+assert.equal(liveFeed.summary.laptopReasoningResultModelInvocationPerformed, false);
+assert.equal(liveFeed.summary.laptopReasoningResultGpuStatus, 'reported');
+assert.equal(liveFeed.summary.laptopReasoningResultBrittneyPingbackStatus, 'ready_for_brittney');
 assert.equal(liveFeed.summary.laptopReasoningResultGoldRootStatus, 'mounted_on_laptop');
 assert.equal(liveFeed.summary.laptopReasoningResultGoldUsable, true);
 assert.equal(liveFeed.summary.laptopReasoningResultVastSpendGuardAttached, true);

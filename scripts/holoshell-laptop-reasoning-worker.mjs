@@ -9,6 +9,7 @@
  * model/provider by itself.
  */
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -43,6 +44,7 @@ const PROVIDER_ROUTING_REGISTRY_REF = 'C:/Users/josep/.ai-ecosystem/config/provi
 const SPEND_POLICY_REF = 'C:/Users/josep/.ai-ecosystem/SPEND.md';
 const VAST_ESCALATION_GATE_REF = 'C:/Users/josep/.ai-ecosystem/scripts/vast-escalation-gate.mjs';
 const FLEET_OUTPUT_CONTRACT_REF = 'C:/Users/josep/.ai-ecosystem/docs/contracts/fleet-output-contract.v2.schema.json';
+const LAPTOP_REASONING_LANE = 'laptop-hardware';
 
 function usage() {
   return `HoloShell laptop reasoning worker
@@ -193,6 +195,104 @@ function inspectRepoRoot() {
   };
 }
 
+function parseOptionalInteger(value) {
+  const parsed = Number.parseInt(String(value || '').replace(/[^\d-]/g, ''), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalFloat(value) {
+  const parsed = Number.parseFloat(String(value || '').replace(/[^.\d-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function laptopGpuSummary(gpus, processes) {
+  if (!gpus.length) return 'Laptop GPU telemetry was not reported by nvidia-smi on this host';
+  return gpus.map((gpu) => {
+    const util = Number.isFinite(gpu.utilizationGpuPercent) ? `${gpu.utilizationGpuPercent}% GPU` : 'GPU util not reported';
+    const memory = Number.isFinite(gpu.memoryUsedMiB) && Number.isFinite(gpu.memoryTotalMiB)
+      ? `${gpu.memoryUsedMiB}/${gpu.memoryTotalMiB} MiB`
+      : 'memory not reported';
+    const power = Number.isFinite(gpu.powerDrawW) ? `, ${gpu.powerDrawW}W` : '';
+    const active = processes.length ? `, ${processes.length} compute process(es)` : ', no compute process reported';
+    return `${gpu.name || `GPU ${gpu.index}`}: ${util}, ${memory}${power}${active}`;
+  }).join('; ');
+}
+
+function laptopGpuSnapshot() {
+  try {
+    const raw = execFileSync('nvidia-smi', [
+      '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,power.draw',
+      '--format=csv,noheader,nounits',
+    ], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5_000,
+    }).trim();
+    const gpus = raw
+      ? raw.split(/\r?\n/u)
+        .map((line) => line.split(',').map((part) => part.trim()))
+        .filter((parts) => parts.length >= 5)
+        .map(([index, name, utilizationGpu, memoryUsed, memoryTotal, powerDraw]) => ({
+          index: parseOptionalInteger(index),
+          name,
+          utilizationGpuPercent: parseOptionalInteger(utilizationGpu),
+          memoryUsedMiB: parseOptionalInteger(memoryUsed),
+          memoryTotalMiB: parseOptionalInteger(memoryTotal),
+          powerDrawW: parseOptionalFloat(powerDraw),
+        }))
+      : [];
+    let computeProcesses = [];
+    try {
+      const processRaw = execFileSync('nvidia-smi', [
+        '--query-compute-apps=pid,process_name,used_memory',
+        '--format=csv,noheader,nounits',
+      ], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 5_000,
+      }).trim();
+      computeProcesses = processRaw
+        ? processRaw.split(/\r?\n/u)
+          .map((line) => line.split(',').map((part) => part.trim()))
+          .filter((parts) => parts.length >= 3 && parts[0])
+          .map(([pid, processName, usedMemory]) => ({
+            pid: parseOptionalInteger(pid),
+            processName: String(processName || '').slice(0, 80),
+            usedMemoryMiB: parseOptionalInteger(usedMemory),
+          }))
+        : [];
+    } catch {
+      computeProcesses = [];
+    }
+    const summary = laptopGpuSummary(gpus, computeProcesses);
+    const firstGpu = gpus[0] || {};
+    return {
+      status: gpus.length ? 'reported' : 'not_reported',
+      source: 'nvidia-smi',
+      gpus,
+      computeProcesses,
+      activeComputeProcessCount: computeProcesses.length,
+      utilizationGpuPercent: Number.isFinite(firstGpu.utilizationGpuPercent) ? firstGpu.utilizationGpuPercent : null,
+      memoryUsedMiB: Number.isFinite(firstGpu.memoryUsedMiB) ? firstGpu.memoryUsedMiB : null,
+      memoryTotalMiB: Number.isFinite(firstGpu.memoryTotalMiB) ? firstGpu.memoryTotalMiB : null,
+      summary,
+    };
+  } catch (error) {
+    return {
+      status: 'not_reported',
+      source: 'nvidia-smi',
+      gpus: [],
+      computeProcesses: [],
+      activeComputeProcessCount: 0,
+      utilizationGpuPercent: null,
+      memoryUsedMiB: null,
+      memoryTotalMiB: null,
+      error: String(error.message || error).slice(0, 180),
+      summary: 'Laptop GPU telemetry was not reported by nvidia-smi on this host',
+    };
+  }
+}
+
 function hostSnapshot() {
   const cpus = os.cpus() || [];
   return {
@@ -226,7 +326,7 @@ function requiredSurfaceChecks(dispatch = {}) {
     ['permission_envelope', body.permissionEnvelope === 'read_only'],
     ['target_host', body.targetHost === 'laptop_windows'],
     ['source_host', body.sourceHost === 'jetson_holoshell_surface'],
-    ['lane', body.lane === 'codex-hardware'],
+    ['lane', body.lane === LAPTOP_REASONING_LANE],
     ['agent_lane', body.agentLane === 'local'],
     ['canonical_provider_id', body.canonicalProviderId === 'laptop-ollama'],
     ['reuse_before_build', body.reuseBeforeBuild === true],
@@ -266,6 +366,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
   const failedChecks = checks.filter((check) => !check.ok);
   const gold = inspectGoldRoot(surfaces.goldDrive?.root || 'D:/GOLD');
   const repo = inspectRepoRoot();
+  const gpu = laptopGpuSnapshot();
   const validDispatch = failedChecks.length === 0;
   const status = !validDispatch ? 'blocked' : (gold.usable ? 'completed' : 'partial');
   const resultText = safeString(options.resultText, '') || defaultReasonedSummary(dispatchReceipt, { gold });
@@ -352,6 +453,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       host: hostSnapshot(),
       repo,
       gold,
+      gpu,
       laptopCanCarryHeavyReasoning: os.totalmem() >= 8 * 1024 * 1024 * 1024 && (os.cpus() || []).length >= 4,
     },
     routingVerdict: {
@@ -368,13 +470,34 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       localFocusCount: localFocus.length,
       cloudFocusCount: cloudFocus.length,
       nextReceiptExpectedByJetson: 'laptop_reasoning_result',
+      laptopGpuObserved: gpu.status === 'reported',
+      laptopGpuActiveDuringReceipt: (gpu.activeComputeProcessCount || 0) > 0 || (Number.isFinite(gpu.utilizationGpuPercent) && gpu.utilizationGpuPercent > 0),
+      reasoningExecutionMode: 'receipt_consumption_only',
     },
     result: {
       ok: status === 'completed',
-      reasoningEngine: 'codex_laptop_receipt_worker',
+      reasoningEngine: 'laptop_hardware_receipt_worker',
       modelInvocationPerformed: false,
       deterministicReceiptOnly: true,
+      reasoningExecutionMode: 'receipt_consumption_only',
+      gpuTelemetry: gpu,
+      gpuUseClaim: 'not_claimed_by_worker',
       text: resultText,
+    },
+    brittneyPingback: {
+      status: status === 'blocked' ? 'blocked' : 'ready_for_brittney',
+      channel: 'laptop_reasoning_result',
+      target: 'brittney_holoshell_turn',
+      dispatchId: dispatchReceipt.dispatchId || '',
+      resultId,
+      lane: body.lane || '',
+      targetHost: body.targetHost || '',
+      modelInvocationPerformed: false,
+      deterministicReceiptOnly: true,
+      gpuStatus: gpu.status,
+      gpuSummary: gpu.summary,
+      message: `Laptop hardware ${status} receipt ${resultId} is ready for Brittney; modelInvocationPerformed=false; ${gpu.summary}.`,
+      receiptRequired: true,
     },
     summary: {
       status,
@@ -382,10 +505,21 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       dispatchId: dispatchReceipt.dispatchId || '',
       capabilityId: dispatchReceipt.summary?.capabilityId || '',
       targetHost: body.targetHost || '',
+      lane: body.lane || '',
       agentLane: body.agentLane || '',
       canonicalProviderId: body.canonicalProviderId || '',
       workload: body.workload || '',
       permissionEnvelope: body.permissionEnvelope || '',
+      reasoningExecutionMode: 'receipt_consumption_only',
+      modelInvocationPerformed: false,
+      deterministicReceiptOnly: true,
+      laptopGpuStatus: gpu.status,
+      laptopGpuSummary: gpu.summary,
+      laptopGpuUtilizationPercent: gpu.utilizationGpuPercent,
+      laptopGpuMemoryUsedMiB: gpu.memoryUsedMiB,
+      laptopGpuMemoryTotalMiB: gpu.memoryTotalMiB,
+      laptopGpuProcessCount: gpu.activeComputeProcessCount || 0,
+      brittneyPingbackStatus: status === 'blocked' ? 'blocked' : 'ready_for_brittney',
       reuseBeforeBuild: Boolean(body.reuseBeforeBuild),
       goldRoot: normalizeReceiptPath(surfaces.goldDrive?.root || 'D:/GOLD'),
       goldRootStatus: gold.status,
@@ -450,7 +584,7 @@ export function runSelfTest(options = {}) {
       body: {
         sourceHost: 'jetson_holoshell_surface',
         targetHost: 'laptop_windows',
-        lane: 'codex-hardware',
+        lane: LAPTOP_REASONING_LANE,
         agentLane: 'local',
         canonicalProviderId: 'laptop-ollama',
         workload: 'heavy_reasoning',
@@ -529,6 +663,8 @@ export function runSelfTest(options = {}) {
   });
   if (persisted.status !== 'completed') throw new Error(`self-test expected completed, got ${persisted.status}`);
   if (!persisted.routingVerdict.goldUsable) throw new Error('self-test expected GOLD usable');
+  if (persisted.summary.lane !== LAPTOP_REASONING_LANE) throw new Error(`self-test expected ${LAPTOP_REASONING_LANE} lane`);
+  if (persisted.summary.brittneyPingbackStatus !== 'ready_for_brittney') throw new Error('self-test expected Brittney pingback');
   if (!existsOnHost(persisted.output.latestPath)) throw new Error('self-test did not write latest receipt');
   if (!existsOnHost(persisted.output.archivePath)) throw new Error('self-test did not write archived receipt');
   return persisted;
@@ -560,6 +696,7 @@ if (isMain()) {
       console.log(`Status: ${persisted.summary.status}`);
       console.log(`Dispatch: ${persisted.summary.dispatchId}`);
       console.log(`GOLD: ${persisted.summary.goldRootStatus}`);
+      console.log(`GPU: ${persisted.summary.laptopGpuSummary}`);
     }
   } catch (error) {
     console.error(`holoshell-laptop-reasoning-worker failed: ${error.message}`);
