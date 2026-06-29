@@ -185,6 +185,7 @@ Minimum generation workflow:
 | `docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md` | Current product north star: programmable living frontier MMO. |
 | `docs/specs/HOLOTUNNEL_NONDEVELOPER_ACCESS.md` | Product boundary for easy HoloTunnel sharing/access in HoloLand. |
 | `docs/specs/HOLOLAND_SOVEREIGN_TOOLS.md` | Boundary for HoloLand MCP tools, MCP Orchestrator support, and cross-MCP receipts. |
+| `apps/holoshell/enterprise-gates/**` | Enterprise package gate fixtures: business workflow manifests that benchmark HoloScript readiness with source, validation, runtime, render, interaction, and hardware/browser receipt requirements. |
 | `examples/hololand-central/**` | Reference central hub and existing runtime surface. |
 | `examples/hololand-legends/**` | Game loop reference and HoloScript/TypeScript hybrid sample. |
 | `packages/platform/**` | Legacy platform runtime and bridge code. |

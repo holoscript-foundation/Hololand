@@ -1,0 +1,138 @@
+// HoloLand Enterprise Package Gate: Customer Success Room
+//
+// This is the first enterprise package gate fixture for the HoloLand reboot.
+// It defines a business package as a HoloScript-driven benchmark gate, not a
+// human-user package surface and not legacy package-graph restoration.
+
+composition "HoloLand Enterprise Package Gate: Customer Success Room" {
+  config {
+    gateId: "customer-success-room"
+    title: "Customer Success Room"
+    packageClass: "enterprise_business_solution"
+    businessWorkflow: "customer_success_onboarding"
+    humanUserSurface: "deployed_hololand_room"
+    developerPackageSurface: false
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/hololand-enterprise-customer-success-room-gate.hsplus"
+    manifestPath: "apps/holoshell/enterprise-gates/customer-success-room/package-gate.json"
+    runnerCommand: "node scripts/hololand-enterprise-package-gate.mjs"
+    browserReceiptCommand: "node scripts/hololand-enterprise-package-gate-browser-receipt.mjs"
+    validationTool: "mcp__holoscript.validate_holoscript"
+    renderOutput: ".tmp/hololand/enterprise-gates/customer-success-room/gate.html"
+    receiptOutput: ".tmp/hololand/enterprise-gates/customer-success-room/receipt.json"
+  }
+
+  state {
+    sourceArtifactStatus: "inspectable"
+    validationStatus: "required"
+    runtimeStatus: "required"
+    renderStatus: "required"
+    interactionStatus: "required"
+    hardwareBrowserStatus: "required_for_promotion"
+    upstreamGapStatus: "recorded"
+    localRewriteStatus: "blocked"
+    packageGraphRestorationStatus: "not_required_for_gate"
+  }
+
+  channel "hololand:enterprise-package-gate:customer-success-room" {
+    type: "append_only"
+    priority: "critical"
+    description: "Customer success enterprise package gate receipts for HoloScript readiness"
+  }
+
+  template "EnterprisePackageGateReceipt" {
+    type: "enterprise_package_gate_receipt"
+    receiptType: "hololand.enterprise-package-gate.customer-success-room.v0.1.0"
+    benchmarkGate: "holoscript_enterprise_customer_success_room"
+    requiredFields: [
+      "business_workflow",
+      "source_path",
+      "source_sha256",
+      "holoscript_packages",
+      "benchmark_gates",
+      "holoscript_validation",
+      "runtime_surface",
+      "render_output",
+      "interaction_receipt",
+      "hardware_browser_receipt",
+      "upstream_gaps"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "EnterprisePackagesAreGates" {
+    appliesTo: ["enterprise_package", "business_solution", "benchmark_gate"]
+    humanUserPackageSurface: false
+    enterpriseDeploymentSurface: true
+    consumesHoloScriptPackages: true
+    actsAsHoloScriptBenchmarkGate: true
+    packageGraphRestorationRequired: false
+    receiptRequired: true
+  }
+
+  policy "SourceReceiptsBlockPromotion" {
+    appliesTo: ["source", "validation", "runtime", "render", "interaction"]
+    parserSourceOfTruth: "HoloScript MCP validate_holoscript"
+    sourceRequiredBeforeProjection: true
+    validationFailureBlocksPromotion: true
+    runtimeReceiptRequired: true
+    renderReceiptRequired: true
+    interactionReceiptRequired: true
+    browserReceiptRequired: true
+  }
+
+  policy "UpstreamGapsDoNotBecomeLocalRewrites" {
+    appliesTo: ["missing_primitive", "runtime_gap", "validator_gap", "receipt_gap"]
+    missingReusablePrimitiveOwner: "HoloScript"
+    localTypeScriptRewriteAllowed: false
+    recordGapBeforePromotion: true
+    receiptRequired: true
+  }
+
+  action capture_customer_success_room_intent(intent) {
+    state.sourceArtifactStatus = "inspectable"
+
+    emit("hololand:enterprise-package-gate:customer-success-room", {
+      action: "enterprise_gate_intent_captured",
+      workflow: config.businessWorkflow,
+      source_path: config.sourcePath,
+      benchmark_gate: "holoscript_enterprise_customer_success_room",
+      receipt_required: true
+    })
+  }
+
+  action accept_enterprise_gate_receipt(receipt) {
+    state.validationStatus = receipt.validation.status
+    state.runtimeStatus = receipt.runtime.status
+    state.renderStatus = receipt.render.status
+    state.interactionStatus = receipt.interaction.status
+    state.hardwareBrowserStatus = receipt.hardwareBrowser.status
+    state.upstreamGapStatus = receipt.upstreamGaps.status
+
+    emit("hololand:enterprise-package-gate:customer-success-room", {
+      action: "enterprise_gate_receipt_accepted",
+      status: receipt.status,
+      source_sha256: receipt.source.sha256,
+      validation_status: state.validationStatus,
+      runtime_surface: receipt.runtime.surface,
+      render_output: receipt.render.html,
+      interaction_status: state.interactionStatus,
+      upstream_gap_status: state.upstreamGapStatus
+    })
+  }
+
+  action record_upstream_gap(gap) {
+    state.upstreamGapStatus = "recorded"
+    state.localRewriteStatus = "blocked"
+
+    emit("hololand:enterprise-package-gate:customer-success-room", {
+      action: "upstream_gap_recorded",
+      owner: "HoloScript",
+      gap_id: gap.id,
+      primitive: gap.primitive,
+      local_rewrite_allowed: false,
+      receipt_required: true
+    })
+  }
+}
