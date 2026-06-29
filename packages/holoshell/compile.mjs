@@ -1032,7 +1032,7 @@ const runtimeScript = `  <script>
       if (response.receiptType) lines.push('receipt type: ' + response.receiptType);
       if (response.desktopControl?.planId) lines.push('desktop plan: ' + response.desktopControl.planId);
       if (response.systemStatus?.route?.cockpitCapsuleEndpoint) lines.push('capsule: ' + response.systemStatus.route.cockpitCapsuleEndpoint);
-      if (!lines.length) lines.push('turn completed; receipt metadata not reported by this response');
+      if (!lines.length) lines.push('turn returned without receipt metadata; do not treat as completed evidence');
       _appendTurnCard('Receipt narration', lines, response.receiptType ? 'ready' : 'attention', 'receipt');
     }
     function _renderTurnOperatorCards(response) {

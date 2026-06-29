@@ -123,6 +123,8 @@ try {
   assert.ok(receipt.state.counts.receiptNarrationCards > 0, 'receipt narration card should render');
   assert.ok(receipt.state.counts.runtimeTruthCards > 0, 'runtime truth card should render');
   assert.ok(receipt.state.counts.messages >= 2, 'message stream should include user and Brittney messages');
+  assert.doesNotMatch(JSON.stringify(receipt.state.samples), /turn completed; receipt metadata not reported/i);
+  assert.doesNotMatch(JSON.stringify(receipt.state.samples), /initiated and is awaiting result/i);
   assert.equal(receipt.state.chat.ok, true);
   assert.equal(receipt.state.chat.selfTest, true);
   assert.ok(receipt.state.chat.proposalCount > 0, 'chat response should include proposals');

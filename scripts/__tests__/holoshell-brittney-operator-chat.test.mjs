@@ -62,4 +62,6 @@ assert.match(compiledHtml, /Receipt narration/);
 assert.match(compiledHtml, /laptop-hardware/);
 assert.match(compiledHtml, /receipt-only\/model not invoked/);
 assert.match(compiledHtml, /Endpoint inspection is read-only/);
+assert.match(compiledHtml, /turn returned without receipt metadata; do not treat as completed evidence/);
+assert.doesNotMatch(compiledHtml, /turn completed; receipt metadata not reported/i);
 assert.doesNotMatch(compiledHtml, /onclick="[^"]*"/);
