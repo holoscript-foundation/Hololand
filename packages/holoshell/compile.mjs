@@ -211,6 +211,131 @@ function compileOperateRoomShell(holoComposition) {
       cursor: wait;
       opacity: 0.72;
     }
+    .operator-state-rail,
+    .operator-alerts,
+    .operator-card-grid,
+    .context-capsule-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .operator-state-rail {
+      flex: 0 0 auto;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+    .operator-pill,
+    .operator-alert-card,
+    .operator-turn-card,
+    .context-capsule-panel {
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+    }
+    .operator-pill {
+      min-height: 66px;
+      padding: 10px;
+      overflow: hidden;
+    }
+    .operator-pill[data-tone="ready"],
+    .operator-turn-card[data-tone="ready"] {
+      border-color: color-mix(in srgb, #3fb950 62%, #30363d);
+      background: color-mix(in srgb, #3fb950 8%, #0d1117);
+    }
+    .operator-pill[data-tone="attention"],
+    .operator-alert-card,
+    .operator-turn-card[data-tone="attention"] {
+      border-color: color-mix(in srgb, #d29922 68%, #30363d);
+      background: color-mix(in srgb, #d29922 9%, #0d1117);
+    }
+    .operator-pill[data-tone="blocked"],
+    .operator-turn-card[data-tone="blocked"] {
+      border-color: color-mix(in srgb, #f85149 72%, #30363d);
+      background: color-mix(in srgb, #f85149 8%, #0d1117);
+    }
+    .operator-pill strong,
+    .operator-alert-card strong,
+    .operator-turn-card strong,
+    .context-capsule-panel strong {
+      display: block;
+      color: #f0f6fc;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 700;
+    }
+    .operator-pill span,
+    .operator-alert-card span,
+    .operator-turn-card span,
+    .context-capsule-panel span {
+      display: block;
+      margin-top: 4px;
+      color: #8b949e;
+      font-size: 12px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .operator-alerts {
+      flex: 0 0 auto;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 8px;
+    }
+    .operator-alerts:empty {
+      display: none;
+    }
+    .operator-alert-card {
+      min-height: 74px;
+      padding: 10px;
+    }
+    .operator-alert-card button,
+    .operator-turn-card button {
+      margin-top: 8px;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid #d29922;
+      background: #161b22;
+      color: #f0f6fc;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .context-capsule-panel {
+      flex: 0 0 auto;
+      margin-top: 8px;
+      padding: 10px;
+    }
+    .context-capsule-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 8px;
+    }
+    .operator-card-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 8px;
+    }
+    .operator-turn-card {
+      margin: 0 0 12px 0;
+      padding: 12px;
+      font-family: system-ui, sans-serif;
+    }
+    .operator-turn-card[data-variant="receipt"] {
+      border-style: dashed;
+    }
+    .operator-card-grid .operator-turn-card {
+      margin-bottom: 0;
+    }
+    .chat-message-row {
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.55;
+      font-family: system-ui, sans-serif;
+    }
+    .chat-message-row[data-speaker="You"] {
+      margin-left: auto;
+      max-width: 86%;
+      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, #58a6ff 32%, #30363d);
+      border-radius: 8px;
+      background: color-mix(in srgb, #58a6ff 9%, #0d1117);
+    }
     .improvement-grid {
       display: grid;
       grid-template-columns: minmax(180px, 1fr) 78px 86px 86px 78px;
@@ -229,6 +354,12 @@ function compileOperateRoomShell(holoComposition) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .cockpit-action-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .operator-state-rail,
+      .operator-alerts,
+      .operator-card-grid,
+      .context-capsule-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .improvement-grid {
@@ -271,10 +402,12 @@ const runtimeScript = `  <script>
     var _lastImprovementRunId = null;
     var _lastLaptopDesktopBridgeBaseUrl = null;
     var _laptopDesktopBridgeBases = ['http://127.0.0.1:8751', 'http://127.0.0.1:8752', 'http://127.0.0.1:8753'];
+    var _lastCockpitCapsule = null;
     function _bMsg(who, text, color) {
       var box = document.getElementById('brittney-messages'); if (!box) return null;
       var row = document.createElement('div');
-      row.style.cssText = 'margin-bottom:12px;font-size:14px;line-height:1.55;font-family:system-ui,sans-serif';
+      row.className = 'chat-message-row';
+      row.dataset.speaker = who;
       var label = document.createElement('span');
       label.style.cssText = 'color:' + color + ';font-weight:600'; label.textContent = who + ': ';
       var span = document.createElement('span');
@@ -299,6 +432,66 @@ const runtimeScript = `  <script>
       row.appendChild(button);
       return button;
     }
+    function _shortText(value, fallback) {
+      var text = String(value == null || value === '' ? (fallback || 'unknown') : value);
+      return text.length > 180 ? text.slice(0, 177) + '...' : text;
+    }
+    function _toneForStatus(status) {
+      var text = String(status || '').toLowerCase();
+      if (/(blocked|error|failed|refused|missing|unavailable|critical)/.test(text)) return 'blocked';
+      if (/(attention|stale|waiting|pending|partial|not_reported|unknown|needs_refresh)/.test(text)) return 'attention';
+      if (/(ready|online|completed|coupled|windows_visible|reported|available|pass|window_preflights_ready|cards_ready)/.test(text)) return 'ready';
+      return 'neutral';
+    }
+    function _makeTextBlock(label, value, detail, tone) {
+      var card = document.createElement('div');
+      card.className = 'operator-pill';
+      card.dataset.tone = tone || _toneForStatus(value);
+      var strong = document.createElement('strong');
+      strong.textContent = label;
+      var span = document.createElement('span');
+      span.textContent = _shortText(value);
+      card.appendChild(strong);
+      card.appendChild(span);
+      if (detail) {
+        var detailSpan = document.createElement('span');
+        detailSpan.textContent = _shortText(detail);
+        card.appendChild(detailSpan);
+      }
+      return card;
+    }
+    function _makeTurnCard(title, lines, tone, variant) {
+      var card = document.createElement('div');
+      card.className = 'operator-turn-card';
+      card.dataset.tone = tone || 'neutral';
+      if (variant) card.dataset.variant = variant;
+      var strong = document.createElement('strong');
+      strong.textContent = title;
+      card.appendChild(strong);
+      (lines || []).filter(Boolean).forEach(function(line) {
+        var span = document.createElement('span');
+        span.textContent = line;
+        card.appendChild(span);
+      });
+      return card;
+    }
+    function _appendTurnCard(title, lines, tone, variant) {
+      var box = document.getElementById('brittney-messages');
+      if (!box) return null;
+      var card = _makeTurnCard(title, lines, tone, variant);
+      box.appendChild(card);
+      box.scrollTop = box.scrollHeight;
+      return card;
+    }
+    function _appendCardGrid(cards) {
+      var box = document.getElementById('brittney-messages');
+      if (!box || !cards || !cards.length) return;
+      var grid = document.createElement('div');
+      grid.className = 'operator-card-grid';
+      cards.forEach(function(card) { grid.appendChild(card); });
+      box.appendChild(grid);
+      box.scrollTop = box.scrollHeight;
+    }
     function _setText(id, text) {
       var el = document.getElementById(id);
       if (el) el.textContent = text;
@@ -315,6 +508,144 @@ const runtimeScript = `  <script>
       var value = lane.value || lane.status || 'unknown';
       var detail = lane.detail ? ' - ' + lane.detail : '';
       return value + detail;
+    }
+    function _renderOperatorTruth(capsule) {
+      var mount = document.getElementById('operator-state-rail');
+      if (!mount) return;
+      mount.textContent = '';
+      var summary = (capsule && capsule.summary) || {};
+      var route = (capsule && capsule.route) || {};
+      var avatar = (capsule && capsule.avatar) || {};
+      var receipts = (capsule && capsule.receipts) || {};
+      var reasoningDetail = [
+        'GPU ' + (summary.laptopReasoningGpuStatus || 'unknown'),
+        summary.laptopReasoningModelInvocationPerformed ? 'model invoked' : 'receipt-only/model not invoked'
+      ].join('; ');
+      var facts = [
+        {
+          label: 'Brittney',
+          value: (avatar.name || 'Brittney') + ' ' + (avatar.status || capsule?.status || 'unknown'),
+          detail: avatar.runtime || 'runtime not reported',
+          tone: _toneForStatus(avatar.status || capsule?.status)
+        },
+        {
+          label: 'Jetson Route',
+          value: route.url || 'route not reported',
+          detail: route.chatEndpoint || 'chat endpoint not reported',
+          tone: _toneForStatus(summary.routeStatus)
+        },
+        {
+          label: 'Reasoning',
+          value: summary.laptopReasoningLane || 'laptop-hardware',
+          detail: (summary.laptopReasoningStatus || 'unknown') + '; ' + reasoningDetail,
+          tone: _toneForStatus(summary.laptopReasoningStatus || summary.laptopReasoningGpuStatus)
+        },
+        {
+          label: 'Receipts',
+          value: 'terminal ' + (receipts.operatorTerminalReceiptStatus || summary.operatorTerminalStatus || 'unknown'),
+          detail: 'pending ' + (receipts.pendingConsentCount || 0) + '; recent ' + (receipts.recentExecutionCount || 0),
+          tone: _toneForStatus(receipts.operatorTerminalReceiptStatus || summary.operatorTerminalStatus)
+        },
+        {
+          label: 'Desktop/Windows',
+          value: (summary.desktopBridgeStatus || 'desktop unknown') + ' / ' + (summary.windowAwarenessStatus || 'windows unknown'),
+          detail: (summary.toolActionStatus || 'tools unknown'),
+          tone: _toneForStatus(summary.desktopBridgeStatus === 'ready' ? summary.windowAwarenessStatus : summary.desktopBridgeStatus)
+        }
+      ];
+      facts.forEach(function(fact) {
+        mount.appendChild(_makeTextBlock(fact.label, fact.value, fact.detail, fact.tone));
+      });
+    }
+    function _renderEvidencePrompts(capsule) {
+      var mount = document.getElementById('operator-alerts');
+      if (!mount) return;
+      mount.textContent = '';
+      var summary = (capsule && capsule.summary) || {};
+      var lanes = {
+        desktop: _lane(capsule, 'desktop_bridge') || {},
+        terminal: _lane(capsule, 'operator_terminal') || {},
+        reasoning: _lane(capsule, 'laptop_reasoning') || {}
+      };
+      var prompts = [];
+      if (_toneForStatus(summary.desktopBridgeStatus || lanes.desktop.status) !== 'ready') {
+        prompts.push({
+          label: 'Desktop bridge',
+          value: lanes.desktop.value || summary.desktopBridgeStatus || 'attention',
+          detail: 'Probe the laptop bridge and report the receipt back to Jetson.',
+          button: 'Probe bridge',
+          action: function() { probeLaptopDesktopBridge(); _bMsg('Evidence refresh', 'Desktop bridge probe requested from the browser surface.', '#d29922'); }
+        });
+      }
+      if (_toneForStatus(summary.operatorTerminalStatus || lanes.terminal.status) !== 'ready') {
+        prompts.push({
+          label: 'Terminal receipt',
+          value: lanes.terminal.value || summary.operatorTerminalStatus || 'attention',
+          detail: 'Endpoint inspection is read-only; command refresh remains terminal-side.',
+          button: 'Inspect receipt',
+          action: _inspectOperatorTerminalSession
+        });
+      }
+      if (_toneForStatus(summary.laptopReasoningStatus || lanes.reasoning.status) !== 'ready') {
+        prompts.push({
+          label: 'Laptop reasoning',
+          value: lanes.reasoning.value || summary.laptopReasoningStatus || 'attention',
+          detail: 'Check the current live-status envelope before claiming GPU inference.',
+          button: 'Inspect lane',
+          action: _inspectLiveStatusForChat
+        });
+      }
+      prompts.slice(0, 3).forEach(function(prompt) {
+        var card = document.createElement('div');
+        card.className = 'operator-alert-card';
+        var strong = document.createElement('strong');
+        strong.textContent = prompt.label + ': ' + prompt.value;
+        var span = document.createElement('span');
+        span.textContent = prompt.detail;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = prompt.button;
+        button.onclick = prompt.action;
+        card.append(strong, span, button);
+        mount.appendChild(card);
+      });
+    }
+    function _renderContextCapsule(capsule) {
+      var panel = document.getElementById('context-capsule-panel');
+      if (!panel) return;
+      var template = (capsule && capsule.contextCapsuleTemplate) || {};
+      var required = (template.requiredFields || []).join(', ') || 'not reported';
+      var identity = (template.identityCarry || []).join(', ') || 'not reported';
+      var memory = (template.memoryInputs || []).join(', ') || 'not reported';
+      _setText('context-capsule-required', required);
+      _setText('context-capsule-identity', identity);
+      _setText('context-capsule-memory', memory);
+    }
+    function _inspectOperatorTerminalSession() {
+      fetch('/api/operator-terminal/session', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          _appendTurnCard('Terminal evidence', [
+            'status: ' + (d.status || 'unknown'),
+            'receipt: ' + (d.terminal?.receiptStatus || 'unknown') + (d.terminal?.receiptHash ? ' / ' + d.terminal.receiptHash.slice(0, 12) : ''),
+            'next: ' + (d.nextSafeStep || 'not reported')
+          ], _toneForStatus(d.status || d.terminal?.receiptStatus), 'receipt');
+        })
+        .catch(function(e) { _bMsg('Terminal evidence', 'network error: ' + e.message, '#f85149'); });
+    }
+    function _inspectLiveStatusForChat() {
+      fetch('/api/live-status', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var reasoning = d.laptopReasoning || {};
+          _appendTurnCard('Laptop reasoning lane', [
+            'lane: ' + (reasoning.lane || 'laptop-hardware'),
+            'status: ' + (reasoning.status || 'unknown'),
+            'gpu: ' + (reasoning.gpuSummary || reasoning.gpuStatus || 'not reported'),
+            'model invocation: ' + (reasoning.modelInvocationPerformed ? 'performed' : 'not performed')
+          ], _toneForStatus(reasoning.status || reasoning.gpuStatus), 'receipt');
+        })
+        .catch(function(e) { _bMsg('Laptop reasoning', 'network error: ' + e.message, '#f85149'); });
     }
     function _cardText(card) {
       var action = card.primaryAction || card.lane || card.method || 'action';
@@ -380,6 +711,10 @@ const runtimeScript = `  <script>
       });
     }
     function _renderCockpitCapsule(capsule) {
+      _lastCockpitCapsule = capsule;
+      _renderOperatorTruth(capsule);
+      _renderEvidencePrompts(capsule);
+      _renderContextCapsule(capsule);
       _setText('cockpit-runtime', _laneText(_lane(capsule, 'runtime_truth')));
       _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
@@ -513,6 +848,62 @@ const runtimeScript = `  <script>
         });
       });
     }
+    function _renderSystemStatusCard(systemStatus) {
+      if (!systemStatus) return;
+      var reasoning = systemStatus.laptopReasoning || {};
+      _appendTurnCard('Runtime truth', [
+        'status: ' + (systemStatus.status || 'unknown') + '; capabilities: ' + (systemStatus.capabilityCount || 0),
+        'route: ' + (systemStatus.route?.chatEndpoint || 'chat route unknown'),
+        'reasoning: ' + (reasoning.lane || 'laptop-hardware') + '; ' + (reasoning.gpuStatus || 'gpu unknown') + '; model ' + (reasoning.modelInvocationPerformed ? 'invoked' : 'not invoked'),
+        'receipts: pending ' + (systemStatus.pendingConsentCount || 0) + '; recent ' + (systemStatus.recentExecutionCount || 0)
+      ], _toneForStatus(systemStatus.status));
+    }
+    function _renderDesktopControlCard(desktopControl) {
+      if (!desktopControl) return;
+      _appendTurnCard('Desktop control plan', [
+        'action: ' + (desktopControl.primaryAction || 'unknown'),
+        'lane: ' + (desktopControl.modelLane || 'unknown') + '; model: ' + (desktopControl.recommendedModel || 'unknown'),
+        'permission: ' + (desktopControl.permissionEnvelope || 'unknown') + '; approval: ' + (desktopControl.approvalRequired ? 'required' : 'not required'),
+        'next: ' + (desktopControl.nextSafeStep || 'not reported')
+      ], _toneForStatus(desktopControl.status || desktopControl.permissionEnvelope));
+    }
+    function _renderProposalCards(proposals) {
+      if (!proposals || !proposals.length) return;
+      var cards = proposals.slice(0, 6).map(function(proposal) {
+        return _makeTurnCard('Proposal: ' + (proposal.operation || 'action'), [
+          'lane: ' + (proposal.lane || 'not specified'),
+          'permission: ' + (proposal.permissionEnvelope || proposal.approvalRequired || 'classified by intent'),
+          'receipt: ' + (proposal.receiptRequired === false ? 'not required' : 'required')
+        ], proposal.receiptRequired === false ? 'attention' : 'ready');
+      });
+      _appendCardGrid(cards);
+    }
+    function _renderAgentHandoffCards(proposals) {
+      var handoffs = (proposals || []).filter(function(proposal) {
+        var text = String((proposal.operation || '') + ' ' + (proposal.lane || '')).toLowerCase();
+        return /(dispatch|agent|laptop|reasoning|codex|grok|claude|gemini)/.test(text);
+      });
+      if (!handoffs.length) return;
+      _appendTurnCard('Agent handoff', handoffs.slice(0, 3).map(function(proposal) {
+        return (proposal.operation || 'agent work') + ' -> ' + (proposal.lane || 'lane not specified') + '; receipt required';
+      }), 'ready');
+    }
+    function _renderReceiptNarration(response) {
+      var lines = [];
+      if (response.turnId) lines.push('turn: ' + response.turnId);
+      if (response.receiptType) lines.push('receipt type: ' + response.receiptType);
+      if (response.desktopControl?.planId) lines.push('desktop plan: ' + response.desktopControl.planId);
+      if (response.systemStatus?.route?.cockpitCapsuleEndpoint) lines.push('capsule: ' + response.systemStatus.route.cockpitCapsuleEndpoint);
+      if (!lines.length) lines.push('turn completed; receipt metadata not reported by this response');
+      _appendTurnCard('Receipt narration', lines, response.receiptType ? 'ready' : 'attention', 'receipt');
+    }
+    function _renderTurnOperatorCards(response) {
+      _renderSystemStatusCard(response.systemStatus);
+      _renderDesktopControlCard(response.desktopControl);
+      _renderProposalCards(response.proposals || []);
+      _renderAgentHandoffCards(response.proposals || []);
+      _renderReceiptNarration(response);
+    }
     function sendBrittneyChat() {
       var inp = document.getElementById('brittney-input'); if (!inp) return;
       var msg = inp.value.trim(); if (!msg) return;
@@ -524,14 +915,15 @@ const runtimeScript = `  <script>
           if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
           if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149'); return; }
           _bMsg('Brittney', d.reply, '#bc8cff');
+          _renderTurnOperatorCards(d);
           if (d.desktopControl) {
-            _bMsg('Desktop control', d.desktopControl.status + ' via ' + d.desktopControl.modelLane + ' (' + d.desktopControl.recommendedModel + ')\\n' + d.desktopControl.permissionEnvelope + ' - ' + d.desktopControl.nextSafeStep, '#3fb950');
             _offerDesktopOpenUrl(msg, d.desktopControl);
           }
           if (d.proposals && d.proposals.length) {
             var lines = d.proposals.map(function(x) { return '• ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
             _bMsg('Proposed actions', lines, '#3fb950');
           }
+          loadCockpitCapsule();
         })
         .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149'); });
     }
@@ -653,6 +1045,8 @@ const runtimeScript = `  <script>
     function initBrittneyChat() {
       var mount = document.getElementById('brittney-chat-mount'); if (!mount) return;
       mount.innerHTML =
+        '<section id="operator-state-rail" class="operator-state-rail" aria-label="Brittney operator truth"></section>' +
+        '<section id="operator-alerts" class="operator-alerts" aria-label="Brittney evidence prompts"></section>' +
         '<section id="brittney-cockpit" class="cockpit-grid" aria-live="polite">' +
         '<div class="cockpit-card"><strong>Runtime</strong><span id="cockpit-runtime">checking</span></div>' +
         '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
@@ -664,6 +1058,14 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Tools</strong><span id="cockpit-actions">checking</span></div>' +
         '</section>' +
         '<section id="cockpit-action-cards" class="cockpit-action-grid" aria-label="Brittney action cards"></section>' +
+        '<section id="context-capsule-panel" class="context-capsule-panel" aria-label="Context capsule">' +
+        '<strong>Context Capsule</strong>' +
+        '<div class="context-capsule-grid">' +
+        '<span><b>Carry</b><br><span id="context-capsule-required">checking</span></span>' +
+        '<span><b>Identity</b><br><span id="context-capsule-identity">checking</span></span>' +
+        '<span><b>Memory</b><br><span id="context-capsule-memory">checking</span></span>' +
+        '</div>' +
+        '</section>' +
         '<div id="improvement-run-panel" style="flex:0 0 auto;margin:14px 0 0 0;padding:12px;border:1px solid #30363d;border-radius:8px;background:#0d1117">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">' +
         '<strong style="font-size:13px;color:#c9d1d9;font-weight:650">Codebase Fix Shakedown</strong>' +

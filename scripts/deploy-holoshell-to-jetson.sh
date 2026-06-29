@@ -203,6 +203,7 @@ echo "[deploy] syncing platform-neutral dists + brain + native resources + surfa
 "$SCP_BIN" "${SSH_OPTS[@]}" -q "$(tool_path "$HL/scripts/holoshell-founder-prompt-fixtures.mjs")" "$J:$SURF/scripts/"
 "$SCP_BIN" "${SSH_OPTS[@]}" -q "$(tool_path "$HL/apps/holoshell/source/holoshell-founder-prompt-fixtures.hsplus")" "$J:$SURF/apps/holoshell/source/"
 "$SCP_BIN" "${SSH_OPTS[@]}" -q "$(tool_path "$HL/apps/holoshell/source/holoshell-agent-dispatch.hsplus")" "$J:$SURF/apps/holoshell/source/"
+"$SCP_BIN" "${SSH_OPTS[@]}" -q "$(tool_path "$HL/apps/holoshell/source/holoshell-brittney-operator-chat.hsplus")" "$J:$SURF/apps/holoshell/source/"
 "$SCP_BIN" "${SSH_OPTS[@]}" -q "$(tool_path "$FOUNDER_FIXTURE")" "$J:$SURF/.tmp/holoshell/founder-prompt-fixtures.json"
 
 if [ -f "$MODEL_LIBRARY" ]; then

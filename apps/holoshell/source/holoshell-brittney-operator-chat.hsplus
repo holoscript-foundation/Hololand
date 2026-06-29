@@ -1,0 +1,182 @@
+// HoloShell Brittney Operator Chat
+//
+// Source contract for the visible Brittney chat window. The chat is the primary
+// operator surface: cockpit data, action proposals, stale receipt prompts,
+// context carry, agent handoffs, and receipts must appear where the user talks
+// to Brittney instead of hiding as backend JSON.
+
+composition "HoloShell Brittney Operator Chat" {
+  config {
+    title: "Brittney Operator Chat"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeSurface: "Brittney Studio desktop app"
+    operateRoomSource: "packages/holoshell/scenes/operate-room.holo"
+    compilerBridge: "packages/holoshell/compile.mjs"
+    serverModule: "packages/holoshell/serve.mjs"
+    chatEndpoint: "POST /api/brittney/chat"
+    cockpitCapsuleEndpoint: "GET /api/cockpit/capsule"
+    operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
+    desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
+    laptopReasoningLane: "laptop-hardware"
+    defaultPermissionEnvelope: "read_only"
+  }
+
+  state {
+    runtimeTruthStatus: "unknown"
+    routeStatus: "unknown"
+    contextCarryStatus: "unknown"
+    desktopBridgeStatus: "unknown"
+    laptopReasoningStatus: "unknown"
+    laptopReasoningLane: "laptop-hardware"
+    laptopReasoningModelInvocationPerformed: false
+    laptopReasoningGpuStatus: "unknown"
+    operatorTerminalStatus: "unknown"
+    windowAwarenessStatus: "unknown"
+    pendingProposalCount: 0
+    staleEvidencePromptCount: 0
+    lastReceiptType: ""
+    lastTurnId: ""
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:brittney:operator-chat" {
+    type: "append_only"
+    priority: "critical"
+    description: "Visible Brittney operator chat turns with inline state, proposals, handoffs, and receipts"
+  }
+
+  template "OperatorTruthRail" {
+    type: "chat_status_rail"
+    showsRuntimeTruth: true
+    showsJetsonRoute: true
+    showsLaptopReasoningLane: true
+    showsGpuTelemetryBoundary: true
+    showsModelInvocationBoundary: true
+    receiptRequired: true
+  }
+
+  template "EvidencePrompt" {
+    type: "stale_evidence_prompt"
+    label: ""
+    status: "unknown"
+    sourceEndpoint: ""
+    nextSafeStep: ""
+    endpointMayExecuteCommand: false
+    desktopAutomationExecuted: false
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  template "ActionProposalCard" {
+    type: "chat_action_proposal"
+    operation: ""
+    lane: ""
+    permissionEnvelope: "read_only"
+    approvalRequired: "classified_by_intent"
+    receiptRequired: true
+    renderedInsideConversation: true
+  }
+
+  template "ContextCapsuleDrawer" {
+    type: "chat_context_capsule"
+    requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
+    identityCarry: ["surface", "agent_family", "current_lane", "room_task_id", "handoff_source"]
+    memoryInputs: ["knowledge_store", "GOLD", "repo_files", "receipts", "room_board"]
+    graphRagQuestionRequiredWhenTruthIsUnknown: true
+    receiptRequired: true
+  }
+
+  policy "ChatIsPrimaryOperatorSurface" {
+    appliesTo: ["brittney_turn", "system_status", "next_steps", "desktop_control_plan", "agent_handoff"]
+    renderInsideConversation: true
+    cockpitOnlyIsInsufficient: true
+    receiptRequired: true
+  }
+
+  policy "LaneTruthMustBeVisible" {
+    appliesTo: ["laptop_reasoning", "runtime_truth", "route_health", "gpu_telemetry"]
+    requiredVisibleFields: ["route", "lane", "gpu_status", "model_invocation_performed"]
+    laptopReasoningLane: "laptop-hardware"
+    distinguishReceiptOnlyFromModelInvocation: true
+    receiptRequired: true
+  }
+
+  policy "StaleEvidenceBecomesChatPrompt" {
+    appliesTo: ["operator_terminal", "desktop_bridge", "window_awareness", "receipt_freshness"]
+    terminalEndpointMayExecuteCommand: false
+    promptMustNameNextSafeStep: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "ActionProposalsRenderAsCards" {
+    appliesTo: ["action_proposals", "desktop_control", "improvement_run", "agent_dispatch"]
+    cardMustShowOperation: true
+    cardMustShowLane: true
+    cardMustShowPermissionEnvelope: true
+    cardMustShowReceiptRequirement: true
+    approvalStateMustBeVisible: true
+    receiptRequired: true
+  }
+
+  policy "ContextCarryIsInspectableFromChat" {
+    appliesTo: ["context_capsule", "agent_handoff", "compaction_recovery"]
+    requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
+    preservesIdentityAcrossTurns: true
+    graphRagQuestionRequiredWhenTruthIsUnknown: true
+    receiptRequired: true
+  }
+
+  action consume_cockpit_capsule(capsule) {
+    state.runtimeTruthStatus = capsule.summary.runtimeTruthStatus
+    state.routeStatus = capsule.summary.routeStatus
+    state.contextCarryStatus = capsule.summary.contextCarryStatus
+    state.desktopBridgeStatus = capsule.summary.desktopBridgeStatus
+    state.laptopReasoningStatus = capsule.summary.laptopReasoningStatus
+    state.laptopReasoningLane = capsule.summary.laptopReasoningLane
+    state.laptopReasoningModelInvocationPerformed = capsule.summary.laptopReasoningModelInvocationPerformed
+    state.laptopReasoningGpuStatus = capsule.summary.laptopReasoningGpuStatus
+    state.operatorTerminalStatus = capsule.summary.operatorTerminalStatus
+    state.windowAwarenessStatus = capsule.summary.windowAwarenessStatus
+    state.destructiveActionsTaken = capsule.destructiveActionsTaken
+    state.desktopAutomationExecuted = capsule.desktopAutomationExecuted
+
+    emit("holoshell:brittney:operator-chat", {
+      action: "operator_truth_rendered",
+      runtime_truth: state.runtimeTruthStatus,
+      routes: state.routeStatus,
+      context_carry: state.contextCarryStatus,
+      desktop_bridge: state.desktopBridgeStatus,
+      laptop_reasoning: state.laptopReasoningStatus,
+      laptop_reasoning_lane: state.laptopReasoningLane,
+      model_invocation_performed: state.laptopReasoningModelInvocationPerformed,
+      gpu_status: state.laptopReasoningGpuStatus,
+      operator_terminal: state.operatorTerminalStatus,
+      window_awareness: state.windowAwarenessStatus,
+      destructive_actions_taken: state.destructiveActionsTaken,
+      desktop_automation_executed: state.desktopAutomationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action render_turn_response(turn) {
+    state.pendingProposalCount = turn.proposals.length
+    state.lastReceiptType = turn.receiptType
+    state.lastTurnId = turn.turnId
+
+    emit("holoshell:brittney:operator-chat", {
+      action: "turn_cards_rendered",
+      turn_id: state.lastTurnId,
+      proposal_count: state.pendingProposalCount,
+      receipt_type: state.lastReceiptType,
+      action_proposals_visible: true,
+      context_capsule_visible: true,
+      agent_handoff_visible: true,
+      receipt_narration_visible: true,
+      receipt_required: true
+    })
+  }
+}

@@ -370,6 +370,7 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'scripts\holoshell-founder-prompt-fixtures.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-founder-prompt-fixtures.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-agent-dispatch.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-brittney-operator-chat.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
   @{ Source = $FounderFixture; Destination = Join-RemotePath $RemoteSurface '.tmp/holoshell/founder-prompt-fixtures.json'; Recursive = $false; Required = $true },
   @{ Source = $ModelLibraryPath; Destination = Join-RemotePath $RemoteSurface 'model-library/library.json'; Recursive = $false; Required = $false }
 )

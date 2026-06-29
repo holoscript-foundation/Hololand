@@ -25,6 +25,7 @@ composition "OperateRoom" {
     compile_target: "Native2DCompiler"
     serve_port: 8747
     surface: "chat_plus_compact_cockpit"
+    operator_chat_source: "apps/holoshell/source/holoshell-brittney-operator-chat.hsplus"
     improvement_run_source: "apps/holoshell/source/holoshell-improvement-run-loop.hsplus"
     improvement_run_endpoint: "POST /api/improvement-runs"
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
@@ -62,6 +63,9 @@ composition "OperateRoom" {
     last_cockpit_capsule_status: ""
     last_laptop_reasoning_status: ""
     last_operator_terminal_status: ""
+    last_operator_chat_receipt_type: ""
+    stale_evidence_prompt_count: 0
+    visible_action_proposal_count: 0
   }
 
   object "root" {
@@ -106,6 +110,10 @@ composition "OperateRoom" {
     // when needed, and reports status back to the Jetson surface; desktop mutation
     // remains consent-token gated.
     // The interactive DOM (messages / input / send) is built by the runtime helper.
+    // Operator Chat v1 renders lane truth, stale-evidence prompts, context capsule
+    // carry, permission-enveloped proposal cards, agent handoff cards, and receipt
+    // narration inside the conversation. The source contract is
+    // apps/holoshell/source/holoshell-brittney-operator-chat.hsplus.
     object "chat" {
       type: "main"
       id: "brittney-chat-mount"
