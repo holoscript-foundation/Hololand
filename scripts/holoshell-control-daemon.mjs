@@ -100,10 +100,12 @@ Routes:
   GET  /workflow/founder-command/latest
   GET  /dispatch/latest
   GET  /workflow/laptop-reasoning/latest
+  GET  /workflow/conversation-plan-dispatch/latest
   POST /action
   POST /approval/execute
   POST /workflow/agent-dispatch
   POST /workflow/laptop-reasoning-job
+  POST /workflow/conversation-plan-dispatch
   POST /workflow/room-marathon
   POST /workflow/claude-chat
   POST /workflow/ollama-cloud-agent
@@ -167,6 +169,17 @@ function runChecked(args) {
     throw new Error(detail);
   }
   return result;
+}
+
+function parseJsonFromStdout(stdout, label) {
+  const text = String(stdout || '');
+  const jsonStart = text.indexOf('{');
+  if (jsonStart < 0) throw new Error(`${label} did not print a JSON receipt.`);
+  try {
+    return JSON.parse(text.slice(jsonStart));
+  } catch (error) {
+    throw new Error(`${label} printed invalid JSON: ${error.message}`);
+  }
 }
 
 function refreshRegistry(args) {
@@ -330,6 +343,51 @@ function laptopReasoningJob(args, body = {}) {
   return runChecked(cli);
 }
 
+function conversationPlanDispatchWorkflow(args, body = {}) {
+  const mode = String(body.executionMode || 'plan_only');
+  const allowedModes = new Set(['plan_only', 'dry_run_room_tasks', 'execute_room_tasks']);
+  if (!allowedModes.has(mode)) {
+    const error = new Error(`Unsupported conversation plan executionMode: ${mode}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const wantsDryRun = body.dryRunRoomTasks === true || mode === 'dry_run_room_tasks';
+  const wantsExecute = body.executeRoomTasks === true || mode === 'execute_room_tasks';
+  if (wantsDryRun && wantsExecute) {
+    const error = new Error('Conversation plan dry-run and execute flags are mutually exclusive.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (body.executeClaim === true && !body.claimTaskId) {
+    const error = new Error('Conversation plan claim execution requires claimTaskId.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const cli = ['scripts/holoshell-conversation-plan-dispatcher.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--plan', body.plan || body.planReceipt || body.planPath || tmpPath(args, 'brittney-conversation-plan-latest.json'));
+  add('--output', body.output || body.dispatchReceipt || tmpPath(args, 'conversation-plan-dispatch-latest.json'));
+  add('--js-output', body.jsOutput || tmpPath(args, 'conversation-plan-dispatch-latest.js'));
+  add('--dispatch-dir', body.dispatchDir || path.join(args.tmpDir, 'conversation-plan-dispatches'));
+  add('--room-task-output', body.roomTaskOutput || tmpPath(args, 'conversation-plan-room-tasks-latest.json'));
+  if (wantsDryRun) cli.push('--dry-run-room-tasks');
+  if (wantsExecute) cli.push('--execute-room-tasks');
+  if (body.executeClaim === true) {
+    cli.push('--execute-claim');
+    add('--claim-task-id', body.claimTaskId);
+  }
+  cli.push('--json');
+  const result = runChecked(cli);
+  return {
+    result,
+    receipt: parseJsonFromStdout(result.stdout, 'conversation plan dispatcher'),
+  };
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -382,6 +440,7 @@ function latestSnapshot(args) {
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
     laptopReasoningBridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
     laptopReasoningResult: readJson(tmpPath(args, 'laptop-reasoning-result-latest.json'), {}),
+    conversationPlanDispatch: readJson(tmpPath(args, 'conversation-plan-dispatch-latest.json'), {}),
   };
 }
 
@@ -626,6 +685,22 @@ function stageLaptopReasoningJob(args, body = {}) {
   };
 }
 
+function stageConversationPlanDispatch(args, body = {}) {
+  const dispatch = conversationPlanDispatchWorkflow(args, body);
+  const receipt = dispatch.receipt || {};
+  const validationPassed = receipt.validation?.status === 'passed';
+  return {
+    ok: validationPassed && receipt.summary?.status !== 'blocked',
+    conversationPlanDispatch: receipt,
+    dispatchReceipt: receipt,
+    downstreamReceiptsRequired: receipt.downstreamReceipts?.required === true,
+    completionClaimAllowed: receipt.summary?.completionClaimAllowed === true,
+    logs: {
+      conversationPlanDispatch: dispatch.result.stdout.trim(),
+    },
+  };
+}
+
 function stageAgentDispatch(args, body = {}) {
   refreshRegistry(args);
   const dispatchResult = agentDispatch(body);
@@ -651,6 +726,7 @@ function stageAgentDispatch(args, body = {}) {
   else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
   else if (route === '/workflow/laptop-reasoning-job') downstream = stageLaptopReasoningJob(args, routedBody);
+  else if (route === '/workflow/conversation-plan-dispatch') downstream = stageConversationPlanDispatch(args, routedBody);
   else if (route === '/action') downstream = stageAction(args, routedBody);
   else {
     const error = new Error(`Agent dispatch selected unsupported route: ${route || 'none'}`);
@@ -671,6 +747,10 @@ function stageAgentDispatch(args, body = {}) {
     founderCommand: downstream.founderCommand,
     laptopReasoningBridge: downstream.laptopReasoningBridge,
     laptopReasoningResult: downstream.laptopReasoningResult,
+    conversationPlanDispatch: downstream.conversationPlanDispatch,
+    dispatchReceipt: downstream.dispatchReceipt,
+    downstreamReceiptsRequired: downstream.downstreamReceiptsRequired,
+    completionClaimAllowed: downstream.completionClaimAllowed,
     feed: downstream.feed || readJson(tmpPath(args, 'live-feed.json'), {}),
     logs: {
       dispatch: dispatchResult.stdout.trim(),
@@ -709,6 +789,9 @@ function routeGet(args, pathname) {
   if (pathname === '/services/supervisor') return readJson(tmpPath(args, 'service-supervisor.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
+  if (pathname === '/workflow/conversation-plan-dispatch/latest') {
+    return readJson(tmpPath(args, 'conversation-plan-dispatch-latest.json'), {});
+  }
   if (pathname === '/workflow/laptop-reasoning/latest') {
     return {
       bridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
@@ -725,6 +808,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/approval/execute') return executeApproval(args, body);
   if (pathname === '/workflow/agent-dispatch') return stageAgentDispatch(args, body);
   if (pathname === '/workflow/laptop-reasoning-job') return stageLaptopReasoningJob(args, body);
+  if (pathname === '/workflow/conversation-plan-dispatch') return stageConversationPlanDispatch(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
   if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
   if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);

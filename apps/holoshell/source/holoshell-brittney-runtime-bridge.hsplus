@@ -150,6 +150,10 @@ composition "HoloShell Brittney Runtime Bridge" {
     dispatcherRole: "receipt_backed_router"
     dispatcherSource: "apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus"
     dispatcherScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
+    acceptanceRoute: "POST /workflow/conversation-plan-dispatch"
+    acceptanceDefault: "plan_only"
+    dryRunFlag: "--dry-run-room-tasks"
+    executeFlag: "--execute-room-tasks"
     permissionEnvelope: "read_only"
     approvalRequired: false
     receiptRequired: true
@@ -198,6 +202,9 @@ composition "HoloShell Brittney Runtime Bridge" {
     requiredInput: "recent_turn_history"
     dispatcherSource: "apps/holoshell/source/holoshell-conversation-plan-dispatcher.hsplus"
     dispatcherScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
+    proposalAcceptanceRoute: "POST /workflow/conversation-plan-dispatch"
+    allowedExecutionModes: ["plan_only", "dry_run_room_tasks", "execute_room_tasks"]
+    defaultExecutionMode: "plan_only"
     triggerRequires: "explicit_commence_all_turn"
     modelAuthority: "voice_and_context_only"
     dispatcherAuthority: "receipt_backed_router"

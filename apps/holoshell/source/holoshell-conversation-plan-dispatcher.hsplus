@@ -11,6 +11,10 @@ composition "HoloShell Conversation Plan Dispatcher" {
     product: "HoloShell"
     sourceLayer: "HoloScript"
     runtimeScript: "scripts/holoshell-conversation-plan-dispatcher.mjs"
+    controlDaemonRoute: "POST /workflow/conversation-plan-dispatch"
+    proposalAcceptanceDefault: "plan_only"
+    proposalAcceptanceDryRunFlag: "--dry-run-room-tasks"
+    proposalAcceptanceExecuteFlag: "--execute-room-tasks"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     latestConversationPlanReceipt: ".tmp/holoshell/brittney-conversation-plan-latest.json"
     latestDispatchReceipt: ".tmp/holoshell/conversation-plan-dispatch-latest.json"
@@ -40,6 +44,12 @@ composition "HoloShell Conversation Plan Dispatcher" {
     type: "request_response"
     priority: "critical"
     description: "Ready conversation-plan packet produced by Brittney after explicit commence all"
+  }
+
+  channel "holoshell:conversation-plan:proposal-acceptance" {
+    type: "request_response"
+    priority: "critical"
+    description: "HoloShell acceptance route for dispatching a ready conversation-plan proposal"
   }
 
   channel "holoshell:conversation-plan:dispatch-receipt" {
@@ -75,6 +85,9 @@ composition "HoloShell Conversation Plan Dispatcher" {
     planValidationStatus: "passed"
     permissionEnvelope: "read_only"
     defaultExecutionMode: "plan_only"
+    controlDaemonRoute: "POST /workflow/conversation-plan-dispatch"
+    dryRunFlag: "--dry-run-room-tasks"
+    executeFlag: "--execute-room-tasks"
     mutationExecuted: false
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -115,6 +128,7 @@ composition "HoloShell Conversation Plan Dispatcher" {
   policy "DefaultPlanOnly" {
     appliesTo: ["conversation_plan_dispatch"]
     defaultExecutionMode: "plan_only"
+    proposalAcceptanceRoute: "POST /workflow/conversation-plan-dispatch"
     mutating: false
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -126,6 +140,8 @@ composition "HoloShell Conversation Plan Dispatcher" {
     helperRequired: true
     helperMustVerifyPersistedIds: true
     explicitExecuteFlagRequired: true
+    allowedFlags: ["--dry-run-room-tasks", "--execute-room-tasks"]
+    conflictingFlagsForbidden: true
     mutationRecordedInReceipt: true
     receiptRequired: true
   }

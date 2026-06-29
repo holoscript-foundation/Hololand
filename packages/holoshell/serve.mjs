@@ -2223,6 +2223,48 @@ function mergeProposals(primary, secondary) {
   });
 }
 
+function exposeBrittneyProposal(proposal = {}) {
+  const exposed = {
+    operation: proposal.operation || proposal.kind || proposal.title || 'action',
+    lane: proposal.lane
+      || proposal.consentLane
+      || (proposal.objectId === 'conversation-plan' ? 'conversation_plan_dispatch' : null),
+    receiptRequired: proposal.receiptRequired ?? null,
+  };
+  const passthroughKeys = [
+    'id',
+    'objectId',
+    'label',
+    'permissionEnvelope',
+    'mutating',
+    'approvalRequired',
+    'planId',
+    'planReceipt',
+    'dispatcherSource',
+    'dispatcherScript',
+    'acceptanceRoute',
+    'acceptanceMethod',
+    'acceptanceMode',
+    'allowedExecutionModes',
+    'dryRunFlag',
+    'executeFlag',
+    'defaultMutationMode',
+    'executionDefault',
+    'dispatchReceiptRequired',
+    'downstreamReceiptsRequired',
+    'completionClaimAllowed',
+    'completionBlockedUntil',
+    'turnCount',
+    'questionTurnCount',
+    'sourceTurnIds',
+    'reason',
+  ];
+  for (const key of passthroughKeys) {
+    if (proposal[key] !== undefined) exposed[key] = proposal[key];
+  }
+  return exposed;
+}
+
 function liveStatusResponseEnvelope(snapshot) {
   return {
     schemaVersion: snapshot.schemaVersion,
@@ -2832,11 +2874,7 @@ async function handleRequest(req, res) {
           ? desktopControlPlanFor(message, { actor: 'brittney' })
           : null;
         const controlProposal = desktopControlProposal(desktopControl);
-        const receiptProposals = (receipt.proposals || []).map((p) => ({
-          operation: p.operation || p.kind || p.title || 'action',
-          lane: p.lane || p.consentLane || null,
-          receiptRequired: p.receiptRequired ?? null,
-        }));
+        const receiptProposals = (receipt.proposals || []).map(exposeBrittneyProposal);
         if (controlProposal) receiptProposals.push(controlProposal);
         const proposals = liveStatus
           ? mergeProposals(liveStatusProposals(liveStatus, message), receiptProposals)
