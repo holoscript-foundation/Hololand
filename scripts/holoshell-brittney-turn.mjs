@@ -22,6 +22,8 @@ const DEFAULT_AGENT_DISPATCH_JS = path.join(DEFAULT_TMP, 'agent-dispatch-latest.
 const DEFAULT_AGENT_DISPATCH_DIR = path.join(DEFAULT_TMP, 'agent-dispatches');
 const DEFAULT_LAPTOP_REASONING_RESULT = path.join(DEFAULT_TMP, 'laptop-reasoning-result-latest.json');
 const DEFAULT_LAPTOP_REASONING_RESULT_DIR = path.join(DEFAULT_TMP, 'laptop-reasoning-results');
+const LAPTOP_REASONING_TARGET_HOST = 'laptop_windows';
+const LAPTOP_REASONING_LANE = 'laptop-hardware';
 
 function parseArgs(argv) {
   const args = {
@@ -222,6 +224,76 @@ function userFacingFinalText({ prompt, finalText, resultOk, proposals }) {
     : "I don't have a working capability for that yet.";
 }
 
+function laptopReasoningStageBlockers(receipt) {
+  const summary = receipt?.summary || {};
+  const dispatch = receipt?.dispatch || {};
+  const body = dispatch.body && typeof dispatch.body === 'object' ? dispatch.body : {};
+  const blockers = [];
+  const requireField = (field, valid) => {
+    if (!valid) blockers.push(field);
+  };
+
+  requireField('summary.status', summary.status === 'ready_to_stage');
+  requireField('dispatch.status', dispatch.status === 'ready_to_stage');
+  requireField('summary.dispatchKind', summary.dispatchKind === 'reasoning_job');
+  requireField('dispatch.dispatchKind', dispatch.dispatchKind === 'reasoning_job');
+  requireField('summary.route', Boolean(summary.route));
+  requireField('dispatch.route', Boolean(dispatch.route));
+  requireField('dispatch.body', Object.keys(body).length > 0);
+  requireField('dispatch.body.targetHost', body.targetHost === LAPTOP_REASONING_TARGET_HOST);
+  requireField('dispatch.body.lane', body.lane === LAPTOP_REASONING_LANE);
+  requireField('dispatch.body.permissionEnvelope', body.permissionEnvelope === 'read_only');
+  requireField('dispatch.body.receiptRequired', body.receiptRequired === true);
+
+  return blockers;
+}
+
+function createBlockedLaptopReasoningDelegation(persisted, stageBlockers) {
+  const summary = persisted.summary || {};
+  const dispatch = persisted.dispatch || {};
+  return {
+    status: 'blocked',
+    blockedReason: 'laptop_reasoning_dispatch_not_stageable',
+    stageBlockers,
+    dispatchId: persisted.dispatchId,
+    capabilityId: summary.capabilityId,
+    capabilityLabel: summary.capabilityLabel,
+    confidence: summary.confidence,
+    route: summary.route || dispatch.route || '',
+    dispatchStatus: dispatch.status || '',
+    summaryStatus: summary.status || '',
+    dispatchKind: summary.dispatchKind || dispatch.dispatchKind || '',
+    permissionEnvelope: summary.permissionEnvelope || dispatch.permissionEnvelope || '',
+    approvalRequired: Boolean(summary.approvalRequired),
+    targetHost: summary.targetHost || '',
+    lane: summary.reasoningLane || '',
+    agentLane: summary.agentLane || '',
+    canonicalProviderId: summary.canonicalProviderId || '',
+    workload: summary.workload || '',
+    delegationMode: summary.delegationMode || '',
+    reasonCodes: summary.reasonCodes || [],
+    reuseBeforeBuild: Boolean(summary.reuseBeforeBuild),
+    duplicateWorkPolicy: summary.duplicateWorkPolicy || '',
+    goldRoot: summary.goldRoot || '',
+    goldRuntimeStatus: summary.goldRuntimeStatus || '',
+    claudeInjectionRoute: summary.claudeInjectionRoute || '',
+    studioOrchestrator: summary.studioOrchestrator || '',
+    vastSpendRail: summary.vastSpendRail || '',
+    vastEscalationGate: summary.vastEscalationGate || '',
+    workloadFocus: {},
+    canonicalSurfaces: {},
+    budgetPolicy: {},
+    latestPath: persisted.output?.latestPath || '',
+    dispatchReceiptPath: persisted.output?.dispatchReceiptPath || '',
+    promptHash: '',
+    promptChars: 0,
+    wordCount: 0,
+    receiptRequired: true,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  };
+}
+
 function createLaptopReasoningDelegation(args) {
   const dispatchArgs = {
     actor: 'brittney',
@@ -242,6 +314,10 @@ function createLaptopReasoningDelegation(args) {
     };
   }
   const persisted = persistAgentDispatchReceipt(dispatchArgs, dispatch);
+  const stageBlockers = laptopReasoningStageBlockers(persisted);
+  if (stageBlockers.length) {
+    return createBlockedLaptopReasoningDelegation(persisted, stageBlockers);
+  }
   return {
     status: 'delegated',
     dispatchId: persisted.dispatchId,
@@ -1054,6 +1130,7 @@ ${toneInstruction}`;
       laptopReasoningStudioOrchestrator: runtime.laptopReasoningDelegation.studioOrchestrator || '',
       laptopReasoningVastSpendRail: runtime.laptopReasoningDelegation.vastSpendRail || '',
       laptopReasoningReasonCodes: runtime.laptopReasoningDelegation.reasonCodes || [],
+      laptopReasoningStageBlockers: runtime.laptopReasoningDelegation.stageBlockers || [],
       laptopReasoningResultStatus: runtime.laptopReasoningResult.status || '',
       laptopReasoningResultId: runtime.laptopReasoningResult.resultId || '',
       laptopReasoningResultMatchKind: runtime.laptopReasoningResult.matchKind || '',
