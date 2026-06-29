@@ -81,6 +81,12 @@ Options:
   --output <path>    Write the proof receipt to this path.
   --skip-hardware   Skip the local hardware baseline receipt.
   -h, --help        Show this help.
+
+Environment:
+  HOLOSCRIPT_ROOT    HoloScript checkout path. Defaults to ../HoloScript.
+  HOLOSCRIPT_CLI     Explicit HoloScript CLI JS/CJS entrypoint.
+  HOLOLAND_ALLOW_PNPM_HOLOSCRIPT_FALLBACK=1
+                    Permit pnpm exec fallback when no local CLI is present.
 `);
       process.exit(0);
     } else {
@@ -135,6 +141,60 @@ function findHoloScriptRoot() {
   throw new Error('Unable to find HoloScript root. Set HOLOSCRIPT_ROOT to run parser validation.');
 }
 
+function findHoloScriptCli(holoscriptRoot) {
+  const candidates = [
+    process.env.HOLOSCRIPT_CLI,
+    path.join(holoscriptRoot, 'packages', 'cli', 'bin', 'holoscript.cjs'),
+    path.join(holoscriptRoot, 'packages', 'cli', 'dist', 'cli.js'),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return path.resolve(candidate);
+    }
+  }
+
+  return null;
+}
+
+function allowPnpmFallback() {
+  return /^(1|true|yes)$/i.test(process.env.HOLOLAND_ALLOW_PNPM_HOLOSCRIPT_FALLBACK ?? '');
+}
+
+function parserCommandFor(holoscriptRoot, absoluteSource) {
+  const cliPath = findHoloScriptCli(holoscriptRoot);
+
+  if (cliPath) {
+    return {
+      kind: 'local_holoscript_cli',
+      command: process.execPath,
+      args: [cliPath, 'parse', absoluteSource],
+      cwd: holoscriptRoot,
+      cliPath,
+    };
+  }
+
+  if (!allowPnpmFallback()) {
+    return {
+      kind: 'missing_local_holoscript_cli',
+      command: null,
+      args: [],
+      cwd: holoscriptRoot,
+      cliPath: null,
+      error:
+        'Unable to find a local HoloScript CLI entrypoint. Set HOLOSCRIPT_CLI, build packages/cli, or set HOLOLAND_ALLOW_PNPM_HOLOSCRIPT_FALLBACK=1 to permit pnpm exec.',
+    };
+  }
+
+  return {
+    kind: 'pnpm_exec_fallback',
+    command: 'pnpm',
+    args: ['exec', 'holoscript', 'parse', absoluteSource],
+    cwd: holoscriptRoot,
+    cliPath: null,
+  };
+}
+
 function validateSignals(sourceText, requiredSignals) {
   return requiredSignals.map(([label, pattern]) => ({
     label,
@@ -143,14 +203,35 @@ function validateSignals(sourceText, requiredSignals) {
 }
 
 function parseSource(holoscriptRoot, absoluteSource) {
-  const result = run('pnpm', ['exec', 'holoscript', 'parse', absoluteSource], {
-    cwd: holoscriptRoot,
+  const parserCommand = parserCommandFor(holoscriptRoot, absoluteSource);
+  const commandReceipt = {
+    kind: parserCommand.kind,
+    executable: parserCommand.command,
+    args: parserCommand.args,
+    cwd: parserCommand.cwd,
+    cliPath: parserCommand.cliPath,
+  };
+
+  if (!parserCommand.command) {
+    return {
+      passed: false,
+      status: null,
+      command: commandReceipt,
+      error: parserCommand.error,
+      stdout: '',
+      stderr: '',
+    };
+  }
+
+  const result = run(parserCommand.command, parserCommand.args, {
+    cwd: parserCommand.cwd,
     timeout: 120000,
   });
 
   return {
     passed: result.status === 0,
     status: result.status,
+    command: commandReceipt,
     error: result.error?.message,
     stdout: text(result.stdout),
     stderr: text(result.stderr),
