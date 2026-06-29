@@ -39,6 +39,13 @@ pnpm-debug.log*
 .tmp/
 temp/
 
+# Agent run debris and local receipts
+.scratch/
+**/.scratch/
+
+# Historical benchmark logs may contain tracked evidence; ignore only new local debris.
+.bench-logs/
+
 # Packaged artifacts and generated release output
 *.tgz
 examples/compiled-outputs/

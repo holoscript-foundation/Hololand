@@ -176,6 +176,7 @@ Minimum generation workflow:
 | `NORTH_STAR.md` | Project status and HoloScript-first platform rule. |
 | `CLAUDE.md` | Current detailed HoloScript file-type primer. |
 | `docs/HOLOLAND_PURPOSE.md` | Product authority, gamer/developer split, and native HoloScript proof policy. |
+| `docs/HOLOLAND_HOUSEKEEPING.md` | Cleanup lanes, visible experiment intake, ignored debris, and package-manager blockers. |
 | `docs/BRITTNEY_OWNERSHIP_MODEL.md` | Brittney lineage, sovereignty, local/BYOK/managed deployment boundary, and NPC/AGI posture. |
 | `docs/HOLOSCRIPT_SOURCE_CONTRACT.md` | Enforcement boundary for HoloScript-first work. |
 | `docs/specs/HOLOSCRIPT_FIRST_MIGRATION.md` | Existing migration direction for HoloLand Central. |
