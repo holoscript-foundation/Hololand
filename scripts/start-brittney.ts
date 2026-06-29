@@ -96,6 +96,7 @@ const BRITTNEY_PORT = 11435;
 const BRITTNEY_HOST = 'localhost';
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL_PREFERENCE = [
+  'brittney-edge:v0-4',
   'brittney-v4-expert:latest',
   'brittney-qwen-v23:latest',
   'brittney-qwen:latest',

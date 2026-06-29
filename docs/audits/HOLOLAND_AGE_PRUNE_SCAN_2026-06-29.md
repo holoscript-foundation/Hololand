@@ -90,6 +90,22 @@ The checker currently reports the two expected repo-local violations:
 - `models/brittney-qwen-v43-q8_0.gguf`, 122 days old
 - `.proprietary/models/brittney-v1-expert.gguf`, 155 days old
 
+## Model Artifact Move Receipt
+
+The two repo-local GGUF weights were copied to the stable Jetson artifact lane:
+
+- Target: `username@holojetson.local:/mnt/nvme/holo/models/hololand/`
+- `brittney-qwen-v43-q8_0.gguf`
+  - bytes: `8098525152`
+  - sha256: `b7970650a0105ed776d460114c45ca9de8bcfc2111b45f53b2f3e508ee132ebd`
+- `brittney-v1-expert.gguf`
+  - bytes: `1646572544`
+  - sha256: `51251b84ebdedf7959b3ad8172c12caed69f881e1793c90cab91a8e977a3e4ea`
+
+`scripts/start-brittney.ts` also now prefers the locally observed Ollama model
+`brittney-edge:v0-4` before GGUF fallback, so laptop startup can use the current
+v0.4 model after repo-local GGUFs are removed.
+
 Broad TypeScript validation is blocked by unrelated legacy adapter parse errors
 under `packages/adapters/three/src/react/studio/**`; this is package-garden
 debt, not a model-lane regression.
