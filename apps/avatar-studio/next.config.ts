@@ -5,10 +5,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.resolve(process.cwd(), '../..'),
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
   // Transpile workspace packages
   transpilePackages: ['@hololand/avatar-studio'],
 

@@ -26,6 +26,7 @@
     "check:brittney-desktop-source-contract": "node scripts/check-brittney-desktop-source-contract.mjs",
     "check:native-renderer-skeleton": "node scripts/check-native-renderer-skeleton.mjs",
     "check:gold-game-native-fixture": "node scripts/check-gold-game-native-fixture.mjs",
+    "check:studio-first-screen-fixture": "node scripts/check-studio-first-screen-fixture.mjs",
     "check:hololand-mcp-manifest": "node scripts/check-hololand-mcp-manifest.mjs",
     "check:npc-manifest-spec": "node scripts/check-npc-manifest-spec.mjs",
     "check:product-authority-boundary": "node scripts/check-product-authority-boundary.mjs",

@@ -1,0 +1,205 @@
+// HoloLand Studio First Screen Fixture
+//
+// HoloScript-owned first-screen contract for the Avatar Studio authoring
+// surface. The Next/React page is a projection adapter for this semantic IR.
+
+composition "HoloLand Studio First Screen Fixture" {
+  config {
+    title: "HoloLand Avatar Studio First Screen"
+    product: "HoloLand"
+    surface: "Avatar Studio"
+    sourceLayer: "HoloScript"
+    nativeFixtureId: "hololand.studio.first-screen"
+    canonicalBehaviorSource: "apps/holoshell/source/hololand-studio-first-screen-fixture.hsplus"
+    adapterPage: "apps/avatar-studio/src/app/page.tsx"
+    adapterRole: "projection_only"
+    defaultBlueprintSource: "apps/avatar-studio/src/lib/defaults.ts"
+    commandRegistrySource: "apps/avatar-studio/src/lib/commandRegistry.ts"
+    blueprintStateSource: "apps/avatar-studio/src/hooks/useBlueprint.ts"
+    previewAdapterSource: "apps/avatar-studio/src/components/preview/AvatarPreview.tsx"
+    tabAdapterSource: "apps/avatar-studio/src/components/editor/TabBar.tsx"
+    commandPaletteAdapterSource: "apps/avatar-studio/src/components/command-palette/CommandPalette.tsx"
+    legacyHoloScriptStudioSource: "examples/holoscript-studio/scene.holo"
+    legacyCreatorStudioSource: "packages/playground/creator-studio.html"
+    semanticIrReceiptSchema: "hololand.studio-first-screen-fixture.v0.1.0"
+    latestReceipt: ".tmp/studio-first-screen-fixture/receipt.json"
+    checkCommand: "pnpm run check:studio-first-screen-fixture"
+    legacyUiRole: "adapter_evidence_only"
+  }
+
+  state {
+    fixtureStatus: "unknown"
+    activeTab: "body"
+    commandPaletteStatus: "closed"
+    previewStatus: "ready"
+    blueprintName: "New Avatar"
+    dirtyStatus: "clean"
+    undoAvailable: false
+    redoAvailable: false
+    sourceReceiptHash: ""
+  }
+
+  channel "hololand:studio:first-screen:semantic-ir" {
+    type: "append_only"
+    priority: "critical"
+    description: "Avatar Studio first-screen semantic IR emitted before React projection"
+  }
+
+  template "StudioFirstScreenSemanticIR" {
+    type: "studio_first_screen_semantic_ir"
+    source: "apps/holoshell/source/hololand-studio-first-screen-fixture.hsplus"
+    schemaVersion: "hololand.studio-first-screen-fixture.v0.1.0"
+    requiredSemantics: ["header", "command_palette", "undo_redo", "dirty_indicator", "avatar_name", "preview", "editor_tabs", "active_editor_panel", "blueprint_state", "receipt"]
+    sourceOwnedByHoloScript: true
+    adapterMayOnlyProject: true
+    receiptRequired: true
+  }
+
+  template "StudioHeader" {
+    type: "header"
+    brand: "HOLOLAND"
+    surfaceLabel: "Avatar Studio"
+    controls: ["command_palette", "undo", "redo", "dirty_indicator", "avatar_name"]
+    commandPaletteShortcut: "Ctrl+K"
+    sourceOwnedByHoloScript: true
+  }
+
+  template "StudioBlueprintState" {
+    type: "blueprint_state"
+    defaultName: "New Avatar"
+    defaultSource: "apps/avatar-studio/src/lib/defaults.ts"
+    activeTabDefault: "body"
+    undoRedoPolicy: "state_history"
+    dirtyIndicatorPolicy: "show_when_blueprint_changed"
+    sourceOwnedByHoloScript: true
+  }
+
+  template "StudioPreviewPane" {
+    type: "preview"
+    adapterSource: "apps/avatar-studio/src/components/preview/AvatarPreview.tsx"
+    previewMode: "avatar_canvas"
+    rendererTarget: "Three.js plus VRM"
+    consumes: ["blueprint.body", "blueprint.face", "blueprint.hair", "blueprint.clothing", "blueprint.accessories"]
+    sourceOwnedByHoloScript: true
+  }
+
+  template "StudioEditorPane" {
+    type: "editor"
+    adapterSource: "apps/avatar-studio/src/components/editor/TabBar.tsx"
+    tabs: ["body", "face", "hair", "clothing", "accessories", "expressions", "export"]
+    defaultTab: "body"
+    activePanel: "BodyTab"
+    sourceOwnedByHoloScript: true
+  }
+
+  template "StudioCommandPalette" {
+    type: "command_palette"
+    adapterSource: "apps/avatar-studio/src/components/command-palette/CommandPalette.tsx"
+    registrySource: "apps/avatar-studio/src/lib/commandRegistry.ts"
+    trigger: "search_button_or_ctrl_k"
+    groups: ["Navigation", "Edit", "Export"]
+    roles: ["dialog", "combobox", "listbox", "option"]
+    sourceOwnedByHoloScript: true
+  }
+
+  template "StudioAdapterProjection" {
+    type: "adapter_projection"
+    page: "apps/avatar-studio/src/app/page.tsx"
+    dataSourceAttribute: "data-holoscript-source"
+    dataReceiptSchemaAttribute: "data-receipt-schema"
+    dataAdapterRoleAttribute: "data-adapter-role"
+    adapterCanRenderFromSource: true
+    sourceRequiredBeforeProjection: true
+    handAuthoredUiMayNotOwnBehavior: true
+    receiptRequired: true
+  }
+
+  template "StudioFirstScreenReceipt" {
+    type: "studio_first_screen_receipt"
+    schemaVersion: "hololand.studio-first-screen-fixture.v0.1.0"
+    source: "apps/holoshell/source/hololand-studio-first-screen-fixture.hsplus"
+    semanticIrRequired: true
+    parserValidationRequired: true
+    adapterAnchorRequired: true
+    sourceRequiredBeforeProjection: true
+    receiptRequiredBeforeProjection: true
+    handAuthoredUiMayNotOwnBehavior: true
+    receiptRequired: true
+  }
+
+  room "StudioFirstScreenRoom" {
+    label: "Avatar Studio First Screen"
+    userQuestion: "What is the authoring surface ready to edit?"
+    visualForm: "native_authoring_surface"
+    liveFeed: "hololand:studio:first-screen:semantic-ir"
+
+    object "StudioHeader" {
+      type: "ui"
+      role: "header"
+      brand: "HOLOLAND"
+      label: "Avatar Studio"
+    }
+
+    object "PreviewPane" {
+      type: "ui"
+      role: "preview"
+      consumes: "StudioBlueprintState"
+    }
+
+    object "EditorPane" {
+      type: "ui"
+      role: "tabbed_editor"
+      activeTab: "body"
+    }
+
+    object "CommandPalette" {
+      type: "ui"
+      role: "command_palette"
+      trigger: "Ctrl+K"
+    }
+  }
+
+  policy "StudioFirstScreenSourceOwnsBehavior" {
+    appliesTo: ["header", "command_palette", "undo_redo", "dirty_indicator", "avatar_name", "preview", "editor_tabs", "blueprint_state"]
+    sourceRequiredBeforeProjection: true
+    semanticIrRequired: true
+    receiptRequiredBeforeProjection: true
+    handAuthoredUiMayNotOwnBehavior: true
+    typescriptMayOnlyProject: true
+    tsxMayOnlyProject: true
+    htmlMayOnlyProject: true
+  }
+
+  policy "StudioLegacySurfacesAreEvidence" {
+    appliesTo: ["examples/holoscript-studio", "packages/playground/creator-studio.html", "apps/avatar-studio/src/app/page.tsx"]
+    legacyHoloScriptStudioSource: "examples/holoscript-studio/scene.holo"
+    legacyCreatorStudioSource: "packages/playground/creator-studio.html"
+    legacyUiRole: "adapter_evidence_only"
+    adapterMayOnlyProject: true
+    receiptRequired: true
+  }
+
+  action consume_studio_first_screen_semantic_ir(fixture) {
+    state.fixtureStatus = "ready"
+    state.activeTab = fixture.editor.activeTab
+    state.commandPaletteStatus = fixture.commandPalette.status
+    state.previewStatus = fixture.preview.status
+    state.blueprintName = fixture.blueprint.name
+    state.dirtyStatus = fixture.blueprint.dirtyStatus
+    state.undoAvailable = fixture.history.canUndo
+    state.redoAvailable = fixture.history.canRedo
+    state.sourceReceiptHash = fixture.receipt.receiptHash
+
+    emit("hololand:studio:first-screen:semantic-ir", {
+      status: state.fixtureStatus,
+      active_tab: state.activeTab,
+      command_palette: state.commandPaletteStatus,
+      preview: state.previewStatus,
+      blueprint_name: state.blueprintName,
+      dirty: state.dirtyStatus,
+      undo: state.undoAvailable,
+      redo: state.redoAvailable,
+      receipt: state.sourceReceiptHash
+    })
+  }
+}

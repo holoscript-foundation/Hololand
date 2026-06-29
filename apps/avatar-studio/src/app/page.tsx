@@ -16,6 +16,10 @@ import {
   ExportTab,
 } from '@/components/editor';
 
+const STUDIO_FIRST_SCREEN_SOURCE =
+  'apps/holoshell/source/hololand-studio-first-screen-fixture.hsplus';
+const STUDIO_FIRST_SCREEN_RECEIPT_SCHEMA = 'hololand.studio-first-screen-fixture.v0.1.0';
+
 export default function StudioPage() {
   const store = useBlueprint();
   const commands = useStudioCommands(store);
@@ -43,7 +47,12 @@ export default function StudioPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-studio-bg">
+    <div
+      className="flex flex-col h-screen bg-studio-bg"
+      data-holoscript-source={STUDIO_FIRST_SCREEN_SOURCE}
+      data-receipt-schema={STUDIO_FIRST_SCREEN_RECEIPT_SCHEMA}
+      data-adapter-role="projection_only"
+    >
       {/* Top Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-studio-border bg-studio-panel">
         <div className="flex items-center gap-3">
