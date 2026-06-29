@@ -19,6 +19,6 @@
   ],
   "peerDependencies": {
     "@holoscript/core": ">=2.0.0",
-    "@hololand/components": ">=1.0.0"
+    "@hololand/components": "workspace:*"
   }
 }

@@ -50,8 +50,8 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@hololand/renderer": "^1.0.0",
-    "@hololand/world": "^1.0.0",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/world": "workspace:*",
     "react": ">=18.0.0 <20.0.0",
     "three": "^0.159.0"
   },

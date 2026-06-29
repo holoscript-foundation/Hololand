@@ -66,7 +66,9 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--output') {
+    if (arg === '--') {
+      continue;
+    } else if (arg === '--output') {
       args.output = argv[++index];
     } else if (arg === '--skip-hardware') {
       args.skipHardware = true;

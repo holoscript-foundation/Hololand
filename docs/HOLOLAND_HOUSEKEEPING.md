@@ -44,10 +44,9 @@ Current known visible untracked families include:
 
 Treat these as intake candidates, not trash.
 
-## Package Manager Blocker
+## Package Boundary
 
-`pnpm run ...` can still fail before script execution in this checkout. Two
-separate blockers have been observed:
+Two package-manager failure modes were observed during the reboot audit:
 
 - legacy Hololand peer/package resolution can try to fetch internal packages
   such as `@hololand/renderer` from npm;
@@ -55,13 +54,18 @@ separate blockers have been observed:
   dependencies, for example `@holoscript/framework` asking for
   `@holoscript/llm-provider`.
 
-Do not paper this over with broad package-graph churn in HoloLand. The safe
-builder-proof commands remain direct Node commands until the HoloScript package
-consumption boundary is fixed deliberately.
+The active fix is narrow local consumption, not broad package-graph churn:
+private HoloLand peer links use `workspace:*`, root HoloScript dependencies are
+limited to active proof/gate packages, and `pnpm-workspace.yaml` carries only
+the conditional/bridge overrides still needed by local validation.
+
+Package consumption source of truth:
+[`docs/HOLOSCRIPT_PACKAGE_CONSUMPTION.md`](HOLOSCRIPT_PACKAGE_CONSUMPTION.md).
 
 Reference proof commands:
 
 ```powershell
+corepack pnpm@10.28.2 check:native-proof
 node scripts/holoshell-agent-builder-proof-0.mjs --mcp-status pass --mcp-format hsplus --mcp-summary "Valid HoloScript code"
 node scripts/__tests__/holoshell-agent-builder-proof-0.test.mjs
 ```
@@ -71,7 +75,7 @@ node scripts/__tests__/holoshell-agent-builder-proof-0.test.mjs
 1. Promote or archive each visible `experiments/holoshell-human-os-frontier/*`
    trio after reading it and deciding whether it still supports the builder
    proof.
-2. Fix the HoloScript package consumption boundary so external consumers do not
-   inherit unresolved `workspace:^` dependencies from file-linked packages.
-3. Only then restore ergonomic root `pnpm run` wrappers for builder-proof
-   commands.
+2. Keep shrinking the HoloScript package boundary to the named active,
+   conditional, and bridge-debt sets in `docs/HOLOSCRIPT_PACKAGE_CONSUMPTION.md`.
+3. Promote additional root `pnpm run` wrappers only when they reach the direct
+   proof harness reliably.

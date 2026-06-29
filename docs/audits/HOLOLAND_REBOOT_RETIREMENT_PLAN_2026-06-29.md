@@ -72,11 +72,11 @@ Read-only scans on 2026-06-29 found:
   `platform/backend/node_modules`.
 - `node scripts/check-zero-typescript.mjs --strict` currently fails because the
   repo still contains 1,863 non-declaration TS/TSX source files.
-- `node scripts/check-native-holoscript-proof.mjs` currently fails at parser
-  validation because the HoloScript package boundary attempts a non-interactive
-  `pnpm install` and hits `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`. The
-  source-signal checks pass, so the immediate blocker is package consumption,
-  not absence of native HoloScript intent.
+- `corepack pnpm@10.28.2 check:native-proof` now reaches the native HoloScript
+  proof harness and passes parser validation plus local hardware receipt. The
+  package boundary is narrowed enough for the root proof wrapper to work without
+  fetching private HoloLand packages from npm or requiring interactive native
+  build approvals.
 
 ## Active Proof Kernel - Keep In The Mainline
 
@@ -243,8 +243,9 @@ let UI/runtime bridges attach only where the proof loop requires them.
 
 ## First Work Orders
 
-1. Fix the HoloScript package-consumption boundary so HoloLand proof runners can
-   validate source without running a non-interactive `pnpm install`.
+1. Keep the HoloScript package-consumption boundary narrow and reject broad
+   `@holoscript/*` override growth unless a proof lane or enterprise gate names
+   the package.
 2. Add a machine-readable package status table with statuses:
    `active-proof`, `bridge-debt`, `enterprise-gate`, `intake`,
    `jetson-archive-candidate`, `local-debris`, and `watch`.
@@ -268,4 +269,3 @@ Requires explicit approval before execution:
 - archiving `.proprietary/**`,
 - retiring any path with active deployment evidence,
 - retiring any path needed by the current render/run proof.
-

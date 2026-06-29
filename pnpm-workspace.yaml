@@ -13,21 +13,47 @@ packages:
   - packages/base-token-viz
   - examples/*
 
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  bcrypt: false
+  bufferutil: false
+  canvas: false
+  core-js: false
+  esbuild: false
+  node-llama-cpp: false
+  prisma: true
+  protobufjs: false
+  puppeteer: false
+  sharp: false
+  unrs-resolver: false
+  utf-8-validate: false
+
 ignoredBuiltDependencies:
+  - bcrypt
+  - bufferutil
+  - canvas
   - core-js
   - esbuild
   - node-llama-cpp
+  - protobufjs
+  - puppeteer
+  - sharp
+  - unrs-resolver
+  - utf-8-validate
 
 overrides:
+  '@holoscript/agent-protocol': link:../HoloScript/packages/agent-protocol
+  '@holoscript/aibrittney': link:../HoloScript/packages/aibrittney
   '@holoscript/cli': link:../HoloScript/packages/cli
   '@holoscript/core': link:../HoloScript/packages/core
-  '@holoscript/formatter': link:../HoloScript/packages/formatter
-  '@holoscript/fs': link:../HoloScript/packages/fs
-  '@holoscript/linter': link:../HoloScript/packages/linter
-  '@holoscript/lsp': link:../HoloScript/packages/lsp
-  '@holoscript/network': link:../HoloScript/packages/network
+  '@holoscript/crdt': link:../HoloScript/packages/crdt
+  '@holoscript/framework': link:../HoloScript/packages/framework
+  '@holoscript/mvc-schema': link:../HoloScript/packages/mvc-schema
+  '@holoscript/r3f-renderer': link:../HoloScript/packages/r3f-renderer
   '@holoscript/runtime': link:../HoloScript/packages/runtime
   '@holoscript/std': link:../HoloScript/packages/std
+  '@holoscript/ui': link:../HoloScript/packages/ui
   '@infinitus/shared': link:../infinitus-shared
   '@modelcontextprotocol/sdk@>=1.10.0 <=1.25.3': '>=1.26.0'
   ajv@<6.14.0: '>=6.14.0'

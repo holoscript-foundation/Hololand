@@ -23,9 +23,9 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@hololand/ar-detection": "^0.1.0",
-    "@hololand/ar-tracking": "^0.1.0",
-    "@hololand/ar-foundation": "^0.1.0"
+    "@hololand/ar-detection": "workspace:*",
+    "@hololand/ar-tracking": "workspace:*",
+    "@hololand/ar-foundation": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@hololand/ar-detection": { "optional": true },

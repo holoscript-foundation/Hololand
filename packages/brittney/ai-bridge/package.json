@@ -69,7 +69,7 @@
     "vitest": "^1.0.4"
   },
   "peerDependencies": {
-    "@hololand/core": "^1.0.0",
+    "@hololand/core": "workspace:*",
     "@met4citizen/talkinghead": "^1.4.0",
     "react": ">=18.0.0"
   },

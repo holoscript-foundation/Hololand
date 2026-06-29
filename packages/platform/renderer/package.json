@@ -66,7 +66,7 @@
   },
   "peerDependencies": {
     "@react-three/fiber": ">=8.0.0 <10.0.0",
-    "@hololand/world": "^1.0.0",
+    "@hololand/world": "workspace:*",
     "react": ">=18.0.0 <20.0.0",
     "react-dom": ">=18.0.0 <20.0.0",
     "three": "^0.159.0"

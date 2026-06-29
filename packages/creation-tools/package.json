@@ -57,6 +57,6 @@
     "rimraf": "^5.0.0"
   },
   "peerDependencies": {
-    "@hololand/renderer": ">=1.0.0"
+    "@hololand/renderer": "workspace:*"
   }
 }

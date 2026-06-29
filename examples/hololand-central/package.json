@@ -17,7 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed-templates": "tsx prisma/seedTemplates.ts",
-    "test": "vitest run",
+    "test": "prisma generate && vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"
