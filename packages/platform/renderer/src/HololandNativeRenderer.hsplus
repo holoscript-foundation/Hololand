@@ -1,0 +1,119 @@
+// HoloLand Native Renderer Engine Skeleton
+//
+// Source-owned contract for the native renderer lane. The engine consumes
+// HoloScript semantic IR and emits receipts before any Three/R3F/TSX adapter is
+// trusted as product behavior.
+
+composition "Hololand Native Renderer Engine Skeleton" {
+  config {
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    rendererLane: "native_renderer"
+    nativeRenderContract: "semantic_ir_to_scene_receipt"
+    fixtureSource: "apps/holoshell/source/holoshell-shell-render.holo"
+    legacyRendererSource: "packages/platform/renderer/src/HololandRenderer.ts"
+    legacyRendererRole: "adapter_evidence_only"
+    legacyR3FRole: "adapter_evidence_only"
+    receiptSchema: "hololand.native-renderer-skeleton-receipt.v0.1.0"
+    checkCommand: "pnpm run check:native-renderer-skeleton"
+  }
+
+  state {
+    sceneGraphOwnedBySource: false
+    cameraOwnedBySource: false
+    lightsOwnedBySource: false
+    geometryOwnedBySource: false
+    materialOwnedBySource: false
+    transformOwnedBySource: false
+    eventsOwnedBySource: false
+    animationOwnedBySource: false
+    lifecycleOwnedBySource: false
+    receiptHash: ""
+  }
+
+  channel "hololand:native-renderer:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Native renderer semantic IR receipt emitted from HoloScript source"
+  }
+
+  template "NativeRenderSemanticIR" {
+    type: "native_render_semantic_ir"
+    source: "packages/platform/renderer/src/HololandNativeRenderer.hsplus"
+    fixtureSource: "apps/holoshell/source/holoshell-shell-render.holo"
+    sceneGraph: {}
+    camera: {}
+    lights: []
+    geometry: []
+    material: []
+    transform: []
+    events: []
+    animation: []
+    lifecycle: {
+      initialize: "create_scene_graph"
+      compile: "normalize_semantic_ir"
+      validate: "assert_required_renderer_semantics"
+      render: "adapter_projection_after_receipt"
+      dispose: "release_renderer_resources"
+    }
+    sourceOwnedByHoloScript: true
+    r3fAdapterOnly: true
+    receiptRequired: true
+  }
+
+  template "NativeRendererSkeletonReceipt" {
+    type: "native_renderer_skeleton_receipt"
+    schemaVersion: "hololand.native-renderer-skeleton-receipt.v0.1.0"
+    source: "packages/platform/renderer/src/HololandNativeRenderer.hsplus"
+    fixtureSource: "apps/holoshell/source/holoshell-shell-render.holo"
+    semanticIrOwnedByHoloScript: true
+    adapterRole: "projection_only"
+    requiredSemantics: ["scene_graph", "camera", "lights", "geometry", "material", "transform", "events", "animation", "lifecycle"]
+    receiptRequired: true
+  }
+
+  policy "NativeRendererConsumesHoloScriptIR" {
+    appliesTo: ["scene_graph", "camera", "lights", "geometry", "material", "transform", "events", "animation", "lifecycle"]
+    sourceRequiredBeforeAdapter: true
+    semanticIrRequired: true
+    receiptRequiredBeforeProjection: true
+    typescriptMayOnlyAdapt: true
+    r3fMayOnlyAdapt: true
+    handAuthoredAdapterMayNotOwnBehavior: true
+  }
+
+  policy "RendererReceiptCoversNativeSemantics" {
+    appliesTo: ["native_renderer_skeleton_receipt"]
+    requiredFields: ["sceneGraph", "camera", "lights", "geometry", "material", "transform", "events", "animation", "lifecycle"]
+    parserValidationRequired: true
+    fixtureValidationRequired: true
+    rawRendererCodeIncluded: false
+    receiptRequired: true
+  }
+
+  action consume_semantic_ir(ir) {
+    state.sceneGraphOwnedBySource = ir.sceneGraph.sourceOwnedByHoloScript
+    state.cameraOwnedBySource = ir.camera.sourceOwnedByHoloScript
+    state.lightsOwnedBySource = ir.lights.length > 0
+    state.geometryOwnedBySource = ir.geometry.length > 0
+    state.materialOwnedBySource = ir.material.length > 0
+    state.transformOwnedBySource = ir.transform.length > 0
+    state.eventsOwnedBySource = ir.events.length > 0
+    state.animationOwnedBySource = ir.animation.length > 0
+    state.lifecycleOwnedBySource = ir.lifecycle.receiptRequired
+    state.receiptHash = ir.receiptHash
+
+    emit("hololand:native-renderer:receipt", {
+      scene_graph: state.sceneGraphOwnedBySource,
+      camera: state.cameraOwnedBySource,
+      lights: state.lightsOwnedBySource,
+      geometry: state.geometryOwnedBySource,
+      material: state.materialOwnedBySource,
+      transform: state.transformOwnedBySource,
+      events: state.eventsOwnedBySource,
+      animation: state.animationOwnedBySource,
+      lifecycle: state.lifecycleOwnedBySource,
+      receipt: state.receiptHash
+    })
+  }
+}
