@@ -23,6 +23,8 @@ import { execSync, execFileSync } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, 'dist');
 const HTML_PATH = join(DIST_DIR, 'operate-room.html');
+const BRITTNEY_COCKPIT_CAPSULE_SCHEMA = 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0';
+const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
 // Bind host. Default loopback (the laptop-local case). On the JETSON — where this
@@ -1494,6 +1496,7 @@ function buildLiveStatusSnapshot() {
       host: HOST,
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
+      cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
@@ -1511,6 +1514,7 @@ function buildLiveStatusSnapshot() {
       'brittney_chat',
       'receipt_backed_status',
       'desktop_control_plan',
+      'brittney_desktop_cockpit',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -1739,6 +1743,177 @@ function liveStatusResponseEnvelope(snapshot) {
   };
 }
 
+function buildBrittneyCockpitCapsule() {
+  const liveStatus = buildLiveStatusSnapshot();
+  const desktopBridge = desktopBridgeStatusSnapshot();
+  const improvementRuns = improvementRunHistory();
+  const latestRun = improvementRuns[0] || null;
+  const bridgeReady = desktopBridge.status === 'ready';
+  const bridgeAttention = ['awaiting_laptop_daemon', 'stale_laptop_report'].includes(desktopBridge.status);
+  const runtimeTruthStatus = liveStatus.status === 'online' ? 'ready' : 'attention';
+  const routeStatus = liveStatus.route?.chatEndpoint && liveStatus.route?.desktopControlEndpoint ? 'ready' : 'attention';
+  const contextCarryStatus = 'ready';
+  const desktopBridgeStatus = bridgeReady ? 'ready' : (bridgeAttention ? 'attention' : desktopBridge.status || 'unknown');
+  const toolActionStatus = 'plan_only';
+  const cockpitLanes = [
+    {
+      id: 'runtime_truth',
+      label: 'Runtime',
+      status: runtimeTruthStatus,
+      value: liveStatus.status,
+      detail: `${liveStatus.avatar.name} ${liveStatus.avatar.status}; ${liveStatus.capabilities.length} capabilities`,
+      sourceEndpoint: 'GET /api/live-status',
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'route_health',
+      label: 'Routes',
+      status: routeStatus,
+      value: liveStatus.route.url,
+      detail: `${liveStatus.route.chatEndpoint}; ${liveStatus.route.cockpitCapsuleEndpoint}`,
+      sourceEndpoint: 'GET /api/cockpit/capsule',
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'context_carry',
+      label: 'Context',
+      status: contextCarryStatus,
+      value: 'capsule_ready',
+      detail: 'goal, files, tests, receipts, blockers, next command',
+      sourceEndpoint: BRITTNEY_COCKPIT_SOURCE,
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'desktop_bridge',
+      label: 'Desktop',
+      status: desktopBridgeStatus,
+      value: desktopBridge.status,
+      detail: desktopBridge.latestReportId
+        ? `${desktopBridge.hostRole}; report ${desktopBridge.latestReportId}`
+        : `${desktopBridge.hostRole}; ${desktopBridge.expectedDaemon}`,
+      sourceEndpoint: 'GET /api/desktop-control/bridge',
+      permissionEnvelope: desktopBridge.approvalRequiredForDesktopAutomation ? 'guarded_execute' : 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'tool_action_cards',
+      label: 'Tools',
+      status: toolActionStatus,
+      value: 'cards_ready',
+      detail: 'read-only reports and receipt-backed plans',
+      sourceEndpoint: 'GET /api/cockpit/capsule',
+      permissionEnvelope: 'read_only_plan',
+      receiptRequired: true,
+    },
+  ];
+  const actionCards = [
+    {
+      id: 'refresh_runtime_truth',
+      label: 'Runtime Truth',
+      method: 'GET',
+      href: '/api/live-status',
+      lane: 'runtime_truth',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'desktop_bridge_report',
+      label: 'Desktop Bridge',
+      method: 'GET',
+      href: '/api/desktop-control/bridge',
+      lane: 'desktop_bridge',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'desktop_control_plan',
+      label: 'Desktop Plan',
+      method: 'POST',
+      href: '/api/desktop-control/plan',
+      lane: 'fara_gui_grounding',
+      permissionEnvelope: 'read_only_plan',
+      mayExecuteWithoutConsent: false,
+      receiptRequired: true,
+    },
+    {
+      id: 'queue_improvement_run',
+      label: 'Queue Run',
+      method: 'POST',
+      href: '/api/improvement-runs',
+      lane: 'improvement_run_queue',
+      permissionEnvelope: 'receipt_backed_queue',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'context_capsule',
+      label: 'Context Capsule',
+      method: 'GET',
+      href: '/api/cockpit/capsule',
+      lane: 'context_carry',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+  ];
+  return {
+    schemaVersion: BRITTNEY_COCKPIT_CAPSULE_SCHEMA,
+    source: BRITTNEY_COCKPIT_SOURCE,
+    generatedAt: new Date().toISOString(),
+    mode: 'read_only_operator_capsule',
+    status: 'ready',
+    summary: {
+      runtimeTruthStatus,
+      routeStatus,
+      contextCarryStatus,
+      desktopBridgeStatus,
+      toolActionStatus,
+      cockpitLaneCount: cockpitLanes.length,
+      actionCardCount: actionCards.length,
+      latestImprovementRunId: latestRun?.runId || '',
+    },
+    route: {
+      ...liveStatus.route,
+      cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
+    },
+    avatar: liveStatus.avatar,
+    cockpitLanes,
+    actionCards,
+    contextCapsuleTemplate: {
+      schemaVersion: 'hololand.holoshell.context-capsule.v0.1.0',
+      requiredFields: ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command'],
+      identityCarry: ['surface', 'agent_family', 'current_lane', 'room_task_id', 'handoff_source'],
+      memoryInputs: ['knowledge_store', 'GOLD', 'repo_files', 'receipts', 'room_board'],
+      graphRagPrompt: 'Ask the knowledge graph for prior decisions before guessing when runtime truth is unknown.',
+    },
+    safety: {
+      permissionDefault: 'read_only',
+      desktopMutationRequires: ['desktop_control_plan', 'laptop_bridge_preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt'],
+      admittedExecutorActions: ['open_url'],
+      allOtherDesktopActionsRemainPlanOnly: true,
+      secretsIncluded: false,
+      rawWindowTitlesIncluded: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+    receipts: {
+      receiptsDir: liveStatus.receiptsDir,
+      pendingConsentCount: liveStatus.pendingConsentCount,
+      recentExecutionCount: liveStatus.recentExecutionCount,
+      latestImprovementRunId: latestRun?.runId || '',
+      latestImprovementRunReceipt: latestRun?.receiptPath || null,
+    },
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    nextSafeStep: 'Carry this capsule into the next agent turn, then request desktop execution only through preflight -> consent-token -> receipt.',
+  };
+}
+
 // Shared ConversationDaemon (D.053) substrate access (mcp.holoscript.net). Returns the
 // PARSED tool result (e.g. {daemons:[...]} / a turn object), or null on any failure.
 const DAIMON_OWNER = () => process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
@@ -1806,6 +1981,12 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && path === '/favicon.ico') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   // ── GET /api/stale-processes
   if (req.method === 'GET' && path === '/api/stale-processes') {
     const items = staleProcesses();
@@ -1822,6 +2003,16 @@ async function handleRequest(req, res) {
   // ── GET /api/execution-history
   if (req.method === 'GET' && path === '/api/execution-history') {
     respond(res, { items: executionHistory() });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/live-status') {
+    respond(res, liveStatusResponseEnvelope(buildLiveStatusSnapshot()));
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/cockpit/capsule') {
+    respond(res, buildBrittneyCockpitCapsule());
     return;
   }
 

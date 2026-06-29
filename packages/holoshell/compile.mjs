@@ -9,7 +9,7 @@
  * Source: packages/holoshell/scenes/operate-room.holo
  * Runtime data tier: serve.mjs (localhost:8747)
  *
- * SURFACE = CHAT (founder 2026-06-16: "I don't want data, I just want to chat
+ * SURFACE = CHAT + COMPACT COCKPIT (founder 2026-06-16: "I don't want data, I just want to chat
  * with the LLM; the data gets processed by the agents"). HoloShell is the
  * assistant/management surface — you TALK to Brittney (and the Daimon, D.053,
  * which manifests THROUGH her via the rehydration channel, not as a panel). The
@@ -36,10 +36,10 @@ function obj(name, traits, children = []) {
   return { type: 'Object', name, properties: [], traits, children };
 }
 
-// ── Composition: one full-height chat with Brittney ─────────────────────────────
-// Header (who you're talking to) + a chat panel that fills the viewport. The
-// interactive DOM (messages / input / send) is built by the injected runtime
-// helper; this compile bridge renders the shell + the mount point.
+// ── Composition: compact cockpit plus full-height chat with Brittney ────────────
+// Header (who you're talking to) + a compact cockpit and chat panel. The
+// interactive DOM is built by the injected runtime helper; this compile bridge
+// renders the shell + the mount point.
 
 const composition = {
   type: 'Composition',
@@ -49,7 +49,7 @@ const composition = {
       t('theme', {
         tag: 'div',
         id: 'holoshell-root',
-        style: 'height:100vh;display:flex;flex-direction:column;max-width:900px;margin:0 auto;padding:20px;box-sizing:border-box',
+        style: 'height:100vh;display:flex;flex-direction:column;max-width:1120px;margin:0 auto;padding:20px;box-sizing:border-box',
       }),
       t('layout', { flex: 'column', gap: 14 }),
     ], [
@@ -131,7 +131,7 @@ function compileOperateRoomShell(holoComposition) {
       height: 100vh;
       display: flex;
       flex-direction: column;
-      max-width: 900px;
+      max-width: 1120px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -152,6 +152,62 @@ function compileOperateRoomShell(holoComposition) {
     header span {
       color: #6e7681;
       font-size: 13px;
+    }
+    .cockpit-grid {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .cockpit-card {
+      min-height: 76px;
+      padding: 10px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+      overflow: hidden;
+    }
+    .cockpit-card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #f0f6fc;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 650;
+    }
+    .cockpit-card span {
+      display: block;
+      color: #8b949e;
+      font-size: 12px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .improvement-grid {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) 78px 86px 86px 78px;
+      gap: 8px;
+    }
+    @media (max-width: 720px) {
+      #holoshell-root {
+        padding: 14px;
+      }
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .cockpit-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .improvement-grid {
+        grid-template-columns: minmax(0, 1fr) 76px;
+      }
+      #improvement-queue,
+      #improvement-execute,
+      #improvement-refresh {
+        min-width: 0;
+      }
     }
     #brittney-chat-mount {
       flex: 1 1 auto;
@@ -211,6 +267,45 @@ const runtimeScript = `  <script>
       row.appendChild(spacer);
       row.appendChild(button);
       return button;
+    }
+    function _setText(id, text) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+    function _lane(capsule, id) {
+      var lanes = (capsule && capsule.cockpitLanes) || [];
+      for (var i = 0; i < lanes.length; i += 1) {
+        if (lanes[i].id === id) return lanes[i];
+      }
+      return null;
+    }
+    function _laneText(lane) {
+      if (!lane) return 'not reported';
+      var value = lane.value || lane.status || 'unknown';
+      var detail = lane.detail ? ' - ' + lane.detail : '';
+      return value + detail;
+    }
+    function _renderCockpitCapsule(capsule) {
+      _setText('cockpit-runtime', _laneText(_lane(capsule, 'runtime_truth')));
+      _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
+      _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
+      _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
+      var cards = (capsule && capsule.actionCards) || [];
+      _setText('cockpit-actions', cards.slice(0, 4).map(function(card) { return card.label + ' [' + card.permissionEnvelope + ']'; }).join(' | ') || 'no cards reported');
+    }
+    function loadCockpitCapsule() {
+      fetch('/api/cockpit/capsule', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.error) {
+            _setText('cockpit-runtime', 'error: ' + d.error);
+            return;
+          }
+          _renderCockpitCapsule(d);
+        })
+        .catch(function(e) {
+          _setText('cockpit-runtime', 'network error: ' + e.message);
+        });
     }
     function _bridgeUrls(path) {
       var bases = _laptopDesktopBridgeBases.slice();
@@ -408,6 +503,7 @@ const runtimeScript = `  <script>
         })
         .catch(function(e) { _setImprovementStatus('History network error: ' + e.message, '#f85149'); });
       probeLaptopDesktopBridge();
+      loadCockpitCapsule();
     }
     function executeLatestImprovementRun() {
       if (!_lastImprovementRunId) { _setImprovementStatus('Queue or refresh a run first', '#d29922'); return; }
@@ -459,12 +555,19 @@ const runtimeScript = `  <script>
     function initBrittneyChat() {
       var mount = document.getElementById('brittney-chat-mount'); if (!mount) return;
       mount.innerHTML =
+        '<section id="brittney-cockpit" class="cockpit-grid" aria-live="polite">' +
+        '<div class="cockpit-card"><strong>Runtime</strong><span id="cockpit-runtime">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Tools</strong><span id="cockpit-actions">checking</span></div>' +
+        '</section>' +
         '<div id="improvement-run-panel" style="flex:0 0 auto;margin:14px 0 0 0;padding:12px;border:1px solid #30363d;border-radius:8px;background:#0d1117">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">' +
         '<strong style="font-size:13px;color:#c9d1d9;font-weight:650">Codebase Fix Shakedown</strong>' +
         '<span id="improvement-status" style="font-size:12px;color:#8b949e;text-align:right">Idle</span>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 78px 86px 86px 78px;gap:8px">' +
+        '<div class="improvement-grid">' +
         '<input id="improvement-objective" placeholder="Objective" style="min-width:0;padding:10px 11px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
         '<input id="improvement-count" type="number" min="1" max="128" value="10" aria-label="Run count" style="width:78px;padding:10px 9px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;font-size:13px" />' +
         '<button id="improvement-queue" style="min-width:86px;padding:10px 12px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-weight:650;cursor:pointer">Queue</button>' +

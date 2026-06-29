@@ -86,6 +86,7 @@ contracts.
 | Brittney avatar               | `apps/holoshell/source/holoshell-brittney-avatar.hsplus`               |
 | Brittney runtime bridge       | `apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus`       |
 | Brittney context packet       | `apps/holoshell/source/holoshell-brittney-context-packet.hsplus`       |
+| Brittney desktop cockpit      | `apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus`      |
 | Brittney custody operator     | `apps/holoshell/source/holoshell-brittney-custody-operator.hsplus`     |
 | Brittney environment coupling | `apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus` |
 | Brittney ambient tone         | `apps/holoshell/source/holoshell-brittney-ambient-tone.hsplus`         |

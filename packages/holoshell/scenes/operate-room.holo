@@ -1,13 +1,15 @@
-// HoloShell — chat surface
+// HoloShell — chat + compact cockpit surface
 //
 // Perceivable assistant/management surface. You TALK to Brittney (and the Daimon,
 // D.053, which manifests THROUGH her via the rehydration channel — not as a panel).
 // Founder ruling 2026-06-16: "I don't want data, I just want to chat with the LLM;
-// the data gets processed by the agents." So this surface is ONE full-height chat.
+// the data gets processed by the agents." The surface remains chat-first, with
+// a compact operator capsule for runtime truth, context carry, guarded desktop
+// routes, and receipts across agent turns.
 //
 // The machine-local data (worktree health, stale processes, consents, substrate
 // pressure) is still collected by serve.mjs's /api/* endpoints for AGENTS to
-// process in the background — it is no longer rendered here as dashboard panels.
+// process in the background — only the compact cockpit capsule is rendered here.
 //
 // Compiled via Native2DCompiler to standalone HTML + the injected chat runtime.
 // Build: node packages/holoshell/compile.mjs
@@ -22,10 +24,12 @@ composition "OperateRoom" {
     schema: "hololand.holoshell.operate-room.v0.1.0"
     compile_target: "Native2DCompiler"
     serve_port: 8747
-    surface: "chat"
+    surface: "chat_plus_compact_cockpit"
     improvement_run_source: "apps/holoshell/source/holoshell-improvement-run-loop.hsplus"
     improvement_run_endpoint: "POST /api/improvement-runs"
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
+    brittney_cockpit_source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    brittney_cockpit_endpoint: "GET /api/cockpit/capsule"
     desktop_bridge_endpoint: "GET /api/desktop-control/bridge"
     desktop_bridge_report_endpoint: "POST /api/desktop-control/bridge/report"
     laptop_desktop_bridge_endpoint: "GET http://127.0.0.1:8751/api/desktop-control/bridge"
@@ -48,6 +52,7 @@ composition "OperateRoom" {
   state {
     last_improvement_run_id: ""
     last_improvement_run_count: 0
+    last_cockpit_capsule_status: ""
   }
 
   object "root" {
@@ -73,6 +78,8 @@ composition "OperateRoom" {
     // reply + any permission-enveloped action proposals come back INLINE — she
     // proposes, you read them in the conversation; there is no dashboard. The
     // Daimon's remembered context (once emerged) rides along via rehydration.
+    // The compact cockpit strip consumes GET /api/cockpit/capsule, whose source
+    // contract is apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus.
     // Improvement batches use POST /api/improvement-runs, then capped codebase-fix
     // shakedowns through POST /api/improvement-runs/:runId/execute. Counted runs
     // require patch + validation evidence; HoloTune waits until fixes pass review.

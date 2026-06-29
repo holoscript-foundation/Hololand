@@ -1,0 +1,195 @@
+// HoloShell Brittney Desktop Cockpit
+//
+// Compact operator capsule for the Brittney desktop app. The cockpit is not a
+// dashboard replacement for chat; it is the read-only bridge that keeps runtime
+// truth, route health, context carry, desktop preflight, and receipt state in
+// one HoloScript-owned contract before any host action is proposed.
+
+composition "HoloShell Brittney Desktop Cockpit" {
+  config {
+    title: "Brittney Desktop Cockpit"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeSurface: "Brittney Studio desktop app"
+    adapterScript: "packages/holoshell/serve.mjs"
+    compilerBridge: "packages/holoshell/compile.mjs"
+    operateRoomSource: "packages/holoshell/scenes/operate-room.holo"
+    contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
+    operatorBriefSource: "apps/holoshell/source/holoshell-operator-brief.hsplus"
+    windowInventorySource: "apps/holoshell/source/holoshell-legacy-window-inventory.hsplus"
+    desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
+    capsuleEndpoint: "GET /api/cockpit/capsule"
+    liveStatusEndpoint: "GET /api/live-status"
+    chatEndpoint: "POST /api/brittney/chat"
+    desktopPlanEndpoint: "POST /api/desktop-control/plan"
+    desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
+    improvementRunEndpoint: "POST /api/improvement-runs"
+    defaultMode: "read_only_operator_capsule"
+  }
+
+  state {
+    status: "unknown"
+    runtimeTruthStatus: "unknown"
+    routeStatus: "unknown"
+    contextCarryStatus: "unknown"
+    desktopBridgeStatus: "unknown"
+    toolActionStatus: "unknown"
+    cockpitLaneCount: 0
+    actionCardCount: 0
+    pendingConsentCount: 0
+    recentExecutionCount: 0
+    latestImprovementRunId: ""
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    lastCapsuleReceiptId: ""
+  }
+
+  channel "holoshell:brittney:cockpit" {
+    type: "request_response"
+    priority: "critical"
+    description: "Read-only Brittney desktop cockpit capsule consumed by the app and agents"
+  }
+
+  template "BrittneyCockpitCapsule" {
+    type: "operator_capsule"
+    schemaVersion: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
+    source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    mode: "read_only_operator_capsule"
+    status: "ready"
+    cockpitLanes: []
+    actionCards: []
+    contextCapsuleTemplate: {}
+    safety: {}
+    receipts: {}
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "CockpitLane" {
+    type: "operator_lane"
+    laneId: ""
+    label: ""
+    status: "unknown"
+    value: ""
+    detail: ""
+    sourceEndpoint: ""
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+  }
+
+  template "CockpitActionCard" {
+    type: "tool_action_card"
+    cardId: ""
+    label: ""
+    method: "GET"
+    href: ""
+    lane: ""
+    permissionEnvelope: "read_only"
+    mayExecuteWithoutConsent: false
+    receiptRequired: true
+  }
+
+  room "BrittneyDesktopCockpitRoom" {
+    label: "Brittney Cockpit"
+    userQuestion: "What does Brittney need to hold before the next local operating turn?"
+    visualForm: "compact_operator_capsule"
+    liveFeed: "holoshell:brittney:cockpit"
+
+    object "RuntimeTruth" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Runtime"
+      status: $runtimeTruthStatus
+    }
+
+    object "RouteHealth" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Routes"
+      status: $routeStatus
+    }
+
+    object "ContextCarry" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Context"
+      status: $contextCarryStatus
+    }
+
+    object "DesktopBridge" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Desktop"
+      status: $desktopBridgeStatus
+    }
+
+    object "ToolActions" {
+      type: "ui"
+      uiType: "cockpit_action_stack"
+      label: "Tools"
+      count: $actionCardCount
+      destructiveActionsTaken: $destructiveActionsTaken
+    }
+  }
+
+  policy "CockpitIsReadOnlyByDefault" {
+    appliesTo: ["cockpit_capsule", "runtime_truth", "route_health", "context_carry", "window_summary", "tool_action_cards"]
+    permissionEnvelope: "read_only"
+    destructiveActionsAllowed: false
+    desktopAutomationAllowed: false
+    rawWindowTitlesHiddenByDefault: true
+    secretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "DesktopMutationStaysBehindHoloGate" {
+    appliesTo: ["focus_window", "launch_app", "open_url", "click_control", "type_text", "hotkey"]
+    requiredSequence: ["desktop_control_plan", "laptop_bridge_preflight", "fresh_gesture_proof", "consent_token", "execution_receipt"]
+    admittedExecutorActions: ["open_url"]
+    allOtherDesktopActionsRemainPlanOnly: true
+    receiptRequired: true
+  }
+
+  policy "ContextCapsuleCarriesIdentityAcrossCompaction" {
+    appliesTo: ["agent_handoff", "room_marathon", "local_to_cloud_family_handoff", "brittney_turn"]
+    requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
+    preservesIdentityAcrossTurns: true
+    graphRagQuestionRequiredWhenTruthIsUnknown: true
+    receiptRequired: true
+  }
+
+  action consume_cockpit_capsule(capsule) {
+    state.status = capsule.status
+    state.runtimeTruthStatus = capsule.summary.runtimeTruthStatus
+    state.routeStatus = capsule.summary.routeStatus
+    state.contextCarryStatus = capsule.summary.contextCarryStatus
+    state.desktopBridgeStatus = capsule.summary.desktopBridgeStatus
+    state.toolActionStatus = capsule.summary.toolActionStatus
+    state.cockpitLaneCount = capsule.summary.cockpitLaneCount
+    state.actionCardCount = capsule.summary.actionCardCount
+    state.pendingConsentCount = capsule.receipts.pendingConsentCount
+    state.recentExecutionCount = capsule.receipts.recentExecutionCount
+    state.latestImprovementRunId = capsule.receipts.latestImprovementRunId
+    state.destructiveActionsTaken = capsule.destructiveActionsTaken
+    state.desktopAutomationExecuted = capsule.desktopAutomationExecuted
+    state.lastCapsuleReceiptId = capsule.receipt.capsuleHash
+
+    emit("holoshell:brittney:cockpit", {
+      status: state.status,
+      runtimeTruth: state.runtimeTruthStatus,
+      routes: state.routeStatus,
+      contextCarry: state.contextCarryStatus,
+      desktopBridge: state.desktopBridgeStatus,
+      toolActions: state.toolActionStatus,
+      cockpitLanes: state.cockpitLaneCount,
+      actionCards: state.actionCardCount,
+      pendingConsents: state.pendingConsentCount,
+      recentExecutions: state.recentExecutionCount,
+      latestImprovementRun: state.latestImprovementRunId,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      desktopAutomationExecuted: state.desktopAutomationExecuted,
+      receipt: state.lastCapsuleReceiptId
+    })
+  }
+}
