@@ -28,6 +28,8 @@ const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-deskto
 const FARA_PEER_AUTOMATION_SOURCE = 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus';
 const HOLOCLAW_RUNTIME_BRIDGE_SOURCE = 'apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus';
 const HOLOCLAW_RUNTIME_BRIDGE_SCHEMA = 'hololand.holoshell.holoclaw-runtime-bridge.v0.1.0';
+const HOLOCLAW_PRODUCTION_FRONTIER_SOURCE = 'apps/holoshell/source/holoshell-holoclaw-production-frontier.hsplus';
+const HOLOCLAW_SESSION_OBJECT_SCHEMA = 'hololand.holoshell.holoclaw-session-object.v0.1.0';
 const SOVEREIGN_ROOM_MARATHON_SOURCE = 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus';
 const SOVEREIGN_ROOM_MARATHON_SCRIPT = 'scripts/holoshell-sovereign-room-marathon.mjs';
 const SOVEREIGN_ROOM_MARATHON_SCHEMA = 'hololand.holoshell.sovereign-room-marathon.v0.1.0';
@@ -62,6 +64,13 @@ const BROWSER_SESSION_STATE_DIR =
 const BROWSER_SESSION_TRANSCRIPT_LIMIT = 120;
 const BROWSER_SESSION_EVIDENCE_LIMIT = 80;
 const BROWSER_CHAT_WORKSPACE_IDS = ['brittney', 'sovereign', 'holoclaw', 'terminal', 'improvement'];
+const BROWSER_CHAT_WORKSPACE_ROUTE_MAP = {
+  brittney: 'POST /api/brittney/chat',
+  sovereign: 'POST /workflow/sovereign-room-marathon',
+  holoclaw: 'POST /workflow/holoclaw-runtime-bridge',
+  terminal: 'GET /api/operator-terminal/session',
+  improvement: 'POST /api/improvement-runs',
+};
 const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
@@ -1987,6 +1996,107 @@ function writeBrowserSessionStateSnapshot(payload = {}, { sessionId = null, scop
   };
 }
 
+function holoclawWorkspacePermissionEnvelope(workspaceId) {
+  if (workspaceId === 'holoclaw') return 'guarded_execute';
+  if (workspaceId === 'terminal') return 'read_only_projection';
+  if (workspaceId === 'sovereign') return 'read_only_receipt_refresh';
+  if (workspaceId === 'improvement') return 'guarded_execute';
+  return 'read_only_or_guarded_by_intent';
+}
+
+function buildHoloClawWorkspaceSession(workspaceId, browserSessionState, parentSessionId) {
+  const id = normalizeBrowserChatId(workspaceId);
+  const safeParentId = safeBrowserSessionId(parentSessionId);
+  const namespace = `holoclaw:${safeParentId}:${id}`;
+  const transcriptEntryCount = safeArray(browserSessionState.transcriptByChat?.[id]).length;
+  const evidenceEntryCount = safeArray(browserSessionState.evidenceLedger)
+    .filter((entry) => normalizeBrowserChatId(entry.chatId || 'terminal') === id)
+    .length;
+  const draft = browserSessionState.drafts?.chatInputs?.[id] || '';
+  return {
+    workspaceId: id,
+    parentSessionId: safeParentId,
+    sessionObjectId: `${namespace}:session`,
+    runtimeTargetId: `${namespace}:runtime`,
+    browserTargetId: `${namespace}:browser-target`,
+    terminalStreamId: `${namespace}:terminal-stream`,
+    approvalQueueId: `${namespace}:approval-queue`,
+    replayBundleId: `${namespace}:replay-bundle`,
+    route: BROWSER_CHAT_WORKSPACE_ROUTE_MAP[id],
+    status: id === browserSessionState.activeChatId ? 'active' : 'bound',
+    transcriptEntryCount,
+    evidenceEntryCount,
+    draftPresent: Boolean(draft),
+    permissionEnvelope: holoclawWorkspacePermissionEnvelope(id),
+    mayExecuteWithoutConsent: false,
+    sourceOwnedBeforeAdapter: true,
+    receiptRequired: true,
+  };
+}
+
+function buildHoloClawSessionObject({ sessionId = null, scoped = false } = {}) {
+  const safeSessionId = safeBrowserSessionId(sessionId || sharedHoloShellSessionId());
+  const browserSessionState = readBrowserSessionStateSnapshot({ sessionId: safeSessionId, scoped });
+  const workspaceSessions = BROWSER_CHAT_WORKSPACE_IDS.map((workspaceId) =>
+    buildHoloClawWorkspaceSession(workspaceId, browserSessionState, safeSessionId)
+  );
+  const activeWorkspaceId = normalizeBrowserChatId(browserSessionState.activeChatId);
+  const activeWorkspace = workspaceSessions.find((workspace) => workspace.workspaceId === activeWorkspaceId) || workspaceSessions[0];
+  const holoclawWorkspace = workspaceSessions.find((workspace) => workspace.workspaceId === 'holoclaw') || null;
+  return {
+    schemaVersion: HOLOCLAW_SESSION_OBJECT_SCHEMA,
+    source: HOLOCLAW_PRODUCTION_FRONTIER_SOURCE,
+    generatedAt: new Date().toISOString(),
+    sessionId: safeSessionId,
+    sessionScoped: scoped,
+    storageKey: scoped ? `${BROWSER_SESSION_STATE_KEY}:${safeSessionId}` : BROWSER_SESSION_STATE_KEY,
+    status: 'session_bound',
+    activeWorkspaceId,
+    workspaceSessionCount: workspaceSessions.length,
+    workspaceSessions,
+    bindings: {
+      activeWorkspace,
+      holoclawWorkspace,
+      runtimeTargetPerWorkspaceRequired: true,
+      browserTargetPerWorkspaceRequired: true,
+      terminalStreamPerWorkspaceRequired: true,
+      approvalQueuePerWorkspaceRequired: true,
+      replayBundlePerWorkspaceRequired: true,
+    },
+    browserSession: {
+      schemaVersion: BROWSER_SESSION_STATE_SCHEMA,
+      snapshotStatus: browserSessionState.snapshotStatus || 'empty',
+      snapshotPath: browserSessionState.output,
+      updatedAt: browserSessionState.updatedAt,
+      activeChatId: activeWorkspaceId,
+      expandedChatIds: browserSessionState.expandedChatIds,
+      transcriptEntryCount: Object.values(browserSessionState.transcriptByChat || {})
+        .reduce((sum, entries) => sum + safeArray(entries).length, 0),
+      evidenceLedgerCount: safeArray(browserSessionState.evidenceLedger).length,
+    },
+    route: {
+      endpoint: 'GET /api/holoclaw/session-object?sessionId=:sessionId',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
+      holoclawRuntimeBridgeEndpoint: 'GET /api/holoclaw/runtime-bridge',
+      holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
+      terminalSessionEndpoint: 'GET /api/operator-terminal/session',
+    },
+    safety: {
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      browserMayExecuteTerminalCommand: false,
+      desktopAutomationExecuted: false,
+      destructiveActionsTaken: false,
+      rawSecretsIncluded: false,
+      approvalRequiredBeforeMutation: true,
+    },
+    nextSafeStep: 'Bind runtime, browser, terminal, approval, and replay ids before promoting any HoloClaw workspace to execution.',
+    receiptRequired: true,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  };
+}
+
 function normalizeLaptopReasoningResultReport(payload = {}) {
   const incoming = unwrapSchemaPayload(payload, LAPTOP_REASONING_RESULT_SCHEMA, ['receipt', 'laptopReasoningResult']);
   if (incoming.schemaVersion !== LAPTOP_REASONING_RESULT_SCHEMA) {
@@ -2997,6 +3107,7 @@ function buildLiveStatusSnapshot() {
       holoclawRuntimeBridgeEndpoint: 'GET /api/holoclaw/runtime-bridge',
       holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
       holoclawRuntimeBridgeLatestEndpoint: 'GET /workflow/holoclaw-runtime-bridge/latest',
+      holoclawSessionObjectEndpoint: 'GET /api/holoclaw/session-object?sessionId=:sessionId',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
       holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
@@ -3029,6 +3140,7 @@ function buildLiveStatusSnapshot() {
       'holoclaw_skill_shelf',
       'holoclaw_runtime_bridge_status',
       'holoclaw_runtime_guarded_workflow',
+      'holoclaw_session_object',
       'native_resource_inventory',
       'vision_model_routing',
       'improvement_run_queue',
@@ -4063,6 +4175,15 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/holoclaw/runtime-bridge') {
     respond(res, holoclawRuntimeBridgeStatusSnapshot());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/holoclaw/session-object') {
+    const requestedSessionId = url.searchParams.get('sessionId') || null;
+    respond(res, buildHoloClawSessionObject({
+      sessionId: requestedSessionId,
+      scoped: Boolean(requestedSessionId),
+    }));
     return;
   }
 

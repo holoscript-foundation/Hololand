@@ -20,6 +20,7 @@ composition "HoloShell HoloClaw Production Frontier" {
     terminalSessionEndpoint: "GET /api/operator-terminal/session"
     holoclawStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
     holoclawWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
+    holoclawSessionObjectEndpoint: "GET /api/holoclaw/session-object?sessionId=:sessionId"
     chromeInstrumentationStandards: ["Chrome DevTools Protocol", "WebDriver BiDi"]
     mcpPattern: "external tools and workflows exposed through typed tool surfaces"
     receiptRequired: true
@@ -73,6 +74,18 @@ composition "HoloShell HoloClaw Production Frontier" {
     productionRequirement: ""
     mayExecuteWithoutConsent: false
     sourceOwnedBeforeAdapter: true
+    receiptRequired: true
+  }
+
+  template "HoloClawSessionObject" {
+    type: "holoclaw_session_object"
+    schemaVersion: "hololand.holoshell.holoclaw-session-object.v0.1.0"
+    source: "apps/holoshell/source/holoshell-holoclaw-production-frontier.hsplus"
+    endpoint: "GET /api/holoclaw/session-object?sessionId=:sessionId"
+    workspaceIds: ["brittney", "sovereign", "holoclaw", "terminal", "improvement"]
+    requiredBindings: ["runtimeTargetId", "browserTargetId", "terminalStreamId", "approvalQueueId", "replayBundleId"]
+    directExecutionAllowed: false
+    endpointExecutesRuntime: false
     receiptRequired: true
   }
 
@@ -174,6 +187,8 @@ composition "HoloShell HoloClaw Production Frontier" {
     browserTargetPerWorkspaceRequired: true
     terminalStreamPerWorkspaceRequired: true
     approvalQueuePerWorkspaceRequired: true
+    replayBundlePerWorkspaceRequired: true
+    sessionObjectEndpoint: "GET /api/holoclaw/session-object?sessionId=:sessionId"
     receiptRequired: true
   }
 

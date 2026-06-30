@@ -13,6 +13,7 @@ HoloClaw is no longer missing the basic shell spine. The repo now proves:
 - Browser refresh restores chat drafts, transcripts, cockpit state, runtime state, and the evidence ledger.
 - `sessionId` scopes browser snapshots for simultaneous HoloClaw/Brittney/Terminal workspaces.
 - The browser polls terminal evidence and rehydrates terminal proof after refresh.
+- `GET /api/holoclaw/session-object?sessionId=:sessionId` binds each workspace to runtime, browser, terminal, approval, and replay IDs.
 
 What is still missing is the production contract that makes this feel like a new desktop app category instead of an IDE terminal plus a web panel.
 
@@ -36,7 +37,7 @@ HoloClaw's wedge is the permanent native symbiosis: browser/app surface for inte
 | P0 | Per-session HoloClaw runtime execution | `POST /workflow/holoclaw-runtime-bridge` stages an AgentRunner tick and records approval requirements. | Approved HoloClaw ticks stream result, tool events, failure state, and receipts back into the active HoloClaw chat. | Add a session-bound runtime execution receipt stream behind workflow approval and `HOLOSHELL_HOLOCLAW_ALLOW_AGENT_TICK`. |
 | P0 | Browser instrumentation as an app capability | Browser state and real refresh proof exist. | Visible Chrome tabs, console, network, DOM, screenshots, downloads, and authenticated app context are exposed as source-owned read tools, then consent-gated action tools. | Define CDP/BiDi-backed read-only observation adapter, then add consent-gated click/type actions. |
 | P0 | Native terminal event stream | Browser polls `GET /api/operator-terminal/session` every 30000ms. | Terminal command lifecycle emits structured `start/stdout/stderr/exit/artifact/process` events with bounded nondeveloper summaries. | Replace polling-only refresh with append-only terminal event stream plus browser run cards. |
-| P1 | Multiple HoloClaw chats as real sessions | Workspace IDs and session-scoped snapshots exist. | Each workspace binds its own runtime worker, browser target, terminal stream, approval queue, and replay bundle. | Promote chat workspaces into session objects with `runtimeTargetId`, `browserTargetId`, `terminalStreamId`, and `approvalQueueId`. |
+| P1 | Multiple HoloClaw chats as real sessions | Workspace IDs, session-scoped snapshots, and the read-only HoloClaw session-object endpoint exist. | Each workspace can use its bound runtime/browser/terminal/approval/replay IDs to drive real workers and replay bundles. | Promote the session-object IDs into runtime worker, browser target, terminal event stream, approval queue, and replay bundle adapters. |
 | P1 | Replayable operating turn | Evidence ledger survives refresh. | One operating turn replays from browser actions, terminal events, source changes, approvals, model calls, and receipts. | Add HoloClaw turn bundle schema and export endpoint. |
 | P1 | Nondeveloper terminal UX | Terminal lane and run cards exist. | Terminal evidence explains progress, risk, failure, retry, and artifacts without requiring shell literacy. | Add progress verbs, failure categories, artifact chips, and receipt summaries to terminal run cards. |
 | P2 | Native desktop packaging | `Brittney Studio.lnk` opens browser and refreshes terminal receipts hidden by default; visible terminal requires `-OperatorTerminal`. | Install/update/startup/session restore are packaged with server custody, browser profile custody, terminal custody, crash recovery, and no manual ceremony. | Add source-backed desktop package contract and custody receipts. |
@@ -75,9 +76,8 @@ This makes HoloClaw the production lane for "Claude Code + desktop + browser + t
 
 ## Next Implementation Order
 
-1. Implement a HoloClaw session object that binds chat workspace, runtime target, browser target, terminal stream, approval queue, and replay id.
-2. Add append-only terminal event streaming and render events as browser run cards.
-3. Add read-only Chrome observation receipts using CDP/BiDi concepts before any browser click/type action.
-4. Add approved HoloClaw runtime tick streaming into the active session.
-5. Export/import a single HoloClaw operating-turn replay bundle.
-6. Package the launcher/server/browser-profile/terminal custody path as a native desktop app contract.
+1. Add append-only terminal event streaming and render events as browser run cards.
+2. Add read-only Chrome observation receipts using CDP/BiDi concepts before any browser click/type action.
+3. Add approved HoloClaw runtime tick streaming into the active session.
+4. Export/import a single HoloClaw operating-turn replay bundle.
+5. Package the launcher/server/browser-profile/terminal custody path as a native desktop app contract.
