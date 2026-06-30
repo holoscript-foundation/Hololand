@@ -11,15 +11,15 @@
 - promote-to-build: 4
 - promote-to-research: 0
 - promote-to-paper-row: 0
-- merge-into-existing: 3
-- keep-dormant: 0
+- merge-into-existing: 2
+- keep-dormant: 1
 - retire-with-reason: 1
 
 ## Triage Table
 
 | Seed | Outcome | Class | Score | Source | Reason |
 |---|---|---|---|---|---|
-| [Hololand Architecture Overview](archive-farm/2026-05-12_archive_hololand-architecture-overview.md) | merge-into-existing | retired-component | 65 | docs/archive/README_ARCHITECTURE.md | Retired/deleted component should be reconciled with deletion ledgers or current package disposition before task promotion. |
+| [Hololand Architecture Overview](archive-farm/2026-05-12_archive_hololand-architecture-overview.md) | keep-dormant | retired-component | 65 | docs/archive/README_ARCHITECTURE.md | Seed already has a closed realization note; keep the historical record until its reopen trigger fires. |
 | [Hololand Ecosystem: Building the Future, Today](archive-farm/2026-05-12_archive_hololand-ecosystem-building-the-future-today.md) | promote-to-build | security-instinct | 49 | docs/archive/ECOSYSTEM_AND_VISION.md | Build-worthy implementation signal with score 49; review for an actionable board or backlog task. |
 | [HOLOLAND Growth Strategy: Achieving High-Level Traction](archive-farm/2026-05-12_archive_hololand-growth-strategy-achieving-high-level-traction.md) | promote-to-build | security-instinct | 74 | docs/archive/HOLOLAND_GROWTH_STRATEGY.md | Build-worthy implementation signal with score 74; review for an actionable board or backlog task. |
 | [Hololand uaa2-service Hybrid Architecture](archive-farm/2026-05-12_archive_hololand-uaa2-service-hybrid-architecture.md) | promote-to-build | security-instinct | 54 | docs/archive/HYBRID_ARCHITECTURE.md | Build-worthy implementation signal with score 54; review for an actionable board or backlog task. |
@@ -30,7 +30,6 @@
 
 ## Action Candidates
 
-- merge-into-existing: [Hololand Architecture Overview](archive-farm/2026-05-12_archive_hololand-architecture-overview.md)
 - promote-to-build: [Hololand Ecosystem: Building the Future, Today](archive-farm/2026-05-12_archive_hololand-ecosystem-building-the-future-today.md)
 - promote-to-build: [HOLOLAND Growth Strategy: Achieving High-Level Traction](archive-farm/2026-05-12_archive_hololand-growth-strategy-achieving-high-level-traction.md)
 - promote-to-build: [Hololand uaa2-service Hybrid Architecture](archive-farm/2026-05-12_archive_hololand-uaa2-service-hybrid-architecture.md)
