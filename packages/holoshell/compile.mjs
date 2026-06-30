@@ -935,7 +935,6 @@ const runtimeScript = `  <script>
           cockpitLanes: capsule.cockpitLanes,
           actionCards: capsule.actionCards,
           sourceOwnedState: capsule.sourceOwnedState,
-          sourceOwnedState: capsule.sourceOwnedState,
           contextCapsuleTemplate: capsule.contextCapsuleTemplate,
           receipts: capsule.receipts,
           sovereignRoomMarathon: capsule.sovereignRoomMarathon,
@@ -1312,12 +1311,6 @@ const runtimeScript = `  <script>
           tone: _toneForStatus(summary.sourceOwnedStateStatus)
         },
         {
-          label: 'Source Owned',
-          value: summary.sourceOwnedStateStatus || 'unknown',
-          detail: (summary.sourceOwnedDomainCount || 0) + ' domains; task ' + (summary.sourceOwnedSelectedTaskId || 'none'),
-          tone: _toneForStatus(summary.sourceOwnedStateStatus)
-        },
-        {
           label: 'Reasoning',
           value: summary.laptopReasoningLane || 'laptop-hardware',
           detail: (summary.laptopReasoningStatus || 'unknown') + '; ' + reasoningDetail,
@@ -1612,7 +1605,6 @@ const runtimeScript = `  <script>
       _setText('cockpit-runtime', _laneText(_lane(capsule, 'runtime_truth')));
       _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
-      _setText('cockpit-source', _laneText(_lane(capsule, 'source_owned_state')));
       _setText('cockpit-source', _laneText(_lane(capsule, 'source_owned_state')));
       _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
       _setText('cockpit-reasoning', _laneText(_lane(capsule, 'laptop_reasoning')));
@@ -2112,7 +2104,6 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Runtime</strong><span id="cockpit-runtime">checking</span></div>' +
         '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
         '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
-        '<div class="cockpit-card"><strong>Source</strong><span id="cockpit-source">checking</span></div>' +
         '<div class="cockpit-card"><strong>Source</strong><span id="cockpit-source">checking</span></div>' +
         '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
         '<div class="cockpit-card"><strong>Reasoning</strong><span id="cockpit-reasoning">checking</span></div>' +

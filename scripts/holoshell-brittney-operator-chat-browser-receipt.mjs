@@ -433,6 +433,10 @@ const STATE_EXPRESSION = `(() => {
     /Jetson Route/i.test(operatorText) &&
     /Reasoning/i.test(operatorText) &&
     /Receipts/i.test(operatorText);
+  const sourceOwnedVisible =
+    visible('#operator-state-rail') &&
+    /Source Owned/i.test(operatorText) &&
+    /domains/i.test(operatorText);
   const contextCapsuleVisible =
     visible('#context-capsule-panel') &&
     contextText.length > 20 &&
@@ -483,6 +487,7 @@ const STATE_EXPRESSION = `(() => {
     },
     assertions: {
       laneTruthVisible,
+      sourceOwnedVisible,
       contextCapsuleVisible,
       proposalCardsVisible: proposalCards > 0,
       receiptNarrationVisible: receiptNarrationCards > 0,

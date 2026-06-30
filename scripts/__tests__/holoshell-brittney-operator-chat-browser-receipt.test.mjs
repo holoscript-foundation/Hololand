@@ -112,6 +112,7 @@ try {
   assert.equal(receipt.status, 'pass');
   assert.equal(receipt.chatSelfTest, true);
   assert.equal(receipt.state.assertions.laneTruthVisible, true);
+  assert.equal(receipt.state.assertions.sourceOwnedVisible, true);
   assert.equal(receipt.state.assertions.contextCapsuleVisible, true);
   assert.equal(receipt.state.assertions.proposalCardsVisible, true);
   assert.equal(receipt.state.assertions.receiptNarrationVisible, true);
