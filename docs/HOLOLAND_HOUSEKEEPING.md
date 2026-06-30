@@ -44,6 +44,19 @@ Current known visible untracked families include:
 
 Treat these as intake candidates, not trash.
 
+Read-only intake gate:
+
+```powershell
+node scripts/hololand-experiment-intake.mjs --summary
+node scripts/hololand-experiment-intake.mjs --json
+```
+
+The gate groups each Human OS room/policy/pipeline trio, checks tracked versus
+untracked files, compares exact promoted `apps/holoshell/source/**` sources, and
+labels each workflow as `duplicate-of-app-source`, `promote-or-archive`,
+`tracked-intake`, `incomplete-intake`, or `utility-watch`. It does not move,
+archive, delete, or ignore files.
+
 ## Package Boundary
 
 Two package-manager failure modes were observed during the reboot audit:
@@ -72,9 +85,9 @@ node scripts/__tests__/holoshell-agent-builder-proof-0.test.mjs
 
 ## Next Housekeeping Candidates
 
-1. Promote or archive each visible `experiments/holoshell-human-os-frontier/*`
-   trio after reading it and deciding whether it still supports the builder
-   proof.
+1. Run `node scripts/hololand-experiment-intake.mjs --summary`, then promote or
+   archive each visible `experiments/holoshell-human-os-frontier/*` trio after
+   reading it and deciding whether it still supports the builder proof.
 2. Keep shrinking the HoloScript package boundary to the named active,
    conditional, and bridge-debt sets in `docs/HOLOSCRIPT_PACKAGE_CONSUMPTION.md`.
 3. Promote additional root `pnpm run` wrappers only when they reach the direct
