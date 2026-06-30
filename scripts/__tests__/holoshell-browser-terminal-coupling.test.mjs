@@ -152,6 +152,8 @@ try {
   assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.equal(session.refreshRecovery.browserSessionSnapshotStatus, 'empty');
   assert.ok(session.refreshRecovery.rehydrateFrom.includes('GET /api/browser-session/state?sessionId=:sessionId'));
+  assert.equal(session.refreshRecovery.terminalEvidenceStreamStatus, 'polling_enabled');
+  assert.equal(session.refreshRecovery.terminalEvidencePollIntervalMs, 30000);
   assert.equal(session.refreshRecovery.browserRefreshMayResetTruth, false);
   assert.deepEqual(session.sharedMemory.requiredFields, ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command']);
   assert.equal(session.sharedMemory.browserStateKey, 'holoshell:brittney:browser-session:v1');
@@ -339,6 +341,8 @@ try {
   assert.match(source, /OneSessionTwoSurfaces/);
   assert.match(source, /TerminalCannotBypassHoloGate/);
   assert.match(source, /NativeTerminalBrowserSymbiosis/);
+  assert.match(source, /TerminalEvidenceStreamsToBrowser/);
+  assert.match(source, /browserPollIntervalMs: 30000/);
   assert.match(source, /BrowserRefreshRehydratesFromReceipts/);
   assert.match(source, /BrowserSessionSnapshotMirrorsLocalStorage/);
   assert.match(source, /GET\/POST \/api\/browser-session\/state\?sessionId=:sessionId/);
@@ -360,6 +364,8 @@ try {
   assert.match(compileSource, /_browserStateStorageKey/);
   assert.match(compileSource, /\/api\/browser-session\/state/);
   assert.match(compileSource, /_rehydrateTerminalSessionFromServer/);
+  assert.match(compileSource, /_startTerminalSessionEvidencePolling/);
+  assert.match(compileSource, /visibilitychange/);
   assert.match(compileSource, /Evidence ledger/);
   assert.match(compileSource, /loadCockpitCapsule\(\)/);
 

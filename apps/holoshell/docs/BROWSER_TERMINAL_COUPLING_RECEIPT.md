@@ -15,6 +15,7 @@
 - Added a browser-side evidence ledger so Terminal lane proof rehydrates after refresh from local state plus `/api/cockpit/capsule` and `/api/operator-terminal/session`.
 - Added a bounded server-side browser session snapshot so localStorage state can rehydrate after reload/cold browser starts before the default welcome state is shown.
 - Added session-scoped browser snapshots and localStorage keys so simultaneous HoloClaw/Brittney/Terminal browser workspaces can persist independently.
+- Added browser-side terminal evidence polling and visible-tab refresh so the Terminal lane keeps receiving receipt status after initial load.
 - Kept optional orchestration lanes advisory in laptop receipt freshness so HoloClaw/Sovereign/Fara waiting states do not fail the endpoint freshness check.
 
 ## Boundary

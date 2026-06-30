@@ -693,6 +693,7 @@ const runtimeScript = `  <script>
     var _browserStateRestoring = false;
     var _browserSessionSnapshotTimer = null;
     var _browserSessionSnapshotInFlight = false;
+    var _terminalSessionPollTimer = null;
     function _browserSessionId() {
       try {
         var params = new URLSearchParams(window.location.search || '');
@@ -1505,6 +1506,15 @@ const runtimeScript = `  <script>
           });
         });
     }
+    function _startTerminalSessionEvidencePolling() {
+      window.clearInterval(_terminalSessionPollTimer);
+      _terminalSessionPollTimer = window.setInterval(function() {
+        if (document.visibilityState !== 'hidden') _rehydrateTerminalSessionFromServer();
+      }, 30000);
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') _rehydrateTerminalSessionFromServer();
+      });
+    }
     function _inspectOperatorTerminalSession() {
       fetch('/api/operator-terminal/session', { cache: 'no-store' })
         .then(function(r) { return r.json(); })
@@ -2194,6 +2204,7 @@ const runtimeScript = `  <script>
         .finally(function() {
           loadCockpitCapsule();
           _rehydrateTerminalSessionFromServer();
+          _startTerminalSessionEvidencePolling();
           loadImprovementRuns();
         });
     }

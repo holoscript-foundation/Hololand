@@ -38,6 +38,7 @@ composition "HoloShell Browser Terminal Coupling" {
     browserStateKey: "holoshell:brittney:browser-session:v1"
     browserSessionSnapshotStatus: "unknown"
     browserSessionScoped: false
+    terminalEvidenceStreamStatus: "unknown"
     evidenceLedgerStatus: "unknown"
     terminalRunCardCount: 0
     browserIsPrimaryConversationSurface: true
@@ -186,6 +187,17 @@ composition "HoloShell Browser Terminal Coupling" {
     receiptRequired: true
   }
 
+  policy "TerminalEvidenceStreamsToBrowser" {
+    appliesTo: ["operator_terminal_session", "evidence_ledger", "browser_visibility", "terminal_receipt_refresh"]
+    sourceEndpoint: "GET /api/operator-terminal/session"
+    browserPollIntervalMs: 30000
+    refreshOnBrowserVisible: true
+    ledgerDeduplicationRequired: true
+    browserMayExecuteTerminalCommand: false
+    endpointMayExecuteTerminalCommand: false
+    receiptRequired: true
+  }
+
   policy "BrowserRefreshRehydratesFromReceipts" {
     appliesTo: ["browser_refresh", "local_storage_state", "server_session_snapshot", "operator_terminal_session", "cockpit_capsule"]
     browserStateKey: "holoshell:brittney:browser-session:v1"
@@ -232,6 +244,7 @@ composition "HoloShell Browser Terminal Coupling" {
     state.browserStateKey = session.refreshRecovery.browserStateKey || "holoshell:brittney:browser-session:v1"
     state.browserSessionSnapshotStatus = session.refreshRecovery.browserSessionSnapshotStatus || "unknown"
     state.browserSessionScoped = session.refreshRecovery.browserSessionScoped || false
+    state.terminalEvidenceStreamStatus = session.refreshRecovery.terminalEvidenceStreamStatus || "polling_enabled"
     state.evidenceLedgerStatus = session.refreshRecovery.evidenceLedgerStatus || "unknown"
     state.terminalRunCardCount = session.runCards.length || 0
     state.browserIsPrimaryConversationSurface = session.safety.browserIsPrimaryConversationSurface
@@ -252,6 +265,7 @@ composition "HoloShell Browser Terminal Coupling" {
       browser_state_key: state.browserStateKey,
       browser_session_snapshot_status: state.browserSessionSnapshotStatus,
       browser_session_scoped: state.browserSessionScoped,
+      terminal_evidence_stream_status: state.terminalEvidenceStreamStatus,
       evidence_ledger_status: state.evidenceLedgerStatus,
       terminal_run_card_count: state.terminalRunCardCount,
       browser_primary_conversation_surface: state.browserIsPrimaryConversationSurface,

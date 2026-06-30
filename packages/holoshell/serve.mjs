@@ -2899,6 +2899,8 @@ function buildOperatorTerminalSession() {
       browserSessionSnapshotStatus,
       browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt || null,
       browserSessionScoped: browserSessionState.sessionScoped || false,
+      terminalEvidenceStreamStatus: 'polling_enabled',
+      terminalEvidencePollIntervalMs: 30000,
       evidenceLedgerStatus: receiptObserved ? 'available' : 'needs_terminal_receipt',
       rehydrateFrom: ['localStorage', 'GET /api/browser-session/state?sessionId=:sessionId', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
       browserRefreshMayResetTruth: false,
