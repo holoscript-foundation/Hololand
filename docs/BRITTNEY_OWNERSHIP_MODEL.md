@@ -53,9 +53,9 @@ The runtime + experiential half. Concretely, the seven sub-packages under
 catalogued in [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md); the strategic
 boundary is:
 
-- **Inference plumbing** for HoloLand apps — local GGUF (toolkit) and
-  Ollama-backed cloud/local providers (inference layer). Managed cloud is
-  optional, not exclusive.
+- **Inference plumbing** for HoloLand apps — sovereign local GGUF (toolkit)
+  and local/LAN Ollama providers first. BYOK or managed cloud providers are
+  optional cloud-tagged lanes, not exclusive defaults.
 - **In-world agent presence** via the premium MCP server (live browser
   context, debugging, world/object CRUD).
 - **NL → HoloScript and voice authoring** in VR via `@hololand/ai-bridge`.

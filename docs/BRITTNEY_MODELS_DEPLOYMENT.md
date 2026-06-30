@@ -12,15 +12,16 @@ HoloLand has two live deployment paths and one deprecated one.
 | Path | Package | Use case |
 |---|---|---|
 | **Bundled local model** | [`@hololand/brittney-toolkit`](../packages/brittney/toolkit) | Embed Brittney in HoloLand apps with no API key. Ships a chat widget, local + cloud inference modes, and a setup CLI (`brittney-setup`). |
-| **Unified inference layer** | [`@hololand/inference`](../packages/shared/inference) | Server-side and downstream-package inference. Local (Ollama) + BYOK cloud providers under one client. |
+| **Unified inference layer** | [`@hololand/inference`](../packages/shared/inference) | Server-side and downstream-package inference. Sovereign local/LAN Ollama first, with BYOK cloud providers only as explicit opt-in modes. |
 | **(deprecated)** Standalone Express server | [`@hololand/brittney-service`](../packages/brittney/service) | Old port-11435 server. Marked `deprecated` in its `package.json`; do not use for new integrations. |
 
 ## Sovereignty Rule
 
 Brittney is allowed to have managed cloud surfaces, but the architecture must
-not make managed cloud the only viable access path. Local GGUF, local/LAN
-Ollama, BYOK cloud providers, HoloScript CLI access, and HoloLand in-world
-access are first-class deployment modes.
+not make managed cloud the only viable access path or the default consumption
+path. Local GGUF, local/LAN Ollama, HoloScript CLI access, and HoloLand
+in-world access are first-class sovereign modes; BYOK and managed cloud paths
+must stay explicit cloud-tagged modes.
 
 Use managed cloud for convenience, scale, or premium uptime. Use local and
 self-hosted paths for privacy, offline use, user ownership, modding, world
@@ -50,8 +51,8 @@ await engine.initialize();
 const result = await engine.generate({ prompt: 'Build a medieval castle' });
 ```
 
-Modes are `local` (bundled GGUF via local inference) and a cloud mode that
-delegates to [`CloudInference.ts`](../packages/brittney/toolkit/src/inference/CloudInference.ts).
+Modes are `local` (bundled GGUF via local inference) and an explicit cloud mode
+that delegates to [`CloudInference.ts`](../packages/brittney/toolkit/src/inference/CloudInference.ts).
 Model selection comes from
 [`modelConfig.ts`](../packages/brittney/toolkit/src/inference/modelConfig.ts);
 the chat widget surface is
@@ -62,7 +63,8 @@ The setup binary (`brittney-setup`) handles first-run provisioning.
 ## Unified inference layer
 
 `@hololand/inference` is the server-side / downstream-package path. It
-unifies local Ollama with BYOK cloud providers under one client. See
+keeps local/LAN Ollama as the sovereign default and exposes BYOK cloud providers
+as opt-in cloud-tagged routes under one client. See
 [`packages/shared/inference/src/client.ts`](../packages/shared/inference/src/client.ts)
 and the providers under
 [`packages/shared/inference/src/providers/`](../packages/shared/inference/src/providers/).

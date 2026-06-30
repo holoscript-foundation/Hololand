@@ -88,6 +88,7 @@
         },
         "sovereigntyMode": {
           "type": "string",
+          "description": "Default NPC consumption should stay sovereign/local; BYOK and managed cloud modes are explicit cloud-tagged choices.",
           "enum": ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand", "holoScript-cli", "hybrid"]
         }
       }
@@ -456,11 +457,13 @@
         },
         "tickRouting": {
           "type": "string",
-          "enum": ["local-gguf", "l2-ollama-cloud-claude", "byok-cloud", "managed-hololand"]
+          "description": "Default route for autonomous agenda ticks. Use provider-cloud routes only when the manifest or task is explicitly cloud-tagged.",
+          "enum": ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand"]
         },
         "interactionRouting": {
           "type": "string",
-          "enum": ["local-gguf", "l1-anthropic-claude", "byok-cloud", "managed-hololand"]
+          "description": "Default route for player-facing interactions. Use provider-cloud routes only when the manifest or task is explicitly cloud-tagged.",
+          "enum": ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand"]
         },
         "overdrawBehavior": {
           "type": "string",
@@ -610,8 +613,8 @@
       },
       "costCeiling": {
         "dailyUsd": 0.5,
-        "tickRouting": "l2-ollama-cloud-claude",
-        "interactionRouting": "l1-anthropic-claude",
+        "tickRouting": "local-gguf",
+        "interactionRouting": "local-gguf",
         "overdrawBehavior": "admin-visible-overdraw"
       },
       "transcriptAttributionTest": {

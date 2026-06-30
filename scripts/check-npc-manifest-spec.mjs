@@ -27,6 +27,12 @@ function findHoloScriptRoot() {
   return candidates.find((candidate) => fs.existsSync(path.join(candidate, 'package.json')));
 }
 
+function findHoloScriptCli(holoscriptRoot) {
+  if (!holoscriptRoot) return null;
+  const cliPath = path.join(holoscriptRoot, 'packages', 'cli', 'bin', 'holoscript.cjs');
+  return fs.existsSync(cliPath) ? cliPath : null;
+}
+
 function run(command, args, options = {}) {
   if (process.platform === 'win32' && command === 'pnpm') {
     const quote = (arg) => {
@@ -100,10 +106,16 @@ for (const token of requiredTopLevel) {
 const holoscriptRoot = findHoloScriptRoot();
 check(Boolean(holoscriptRoot), 'Unable to find HoloScript root. Set HOLOSCRIPT_ROOT.');
 if (holoscriptRoot) {
-  const parseResult = run('pnpm', ['exec', 'holoscript', 'parse', holoPath], {
-    cwd: holoscriptRoot,
-    timeout: 120000
-  });
+  const cliPath = findHoloScriptCli(holoscriptRoot);
+  const parseResult = cliPath
+    ? run(process.execPath, [cliPath, 'parse', holoPath], {
+        cwd: repoRoot,
+        timeout: 120000
+      })
+    : run('pnpm', ['exec', 'holoscript', 'parse', holoPath], {
+        cwd: holoscriptRoot,
+        timeout: 120000
+      });
   check(parseResult.status === 0, `HoloScript parse failed: ${(parseResult.stderr || parseResult.stdout || '').trim()}`);
 }
 

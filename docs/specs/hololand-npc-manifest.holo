@@ -46,6 +46,7 @@ composition "HoloLand NPC Manifest Contract" {
     type: "brittney_descendant_contract"
     modes: ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand", "holoScript-cli", "hybrid"]
     rule: "Brittney lineage is a mother pattern, not one monopoly endpoint."
+    cloud_lane_rule: "BYOK and managed modes are explicit cloud-tagged choices; defaults remain sovereign/local."
   }
 
   object "VerbalFingerprint" {
@@ -105,8 +106,9 @@ composition "HoloLand NPC Manifest Contract" {
   object "CostCeiling" {
     type: "runtime_gate"
     default_daily_usd: 0.5
-    tick_routing_default: "l2-ollama-cloud-claude"
-    interaction_routing_default: "l1-anthropic-claude"
+    tick_routing_default: "local-gguf"
+    interaction_routing_default: "local-gguf"
+    cloud_routing_rule: "byok-cloud and managed-hololand require an explicit cloud-tagged task or user policy."
     overdraw_behavior: ["last-known-good", "admin-visible-overdraw", "pause-agenda"]
   }
 
