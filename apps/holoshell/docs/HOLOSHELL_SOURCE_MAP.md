@@ -6,15 +6,15 @@ so agents and product surfaces do not have to rediscover the shape of
 
 ## Current Validation Snapshot
 
-Latest local receipt: `.tmp/holoshell/source-validation.json` (2026-06-29).
+Latest local receipt: `.tmp/holoshell/source-validation.json` (2026-06-30).
 
 Summary from the receipt:
 
 | Field    | Value                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Status   | `pass`                                                                                     |
-| Sources  | **131/131 passed** (2026-06-29)                                                           |
-| Formats  | 23 `.holo`, 20 `.hs`, 88 `.hsplus`                                                        |
+| Sources  | **153/153 passed** (2026-06-30)                                                           |
+| Formats  | 26 `.holo`, 23 `.hs`, 104 `.hsplus`                                                       |
 | Failures | 0 failures, 0 timeouts                                                                     |
 
 This map is the navigation layer. The validation receipt is the current parse
@@ -94,6 +94,7 @@ contracts.
 | Agent dispatch                | `apps/holoshell/source/holoshell-agent-dispatch.hsplus`                |
 | Agent presence lanes          | `apps/holoshell/source/holoshell-agent-presence-lanes.hsplus`          |
 | HoloClaw runtime bridge       | `apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus`       |
+| HoloClaw production frontier  | `apps/holoshell/source/holoshell-holoclaw-production-frontier.hsplus`  |
 | Grok build workflow           | `apps/holoshell/source/holoshell-grok-build-workflow.hsplus`           |
 | Grok heartbeat                | `apps/holoshell/source/holoshell-grok-heartbeat.hsplus`                |
 

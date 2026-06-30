@@ -1,0 +1,231 @@
+// HoloShell HoloClaw Production Frontier
+//
+// Source contract for the remaining HoloClaw work required to replace
+// OpenClaw/NemoClaw as a full production desktop app surface, not only a
+// staged runtime bridge. This contract keeps the browser, terminal, session,
+// consent, and replay gaps source-owned before more adapter work is added.
+
+composition "HoloShell HoloClaw Production Frontier" {
+  config {
+    title: "HoloClaw Production Frontier"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    replacementFor: ["OpenClaw", "NemoClaw"]
+    productSurface: "Brittney desktop app with browser and native terminal"
+    desktopCockpitSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    browserTerminalCouplingSource: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
+    holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
+    auditReceipt: "docs/audits/HOLOCLAW_BROWSER_TERMINAL_GAP_MATRIX_2026-06-30.md"
+    browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
+    terminalSessionEndpoint: "GET /api/operator-terminal/session"
+    holoclawStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    holoclawWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
+    chromeInstrumentationStandards: ["Chrome DevTools Protocol", "WebDriver BiDi"]
+    mcpPattern: "external tools and workflows exposed through typed tool surfaces"
+    receiptRequired: true
+  }
+
+  state {
+    replacementRuntimeStatus: "partial"
+    browserTerminalStatus: "partial"
+    parallelChatStatus: "partial"
+    runtimeExecutionStatus: "guarded_stage_only"
+    browserInstrumentationStatus: "research_ready"
+    terminalEventStreamStatus: "polling_receipts_only"
+    replayStatus: "snapshot_only"
+    nonDeveloperUxStatus: "prototype"
+    packagingStatus: "missing"
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:holoclaw:production-frontier" {
+    type: "append_only"
+    priority: "critical"
+    description: "Source-owned HoloClaw replacement gap ledger and next-slice queue"
+  }
+
+  channel "holoshell:holoclaw:browser-terminal-research" {
+    type: "append_only"
+    priority: "high"
+    description: "Research-backed browser and terminal leverage notes for production app work"
+  }
+
+  template "HoloClawProductionGap" {
+    type: "production_gap"
+    gapId: ""
+    priority: "P1"
+    title: ""
+    currentProof: ""
+    missingProof: ""
+    nextImplementationSlice: ""
+    sourceOwner: "apps/holoshell/source/holoshell-holoclaw-production-frontier.hsplus"
+    receiptRequired: true
+  }
+
+  template "BrowserTerminalCapability" {
+    type: "dual_surface_capability"
+    capabilityId: ""
+    browserRole: "intent_context_approval"
+    terminalRole: "execution_evidence_repair"
+    productionRequirement: ""
+    mayExecuteWithoutConsent: false
+    sourceOwnedBeforeAdapter: true
+    receiptRequired: true
+  }
+
+  room "HoloClawProductionFrontierRoom" {
+    label: "HoloClaw Frontier"
+    userQuestion: "What must HoloClaw still prove before it replaces OpenClaw and NemoClaw?"
+    visualForm: "gap_matrix_and_next_slice_queue"
+    liveFeed: "holoshell:holoclaw:production-frontier"
+
+    object "RuntimeExecution" using "HoloClawProductionGap" {
+      gapId: "runtime-execution"
+      priority: "P0"
+      title: "Per-session HoloClaw runtime execution"
+      currentProof: "guarded runtime bridge stages an AgentRunner tick with approval requirements"
+      missingProof: "approved runtime tick streams result, tool events, receipts, and failure recovery back into the active HoloClaw chat"
+      nextImplementationSlice: "add session-bound runtime execution receipt stream behind workflow approval and HOLOSHELL_HOLOCLAW_ALLOW_AGENT_TICK"
+    }
+
+    object "BrowserInstrumentation" using "HoloClawProductionGap" {
+      gapId: "browser-instrumentation"
+      priority: "P0"
+      title: "Browser instrumentation as app capability"
+      currentProof: "browser state, cockpit, terminal evidence, and session refresh proof exist"
+      missingProof: "visible Chrome tabs, console, network, DOM, screenshots, downloads, and authenticated app context are exposed as guarded source-owned tools"
+      nextImplementationSlice: "define CDP/BiDi-backed read-only browser observation adapter, then add consent-gated click/type actions"
+    }
+
+    object "TerminalEventStream" using "HoloClawProductionGap" {
+      gapId: "terminal-event-stream"
+      priority: "P0"
+      title: "Native terminal event stream"
+      currentProof: "browser polls terminal session evidence every 30000ms"
+      missingProof: "terminal command lifecycle emits structured start/stdout/stderr/exit/artifact events with bounded human summaries"
+      nextImplementationSlice: "replace polling-only terminal receipt refresh with append-only event stream plus browser run cards"
+    }
+
+    object "ParallelHoloClawChats" using "HoloClawProductionGap" {
+      gapId: "parallel-holoclaw-chats"
+      priority: "P1"
+      title: "Multiple HoloClaw chats and workspaces"
+      currentProof: "Brittney, Sovereign, HoloClaw, Terminal, and Improvement workspaces are isolated and session-scoped"
+      missingProof: "each workspace can bind its own runtime worker, browser target, terminal stream, approval queue, and replay bundle"
+      nextImplementationSlice: "promote chat workspaces into session objects with runtimeTargetId, browserTargetId, terminalStreamId, and approvalQueueId"
+    }
+
+    object "ReplayAndRestore" using "HoloClawProductionGap" {
+      gapId: "replay-restore"
+      priority: "P1"
+      title: "Replayable operating turn"
+      currentProof: "bounded browser snapshots and evidence ledgers survive refresh"
+      missingProof: "one operating turn can be replayed from browser actions, terminal events, source changes, approvals, and receipts"
+      nextImplementationSlice: "add HoloClaw turn bundle schema and export endpoint"
+    }
+
+    object "NonDeveloperUx" using "HoloClawProductionGap" {
+      gapId: "nondeveloper-ux"
+      priority: "P1"
+      title: "Non-developer terminal presentation"
+      currentProof: "Terminal lane and run cards hide raw command grammar by default"
+      missingProof: "terminal evidence explains risk, progress, failure, retry, and artifacts without forcing shell literacy"
+      nextImplementationSlice: "add progress verbs, failure categories, artifact chips, and receipt summaries to terminal run cards"
+    }
+
+    object "PackagingAndContinuity" using "HoloClawProductionGap" {
+      gapId: "packaging-continuity"
+      priority: "P2"
+      title: "Desktop app packaging and continuity"
+      currentProof: "Brittney Studio launcher opens browser and refreshes terminal receipts hidden by default; visible terminal requires -OperatorTerminal"
+      missingProof: "install/update/startup/session restore are packaged as a native desktop app with crash recovery and no manual server ceremony"
+      nextImplementationSlice: "wrap launcher, server custody, terminal custody, and browser profile custody into a source-backed desktop package contract"
+    }
+  }
+
+  policy "HoloClawMustReplaceNotWrapOpenClawNemoClaw" {
+    appliesTo: ["runtime_backend", "agent_identity", "local_gateway", "desktop_app"]
+    replacementRuntime: "HoloClaw"
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    competitorPatternsMayBeHarvested: true
+    competitorRuntimeMayBeCalled: false
+    receiptRequired: true
+  }
+
+  policy "BrowserTerminalIsProductionSurface" {
+    appliesTo: ["browser_cockpit", "native_terminal", "holoclaw_chat", "approval_queue", "receipt_ledger"]
+    browserOwnsIntentContextApproval: true
+    terminalOwnsExecutionEvidenceRepair: true
+    bothSurfacesAlwaysVisibleWhenHelpful: true
+    rawTerminalNotDefaultHumanInterface: true
+    browserRefreshMayResetTruth: false
+    receiptRequired: true
+  }
+
+  policy "MultipleHoloClawChatsAreFirstClassSessions" {
+    appliesTo: ["brittney_chat", "sovereign_chat", "holoclaw_chat", "terminal_chat", "improvement_chat"]
+    sessionScopedSnapshots: true
+    transcriptIsolationRequired: true
+    runtimeTargetPerWorkspaceRequired: true
+    browserTargetPerWorkspaceRequired: true
+    terminalStreamPerWorkspaceRequired: true
+    approvalQueuePerWorkspaceRequired: true
+    receiptRequired: true
+  }
+
+  policy "TerminalBenefitsAgentsWhenEvidenceIsStructured" {
+    appliesTo: ["terminal_event", "command_lifecycle", "stdout", "stderr", "exit_code", "artifact", "process_health"]
+    structuredEventsRequired: true
+    boundedHumanSummaryRequired: true
+    terminalMayRepairFailedRuns: true
+    terminalMayBypassConsent: false
+    browserMayExecuteTerminalCommand: false
+    receiptRequired: true
+  }
+
+  policy "ChromeSurfaceUsesGuardedInstrumentation" {
+    appliesTo: ["chrome_tab", "console_log", "dom_snapshot", "network_event", "screenshot", "download", "click", "type"]
+    preferredStandards: ["Chrome DevTools Protocol", "WebDriver BiDi"]
+    readOnlyObservationAllowed: true
+    clickAndTypeRequireConsent: true
+    loginAndCaptchaHandledByHuman: true
+    sitePermissionsRequired: true
+    rawCredentialsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "ReplayTurnsBeforeAutonomyClaims" {
+    appliesTo: ["holoclaw_turn", "runtime_tick", "browser_action", "terminal_event", "source_patch", "approval", "receipt"]
+    replayBundleRequiredBeforeProductionClaim: true
+    deterministicReplayPreferred: true
+    nonDeterministicModelOutputsMustKeepReceipt: true
+    rollbackPlanRequiredForMutations: true
+    receiptRequired: true
+  }
+
+  action report_gap_matrix(matrix) {
+    emit("holoshell:holoclaw:production-frontier", {
+      action: "holoclaw_gap_matrix_reported",
+      replacement_runtime_status: state.replacementRuntimeStatus,
+      browser_terminal_status: state.browserTerminalStatus,
+      parallel_chat_status: state.parallelChatStatus,
+      runtime_execution_status: state.runtimeExecutionStatus,
+      browser_instrumentation_status: state.browserInstrumentationStatus,
+      terminal_event_stream_status: state.terminalEventStreamStatus,
+      replay_status: state.replayStatus,
+      nondeveloper_ux_status: state.nonDeveloperUxStatus,
+      packaging_status: state.packagingStatus,
+      audit_receipt: config.auditReceipt,
+      gap_count: matrix.gaps.length || 0,
+      openclaw_backend_allowed: state.openClawRuntimeBackendAllowed,
+      nemoclaw_backend_allowed: state.nemoClawRuntimeBackendAllowed,
+      destructive_actions_taken: state.destructiveActionsTaken,
+      desktop_automation_executed: state.desktopAutomationExecuted,
+      receipt_required: true
+    })
+  }
+}
