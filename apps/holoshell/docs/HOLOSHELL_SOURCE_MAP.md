@@ -13,8 +13,8 @@ Summary from the receipt:
 | Field    | Value                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Status   | `pass`                                                                                     |
-| Sources  | **153/153 passed** (2026-06-30)                                                           |
-| Formats  | 26 `.holo`, 23 `.hs`, 104 `.hsplus`                                                       |
+| Sources  | **155/155 passed** (2026-06-30)                                                           |
+| Formats  | 26 `.holo`, 23 `.hs`, 106 `.hsplus`                                                       |
 | Failures | 0 failures, 0 timeouts                                                                     |
 
 This map is the navigation layer. The validation receipt is the current parse
@@ -30,6 +30,7 @@ contracts.
 | Render slice                   | `apps/holoshell/source/holoshell-shell-render.holo`              |
 | User shell projection          | `apps/holoshell/source/holoshell-user-shell-projection.hsplus` |
 | Operator terminal              | `apps/holoshell/source/holoshell-operator-terminal.hsplus`     |
+| Terminal event stream          | `apps/holoshell/source/holoshell-terminal-event-stream.hsplus` |
 | Browser-terminal coupling      | `apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus` |
 | Founder host                   | `apps/holoshell/source/holoshell-founder-host.hsplus`          |
 | Native wrapper                 | `apps/holoshell/source/holoshell-native-wrapper.hsplus`        |

@@ -1,0 +1,107 @@
+// HoloShell Terminal Event Stream
+//
+// Source-owned backend contract for turning operator-terminal receipts into an
+// append-only event ledger that browser run cards can consume later.
+
+composition "HoloShell Terminal Event Stream" {
+  config {
+    title: "Terminal Event Stream"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-terminal-event-stream.mjs"
+    sessionEndpoint: "GET /api/operator-terminal/events"
+    sourceReceipt: ".tmp/holoshell/operator-terminal.json"
+    eventLog: ".tmp/holoshell/operator-terminal-events.jsonl"
+    defaultMode: "append_only_receipt_projection"
+  }
+
+  state {
+    status: "unknown"
+    sessionId: ""
+    eventCount: 0
+    latestReceiptHash: ""
+    latestEventId: ""
+    browserRunCardsReady: false
+    endpointExecutesCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:terminal:event-stream" {
+    type: "append_only_event_log"
+    priority: "critical"
+    description: "Structured operator-terminal lifecycle events for browser run cards and HoloClaw replay"
+  }
+
+  template "TerminalEvent" {
+    schemaVersion: "hololand.holoshell.terminal-event.v0.1.0"
+    eventId: ""
+    sessionId: ""
+    type: "artifact"
+    lifecycle: "observed"
+    summary: ""
+    receiptHash: ""
+    sourceReceipt: ".tmp/holoshell/operator-terminal.json"
+    endpointExecutesCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  template "TerminalEventStreamReceipt" {
+    schemaVersion: "hololand.holoshell.terminal-event-stream.v0.1.0"
+    source: "apps/holoshell/source/holoshell-terminal-event-stream.hsplus"
+    adapter: "scripts/holoshell-terminal-event-stream.mjs"
+    status: "unknown"
+    sessionId: ""
+    appendOnly: true
+    eventLog: ".tmp/holoshell/operator-terminal-events.jsonl"
+    sourceReceipt: ".tmp/holoshell/operator-terminal.json"
+    eventCount: 0
+    appendedEventCount: 0
+    latestReceiptHash: ""
+    endpointExecutesCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "TerminalOutputBecomesEventsBeforeUi" {
+    appliesTo: ["operator_terminal", "holoclaw_terminal", "browser_run_cards", "replay_bundle"]
+    rawShellTextIsEvidenceNotUi: true
+    eventTypes: ["process", "artifact", "command_catalog", "stdout", "stderr", "exit"]
+    boundedNondeveloperSummaryRequired: true
+    browserRunCardsConsumeEvents: true
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyEventProjection" {
+    appliesTo: ["GET /api/operator-terminal/events", "operator_terminal_receipt_projection"]
+    endpointExecutesCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    mutationRequiresSeparateConsentToken: true
+    receiptRequired: true
+  }
+
+  action consume_operator_terminal_receipt(receipt) {
+    state.sessionId = receipt.sessionId
+    state.latestReceiptHash = receipt.receipt.terminalHash
+    state.eventCount = receipt.commands.human.length + 2
+    state.browserRunCardsReady = true
+    state.endpointExecutesCommand = false
+    state.destructiveActionsTaken = false
+    state.desktopAutomationExecuted = false
+    state.status = "ready"
+
+    emit("holoshell:terminal:event-stream", {
+      status: state.status,
+      sessionId: state.sessionId,
+      eventCount: state.eventCount,
+      latestReceiptHash: state.latestReceiptHash,
+      browserRunCardsReady: state.browserRunCardsReady,
+      endpointExecutesCommand: state.endpointExecutesCommand,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      desktopAutomationExecuted: state.desktopAutomationExecuted
+    })
+  }
+}

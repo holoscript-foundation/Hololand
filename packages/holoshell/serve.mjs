@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSy
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync } from 'node:child_process';
+import { buildTerminalEventStream } from '../../scripts/holoshell-terminal-event-stream.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, 'dist');
@@ -48,9 +49,13 @@ const OPERATOR_TERMINAL_SESSION_SCHEMA = 'hololand.holoshell.browser-terminal-co
 const OPERATOR_TERMINAL_COUPLING_SOURCE = 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus';
 const OPERATOR_TERMINAL_SOURCE = 'apps/holoshell/source/holoshell-operator-terminal.hsplus';
 const OPERATOR_TERMINAL_RECEIPT_SCHEMA = 'hololand.holoshell.operator-terminal.v0.1.0';
+const OPERATOR_TERMINAL_EVENT_STREAM_SOURCE = 'apps/holoshell/source/holoshell-terminal-event-stream.hsplus';
 const OPERATOR_TERMINAL_RECEIPT =
   process.env.HOLOSHELL_OPERATOR_TERMINAL_RECEIPT ||
   join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal.json');
+const OPERATOR_TERMINAL_EVENT_LOG =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_EVENT_LOG ||
+  join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal-events.jsonl');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
 const BROWSER_SESSION_STATE_KEY = 'holoshell:brittney:browser-session:v1';
@@ -2080,6 +2085,7 @@ function buildHoloClawSessionObject({ sessionId = null, scoped = false } = {}) {
       holoclawRuntimeBridgeEndpoint: 'GET /api/holoclaw/runtime-bridge',
       holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
       terminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      terminalEventsEndpoint: 'GET /api/operator-terminal/events',
     },
     safety: {
       directExecutionAllowed: false,
@@ -2874,6 +2880,15 @@ function sharedHoloShellSessionId() {
   return process.env.HOLOSHELL_SESSION_ID || `holoshell:${HOST}:${PORT}`;
 }
 
+function buildOperatorTerminalEventStream({ append = true } = {}) {
+  return buildTerminalEventStream({
+    receiptPath: OPERATOR_TERMINAL_RECEIPT,
+    eventLogPath: OPERATOR_TERMINAL_EVENT_LOG,
+    sessionId: sharedHoloShellSessionId(),
+    append,
+  });
+}
+
 function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash }) {
   const runCards = commands.map((command) => ({
     id: `terminal_run_card:${command.id || command.label}`,
@@ -2912,6 +2927,7 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
 function buildOperatorTerminalSession() {
   const liveStatus = buildLiveStatusSnapshot();
   const terminalReceipt = readJsonFileIfPresent(OPERATOR_TERMINAL_RECEIPT);
+  const terminalEventStream = buildOperatorTerminalEventStream({ append: false });
   const receiptAgeMs = fileAgeMs(OPERATOR_TERMINAL_RECEIPT);
   const receiptObserved = terminalReceipt?.schemaVersion === 'hololand.holoshell.operator-terminal.v0.1.0';
   const receiptFresh = receiptObserved && (receiptAgeMs === null || receiptAgeMs <= OPERATOR_TERMINAL_FRESHNESS_MS);
@@ -2955,6 +2971,7 @@ function buildOperatorTerminalSession() {
       cockpitCapsuleEndpoint: liveStatus.route.cockpitCapsuleEndpoint,
       browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       permissionEnvelope: 'read_only',
       mayMutateWithoutConsent: false,
     },
@@ -2968,8 +2985,14 @@ function buildOperatorTerminalSession() {
       freshnessMs: OPERATOR_TERMINAL_FRESHNESS_MS,
       receiptHash: terminalReceiptHash,
       source: OPERATOR_TERMINAL_SOURCE,
+      eventStreamSource: OPERATOR_TERMINAL_EVENT_STREAM_SOURCE,
       adapter: 'scripts/holoshell-operator-terminal.mjs',
+      eventStreamAdapter: 'scripts/holoshell-terminal-event-stream.mjs',
       launcher: 'scripts/brittney-studio-launch.ps1',
+      eventStreamEndpoint: 'GET /api/operator-terminal/events',
+      eventStreamStatus: terminalEventStream.status,
+      eventStreamEventCount: terminalEventStream.eventCount,
+      eventLog: terminalEventStream.eventLog,
       mode: terminalReceipt?.summary?.mode || 'agent',
       labels: terminalLabels,
       commands: terminalCommands,
@@ -3010,9 +3033,12 @@ function buildOperatorTerminalSession() {
       browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt || null,
       browserSessionScoped: browserSessionState.sessionScoped || false,
       terminalEvidenceStreamStatus: 'polling_enabled',
+      terminalEvidenceEventStreamStatus: terminalEventStream.status,
+      terminalEvidenceEventStreamEndpoint: 'GET /api/operator-terminal/events',
+      terminalEvidenceEventCount: terminalEventStream.eventCount,
       terminalEvidencePollIntervalMs: 30000,
       evidenceLedgerStatus: receiptObserved ? 'available' : 'needs_terminal_receipt',
-      rehydrateFrom: ['localStorage', 'GET /api/browser-session/state?sessionId=:sessionId', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
+      rehydrateFrom: ['localStorage', 'GET /api/browser-session/state?sessionId=:sessionId', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session', 'GET /api/operator-terminal/events'],
       browserRefreshMayResetTruth: false,
       terminalReceiptsAreDurableTruth: true,
       transcriptLimit: 120,
@@ -3090,6 +3116,7 @@ function buildLiveStatusSnapshot() {
       browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       operatorTerminalReportEndpoint: 'POST /api/operator-terminal/report',
+      operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
@@ -3125,6 +3152,7 @@ function buildLiveStatusSnapshot() {
       'brittney_desktop_cockpit',
       'browser_terminal_coupling',
       'operator_terminal_session',
+      'operator_terminal_event_stream',
       'operator_terminal_run_cards',
       'browser_refresh_evidence_rehydration',
       'browser_session_snapshot',
@@ -3746,6 +3774,7 @@ function buildBrittneyCockpitCapsule() {
         ? `receipt ${String(operatorTerminal.terminal.receiptHash).slice(0, 12)}; age ${operatorTerminal.terminal.receiptAgeMs ?? 'unknown'}ms`
         : `receipt ${operatorTerminal.terminal.receiptStatus}; ${operatorTerminal.terminal.refreshCommand}`,
       sourceEndpoint: 'GET /api/operator-terminal/session',
+      eventStreamEndpoint: 'GET /api/operator-terminal/events',
       permissionEnvelope: 'read_only_projection',
       receiptRequired: true,
     },
@@ -3940,6 +3969,16 @@ function buildBrittneyCockpitCapsule() {
       mayExecuteWithoutConsent: true,
       receiptRequired: true,
     },
+    {
+      id: 'operator_terminal_events',
+      label: 'Terminal Events',
+      method: 'GET',
+      href: '/api/operator-terminal/events',
+      lane: 'operator_terminal',
+      permissionEnvelope: 'read_only_event_stream',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
   ];
   const windowActionCards = buildWindowActionCards(windowAwareness);
   const toolPreflightCards = buildToolPreflightCards(windowAwareness);
@@ -4001,6 +4040,7 @@ function buildBrittneyCockpitCapsule() {
       ...liveStatus.route,
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       sovereignRoomMarathonEndpoint: 'GET /api/sovereign-room/marathon',
       sovereignRoomMarathonWorkflowEndpoint: 'POST /workflow/sovereign-room-marathon',
       sovereignRoomMarathonLatestEndpoint: 'GET /workflow/sovereign-room-marathon/latest',
@@ -4437,6 +4477,11 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/operator-terminal/session') {
     respond(res, buildOperatorTerminalSession());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/operator-terminal/events') {
+    respond(res, buildOperatorTerminalEventStream({ append: true }));
     return;
   }
 
