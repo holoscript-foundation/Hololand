@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "codex-native-authoring-pair/v0.1.0",
+  "status": "ready",
+  "taskId": "task_1782797610773_nfo6",
+  "generatedAt": "2026-06-30T00:00:00.000Z",
+  "surfaces": [
+    {
+      "id": "codex-hardware",
+      "family": "openai",
+      "role": "seed_planter",
+      "score": 1,
+      "evidence": [
+        "pnpm run check:codex-native-authoring-pair",
+        "config/codex-native-amplification-lane.json"
+      ]
+    },
+    {
+      "id": "native-first-holoscript-baseline",
+      "family": "sovereign",
+      "role": "builder",
+      "score": 1,
+      "evidence": [
+        "docs/handbooks/codex-native-amplification-lane.md",
+        "scripts/check-codex-native-authoring-pair.mjs"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "codex-local-proof",
+      "status": "pass"
+    },
+    {
+      "id": "sovereign-transfer",
+      "status": "pass"
+    },
+    {
+      "id": "non-claims-visible",
+      "status": "pass"
+    },
+    {
+      "id": "next-native-command",
+      "status": "pass"
+    },
+    {
+      "id": "source-first-promotion",
+      "status": "pass"
+    }
+  ],
+  "nonClaims": [
+    "not a public model-quality benchmark",
+    "not a fresh Jetson prompt run"
+  ],
+  "nextNativeCommand": "pnpm run check:codex-native-authoring-pair"
+}

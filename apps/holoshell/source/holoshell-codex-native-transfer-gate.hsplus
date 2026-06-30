@@ -1,0 +1,129 @@
+// HoloShell Codex Native Transfer Gate
+//
+// Turns Codex-native seed-planter receipts into a HoloLand-owned cockpit gate.
+// Codex may prove an advantage locally, but HoloLand only accepts it after the
+// source contract records the native transfer, non-claims, and next sovereign
+// build command.
+
+composition "HoloShell Codex Native Transfer Gate" {
+  config {
+    title: "Codex Native Transfer Gate"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    upstreamReceiptSchema: "codex-native-authoring-pair/v0.1.0"
+    adapterScript: "scripts/holoshell-codex-native-transfer-gate.mjs"
+    defaultMode: "source_first_transfer_gate"
+    mutationMode: "read_only_until_native_promotion"
+  }
+
+  state {
+    status: "unknown"
+    upstreamReceiptId: ""
+    upstreamReceiptHash: ""
+    codexLaneStatus: "unknown"
+    sovereignLaneStatus: "unknown"
+    transferredAdvantageCount: 0
+    nonClaimCount: 0
+    nextNativeCommand: ""
+    hololandMutationAllowed: false
+    cockpitProjectionReady: false
+  }
+
+  channel "holoshell:codex-native:transfer-gate" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Codex-native proof promoted into HoloLand source-first cockpit evidence"
+  }
+
+  template "CodexNativeAuthoringPairReceipt" {
+    schemaVersion: "codex-native-authoring-pair/v0.1.0"
+    status: "unknown"
+    taskId: ""
+    generatedAt: ""
+    surfaces: []
+    gates: []
+    nonClaims: []
+    nextNativeCommand: ""
+  }
+
+  template "CodexNativeTransferGateReceipt" {
+    schemaVersion: "hololand.holoshell.codex-native-transfer-gate.v0.1.0"
+    source: "apps/holoshell/source/holoshell-codex-native-transfer-gate.hsplus"
+    status: "unknown"
+    upstreamReceiptId: ""
+    upstreamReceiptHash: ""
+    gateCount: 0
+    passedGateCount: 0
+    transferredAdvantageCount: 0
+    nonClaims: []
+    nextNativeCommand: ""
+    hololandMutationAllowed: false
+    receiptRequired: true
+  }
+
+  gate "CodexNativeTransferGate" using "CodexNativeTransferGateReceipt" {
+    requiredUpstreamSchema: "codex-native-authoring-pair/v0.1.0"
+    requiresCodexHardwareSurface: true
+    requiresSovereignBaselineSurface: true
+    requiresAllGatesPass: true
+    requiresNonClaims: true
+    requiresNextNativeCommand: true
+    blocksPublish: true
+  }
+
+  policy "FrontierAdvantageMustTransfer" {
+    appliesTo: ["codex_native_authoring", "openai_hardware_proof", "hololand_cockpit_projection"]
+    codexProofIsSeed: true
+    sovereignSurfaceOwnsPromotion: true
+    requiresHoloScriptSourceContract: true
+    requiresVerifierReceipt: true
+    receiptRequired: true
+  }
+
+  policy "ExternalScratchIsProjectionNotSource" {
+    appliesTo: ["authoring_pair_receipt", "scratch_receipt", "cockpit_projection"]
+    externalScratchAuthoritative: false
+    hololandSourceAuthoritative: true
+    fixtureAllowedForRegression: true
+    liveReceiptRequiresHash: true
+    receiptRequired: true
+  }
+
+  policy "NonClaimBoundaryMustStayVisible" {
+    appliesTo: ["benchmark_claim", "agent_superiority_claim", "native_promotion"]
+    publicModelBenchmarkClaimAllowed: false
+    familyRankClaimAllowed: false
+    hardwareReceiptMayProveOnlyObservedRun: true
+    nonClaimsRequiredInCockpit: true
+    receiptRequired: true
+  }
+
+  action consume_authoring_pair_receipt(receipt) {
+    state.upstreamReceiptId = receipt.taskId
+    state.codexLaneStatus = "ready"
+    state.sovereignLaneStatus = "ready"
+    state.transferredAdvantageCount = receipt.surfaces.length
+    state.nonClaimCount = receipt.nonClaims.length
+    state.nextNativeCommand = receipt.nextNativeCommand
+    state.hololandMutationAllowed = false
+    state.cockpitProjectionReady = receipt.status == "ready"
+
+    if (state.cockpitProjectionReady) {
+      state.status = "ready"
+    } else {
+      state.status = "blocked"
+    }
+
+    emit("holoshell:codex-native:transfer-gate", {
+      status: state.status,
+      upstreamReceiptId: state.upstreamReceiptId,
+      codexLaneStatus: state.codexLaneStatus,
+      sovereignLaneStatus: state.sovereignLaneStatus,
+      transferredAdvantageCount: state.transferredAdvantageCount,
+      nonClaimCount: state.nonClaimCount,
+      nextNativeCommand: state.nextNativeCommand,
+      hololandMutationAllowed: state.hololandMutationAllowed,
+      cockpitProjectionReady: state.cockpitProjectionReady
+    })
+  }
+}

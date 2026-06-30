@@ -49,6 +49,7 @@ contracts.
 | Source validation            | `apps/holoshell/source/holoshell-source-validation.hsplus`          |
 | Visual witness               | `apps/holoshell/source/holoshell-visual-witness.hsplus`             |
 | Receipt control              | `apps/holoshell/source/holoshell-receipt-control.hsplus`            |
+| Codex native transfer gate   | `apps/holoshell/source/holoshell-codex-native-transfer-gate.hsplus` |
 
 ## Hardware, Apps, And Network
 
