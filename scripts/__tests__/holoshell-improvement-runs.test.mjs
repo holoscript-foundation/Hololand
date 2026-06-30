@@ -117,6 +117,10 @@ try {
   assert.equal(bridge.destructiveActionsTaken, false);
   assert.equal(bridge.approvalRequiredForDesktopAutomation, true);
   assert.ok(bridge.capabilities.includes('gpu_telemetry_report'));
+  assert.ok(bridge.capabilities.includes('consent_token_issue'));
+  assert.ok(bridge.capabilities.includes('approved_execution_staging'));
+  assert.ok(bridge.capabilities.includes('execution_refusal'));
+  assert.ok(bridge.capabilities.includes('receipt_write'));
 
   const bridgeReportResponse = await fetch(`${baseUrl}/api/desktop-control/bridge/report`, {
     method: 'POST',
@@ -143,6 +147,12 @@ try {
   assert.equal(bridgeReport.status, 'ready');
   assert.equal(bridgeReport.destructiveActionsTaken, false);
   assert.equal(bridgeReport.desktopAutomationExecuted, false);
+  assert.ok(bridgeReport.receipt.capabilities.includes('consent_token_issue'));
+  assert.ok(bridgeReport.receipt.capabilities.includes('approved_execution_staging'));
+  assert.ok(bridgeReport.receipt.capabilities.includes('execution_refusal'));
+  assert.ok(bridgeReport.receipt.capabilities.includes('receipt_write'));
+  assert.equal(bridgeReport.receipt.modelPolicy.mayExecute, false);
+  assert.equal(bridgeReport.receipt.modelPolicy.mayStageApprovedExecution, true);
 
   const readyBridgeResponse = await fetch(`${baseUrl}/api/desktop-control/bridge`, {
     signal: AbortSignal.timeout(10_000),
@@ -154,6 +164,12 @@ try {
   assert.equal(readyBridge.hostRole, 'laptop_desktop_bridge');
   assert.equal(readyBridge.destructiveActionsTaken, false);
   assert.equal(readyBridge.desktopAutomationExecuted, false);
+  assert.ok(readyBridge.capabilities.includes('consent_token_issue'));
+  assert.ok(readyBridge.capabilities.includes('approved_execution_staging'));
+  assert.ok(readyBridge.capabilities.includes('execution_refusal'));
+  assert.ok(readyBridge.capabilities.includes('receipt_write'));
+  assert.equal(readyBridge.modelPolicy.mayExecute, false);
+  assert.equal(readyBridge.modelPolicy.mayStageApprovedExecution, true);
 
   const firstExecutionResponse = await fetch(`${baseUrl}/api/improvement-runs/${body.runId}/execute`, {
     method: 'POST',

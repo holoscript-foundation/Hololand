@@ -1311,13 +1311,49 @@ function latestDesktopBridgeReport() {
   return desktopBridgeReportReceipts()[0] || null;
 }
 
+const DESKTOP_BRIDGE_BASE_CAPABILITIES = [
+  'bridge_status',
+  'screen_capture_request',
+  'desktop_action_preflight',
+  'consent_gesture_capture',
+  'consent_token_issue',
+  'consent_token_verify',
+  'approved_execution_staging',
+  'admitted_open_url_executor',
+  'execution_refusal',
+  'receipt_write',
+  'gpu_telemetry_report',
+  'browser_proxied_jetson_report',
+];
+
+function mergeDesktopBridgeCapabilities(capabilities = []) {
+  const incoming = Array.isArray(capabilities) ? capabilities.filter(Boolean) : [];
+  return [...new Set([...DESKTOP_BRIDGE_BASE_CAPABILITIES, ...incoming])];
+}
+
+function normalizeDesktopBridgeModelPolicy(modelPolicy = {}) {
+  const incoming = modelPolicy && typeof modelPolicy === 'object' ? modelPolicy : {};
+  const admittedExecutorActions = Array.isArray(incoming.admittedExecutorActions)
+    ? [...new Set(['open_url', ...incoming.admittedExecutorActions.filter(Boolean)])]
+    : ['open_url'];
+  return {
+    lane: 'fara_gui_grounding',
+    recommendedModel: 'fara:7b',
+    ...incoming,
+    mayExecute: false,
+    mayStageApprovedExecution: true,
+    admittedExecutorActions,
+  };
+}
+
 function normalizeDesktopBridgeReport(payload = {}) {
   const incoming = payload.report || payload.bridge || payload;
   const serverReceivedAt = new Date().toISOString();
   const sourceStatus = String(incoming.status || '').trim() || 'reported';
   const reportId = incoming.reportId ||
     `desktop_bridge_report_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  const capabilities = Array.isArray(incoming.capabilities) ? incoming.capabilities.filter(Boolean) : [];
+  const reportedCapabilities = Array.isArray(incoming.capabilities) ? incoming.capabilities.filter(Boolean) : [];
+  const capabilities = mergeDesktopBridgeCapabilities(reportedCapabilities);
   return {
     schemaVersion: 'hololand.holoshell.desktop-bridge-report.v0.1.0',
     source: 'browser_proxied_laptop_daemon',
@@ -1327,11 +1363,8 @@ function normalizeDesktopBridgeReport(payload = {}) {
     status: sourceStatus,
     url: incoming.url || 'http://127.0.0.1:8751',
     hostRole: incoming.hostRole || 'laptop_desktop_bridge',
-    modelPolicy: incoming.modelPolicy || {
-      lane: 'fara_gui_grounding',
-      recommendedModel: 'fara:7b',
-      mayExecute: false,
-    },
+    modelPolicy: normalizeDesktopBridgeModelPolicy(incoming.modelPolicy),
+    reportedCapabilities,
     capabilities,
     mutationBoundary: incoming.mutationBoundary || 'os_mutation_refused_until_consent_token_and_action_executor',
     destructiveActionsTaken: false,
@@ -1589,18 +1622,13 @@ function desktopBridgeStatusSnapshot() {
     hostRole: HOST === '0.0.0.0' ? 'jetson_surface' : 'local_surface',
     expectedDaemon: 'holoshell-laptop-desktop-bridge',
     reportEndpoint: 'POST /api/desktop-control/bridge/report',
-    capabilities: [
-      'screen_capture_request',
-      'desktop_action_preflight',
-      'admitted_open_url_executor',
-      'gpu_telemetry_report',
-    ],
+    capabilities: [...DESKTOP_BRIDGE_BASE_CAPABILITIES],
     mutationBoundary: 'os_mutation_refused_until_consent_token_and_action_executor',
     destructiveActionsTaken: false,
     approvalRequiredForDesktopAutomation: true,
   };
   if (!report) return base;
-  const mergedCapabilities = [...new Set([...base.capabilities, ...(report.capabilities || [])])];
+  const mergedCapabilities = mergeDesktopBridgeCapabilities(report.capabilities);
   if (!reportFresh) {
     return {
       ...base,
@@ -1621,7 +1649,7 @@ function desktopBridgeStatusSnapshot() {
     latestReportId: report.reportId,
     latestReportReceivedAt: report.serverReceivedAt || report.generatedAt,
     reportAgeMs,
-    modelPolicy: report.modelPolicy,
+    modelPolicy: normalizeDesktopBridgeModelPolicy(report.modelPolicy),
     capabilities: mergedCapabilities,
     mutationBoundary: report.mutationBoundary || base.mutationBoundary,
     desktopAutomationExecuted: false,
