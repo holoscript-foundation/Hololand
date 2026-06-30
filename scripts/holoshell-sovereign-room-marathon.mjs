@@ -145,7 +145,16 @@ function classifyTask(task) {
     || tags.includes('owned_metal')
     || tags.includes('owned_hardware')
     || tags.includes('on_device')
-    || /\[(local|sovereign)\]|\blocal[-_ ]tagged\b|\bsovereign\b|\bowned[-_ ](metal|hardware)\b|\bon[-_ ]device\b/.test(text)
+    || tags.includes('native')
+    || tags.includes('native_first')
+    || tags.includes('native_capabilities')
+    || tags.includes('jetson')
+    || tags.includes('holoshell')
+    || tags.includes('holoai')
+    || tags.includes('holoqr')
+    || tags.includes('laptop')
+    || /\[(local|sovereign|repo-harvest|brittney-native|holoshell|jetson|native-[a-z0-9_-]+)\]|\blocal[-_ ]tagged\b|\bsovereign\b|\bowned[-_ ](metal|hardware)\b|\bon[-_ ]device\b/.test(text)
+    || /\bnative[-_ ]first\b|\bnative[-_ ]capabilit(?:y|ies)\b|\bjetson\b|\bholoshell\b|\bholoai\b|\bholoqr\b|\blaptop[-_ ]hardware\b/.test(text)
   ) return 'local';
   return 'unknown';
 }

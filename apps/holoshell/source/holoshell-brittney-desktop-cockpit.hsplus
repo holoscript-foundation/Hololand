@@ -307,7 +307,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
       statusEndpoint: "GET /api/sovereign-room/marathon"
       workflowEndpoint: "POST /workflow/sovereign-room-marathon"
       latestEndpoint: "GET /workflow/sovereign-room-marathon/latest"
-      browserMayClaimRoomTask: false
+      browserMayClaimRoomTask: true
+      browserClaimRequiresExplicitLocalConfirmation: true
     }
 
     object "HoloClawRuntime" {
@@ -394,7 +395,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     sourceFormatGapNamedBeforeAdapterWork: true
     legacyUiMayNotOwnBehavior: true
     adapterMaySummarizeOnly: true
-    browserMayClaimRoomTask: false
+    browserMayClaimRoomTask: true
+    browserClaimRequiresExplicitLocalConfirmation: true
+    claimMutationScope: "claim_local_room_task_only"
     cloudEscalationAllowed: false
     receiptRequired: true
   }
@@ -443,7 +446,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     oneComposerMayRouteByActiveWorkspace: true
     simultaneousWorkspaceExpansionAllowed: true
     transcriptIsolationRequired: true
-    sovereignRoomChatUsesReceiptRefreshOnly: true
+    sovereignRoomChatMayRequestGuardedLocalClaim: true
     holoclawChatUsesGuardedRuntimeBridge: true
     terminalChatIsEvidenceOnly: true
     destructiveActionsAllowed: false
@@ -522,10 +525,12 @@ composition "HoloShell Brittney Desktop Cockpit" {
     defaultTaskLane: "local"
     defaultTaskTag: "local"
     cloudEscalationAllowed: false
-    permissionEnvelope: "read_only_receipt_refresh"
+    permissionEnvelope: "guarded_local_claim"
     browserMayRefreshReceipt: true
-    browserMayClaimRoomTask: false
-    claimRequiresTerminalOrControlDaemon: true
+    browserMayClaimRoomTask: true
+    browserClaimRequiresExplicitLocalConfirmation: true
+    claimMutationScope: "claim_local_room_task_only"
+    completionClaimAllowed: false
     directExecutionAllowed: false
     endpointExecutesRuntime: false
     destructiveActionsAllowed: false

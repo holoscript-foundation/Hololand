@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -9,6 +9,10 @@ const port = 9070 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const tmpDir = mkdtempSync(join(tmpdir(), 'holoshell-cockpit-'));
 const sovereignQueueFixture = join(tmpDir, 'sovereign-room-queue.json');
+const fakeAiRoot = join(tmpDir, 'ai-ecosystem');
+
+mkdirSync(join(fakeAiRoot, 'hooks'), { recursive: true });
+mkdirSync(join(fakeAiRoot, 'scripts'), { recursive: true });
 
 writeFileSync(sovereignQueueFixture, `${JSON.stringify({
   openCount: 2,
@@ -32,6 +36,44 @@ writeFileSync(sovereignQueueFixture, `${JSON.stringify({
     },
   ],
 }, null, 2)}\n`, 'utf8');
+
+writeFileSync(join(fakeAiRoot, 'hooks', 'team-connect.mjs'), `#!/usr/bin/env node
+console.log(JSON.stringify({
+  openCount: 2,
+  claimableOpenCount: 2,
+  tasks: [
+    {
+      id: 'task_local_fixture',
+      title: '[local] test sovereign room from cockpit',
+      status: 'open',
+      priority: 50,
+      tags: ['local', 'sovereign'],
+      claimable: true
+    },
+    {
+      id: 'task_cloud_fixture',
+      title: '[cloud] provider work',
+      status: 'open',
+      priority: 80,
+      tags: ['cloud'],
+      claimable: true
+    }
+  ]
+}, null, 2));
+`, 'utf8');
+
+writeFileSync(join(fakeAiRoot, 'scripts', 'codex-team-daemon.mjs'), `#!/usr/bin/env node
+console.log('fake codex heartbeat joined');
+`, 'utf8');
+
+writeFileSync(join(fakeAiRoot, 'scripts', 'room-patch-task.mjs'), `#!/usr/bin/env node
+const [, , action, taskId] = process.argv;
+if (action !== 'claim' || taskId !== 'task_local_fixture') {
+  console.error('unexpected fake room claim', action, taskId);
+  process.exit(2);
+}
+console.log('claimed ' + taskId);
+`, 'utf8');
 
 execFileSync(process.execPath, [
   'scripts/holoshell-legacy-window-inventory.mjs',
@@ -59,6 +101,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSHELL_TMP_DIR: tmpDir,
     HOLOSHELL_ALLOW_QUEUE_FIXTURE: '1',
+    AI_ECOSYSTEM_ROOT: fakeAiRoot,
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
   },
@@ -105,6 +148,18 @@ async function postJson(path, payload) {
   });
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
+  return body;
+}
+
+async function postJsonExpectStatus(path, payload, status) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = await response.json();
+  assert.equal(response.status, status, JSON.stringify(body));
   return body;
 }
 
@@ -155,15 +210,39 @@ try {
   assert.equal(stagedSovereignRoom.summary.status, 'ready_to_claim');
   assert.equal(stagedSovereignRoom.summary.selectedTaskId, 'task_local_fixture');
 
+  const unconfirmedClaim = await postJsonExpectStatus('/workflow/sovereign-room-marathon', {
+    intent: 'Claim the selected local sovereign room task.',
+    taskLane: 'local',
+    taskTag: 'local',
+    claim: true,
+  }, 500);
+  assert.match(unconfirmedClaim.error, /local_room_claim_requires_confirmLocalClaim_true/);
+
+  const claimedSovereignRoom = await postJson('/workflow/sovereign-room-marathon', {
+    intent: 'Claim the selected local sovereign room task.',
+    taskLane: 'local',
+    taskTag: 'local',
+    claim: true,
+    confirmLocalClaim: true,
+    claimConfirmation: 'local_room_task',
+  });
+  assert.equal(claimedSovereignRoom.summary.status, 'claimed');
+  assert.equal(claimedSovereignRoom.summary.claimRequested, true);
+  assert.equal(claimedSovereignRoom.summary.claimAttempted, true);
+  assert.equal(claimedSovereignRoom.summary.claimSucceeded, true);
+  assert.equal(claimedSovereignRoom.completionClaimAllowed, false);
+  assert.equal(claimedSovereignRoom.boardMutationScope, 'claim_local_room_task_only');
+
   const latestSovereignRoom = await getJson('/workflow/sovereign-room-marathon/latest');
   assert.equal(latestSovereignRoom.schemaVersion, 'hololand.holoshell.sovereign-room-marathon.v0.1.0');
-  assert.equal(latestSovereignRoom.receiptId, stagedSovereignRoom.receiptId);
+  assert.equal(latestSovereignRoom.receiptId, claimedSovereignRoom.receiptId);
 
   const stagedSovereignRoomStatus = await getJson('/api/sovereign-room/marathon');
   assert.equal(stagedSovereignRoomStatus.receiptObserved, true);
   assert.equal(stagedSovereignRoomStatus.matchedCandidateCount, 1);
   assert.equal(stagedSovereignRoomStatus.selectedTaskId, 'task_local_fixture');
-  assert.equal(stagedSovereignRoomStatus.claimAttempted, false);
+  assert.equal(stagedSovereignRoomStatus.claimAttempted, true);
+  assert.equal(stagedSovereignRoomStatus.claimSucceeded, true);
 
   const holoclawRuntime = await getJson('/api/holoclaw/runtime-bridge');
   assert.equal(holoclawRuntime.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0');
@@ -282,7 +361,7 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'fara_peer_automation' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) =>
     lane.id === 'sovereign_room' &&
-    lane.permissionEnvelope === 'read_only_receipt_refresh' &&
+    lane.permissionEnvelope === 'guarded_local_claim' &&
     lane.sourceEndpoint === 'GET /api/sovereign-room/marathon' &&
     lane.workflowEndpoint === 'POST /workflow/sovereign-room-marathon' &&
     lane.directExecutionAllowed === false &&
@@ -310,7 +389,9 @@ try {
   assert.equal(capsule.sourceOwnedState.files.legacyUiMayNotOwnBehavior, true);
   assert.ok(capsule.sourceOwnedState.files.sourceAnchors.includes('packages/holoshell/scenes/operate-room.holo'));
   assert.equal(capsule.sourceOwnedState.boardTasks.selectedTaskId, 'task_local_fixture');
-  assert.equal(capsule.sourceOwnedState.boardTasks.browserMayClaimRoomTask, false);
+  assert.equal(capsule.sourceOwnedState.boardTasks.browserMayClaimRoomTask, true);
+  assert.equal(capsule.sourceOwnedState.boardTasks.browserClaimRequiresExplicitLocalConfirmation, true);
+  assert.equal(capsule.sourceOwnedState.boardTasks.claimMutationScope, 'claim_local_room_task_only');
   assert.equal(capsule.sourceOwnedState.uiProjection.role, 'adapter_projection_only');
   assert.equal(capsule.sovereignRoomMarathon.statusEndpoint, 'GET /api/sovereign-room/marathon');
   assert.equal(capsule.sovereignRoomMarathon.selectedTaskId, 'task_local_fixture');
@@ -345,6 +426,15 @@ try {
     card.cloudEscalationAllowed === false &&
     card.mayExecuteWithoutConsent === true &&
     card.endpointExecutesRuntime === false
+  ));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'sovereign_room_claim_local' &&
+    card.href === '/workflow/sovereign-room-marathon' &&
+    card.permissionEnvelope === 'guarded_local_claim' &&
+    card.primaryAction === 'claim_selected_local_room_task' &&
+    card.claim === true &&
+    card.confirmLocalClaim === true &&
+    card.completionClaimAllowed === false
   ));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_pulse' && card.href === '/api/fara-peer-chat/automation-pulse'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_schedule' && card.permissionEnvelope === 'read_only_receipt_schedule'));
@@ -399,14 +489,15 @@ try {
   assert.ok(capsule.actionCards.some((card) => card.id.startsWith('focus_window_window-') && card.target?.rawTitleHidden === true));
   assert.deepEqual(capsule.safety.admittedExecutorActions, ['open_url']);
   assert.equal(capsule.safety.allOtherDesktopActionsRemainPlanOnly, true);
-  assert.equal(capsule.safety.sovereignRoomBrowserClaimAllowed, false);
-  assert.ok(capsule.safety.sovereignRoomClaimRequires.includes('terminal_or_control_daemon'));
+  assert.equal(capsule.safety.sovereignRoomBrowserClaimAllowed, true);
+  assert.equal(capsule.safety.sovereignRoomBrowserClaimScope, 'claim_local_room_task_only');
+  assert.ok(capsule.safety.sovereignRoomClaimRequires.includes('explicit_local_claim_confirmation'));
   assert.equal(capsule.safety.sourceRequiredBeforeProjection, true);
   assert.equal(capsule.safety.sourceFormatGapNamedBeforeAdapterWork, true);
   assert.equal(capsule.safety.legacyUiMayNotOwnBehavior, true);
   assert.equal(capsule.safety.rawWindowTitlesHidden, true);
   assert.equal(capsule.safety.destructiveActionsTaken, false);
-  assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'ready_to_claim');
+  assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'claimed');
   assert.ok(capsule.contextCapsuleTemplate.requiredFields.includes('next_command'));
   assert.ok(capsule.contextCapsuleTemplate.memoryInputs.includes('knowledge_store'));
   assert.match(capsule.nextSafeStep, /preflight -> consent-token -> receipt/);

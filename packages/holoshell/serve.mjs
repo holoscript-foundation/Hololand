@@ -1189,6 +1189,9 @@ function sovereignRoomMarathonStatusSnapshot() {
     claimRequested: summary.claimRequested === true,
     claimAttempted: summary.claimAttempted === true,
     claimSucceeded: summary.claimSucceeded === true,
+    boardMutationAllowed: true,
+    boardMutationScope: 'claim_local_room_task_only',
+    claimRequiresExplicitLocalConfirmation: true,
     sovereignConsumptionDefault: summary.sovereignConsumptionDefault !== false,
     completionClaimAllowed: summary.completionClaimAllowed === true,
     directExecutionAllowed: false,
@@ -1206,6 +1209,31 @@ function sovereignRoomMarathonStatusSnapshot() {
   };
 }
 
+function normalizeRoomLaneTag(value) {
+  const text = String(value || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!text) return 'unknown';
+  if (['sovereign', 'local'].includes(text)) return 'local';
+  if (['cloud', 'managed_cloud', 'provider_cloud', 'external_provider'].includes(text)) return 'cloud';
+  return text;
+}
+
+function payloadRequestsSovereignRoomClaim(payload = {}) {
+  return payload.claim === true
+    || payload.claimSelectedTask === true
+    || payload.requestClaim === true
+    || payload.action === 'claim_selected_local_room_task';
+}
+
+function payloadConfirmsSovereignRoomClaim(payload = {}) {
+  return payload.confirmLocalClaim === true
+    || payload.confirmClaim === true
+    || payload.claimConfirmation === 'local_room_task'
+    || payload.guard === 'local_room_task_claim';
+}
+
 function stageSovereignRoomMarathonForChat(payload = {}) {
   const script = join(REPO_ROOT, SOVEREIGN_ROOM_MARATHON_SCRIPT);
   const marathonJsOutput = join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathon-latest.js');
@@ -1213,6 +1241,21 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
   const taskLane = String(payload.taskLane || payload.lane || 'local');
   const taskTag = String(payload.taskTag || payload.tag || taskLane || 'local');
   const maxCandidates = Number(payload.maxCandidates || 8);
+  const normalizedTaskLane = normalizeRoomLaneTag(taskLane);
+  const normalizedTaskTag = normalizeRoomLaneTag(taskTag);
+  const claimRequested = payloadRequestsSovereignRoomClaim(payload);
+  const claimConfirmed = payloadConfirmsSovereignRoomClaim(payload);
+  if (claimRequested) {
+    if (!claimConfirmed) {
+      throw new Error('local_room_claim_requires_confirmLocalClaim_true');
+    }
+    if (normalizedTaskLane !== 'local' || normalizedTaskTag === 'cloud') {
+      throw new Error('local_room_claim_only_supports_local_lane');
+    }
+    if (payload.cloudEscalationAllowed === true) {
+      throw new Error('local_room_claim_cannot_use_cloud_escalation');
+    }
+  }
   const args = [
     script,
     '--task-lane',
@@ -1230,6 +1273,7 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     '--json',
   ];
   if (payload.cloudEscalationAllowed === true) args.push('--cloud-escalation-allowed');
+  if (claimRequested) args.push('--claim');
   if (payload.queueFixture && process.env.HOLOSHELL_ALLOW_QUEUE_FIXTURE === '1') {
     args.push('--queue-fixture', String(payload.queueFixture));
   }
@@ -1254,6 +1298,10 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     claimRequested: summary.claimRequested === true,
     claimAttempted: summary.claimAttempted === true,
     claimSucceeded: summary.claimSucceeded === true,
+    boardMutationAllowed: true,
+    boardMutationScope: 'claim_local_room_task_only',
+    claimRequiresExplicitLocalConfirmation: true,
+    completionClaimAllowed: summary.completionClaimAllowed === true,
     directExecutionAllowed: false,
     endpointExecutesRuntime: false,
     destructiveActionsTaken: false,
@@ -3295,7 +3343,7 @@ function buildGroundedStatusReply(snapshot, message) {
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
       `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}. Schedule/status live at ${snapshot.route.faraPeerAutomationScheduleStatusEndpoint}.`,
-      `4. Inspect local-tagged room work through ${snapshot.route.sovereignRoomMarathonEndpoint}; refresh receipts through ${snapshot.route.sovereignRoomMarathonWorkflowEndpoint} without browser claims. ${sovereignRoomMarathonSummary(snapshot)}.`,
+      `4. Inspect local-tagged room work through ${snapshot.route.sovereignRoomMarathonEndpoint}; refresh receipts or claim one selected local task through ${snapshot.route.sovereignRoomMarathonWorkflowEndpoint} only with explicit local-claim confirmation. ${sovereignRoomMarathonSummary(snapshot)}.`,
       `5. Keep HoloClaw as the native agent-runtime gate: inspect ${snapshot.route.holoclawRuntimeBridgeEndpoint}; stage runtime work only through ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}. ${holoclawRuntimeBridgeSummary(snapshot)}.`,
       `6. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
       `7. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
@@ -3585,8 +3633,10 @@ function buildSourceOwnedCockpitState({
       selectedTaskTitle,
       matchedCandidateCount: sovereignRoomMarathon?.matchedCandidateCount || 0,
       queueOpenCount: sovereignRoomMarathon?.queueOpenCount || 0,
-      browserMayClaimRoomTask: false,
-      claimRequires: ['terminal_or_control_daemon', 'local_task_match', 'execution_receipt_before_done'],
+      browserMayClaimRoomTask: true,
+      browserClaimRequiresExplicitLocalConfirmation: true,
+      claimMutationScope: 'claim_local_room_task_only',
+      claimRequires: ['explicit_local_claim_confirmation', 'local_task_match', 'execution_receipt_before_done'],
     },
     uiProjection: {
       role: 'adapter_projection_only',
@@ -3744,7 +3794,7 @@ function buildBrittneyCockpitCapsule() {
       detail: `matched ${sovereignRoomMarathon.matchedCandidateCount}; open ${sovereignRoomMarathon.queueOpenCount}; selected ${sovereignRoomMarathon.selectedTaskTitle || sovereignRoomMarathon.selectedTaskId || 'none'}`,
       sourceEndpoint: 'GET /api/sovereign-room/marathon',
       workflowEndpoint: 'POST /workflow/sovereign-room-marathon',
-      permissionEnvelope: 'read_only_receipt_refresh',
+      permissionEnvelope: 'guarded_local_claim',
       directExecutionAllowed: false,
       endpointExecutesRuntime: false,
       approvalRequired: false,
@@ -3857,6 +3907,26 @@ function buildBrittneyCockpitCapsule() {
       defaultTaskTag: 'local',
       cloudEscalationAllowed: false,
       maxCandidates: 8,
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      receiptRequired: true,
+    },
+    {
+      id: 'sovereign_room_claim_local',
+      label: 'Claim Local Room Task',
+      method: 'POST',
+      href: '/workflow/sovereign-room-marathon',
+      externalWorkflowRoute: 'POST /workflow/sovereign-room-marathon',
+      lane: 'sovereign_room',
+      permissionEnvelope: 'guarded_local_claim',
+      mayExecuteWithoutConsent: true,
+      primaryAction: 'claim_selected_local_room_task',
+      defaultTaskLane: 'local',
+      defaultTaskTag: 'local',
+      claim: true,
+      confirmLocalClaim: true,
+      cloudEscalationAllowed: false,
+      completionClaimAllowed: false,
       directExecutionAllowed: false,
       endpointExecutesRuntime: false,
       receiptRequired: true,
@@ -4071,8 +4141,9 @@ function buildBrittneyCockpitCapsule() {
       admittedExecutorActions: ['open_url'],
       allOtherDesktopActionsRemainPlanOnly: true,
       browserTerminalCouplingRequires: ['shared_session_id', 'terminal_receipt', 'context_capsule', 'hologate_receipt'],
-      sovereignRoomClaimRequires: ['terminal_or_control_daemon', 'local_task_match', 'execution_receipt_before_done'],
-      sovereignRoomBrowserClaimAllowed: false,
+      sovereignRoomClaimRequires: ['explicit_local_claim_confirmation', 'local_task_match', 'execution_receipt_before_done'],
+      sovereignRoomBrowserClaimAllowed: true,
+      sovereignRoomBrowserClaimScope: 'claim_local_room_task_only',
       holoclawRuntimeRequires: ['status_receipt', 'workflow_approval', 'runtime_env_flag', 'execution_receipt'],
       holoclawDirectExecutionAllowed: false,
       sourceRequiredBeforeProjection: true,
@@ -4112,7 +4183,7 @@ function buildBrittneyCockpitCapsule() {
     },
     destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
     desktopAutomationExecuted: false,
-    nextSafeStep: 'Preserve source-owned agents, files, worlds, receipts, and board tasks before projection; inspect Sovereign Room status before claiming local work, claim only in the guarded terminal/control-daemon path, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
+    nextSafeStep: 'Preserve source-owned agents, files, worlds, receipts, and board tasks before projection; inspect Sovereign Room status before claiming local work, claim only through explicit guarded local-claim confirmation, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
   };
 }
 

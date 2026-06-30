@@ -23,6 +23,9 @@ assert.match(bash, /powershell\.exe/, 'bash wrapper must be able to discover the
 assert.match(bash, /check_wrapper_parity/, 'bash wrapper must compare local and Jetson wrapper hashes');
 assert.match(bash, /packages\/holoshell\/serve\.mjs/, 'bash wrapper must parity-check serve.mjs');
 assert.match(bash, /scripts\/holoshell-brittney-turn\.mjs/, 'bash wrapper must parity-check Brittney turn wrapper');
+assert.match(bash, /scripts\/holoshell-sovereign-room-marathon\.mjs/, 'bash wrapper must sync Sovereign Room adapter');
+assert.match(bash, /scripts\/holoshell-holoclaw-runtime-bridge\.mjs/, 'bash wrapper must sync HoloClaw runtime adapter');
+assert.match(bash, /scripts\/holoshell-terminal-event-stream\.mjs/, 'bash wrapper must sync terminal event stream adapter');
 assert.match(bash, /Jetson chat wrapper parity mismatch/, 'bash wrapper must fail loudly on hash mismatch');
 
 const powershell = readFileSync(psPath, 'utf8');
@@ -35,6 +38,9 @@ assert.match(powershell, /Test-JetsonChatWrapperParity/, 'PowerShell wrapper mus
 assert.match(powershell, /Get-FileHash -Algorithm SHA256/, 'PowerShell wrapper must hash local files');
 assert.match(powershell, /sha256sum/, 'PowerShell wrapper must hash remote Jetson files');
 assert.match(powershell, /Jetson chat wrapper parity mismatch after deploy/, 'PowerShell wrapper must fail loudly on hash mismatch');
+assert.match(powershell, /holoshell-sovereign-room-marathon\.mjs/, 'PowerShell wrapper must sync Sovereign Room adapter');
+assert.match(powershell, /holoshell-holoclaw-runtime-bridge\.mjs/, 'PowerShell wrapper must sync HoloClaw runtime adapter');
+assert.match(powershell, /holoshell-terminal-event-stream\.mjs/, 'PowerShell wrapper must sync terminal event stream adapter');
 assert.match(powershell, /sshKeyPathIncluded = \$false/, 'PowerShell wrapper receipt must hide raw key paths');
 assert.match(powershell, /sudo -n systemctl restart holoshell-surface/, 'PowerShell wrapper restart must be non-interactive');
 
@@ -75,7 +81,7 @@ if (probe.status === 0) {
   assert.equal(receipt.policy.sshBatchMode, true);
   assert.equal(receipt.policy.sshKeyPathIncluded, false);
   assert.equal(receipt.resolved.sshKeyPathIncluded, false);
-  assert.ok(receipt.summary.copiedCount >= 12, 'plan should include deploy copy set');
+  assert.ok(receipt.summary.copiedCount >= 20, 'plan should include deploy copy set');
 }
 
 console.log('HoloShell Jetson deploy wrapper parity test passed.');

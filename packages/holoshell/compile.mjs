@@ -1546,7 +1546,7 @@ const runtimeScript = `  <script>
             'status: ' + (d.status || 'unknown'),
             'queue: open ' + (d.queueOpenCount || 0) + '; matched ' + (d.matchedCandidateCount || 0),
             'selected: ' + (d.selectedTaskTitle || d.selectedTaskId || 'none'),
-            'claim attempted: ' + (d.claimAttempted ? 'yes' : 'no') + '; browser claim: no'
+            'claim attempted: ' + (d.claimAttempted ? 'yes' : 'no') + '; browser claim: guarded local only'
           ], _toneForStatus(d.status), 'receipt', { chatId: 'sovereign' });
         })
         .catch(function(e) { _bMsg('Sovereign Room', 'network error: ' + e.message, '#f85149', { chatId: 'sovereign' }); });
@@ -1861,11 +1861,19 @@ const runtimeScript = `  <script>
         })
         .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149', { chatId: 'brittney' }); });
     }
+    function _sovereignRoomClaimRequested(msg) {
+      var text = String(msg || '').toLowerCase();
+      if (/(without|do not|don't|dont|no|not)\\s+(a\\s+)?claim/.test(text)) return false;
+      if (/\\b(status|inspect|review|refresh|show|check)\\b/.test(text) && !/\\b(claim|commence|execute|start|take|pick up)\\b/.test(text)) return false;
+      return /\\b(claim|commence|execute|start|take|pick up)\\b/.test(text)
+        && /\\b(room|task|queue|local|sovereign|selected|all)\\b/.test(text);
+    }
     function _sendSovereignRoomChat(msg, inp) {
       inp.value = '';
       _bMsg('You', msg, '#58a6ff', { chatId: 'sovereign' });
       _persistDraftState();
-      var pending = _bMsg('Sovereign Room', 'refreshing local room receipt...', '#58a6ff', { persist: false, chatId: 'sovereign' });
+      var claimRequested = _sovereignRoomClaimRequested(msg);
+      var pending = _bMsg('Sovereign Room', claimRequested ? 'claiming selected local room task...' : 'refreshing local room receipt...', '#58a6ff', { persist: false, chatId: 'sovereign' });
       fetch('/workflow/sovereign-room-marathon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1875,7 +1883,10 @@ const runtimeScript = `  <script>
           taskLane: 'local',
           taskTag: 'local',
           cloudEscalationAllowed: false,
-          maxCandidates: 8
+          maxCandidates: 8,
+          claim: claimRequested,
+          confirmLocalClaim: claimRequested,
+          claimConfirmation: claimRequested ? 'local_room_task' : ''
         })
       })
         .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
@@ -1889,7 +1900,7 @@ const runtimeScript = `  <script>
             'status: ' + (d.status || summary.status || 'staged'),
             'queue: open ' + (summary.queueOpenCount || 0) + '; matched ' + (summary.matchedCandidateCount || d.matchedCandidateCount || 0),
             'selected: ' + (summary.selectedTaskTitle || d.selectedTaskTitle || summary.selectedTaskId || d.selectedTaskId || 'none'),
-            'claim attempted: ' + (summary.claimAttempted ? 'yes' : 'no') + '; browser claim: no',
+            'claim attempted: ' + (summary.claimAttempted ? 'yes' : 'no') + '; browser claim: ' + (claimRequested ? 'requested' : 'no'),
             'next: ' + (summary.nextAction || 'inspect receipt before claim')
           ], _toneForStatus(d.status || summary.status), 'receipt', { chatId: 'sovereign' });
           loadCockpitCapsule();

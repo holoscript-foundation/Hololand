@@ -1,8 +1,8 @@
 // HoloShell Sovereign Room Marathon
 //
 // Source contract for consuming HoloMesh room tasks through local/sovereign
-// receipts. Direct checks are receipt-only; claims happen only through an
-// explicitly approved workflow or explicit CLI claim.
+// receipts. Direct checks are receipt-only; local claims happen only through an
+// explicitly confirmed guarded workflow or explicit CLI claim.
 
 composition "HoloShell Sovereign Room Marathon" {
   config {
@@ -111,7 +111,9 @@ composition "HoloShell Sovereign Room Marathon" {
     appliesTo: ["claim_sovereign_room_task"]
     requiresSignedHeartbeat: true
     requiresGuardedWorkflowApprovalOrExplicitCliClaim: true
+    requiresExplicitLocalClaimConfirmation: true
     requiresTaskClassificationMatch: true
+    boardMutationScope: "claim_local_room_task_only"
     completionClaimAllowed: false
     receiptRequired: true
   }

@@ -13,6 +13,9 @@ const fixtureResult = { status: 'fixture', queue: fixtureQueue(), command: 'fixt
 
 assert.equal(classifyTask({ title: '[local] sovereign task', tags: [] }), 'local');
 assert.equal(classifyTask({ title: 'cloud-tagged receipt', tags: [] }), 'cloud');
+assert.equal(classifyTask({ title: 'harvest native capability', tags: ['native-first'] }), 'local');
+assert.equal(classifyTask({ title: 'Jetson HoloShell receipt task', tags: ['jetson', 'holoshell'] }), 'local');
+assert.equal(classifyTask({ title: '[repo-harvest][Hololand] Promote harvested repo work into board-ready slice', tags: [] }), 'local');
 assert.equal(classifyTask({ title: 'plain task', tags: [] }), 'unknown');
 
 const localReceipt = buildReceipt({ ...parseArgs([]), taskLane: 'local', taskTag: 'local' }, fixtureResult);
