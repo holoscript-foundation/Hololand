@@ -140,6 +140,39 @@ try {
   const dispatch = JSON.parse(readFileSync(join(dryRunTmp, 'laptop-receipt-freshness-dispatch.json'), 'utf8'));
   assert.equal(dispatch.dispatch.body.canonicalSurfaces.sovereignPeerContext.id, 'workflow.laptop-reasoning-job');
   assert.equal(dispatch.dispatch.body.canonicalSurfaces.sovereignPeerContext.route, '/workflow/laptop-reasoning-job');
+
+  const watchTmp = join(tempDir, 'client-watch');
+  const watchOutputPath = join(tempDir, 'freshness-watch.json');
+  const watchPidPath = join(watchTmp, 'laptop-receipt-freshness-watch.pid');
+  const watchResult = spawnSync(process.execPath, [
+    'scripts/holoshell-laptop-receipt-freshness.mjs',
+    '--base-url',
+    baseUrl,
+    '--tmp-dir',
+    watchTmp,
+    '--output',
+    watchOutputPath,
+    '--fixture',
+    '--watch',
+    '--interval-ms',
+    '1000',
+    '--max-runs',
+    '2',
+    '--json',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    timeout: 120_000,
+    windowsHide: true,
+  });
+
+  assert.equal(watchResult.status, 0, `${watchResult.stdout}\n${watchResult.stderr}`);
+  const watchReports = watchResult.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
+  assert.equal(watchReports.length, 2);
+  assert.equal(watchReports.every((watchReport) => watchReport.status === 'ready'), true);
+  assert.equal(watchReports.every((watchReport) => watchReport.summary.attentionSignalCount === 0), true);
+  assert.equal(existsSync(watchOutputPath), true);
+  assert.equal(existsSync(watchPidPath), false);
 } finally {
   server.kill();
   await delay(200);

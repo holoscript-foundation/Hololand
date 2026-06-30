@@ -15,6 +15,7 @@ composition "HoloShell Browser Terminal Coupling" {
     compilerBridge: "packages/holoshell/compile.mjs"
     launcher: "scripts/brittney-studio-launch.ps1"
     terminalAdapter: "scripts/holoshell-operator-terminal.mjs"
+    laptopReceiptFreshnessAdapter: "scripts/holoshell-laptop-receipt-freshness.mjs"
     cockpitSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     terminalSource: "apps/holoshell/source/holoshell-operator-terminal.hsplus"
     terminalVisibilityDefault: "hidden_receipt_refresh"
@@ -26,6 +27,8 @@ composition "HoloShell Browser Terminal Coupling" {
     chatEndpoint: "POST /api/brittney/chat"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     terminalRefreshCommand: "pnpm run holoshell:operator-terminal -- --agent --json"
+    laptopReceiptFreshnessCommand: "pnpm run holoshell:laptop-receipt-freshness -- --watch --interval-ms 60000 --timeout-ms 60000 --json"
+    receiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
     receiptRequired: true
   }
 

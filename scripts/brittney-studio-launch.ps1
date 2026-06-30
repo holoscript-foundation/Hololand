@@ -24,7 +24,7 @@
 
 param(
   [switch]$Headless,    # OPTIONAL: boot the stack but don't open the UI surfaces (APIs-only).
-  [switch]$NoTerminal,  # OPTIONAL: open the browser only; skip the operator receipt refresh.
+  [switch]$NoTerminal,  # OPTIONAL: open the browser only; skip the laptop receipt freshness watcher.
   [switch]$OperatorTerminal # OPTIONAL: also open the persistent read-only operator terminal.
 )
                           # NOTE: opening a browser to actually use a surface is FINE for anyone
@@ -91,7 +91,7 @@ if (-not $surfaceUp) {
 # 3) Open the screen onto the Jetson (skip with -Headless / APIs-only).
 if (-not $Headless) { Start-Process $JetsonSurface }
 
-# 4) Refresh the paired read-only operator receipt. This stays hidden by default so desktop
+# 4) Keep the paired read-only laptop receipts fresh. This stays hidden by default so desktop
 #    shortcuts and agent-triggered launches do not create surprise terminal windows. A visible,
 #    persistent operator terminal is still available with -OperatorTerminal.
 $RefreshOperatorReceipt = (-not $Headless) -and (-not $NoTerminal)
@@ -102,12 +102,32 @@ if ($OperatorTerminal -and $NoTerminal) {
 
 if ($RefreshOperatorReceipt) {
   $repo = Quote-PowerShellSingle $Hololand
+  $watchCommand = @"
+Set-Location $repo
+New-Item -ItemType Directory -Force .tmp\holoshell | Out-Null
+Write-Host '[Brittney Studio] starting read-only receipt freshness watcher...'
+if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-laptop-receipt-freshness.mjs')) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+  node scripts\holoshell-laptop-receipt-freshness.mjs --watch --interval-ms 60000 --timeout-ms 60000 --json *> .tmp\holoshell\laptop-receipt-freshness-watch.log
+} elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
+  `$env:CI = 'true'
+  pnpm run holoshell:laptop-receipt-freshness -- --watch --interval-ms 60000 --timeout-ms 60000 --json *> .tmp\holoshell\laptop-receipt-freshness-watch.log
+} else {
+  corepack pnpm run holoshell:laptop-receipt-freshness -- --watch --interval-ms 60000 --timeout-ms 60000 --json *> .tmp\holoshell\laptop-receipt-freshness-watch.log
+}
+"@
+  Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Hidden -ArgumentList @(
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    $watchCommand
+  )
 
   if ($ShowOperatorTerminal) {
     $terminalCommand = @"
 Set-Location $repo
 Write-Host '[Brittney Studio] browser cockpit: $JetsonSurface'
-Write-Host '[Brittney Studio] refreshing read-only operator terminal receipt...'
+Write-Host '[Brittney Studio] read-only receipt freshness watcher: .tmp/holoshell/laptop-receipt-freshness-watch.log'
 if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-operator-terminal.mjs')) -and (Get-Command node -ErrorAction SilentlyContinue)) {
   node scripts\holoshell-operator-terminal.mjs
 } elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
@@ -127,26 +147,6 @@ Write-Host '[Brittney Studio] receipt: .tmp/holoshell/operator-terminal.json'
       '-Command',
       $terminalCommand
     )
-  } else {
-    $refreshCommand = @"
-Set-Location $repo
-New-Item -ItemType Directory -Force .tmp\holoshell | Out-Null
-if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-operator-terminal.mjs')) -and (Get-Command node -ErrorAction SilentlyContinue)) {
-  node scripts\holoshell-operator-terminal.mjs --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
-} elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
-  `$env:CI = 'true'
-  pnpm run holoshell:operator-terminal -- --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
-} else {
-  corepack pnpm run holoshell:operator-terminal -- --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
-}
-"@
-    Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Hidden -ArgumentList @(
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-Command',
-      $refreshCommand
-    )
   }
 }
 
@@ -165,7 +165,7 @@ Write-Host "[Brittney Studio] surface: $(if($surfaceUp){'OK'}else{'DOWN'}) ($Jet
     $lnk.Save()
 
   Double-click "Brittney Studio" -> the whole $0 hybrid comes up hidden, opens the HoloShell
-  canvas, and refreshes the operator receipt without a visible terminal. Add -OperatorTerminal
+  canvas, and keeps the laptop receipts fresh without a visible terminal. Add -OperatorTerminal
   to the shortcut arguments when you explicitly want the persistent terminal projection.
   (An F9 global hotkey needs AutoHotkey or the shortcut's "Shortcut key" field.)
   -------------------------------------------------------------------------------------------

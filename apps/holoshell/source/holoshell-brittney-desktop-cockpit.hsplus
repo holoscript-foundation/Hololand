@@ -13,6 +13,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     runtimeSurface: "Brittney Studio desktop app"
     desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"
     legacyGatewayAdapter: "scripts/start-brittney.ts"
+    laptopReceiptFreshnessAdapter: "scripts/holoshell-laptop-receipt-freshness.mjs"
     adapterScript: "packages/holoshell/serve.mjs"
     compilerBridge: "packages/holoshell/compile.mjs"
     operateRoomSource: "packages/holoshell/scenes/operate-room.holo"
@@ -46,6 +47,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     faraPeerAutomationPromotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
     improvementRunEndpoint: "POST /api/improvement-runs"
     operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    laptopReceiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
     sovereignRoomMarathonReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"
     browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"
@@ -225,9 +227,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
     source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"
     legacyGatewayAdapter: "scripts/start-brittney.ts"
+    laptopReceiptFreshnessAdapter: "scripts/holoshell-laptop-receipt-freshness.mjs"
     operatorTerminalAdapter: "scripts/holoshell-operator-terminal.mjs"
     browserSurface: "http://holojetson.local:8747"
     operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    laptopReceiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
     routeProofCommand: "pnpm run check:brittney-desktop-source-contract"
     sourceRequiredBeforeProjection: true
     legacyUiRole: "adapter_projection_only"
@@ -454,9 +458,12 @@ composition "HoloShell Brittney Desktop Cockpit" {
     legacyGatewayAdapter: "scripts/start-brittney.ts"
     adapterMayOpenBrowserSurface: true
     adapterMayRefreshOperatorTerminalReceipt: true
+    adapterMayRunLaptopReceiptFreshnessWatch: true
     adapterMayOpenVisibleTerminalByDefault: false
     visibleOperatorTerminalRequiresFlag: "-OperatorTerminal"
     hiddenReceiptRefreshDefault: true
+    hiddenReceiptRefreshIntervalMs: 60000
+    receiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
     legacyUiMayNotOwnBehavior: true
     legacyUiRole: "adapter_projection_only"
     canonicalBehaviorSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"

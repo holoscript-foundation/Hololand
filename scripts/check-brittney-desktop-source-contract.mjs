@@ -40,7 +40,9 @@ const failures = [];
 requireIncludes('desktop cockpit source', source, [
   'desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"',
   'legacyGatewayAdapter: "scripts/start-brittney.ts"',
+  'laptopReceiptFreshnessAdapter: "scripts/holoshell-laptop-receipt-freshness.mjs"',
   'operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"',
+  'laptopReceiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"',
   'sovereignRoomMarathonReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"',
   'browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"',
   'browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"',
@@ -60,8 +62,10 @@ requireIncludes('desktop cockpit source', source, [
   'holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"',
   'HoloClawRuntimeVisibleBehindConsent',
   'adapterMayOpenVisibleTerminalByDefault: false',
+  'adapterMayRunLaptopReceiptFreshnessWatch: true',
   'visibleOperatorTerminalRequiresFlag: "-OperatorTerminal"',
   'hiddenReceiptRefreshDefault: true',
+  'hiddenReceiptRefreshIntervalMs: 60000',
   'legacyUiRole: "adapter_projection_only"',
   'sourceRequiredBeforeProjection: true',
   'sourceFormatGapNamedBeforeAdapterWork: true',
@@ -84,8 +88,10 @@ requireIncludes('desktop launcher', launch, [
   '[switch]$OperatorTerminal',
   '$RefreshOperatorReceipt = (-not $Headless) -and (-not $NoTerminal)',
   '$ShowOperatorTerminal = $RefreshOperatorReceipt -and $OperatorTerminal',
+  'Keep the paired read-only laptop receipts fresh',
+  "node scripts\\holoshell-laptop-receipt-freshness.mjs --watch --interval-ms 60000 --timeout-ms 60000 --json",
+  'laptop-receipt-freshness-watch.log',
   "node scripts\\holoshell-operator-terminal.mjs",
-  "node scripts\\holoshell-operator-terminal.mjs --agent --json",
   '-WindowStyle Hidden',
   'persistent operator terminal is still available with -OperatorTerminal',
   "[Brittney Studio] receipt: .tmp/holoshell/operator-terminal.json",
@@ -168,4 +174,4 @@ if (failures.length > 0) {
 
 console.log('[brittney-desktop-source-contract] ok');
 console.log(`source: ${files.source}`);
-console.log('route: desktop shortcut -> Jetson HoloShell surface -> operator terminal receipt -> Sovereign Room status -> HoloClaw status -> HoloShell server receipts');
+console.log('route: desktop shortcut -> Jetson HoloShell surface -> laptop receipt freshness watch -> operator terminal receipt -> Sovereign Room status -> HoloClaw status -> HoloShell server receipts');

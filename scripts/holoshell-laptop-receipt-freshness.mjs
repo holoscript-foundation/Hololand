@@ -8,7 +8,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,7 @@ const DEFAULT_BASE_URL =
   process.env.HOLOSHELL_SURFACE_URL ||
   'http://holojetson.local:8747';
 const REPORT_SCHEMA = 'hololand.holoshell.laptop-receipt-freshness.v0.1.0';
+const WATCH_INTERVAL_MS_DEFAULT = 60_000;
 
 const GOLD_CODEBASE_SOURCE_REF = 'apps/holoshell/source/holoshell-holoscript-gold-codebase-bridge.hsplus';
 const GOLD_CODEBASE_SCRIPT_REF = 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs';
@@ -43,6 +44,10 @@ Options:
   --tmp-dir <path>       HoloShell tmp root. Default: ${DEFAULT_TMP}
   --output <path>        Summary receipt path. Default: <tmp-dir>/laptop-receipt-freshness.json
   --timeout-ms <n>       HTTP and command timeout. Default: 30000
+  --watch                Repeat receipt refreshes until stopped.
+  --interval-ms <n>      Watch interval. Default: ${WATCH_INTERVAL_MS_DEFAULT}
+  --max-runs <n>         Stop watch mode after N runs. Default: 0 (forever).
+  --pid-file <path>      Watch PID path. Default: <tmp-dir>/laptop-receipt-freshness-watch.pid
   --fixture              Use producer self-test fixtures. Tests only.
   --dry-run              Generate receipts without posting them.
   --json                 Print the summary receipt as JSON.
@@ -56,6 +61,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     tmpDir: DEFAULT_TMP,
     output: '',
     timeoutMs: 30000,
+    watch: false,
+    intervalMs: WATCH_INTERVAL_MS_DEFAULT,
+    maxRuns: 0,
+    pidFile: '',
     fixture: false,
     dryRun: false,
     json: false,
@@ -68,6 +77,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--tmp-dir') args.tmpDir = argv[++index] || args.tmpDir;
     else if (arg === '--output') args.output = argv[++index] || '';
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index] || args.timeoutMs);
+    else if (arg === '--watch') args.watch = true;
+    else if (arg === '--interval-ms') args.intervalMs = Number(argv[++index] || args.intervalMs);
+    else if (arg === '--max-runs') args.maxRuns = Number(argv[++index] || args.maxRuns);
+    else if (arg === '--pid-file') args.pidFile = argv[++index] || '';
     else if (arg === '--fixture') args.fixture = true;
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--json') args.json = true;
@@ -77,8 +90,15 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 1000) {
     throw new Error('--timeout-ms must be >= 1000');
   }
+  if (!Number.isFinite(args.intervalMs) || args.intervalMs < 1000) {
+    throw new Error('--interval-ms must be >= 1000');
+  }
+  if (!Number.isInteger(args.maxRuns) || args.maxRuns < 0) {
+    throw new Error('--max-runs must be a non-negative integer');
+  }
   args.tmpDir = normalizeRepoPath(args.tmpDir);
   args.output = normalizeRepoPath(args.output || `${args.tmpDir}/laptop-receipt-freshness.json`);
+  args.pidFile = normalizeRepoPath(args.pidFile || `${args.tmpDir}/laptop-receipt-freshness-watch.pid`);
   args.baseUrl = String(args.baseUrl || '').replace(/\/+$/u, '');
   if (!/^https?:\/\//iu.test(args.baseUrl)) throw new Error('--base-url must be an http(s) URL');
   return args;
@@ -107,6 +127,48 @@ function writeJson(filePath, value) {
 function readJson(filePath) {
   const resolved = resolveRepoPath(filePath);
   return JSON.parse(readFileSync(resolved, 'utf8'));
+}
+
+function sleep(ms) {
+  return new Promise((resolveSleep) => {
+    setTimeout(resolveSleep, ms);
+  });
+}
+
+function readPidFile(filePath) {
+  try {
+    const pid = Number(readFileSync(resolveRepoPath(filePath), 'utf8').trim());
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+function claimWatchPid(args) {
+  const priorPid = readPidFile(args.pidFile);
+  if (priorPid && priorPid !== process.pid && isPidAlive(priorPid)) {
+    return { claimed: false, priorPid };
+  }
+
+  writeJson(args.pidFile, process.pid);
+  return {
+    claimed: true,
+    release() {
+      const currentPid = readPidFile(args.pidFile);
+      if (currentPid === process.pid) {
+        rmSync(resolveRepoPath(args.pidFile), { force: true });
+      }
+    },
+  };
 }
 
 function sha256(value) {
@@ -492,8 +554,87 @@ async function run(args) {
     },
   };
   report.output = writeJson(args.output, report);
-  if (overallStatus !== 'ready') process.exitCode = 1;
   return report;
+}
+
+function printReport(report, args) {
+  if (args.json) console.log(JSON.stringify(report, args.watch ? undefined : null, args.watch ? undefined : 2));
+  else {
+    console.log(`HoloShell laptop receipt freshness: ${report.status}`);
+    console.log(`Output: ${report.output}`);
+    for (const endpoint of report.endpoints) {
+      console.log(`- ${endpoint.id}: ${endpoint.status}${endpoint.error ? ` (${endpoint.error})` : ''}`);
+    }
+  }
+}
+
+async function runWatch(args) {
+  const watchPid = claimWatchPid(args);
+  if (!watchPid.claimed) {
+    const report = {
+      schemaVersion: REPORT_SCHEMA,
+      generatedAt: new Date().toISOString(),
+      baseUrl: args.baseUrl,
+      mode: args.fixture ? 'fixture' : 'live',
+      dryRun: args.dryRun,
+      status: 'ready',
+      summary: {
+        watchStatus: 'already_running',
+        priorPid: watchPid.priorPid,
+      },
+      safety: {
+        destructiveActionsTaken: false,
+        desktopAutomationExecuted: false,
+        paidComputeAtLaunch: false,
+        rawSecretsIncluded: false,
+        directMutationAllowed: false,
+      },
+    };
+    if (args.json) console.log(JSON.stringify(report));
+    else console.log(`HoloShell laptop receipt freshness watch already running: pid ${watchPid.priorPid}`);
+    return report;
+  }
+
+  let runCount = 0;
+  let lastReport = null;
+  try {
+    while (args.maxRuns === 0 || runCount < args.maxRuns) {
+      try {
+        lastReport = await run(args);
+        printReport(lastReport, args);
+      } catch (error) {
+        lastReport = {
+          schemaVersion: REPORT_SCHEMA,
+          generatedAt: new Date().toISOString(),
+          baseUrl: args.baseUrl,
+          mode: args.fixture ? 'fixture' : 'live',
+          dryRun: args.dryRun,
+          status: 'attention_required',
+          summary: {
+            watchStatus: 'refresh_failed',
+            error: String(error?.message || error).slice(0, 1200),
+          },
+          safety: {
+            destructiveActionsTaken: false,
+            desktopAutomationExecuted: false,
+            paidComputeAtLaunch: false,
+            rawSecretsIncluded: false,
+            directMutationAllowed: false,
+          },
+        };
+        if (args.json) console.log(JSON.stringify(lastReport));
+        else console.error(`HoloShell laptop receipt freshness failed: ${lastReport.summary.error}`);
+      }
+      runCount += 1;
+      if (args.maxRuns !== 0 && runCount >= args.maxRuns) break;
+      await sleep(args.intervalMs);
+    }
+  } finally {
+    watchPid.release();
+  }
+
+  if (args.maxRuns !== 0 && lastReport?.status !== 'ready') process.exitCode = 1;
+  return lastReport;
 }
 
 try {
@@ -502,14 +643,10 @@ try {
     console.log(usage());
     process.exit(0);
   }
-  const report = await run(args);
-  if (args.json) console.log(JSON.stringify(report, null, 2));
-  else {
-    console.log(`HoloShell laptop receipt freshness: ${report.status}`);
-    console.log(`Output: ${report.output}`);
-    for (const endpoint of report.endpoints) {
-      console.log(`- ${endpoint.id}: ${endpoint.status}${endpoint.error ? ` (${endpoint.error})` : ''}`);
-    }
+  const report = args.watch ? await runWatch(args) : await run(args);
+  if (!args.watch) {
+    printReport(report, args);
+    if (report.status !== 'ready') process.exitCode = 1;
   }
 } catch (error) {
   console.error(`holoshell-laptop-receipt-freshness failed: ${error.message}`);
