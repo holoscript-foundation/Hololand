@@ -116,7 +116,7 @@ try {
   assert.equal(liveStatus.route.cockpitCapsuleEndpoint, 'GET /api/cockpit/capsule');
   assert.equal(liveStatus.route.laptopReasoningReportEndpoint, 'POST /api/laptop-reasoning/report');
   assert.equal(liveStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
-  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
+  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeWorkflowEndpoint, 'POST /workflow/holoclaw-runtime-bridge');
   assert.equal(liveStatus.route.sovereignRoomMarathonEndpoint, 'GET /api/sovereign-room/marathon');
@@ -274,7 +274,7 @@ try {
   ));
   assert.ok(capsule.cockpitLanes.some((lane) =>
     lane.id === 'browser_session' &&
-    lane.sourceEndpoint === 'GET/POST /api/browser-session/state' &&
+    lane.sourceEndpoint === 'GET/POST /api/browser-session/state?sessionId=:sessionId' &&
     lane.permissionEnvelope === 'read_only_snapshot'
   ));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'desktop_bridge' && lane.receiptRequired === true));
@@ -423,8 +423,9 @@ try {
   assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
   assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
   assert.match(hsplusSource, /BrowserRefreshPreservesOperatorSession/);
-  assert.match(hsplusSource, /GET\/POST \/api\/browser-session\/state/);
+  assert.match(hsplusSource, /GET\/POST \/api\/browser-session\/state\?sessionId=:sessionId/);
   assert.match(hsplusSource, /window\.localStorage \+ local HoloShell snapshot endpoint/);
+  assert.match(hsplusSource, /sessionScopedSnapshots: true/);
   assert.match(hsplusSource, /ParallelChatWorkspacesStayIsolated/);
   assert.match(hsplusSource, /SourceOwnedStateBeforeProjection/);
   assert.match(hsplusSource, /sourceOwnedStateSchema: "hololand\.holoshell\.source-owned-cockpit-state\.v0\.1\.0"/);
@@ -458,6 +459,8 @@ try {
   assert.match(compileSource, /\/workflow\/holoclaw-runtime-bridge/);
   assert.match(compileSource, /_restoreBrowserSession/);
   assert.match(compileSource, /_hydrateBrowserSessionFromServer/);
+  assert.match(compileSource, /_browserSessionStateEndpoint/);
+  assert.match(compileSource, /_browserStateStorageKey/);
   assert.match(compileSource, /\/api\/browser-session\/state/);
   assert.match(compileSource, /localStorage/);
   assert.match(compileSource, /cockpit-action-cards/);

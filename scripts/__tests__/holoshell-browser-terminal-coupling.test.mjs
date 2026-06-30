@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const tempDir = mkdtempSync(join(tmpdir(), 'holoshell-terminal-coupling-'));
 const terminalReceiptPath = join(tempDir, 'operator-terminal.json');
 const browserSessionStatePath = join(tempDir, 'browser-session-state.json');
+const browserSessionStateDir = join(tempDir, 'browser-sessions');
 writeFileSync(terminalReceiptPath, `${JSON.stringify({
   schemaVersion: 'hololand.holoshell.operator-terminal.v0.1.0',
   generatedAt: new Date().toISOString(),
@@ -61,6 +62,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SESSION_ID: 'test-browser-terminal-session',
     HOLOSHELL_OPERATOR_TERMINAL_RECEIPT: terminalReceiptPath,
     HOLOSHELL_BROWSER_SESSION_STATE: browserSessionStatePath,
+    HOLOSHELL_BROWSER_SESSION_STATE_DIR: browserSessionStateDir,
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
   },
@@ -116,7 +118,7 @@ try {
   const liveStatus = await getJson('/api/live-status');
   assert.equal(liveStatus.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
-  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
+  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
   assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
@@ -147,9 +149,9 @@ try {
   assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
   assert.equal(session.refreshRecovery.status, 'enabled');
   assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
-  assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
+  assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.equal(session.refreshRecovery.browserSessionSnapshotStatus, 'empty');
-  assert.ok(session.refreshRecovery.rehydrateFrom.includes('GET /api/browser-session/state'));
+  assert.ok(session.refreshRecovery.rehydrateFrom.includes('GET /api/browser-session/state?sessionId=:sessionId'));
   assert.equal(session.refreshRecovery.browserRefreshMayResetTruth, false);
   assert.deepEqual(session.sharedMemory.requiredFields, ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command']);
   assert.equal(session.sharedMemory.browserStateKey, 'holoshell:brittney:browser-session:v1');
@@ -259,6 +261,7 @@ try {
 
   const savedBrowserState = await getJson('/api/browser-session/state');
   assert.equal(savedBrowserState.snapshotStatus, 'available');
+  assert.equal(savedBrowserState.sessionScoped, false);
   assert.equal(savedBrowserState.activeChatId, 'terminal');
   assert.equal(savedBrowserState.drafts.chatInputs.terminal, 'draft survives');
   assert.equal(savedBrowserState.runtime.lastImprovementRunId, 'run_fixture');
@@ -267,9 +270,48 @@ try {
   const snapshotSession = await getJson('/api/operator-terminal/session');
   assert.equal(snapshotSession.refreshRecovery.browserSessionSnapshotStatus, 'available');
 
+  const scopedBrowserState = await postJson('/api/browser-session/state?sessionId=holoclaw-alpha', {
+    schemaVersion: 'hololand.holoshell.browser-session-state.v0.1.0',
+    source: 'browser_cockpit_snapshot',
+    sessionId: 'holoclaw-alpha',
+    activeChatId: 'holoclaw',
+    transcriptByChat: {
+      holoclaw: [
+        {
+          type: 'message',
+          who: 'HoloClaw',
+          text: 'scoped holoclaw transcript survives',
+          color: '#bc8cff',
+        },
+      ],
+    },
+    drafts: {
+      chatInputs: {
+        holoclaw: 'scoped holoclaw draft',
+      },
+    },
+    updatedAt: new Date().toISOString(),
+  });
+  assert.equal(scopedBrowserState.snapshotStatus, 'saved');
+  assert.equal(scopedBrowserState.sessionId, 'holoclaw-alpha');
+  assert.equal(scopedBrowserState.sessionScoped, true);
+  assert.equal(scopedBrowserState.storageKey, 'holoshell:brittney:browser-session:v1:holoclaw-alpha');
+  assert.equal(scopedBrowserState.activeChatId, 'holoclaw');
+  assert.match(readFileSync(join(browserSessionStateDir, 'holoclaw-alpha.json'), 'utf8'), /scoped holoclaw transcript/);
+
+  const savedScopedBrowserState = await getJson('/api/browser-session/state?sessionId=holoclaw-alpha');
+  assert.equal(savedScopedBrowserState.snapshotStatus, 'available');
+  assert.equal(savedScopedBrowserState.sessionScoped, true);
+  assert.equal(savedScopedBrowserState.activeChatId, 'holoclaw');
+  assert.equal(savedScopedBrowserState.drafts.chatInputs.holoclaw, 'scoped holoclaw draft');
+
+  const defaultBrowserStateAfterScopedWrite = await getJson('/api/browser-session/state');
+  assert.equal(defaultBrowserStateAfterScopedWrite.activeChatId, 'terminal');
+  assert.equal(defaultBrowserStateAfterScopedWrite.drafts.chatInputs.terminal, 'draft survives');
+
   const capsule = await getJson('/api/cockpit/capsule');
   assert.equal(capsule.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
-  assert.equal(capsule.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
+  assert.equal(capsule.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.ok(capsule.cockpitLanes.some((lane) =>
     lane.id === 'operator_terminal'
     && lane.status === 'ready'
@@ -299,7 +341,8 @@ try {
   assert.match(source, /NativeTerminalBrowserSymbiosis/);
   assert.match(source, /BrowserRefreshRehydratesFromReceipts/);
   assert.match(source, /BrowserSessionSnapshotMirrorsLocalStorage/);
-  assert.match(source, /GET\/POST \/api\/browser-session\/state/);
+  assert.match(source, /GET\/POST \/api\/browser-session\/state\?sessionId=:sessionId/);
+  assert.match(source, /sessionScopedSnapshots: true/);
   assert.match(source, /TerminalRunCardsStayPresentable/);
 
   const launcher = readFileSync(resolve('scripts/brittney-studio-launch.ps1'), 'utf8');
@@ -313,6 +356,8 @@ try {
   assert.match(compileSource, /operator_terminal/);
   assert.match(compileSource, /evidenceLedger/);
   assert.match(compileSource, /_hydrateBrowserSessionFromServer/);
+  assert.match(compileSource, /_browserSessionStateEndpoint/);
+  assert.match(compileSource, /_browserStateStorageKey/);
   assert.match(compileSource, /\/api\/browser-session\/state/);
   assert.match(compileSource, /_rehydrateTerminalSessionFromServer/);
   assert.match(compileSource, /Evidence ledger/);

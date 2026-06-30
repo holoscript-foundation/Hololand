@@ -35,7 +35,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     holoclawRuntimeBridgeWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
     operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
     operatorTerminalReportEndpoint: "POST /api/operator-terminal/report"
-    browserSessionStateEndpoint: "GET/POST /api/browser-session/state"
+    browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
     laptopReasoningReportEndpoint: "POST /api/laptop-reasoning/report"
     windowAwarenessReportEndpoint: "POST /api/window-awareness/report"
     chatEndpoint: "POST /api/brittney/chat"
@@ -158,8 +158,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
     storageAdapter: "window.localStorage + local HoloShell snapshot endpoint"
     storageKey: "holoshell:brittney:browser-session:v1"
-    serverSnapshotEndpoint: "GET/POST /api/browser-session/state"
+    scopedStorageKeyPattern: "holoshell:brittney:browser-session:v1:{sessionId}"
+    serverSnapshotEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
     serverSnapshotFallback: true
+    sessionScopedSnapshots: true
     persists: ["visible_transcript_by_chat", "input_drafts_by_chat", "active_chat_workspace", "expanded_chat_workspaces", "latest_cockpit_capsule", "evidence_ledger", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
     maxTranscriptEntries: 120
     maxEvidenceLedgerEntries: 80
@@ -408,10 +410,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
     source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     storageAdapter: "window.localStorage + local HoloShell snapshot endpoint"
     storageKey: "holoshell:brittney:browser-session:v1"
-    serverSnapshotEndpoint: "GET/POST /api/browser-session/state"
+    serverSnapshotEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
+    sessionScopedSnapshots: true
     schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
     persists: ["visible_transcript_by_chat", "input_drafts_by_chat", "active_chat_workspace", "expanded_chat_workspaces", "latest_cockpit_capsule", "evidence_ledger", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
-    rehydrateFrom: ["localStorage", "GET /api/browser-session/state", "GET /api/cockpit/capsule", "GET /api/operator-terminal/session"]
+    rehydrateFrom: ["localStorage", "GET /api/browser-session/state?sessionId=:sessionId", "GET /api/cockpit/capsule", "GET /api/operator-terminal/session"]
     maxTranscriptEntries: 120
     maxEvidenceLedgerEntries: 80
     refreshMayClearSession: false

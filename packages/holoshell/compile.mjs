@@ -642,6 +642,7 @@ const runtimeScript = `  <script>
     var _lastCockpitCapsule = null;
     var HOLOSHELL_BROWSER_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
     var HOLOSHELL_BROWSER_STATE_KEY = 'holoshell:brittney:browser-session:v1';
+    var HOLOSHELL_BROWSER_DEFAULT_SESSION_ID = 'default';
     var HOLOSHELL_TRANSCRIPT_LIMIT = 120;
     var HOLOSHELL_EVIDENCE_LEDGER_LIMIT = 80;
     var HOLOSHELL_DEFAULT_CHAT_ID = 'brittney';
@@ -692,9 +693,34 @@ const runtimeScript = `  <script>
     var _browserStateRestoring = false;
     var _browserSessionSnapshotTimer = null;
     var _browserSessionSnapshotInFlight = false;
+    function _browserSessionId() {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var raw = params.get('sessionId') || params.get('workspaceSessionId') || HOLOSHELL_BROWSER_DEFAULT_SESSION_ID;
+        return String(raw).trim().replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 96) || HOLOSHELL_BROWSER_DEFAULT_SESSION_ID;
+      } catch (error) {
+        return HOLOSHELL_BROWSER_DEFAULT_SESSION_ID;
+      }
+    }
+    function _browserSessionScoped() {
+      return _browserSessionId() !== HOLOSHELL_BROWSER_DEFAULT_SESSION_ID;
+    }
+    function _browserStateStorageKey() {
+      var sessionId = _browserSessionId();
+      return sessionId === HOLOSHELL_BROWSER_DEFAULT_SESSION_ID ? HOLOSHELL_BROWSER_STATE_KEY : HOLOSHELL_BROWSER_STATE_KEY + ':' + sessionId;
+    }
+    function _browserSessionStateEndpoint() {
+      var sessionId = _browserSessionId();
+      return sessionId === HOLOSHELL_BROWSER_DEFAULT_SESSION_ID
+        ? '/api/browser-session/state'
+        : '/api/browser-session/state?sessionId=' + encodeURIComponent(sessionId);
+    }
     function _emptyBrowserState() {
       return {
         schemaVersion: HOLOSHELL_BROWSER_STATE_SCHEMA,
+        sessionId: _browserSessionId(),
+        sessionScoped: _browserSessionScoped(),
+        storageKey: _browserStateStorageKey(),
         transcript: [],
         transcriptByChat: {},
         drafts: {},
@@ -749,7 +775,7 @@ const runtimeScript = `  <script>
     }
     function _readBrowserState() {
       try {
-        var raw = window.localStorage && window.localStorage.getItem(HOLOSHELL_BROWSER_STATE_KEY);
+        var raw = window.localStorage && window.localStorage.getItem(_browserStateStorageKey());
         if (!raw) return _ensureBrowserStateShape(_emptyBrowserState());
         var state = JSON.parse(raw);
         if (!state || state.schemaVersion !== HOLOSHELL_BROWSER_STATE_SCHEMA) return _emptyBrowserState();
@@ -763,8 +789,11 @@ const runtimeScript = `  <script>
       try {
         state = _ensureBrowserStateShape(state);
         state.schemaVersion = HOLOSHELL_BROWSER_STATE_SCHEMA;
+        state.sessionId = _browserSessionId();
+        state.sessionScoped = _browserSessionScoped();
+        state.storageKey = _browserStateStorageKey();
         if (!options.preserveUpdatedAt || !state.updatedAt) state.updatedAt = new Date().toISOString();
-        window.localStorage.setItem(HOLOSHELL_BROWSER_STATE_KEY, JSON.stringify(state));
+        window.localStorage.setItem(_browserStateStorageKey(), JSON.stringify(state));
       } catch (error) {}
       if (options.post !== false && !_browserStateRestoring) _scheduleBrowserSessionSnapshot();
     }
@@ -799,7 +828,7 @@ const runtimeScript = `  <script>
       _browserSessionSnapshotInFlight = true;
       var state = _readBrowserState();
       state.source = 'browser_cockpit_snapshot';
-      fetch('/api/browser-session/state', {
+      fetch(_browserSessionStateEndpoint(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
@@ -813,7 +842,7 @@ const runtimeScript = `  <script>
       _browserSessionSnapshotTimer = window.setTimeout(_postBrowserSessionState, 450);
     }
     function _hydrateBrowserSessionFromServer() {
-      return fetch('/api/browser-session/state', { cache: 'no-store' })
+      return fetch(_browserSessionStateEndpoint(), { cache: 'no-store' })
         .then(function(r) { return r.json(); })
         .then(function(serverState) {
           var localState = _readBrowserState();
@@ -836,7 +865,7 @@ const runtimeScript = `  <script>
       if (navigator.sendBeacon) {
         try {
           var blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
-          navigator.sendBeacon('/api/browser-session/state', blob);
+          navigator.sendBeacon(_browserSessionStateEndpoint(), blob);
           return;
         } catch (error) {}
       }

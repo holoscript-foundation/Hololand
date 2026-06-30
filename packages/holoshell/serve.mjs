@@ -56,6 +56,9 @@ const BROWSER_SESSION_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v
 const BROWSER_SESSION_STATE_SNAPSHOT =
   process.env.HOLOSHELL_BROWSER_SESSION_STATE ||
   join(HOLOSHELL_TMP_DIR, 'browser-session-state.json');
+const BROWSER_SESSION_STATE_DIR =
+  process.env.HOLOSHELL_BROWSER_SESSION_STATE_DIR ||
+  join(HOLOSHELL_TMP_DIR, 'browser-sessions');
 const BROWSER_SESSION_TRANSCRIPT_LIMIT = 120;
 const BROWSER_SESSION_EVIDENCE_LIMIT = 80;
 const BROWSER_CHAT_WORKSPACE_IDS = ['brittney', 'sovereign', 'holoclaw', 'terminal', 'improvement'];
@@ -1767,6 +1770,18 @@ function shortBrowserString(value, max = 1200) {
   return text.length > max ? text.slice(0, max - 3) + '...' : text;
 }
 
+function safeBrowserSessionId(value) {
+  const id = shortBrowserString(value || sharedHoloShellSessionId() || 'default', 96)
+    .trim()
+    .replace(/[^A-Za-z0-9_.:-]/gu, '_')
+    .replace(/^_+|_+$/gu, '');
+  return id || 'default';
+}
+
+function scopedBrowserSessionSnapshotPath(sessionId) {
+  return join(BROWSER_SESSION_STATE_DIR, `${safeBrowserSessionId(sessionId)}.json`);
+}
+
 function normalizeBrowserChatId(chatId) {
   const id = String(chatId || 'brittney').toLowerCase();
   return BROWSER_CHAT_WORKSPACE_IDS.includes(id) ? id : 'brittney';
@@ -1854,12 +1869,14 @@ function boundedBrowserCapsule(capsule) {
   }
 }
 
-function emptyBrowserSessionState() {
+function emptyBrowserSessionState(sessionId = sharedHoloShellSessionId(), { scoped = false } = {}) {
+  const safeSessionId = safeBrowserSessionId(sessionId);
   return {
     schemaVersion: BROWSER_SESSION_STATE_SCHEMA,
     source: 'browser_cockpit_snapshot',
-    sessionId: sharedHoloShellSessionId(),
-    storageKey: BROWSER_SESSION_STATE_KEY,
+    sessionId: safeSessionId,
+    sessionScoped: scoped,
+    storageKey: scoped ? `${BROWSER_SESSION_STATE_KEY}:${safeSessionId}` : BROWSER_SESSION_STATE_KEY,
     transcript: [],
     transcriptByChat: Object.fromEntries(BROWSER_CHAT_WORKSPACE_IDS.map((chatId) => [chatId, []])),
     drafts: {
@@ -1887,12 +1904,13 @@ function emptyBrowserSessionState() {
   };
 }
 
-function normalizeBrowserSessionState(payload = {}, { requireSchema = false } = {}) {
+function normalizeBrowserSessionState(payload = {}, { requireSchema = false, sessionId = null, scoped = false } = {}) {
   const incoming = unwrapSchemaPayload(payload, BROWSER_SESSION_STATE_SCHEMA, ['state', 'browserSessionState']);
   if (requireSchema && incoming.schemaVersion !== BROWSER_SESSION_STATE_SCHEMA) {
     throw new Error(`expected ${BROWSER_SESSION_STATE_SCHEMA}`);
   }
-  const base = emptyBrowserSessionState();
+  const safeSessionId = safeBrowserSessionId(sessionId || incoming.sessionId || sharedHoloShellSessionId());
+  const base = emptyBrowserSessionState(safeSessionId, { scoped });
   const transcriptByChat = { ...base.transcriptByChat };
   for (const chatId of BROWSER_CHAT_WORKSPACE_IDS) {
     const rawEntries = safeArray(incoming.transcriptByChat?.[chatId] || (chatId === 'brittney' ? incoming.transcript : []));
@@ -1912,7 +1930,9 @@ function normalizeBrowserSessionState(payload = {}, { requireSchema = false } = 
   return {
     ...base,
     source: shortBrowserString(incoming.source || base.source, 120),
-    sessionId: shortBrowserString(incoming.sessionId || sharedHoloShellSessionId(), 120),
+    sessionId: safeSessionId,
+    sessionScoped: scoped,
+    storageKey: scoped ? `${BROWSER_SESSION_STATE_KEY}:${safeSessionId}` : BROWSER_SESSION_STATE_KEY,
     transcript: transcriptByChat.brittney.slice(-BROWSER_SESSION_TRANSCRIPT_LIMIT),
     transcriptByChat,
     drafts: {
@@ -1934,29 +1954,36 @@ function normalizeBrowserSessionState(payload = {}, { requireSchema = false } = 
   };
 }
 
-function readBrowserSessionStateSnapshot() {
-  const snapshot = readJsonFileIfPresent(BROWSER_SESSION_STATE_SNAPSHOT);
+function readBrowserSessionStateSnapshot({ sessionId = null, scoped = false } = {}) {
+  const safeSessionId = safeBrowserSessionId(sessionId || sharedHoloShellSessionId());
+  const snapshotPath = scoped ? scopedBrowserSessionSnapshotPath(safeSessionId) : BROWSER_SESSION_STATE_SNAPSHOT;
+  const snapshot = readJsonFileIfPresent(snapshotPath);
   if (snapshot?.schemaVersion !== BROWSER_SESSION_STATE_SCHEMA) {
     return {
-      ...emptyBrowserSessionState(),
+      ...emptyBrowserSessionState(safeSessionId, { scoped }),
       snapshotStatus: 'empty',
       output: null,
+      snapshotPath,
     };
   }
   return {
-    ...normalizeBrowserSessionState(snapshot),
+    ...normalizeBrowserSessionState(snapshot, { sessionId: safeSessionId, scoped }),
     snapshotStatus: 'available',
-    output: BROWSER_SESSION_STATE_SNAPSHOT,
+    output: snapshotPath,
+    snapshotPath,
   };
 }
 
-function writeBrowserSessionStateSnapshot(payload = {}) {
-  const state = normalizeBrowserSessionState(payload, { requireSchema: true });
-  const output = writeJsonFile(BROWSER_SESSION_STATE_SNAPSHOT, state);
+function writeBrowserSessionStateSnapshot(payload = {}, { sessionId = null, scoped = false } = {}) {
+  const safeSessionId = safeBrowserSessionId(sessionId || payload?.sessionId || sharedHoloShellSessionId());
+  const snapshotPath = scoped ? scopedBrowserSessionSnapshotPath(safeSessionId) : BROWSER_SESSION_STATE_SNAPSHOT;
+  const state = normalizeBrowserSessionState(payload, { requireSchema: true, sessionId: safeSessionId, scoped });
+  const output = writeJsonFile(snapshotPath, state);
   return {
     ...state,
     snapshotStatus: 'saved',
     output,
+    snapshotPath,
   };
 }
 
@@ -2816,7 +2843,7 @@ function buildOperatorTerminalSession() {
       url: liveStatus.route.url,
       chatEndpoint: liveStatus.route.chatEndpoint,
       cockpitCapsuleEndpoint: liveStatus.route.cockpitCapsuleEndpoint,
-      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       permissionEnvelope: 'read_only',
       mayMutateWithoutConsent: false,
@@ -2851,7 +2878,7 @@ function buildOperatorTerminalSession() {
       terminalWrites: ['command_results', 'test_logs', 'agent_run_receipts'],
       receiptLedger: '.tmp/holoshell/',
       browserStateKey: BROWSER_SESSION_STATE_KEY,
-      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       evidenceLedger: 'browser_local_storage_plus_terminal_receipts',
       sessionId: sharedHoloShellSessionId(),
     },
@@ -2868,11 +2895,12 @@ function buildOperatorTerminalSession() {
     refreshRecovery: {
       status: 'enabled',
       browserStateKey: BROWSER_SESSION_STATE_KEY,
-      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       browserSessionSnapshotStatus,
       browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt || null,
+      browserSessionScoped: browserSessionState.sessionScoped || false,
       evidenceLedgerStatus: receiptObserved ? 'available' : 'needs_terminal_receipt',
-      rehydrateFrom: ['localStorage', 'GET /api/browser-session/state', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
+      rehydrateFrom: ['localStorage', 'GET /api/browser-session/state?sessionId=:sessionId', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
       browserRefreshMayResetTruth: false,
       terminalReceiptsAreDurableTruth: true,
       transcriptLimit: 120,
@@ -2947,7 +2975,7 @@ function buildLiveStatusSnapshot() {
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
-      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       operatorTerminalReportEndpoint: 'POST /api/operator-terminal/report',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
@@ -3528,7 +3556,7 @@ function buildBrittneyCockpitCapsule() {
       status: browserSessionStateStatus,
       value: browserSessionState.snapshotStatus,
       detail: `transcript ${browserTranscriptEntryCount}; evidence ${browserSessionState.evidenceLedger.length}; active ${browserSessionState.activeChatId}`,
-      sourceEndpoint: 'GET/POST /api/browser-session/state',
+      sourceEndpoint: 'GET/POST /api/browser-session/state?sessionId=:sessionId',
       permissionEnvelope: 'read_only_snapshot',
       receiptRequired: true,
     },
@@ -3782,6 +3810,7 @@ function buildBrittneyCockpitCapsule() {
       label: 'Browser Session',
       method: 'GET',
       href: '/api/browser-session/state',
+      scopedHrefTemplate: '/api/browser-session/state?sessionId=:sessionId',
       lane: 'browser_session',
       permissionEnvelope: 'read_only_snapshot',
       mayExecuteWithoutConsent: true,
@@ -4248,7 +4277,11 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && path === '/api/browser-session/state') {
-    respond(res, readBrowserSessionStateSnapshot());
+    const requestedSessionId = url.searchParams.get('sessionId');
+    respond(res, readBrowserSessionStateSnapshot({
+      sessionId: requestedSessionId || sharedHoloShellSessionId(),
+      scoped: Boolean(requestedSessionId),
+    }));
     return;
   }
 
@@ -4258,7 +4291,12 @@ async function handleRequest(req, res) {
     req.on('end', () => {
       try {
         const payload = JSON.parse(body || '{}');
-        const snapshot = writeBrowserSessionStateSnapshot(payload);
+        const querySessionId = url.searchParams.get('sessionId');
+        const requestedSessionId = querySessionId || payload.sessionId || null;
+        const snapshot = writeBrowserSessionStateSnapshot(payload, {
+          sessionId: requestedSessionId || sharedHoloShellSessionId(),
+          scoped: Boolean(querySessionId),
+        });
         respond(res, {
           ...snapshot,
           schemaVersion: BROWSER_SESSION_STATE_SCHEMA,

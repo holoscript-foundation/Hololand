@@ -20,7 +20,7 @@ composition "HoloShell Browser Terminal Coupling" {
     sessionEndpoint: "GET /api/operator-terminal/session"
     terminalReportEndpoint: "POST /api/operator-terminal/report"
     cockpitEndpoint: "GET /api/cockpit/capsule"
-    browserSessionStateEndpoint: "GET/POST /api/browser-session/state"
+    browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
     chatEndpoint: "POST /api/brittney/chat"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     terminalRefreshCommand: "pnpm run holoshell:operator-terminal -- --agent --json"
@@ -37,6 +37,7 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalReceiptHash: ""
     browserStateKey: "holoshell:brittney:browser-session:v1"
     browserSessionSnapshotStatus: "unknown"
+    browserSessionScoped: false
     evidenceLedgerStatus: "unknown"
     terminalRunCardCount: 0
     browserIsPrimaryConversationSurface: true
@@ -188,8 +189,8 @@ composition "HoloShell Browser Terminal Coupling" {
   policy "BrowserRefreshRehydratesFromReceipts" {
     appliesTo: ["browser_refresh", "local_storage_state", "server_session_snapshot", "operator_terminal_session", "cockpit_capsule"]
     browserStateKey: "holoshell:brittney:browser-session:v1"
-    serverSnapshotEndpoint: "GET/POST /api/browser-session/state"
-    rehydrateFrom: ["localStorage", "GET /api/browser-session/state", "GET /api/cockpit/capsule", "GET /api/operator-terminal/session"]
+    serverSnapshotEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
+    rehydrateFrom: ["localStorage", "GET /api/browser-session/state?sessionId=:sessionId", "GET /api/cockpit/capsule", "GET /api/operator-terminal/session"]
     browserRefreshMayResetTruth: false
     terminalReceiptsAreDurableTruth: true
     evidenceLedgerSurvivesRefresh: true
@@ -199,7 +200,9 @@ composition "HoloShell Browser Terminal Coupling" {
   policy "BrowserSessionSnapshotMirrorsLocalStorage" {
     appliesTo: ["browser_session_state", "server_session_snapshot", "parallel_chat_workspaces", "evidence_ledger", "browser_refresh"]
     storageKey: "holoshell:brittney:browser-session:v1"
-    serverSnapshotEndpoint: "GET/POST /api/browser-session/state"
+    scopedStorageKeyPattern: "holoshell:brittney:browser-session:v1:{sessionId}"
+    serverSnapshotEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
+    sessionScopedSnapshots: true
     mirroredFields: ["visible_transcript_by_chat", "input_drafts_by_chat", "active_chat_workspace", "expanded_chat_workspaces", "latest_cockpit_capsule", "evidence_ledger", "runtime_state"]
     serverSnapshotMayMutateHost: false
     browserSnapshotMayExecuteTerminalCommand: false
@@ -228,6 +231,7 @@ composition "HoloShell Browser Terminal Coupling" {
     state.terminalReceiptHash = session.terminal.receiptHash || ""
     state.browserStateKey = session.refreshRecovery.browserStateKey || "holoshell:brittney:browser-session:v1"
     state.browserSessionSnapshotStatus = session.refreshRecovery.browserSessionSnapshotStatus || "unknown"
+    state.browserSessionScoped = session.refreshRecovery.browserSessionScoped || false
     state.evidenceLedgerStatus = session.refreshRecovery.evidenceLedgerStatus || "unknown"
     state.terminalRunCardCount = session.runCards.length || 0
     state.browserIsPrimaryConversationSurface = session.safety.browserIsPrimaryConversationSurface
@@ -247,6 +251,7 @@ composition "HoloShell Browser Terminal Coupling" {
       terminal_receipt_hash: state.terminalReceiptHash,
       browser_state_key: state.browserStateKey,
       browser_session_snapshot_status: state.browserSessionSnapshotStatus,
+      browser_session_scoped: state.browserSessionScoped,
       evidence_ledger_status: state.evidenceLedgerStatus,
       terminal_run_card_count: state.terminalRunCardCount,
       browser_primary_conversation_surface: state.browserIsPrimaryConversationSurface,
