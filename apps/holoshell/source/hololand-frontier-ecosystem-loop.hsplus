@@ -1,0 +1,214 @@
+// HoloLand Frontier Ecosystem Loop
+//
+// Promotes the archived "Hololand Ecosystem: Building the Future, Today"
+// seed into the current HoloLand frontier contract. The historical Three
+// Plains pitch is preserved only as a source-first product loop: Frontier MMO,
+// Twin Universe places, creator/business utility, and agent stewardship with
+// receipt-backed autonomy.
+
+composition "HoloLand Frontier Ecosystem Loop" {
+  config {
+    seed: "Hololand Ecosystem: Building the Future, Today"
+    sourceArchive: "docs/archive/ECOSYSTEM_AND_VISION.md"
+    promotedFromSeed: "idea-seeds/archive-farm/2026-05-12_archive_hololand-ecosystem-building-the-future-today.md"
+    productLayer: "HoloLand"
+    shellLayer: "HoloShell"
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/hololand-frontier-ecosystem-loop.hsplus"
+    frontierSurface: "Frontier Shard 0"
+    twinSurface: "Twin Universe"
+    utilitySurface: "human_service_place_utility"
+    auditReceipt: "docs/audits/HOLOLAND_ECOSYSTEM_SEED_PROMOTION_2026-06-30.md"
+    archivedImplementationRevivalAllowed: false
+    readyPlayerOneCloneAllowed: false
+    speculativeLandOrNftEconomyAllowed: false
+    defaultPromotionMode: "receipt_gated_frontier_twin_utility_loop"
+  }
+
+  state {
+    activeWorldId: ""
+    activePlaceId: ""
+    activeAgentId: ""
+    activeHumanService: ""
+    frontierStatus: "unclaimed"
+    twinStatus: "needs_receipt"
+    creatorStatus: "needs_receipt"
+    businessUtilityStatus: "needs_receipt"
+    autonomyRewardStatus: "pending_success_receipt"
+    ecosystemStatus: "needs_source_validation"
+    lastReceipt: ""
+    currentBlocker: ""
+  }
+
+  channel "hololand:frontier-ecosystem:intent" {
+    type: "request_response"
+    priority: "high"
+    description: "Agent, creator, business, or human-service intent for a Frontier/Twin Universe place."
+  }
+
+  channel "hololand:frontier-ecosystem:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Source, place, deploy, service, and autonomy reward receipts for the ecosystem loop."
+  }
+
+  channel "hololand:frontier-ecosystem:reward" {
+    type: "append_only"
+    priority: "high"
+    description: "Successful approved actions become learning and prioritization signals."
+  }
+
+  template "FrontierEcosystemReceipt" {
+    type: "frontier_ecosystem_receipt"
+    receiptType: "hololand.frontier-ecosystem-loop.v0.1.0"
+    requiredFields: [
+      "source_path",
+      "source_sha256",
+      "frontier_world_id",
+      "twin_place_id",
+      "human_service",
+      "agent_steward_id",
+      "approval_receipt",
+      "deploy_or_action_receipt",
+      "rollback_or_restore_path",
+      "learning_signal"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "ArchivePromotionBoundary" {
+    revive_ready_player_one_positioning: false
+    revive_archived_revenue_forecasts: false
+    revive_property_squatting_or_land_speculation: false
+    revive_nft_ownership_as_core_gate: false
+    preserve_three_plains_as_product_memory: true
+    currentRepresentation: "Frontier MMO plus Twin Universe place utility"
+    requireHoloScriptSourceBeforeTypeScript: true
+  }
+
+  policy "ThreePlainsReframedAsFrontierTwinUtility" {
+    frontier_world: "primary_playable_mmo_layer"
+    twin_universe: "receipt_gated_real_place_layer"
+    local_utility: "opt_in_business_creator_human_service_layer"
+    ar_projection: "optional_client_projection_after_place_receipt"
+    vr_projection: "optional_client_projection_after_world_receipt"
+    physical_place_mutation: "never_without_external_service_receipt"
+  }
+
+  policy "HumanServiceAndUtilityBoundary" {
+    allowedServices: [
+      "place_navigation",
+      "local_business_help",
+      "creator_asset_installation",
+      "family_or_personal_space_assistance",
+      "agent_collaboration",
+      "world_building"
+    ]
+    requireHumanReadableState: true
+    requireOptInPlaceAuthority: true
+    requireRollbackOrRestorePath: true
+    unauthorizedPropertyProjection: false
+    rawSecretProjectionToWorld: false
+    payToWinAdvantage: false
+  }
+
+  policy "AutonomyRewardBoundary" {
+    approvalAddsLearningSignal: true
+    successfulDeployAddsLearningSignal: true
+    successfulServiceAddsLearningSignal: true
+    successfulToolRunAddsLearningSignal: true
+    failedOrRejectedActionAddsDebriefSignal: true
+    rewardCanIncreaseFutureAutonomy: true
+    rewardCanBypassReceiptGates: false
+    automaticFactoryResetAllowed: false
+    destructiveMutationWithoutExplicitApproval: false
+  }
+
+  action capture_frontier_ecosystem_intent(intent) {
+    state.activeWorldId = intent.worldId
+    state.activePlaceId = intent.placeId
+    state.activeAgentId = intent.agentId
+    state.activeHumanService = intent.humanService
+    state.frontierStatus = "intent_captured"
+    state.ecosystemStatus = "awaiting_receipts"
+    state.currentBlocker = ""
+
+    emit("hololand:frontier-ecosystem:intent", {
+      action: "frontier_ecosystem_intent_captured",
+      world_id: state.activeWorldId,
+      place_id: state.activePlaceId,
+      agent_id: state.activeAgentId,
+      human_service: state.activeHumanService,
+      source_path: config.sourcePath,
+      receipt_required: true
+    })
+  }
+
+  action accept_twin_place_receipt(receipt) {
+    state.activeWorldId = receipt.worldId
+    state.activePlaceId = receipt.placeId
+    state.twinStatus = receipt.status == "pass" ? "place_visible" : "place_blocked"
+    state.lastReceipt = receipt.path
+    state.currentBlocker = receipt.status == "pass" ? "" : "twin_place_receipt_failed"
+    state.ecosystemStatus = receipt.status == "pass" ? "place_receipt_accepted" : "blocked"
+
+    emit("hololand:frontier-ecosystem:receipt", {
+      action: "twin_place_receipt_accepted",
+      status: receipt.status,
+      world_id: state.activeWorldId,
+      place_id: state.activePlaceId,
+      receipt_path: state.lastReceipt,
+      rollback_or_restore_path: receipt.rollbackOrRestorePath,
+      receipt_required: true
+    })
+  }
+
+  action accept_creator_or_business_utility_receipt(receipt) {
+    state.creatorStatus = receipt.creatorStatus
+    state.businessUtilityStatus = receipt.businessStatus
+    state.activeHumanService = receipt.humanService
+    state.lastReceipt = receipt.path
+    state.ecosystemStatus = receipt.status == "pass" ? "utility_ready" : "utility_blocked"
+    state.currentBlocker = receipt.status == "pass" ? "" : "utility_receipt_failed"
+
+    emit("hololand:frontier-ecosystem:receipt", {
+      action: "creator_business_utility_receipt_accepted",
+      status: receipt.status,
+      creator_status: state.creatorStatus,
+      business_status: state.businessUtilityStatus,
+      human_service: state.activeHumanService,
+      receipt_path: state.lastReceipt,
+      secrets_included: false
+    })
+  }
+
+  action reward_successful_approved_action(receipt) {
+    state.autonomyRewardStatus = receipt.status == "pass" ? "learning_signal_ready" : "debrief_required"
+    state.lastReceipt = receipt.path
+    state.ecosystemStatus = receipt.status == "pass" ? "autonomy_can_increase_within_gates" : "needs_debrief"
+
+    emit("hololand:frontier-ecosystem:reward", {
+      action: "successful_action_rewarded",
+      status: receipt.status,
+      approval_receipt: receipt.approvalReceipt,
+      action_receipt: receipt.path,
+      learning_signal: receipt.learningSignal,
+      future_autonomy_scope: receipt.futureAutonomyScope,
+      receipt_gates_remain_required: true
+    })
+  }
+
+  action reject_archived_ecosystem_revival(reason) {
+    state.ecosystemStatus = "archive_revival_rejected"
+    state.currentBlocker = reason
+
+    emit("hololand:frontier-ecosystem:receipt", {
+      action: "archived_ecosystem_revival_rejected",
+      reason: reason,
+      replacement: "HoloScript-native Frontier/Twin Universe utility loop",
+      seed_preserved: true,
+      source_archive: config.sourceArchive
+    })
+  }
+}

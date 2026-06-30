@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-12
 **Class:** security-instinct
-**Status:** seed
+**Status:** promoted
 **Repository:** Hololand
 **Source context:** docs/archive/ECOSYSTEM_AND_VISION.md
 **Archive score:** 49
@@ -19,6 +19,17 @@ This came from an archive. Treat it as historical, incomplete, or superseded unt
 ## Smallest Next Experiment
 
 Open the source archive, extract one current claim or feature idea, and decide whether it should become a build task, research artifact, paper row, or remain dormant.
+
+## Promotion
+
+Promoted on 2026-06-30 into a HoloScript-native Frontier/Twin Universe
+ecosystem loop:
+
+- Source: `apps/holoshell/source/hololand-frontier-ecosystem-loop.hsplus`
+- Receipt: `docs/audits/HOLOLAND_ECOSYSTEM_SEED_PROMOTION_2026-06-30.md`
+- Decision: preserve the Three Plains ecosystem claim as a source-first
+  Frontier, Twin Universe, creator/business utility, and agent reward loop;
+  do not revive archived implementation or speculative land/NFT mechanics.
 
 ## Reopen Trigger
 
