@@ -69,6 +69,11 @@ for the four drifted workflows, `family-photo-backup-custody` gets its missing
 shard has enterprise gate coverage, and `asset-folder-playable-shard` waits for
 v2 visual witness before archive.
 
+Archive plan:
+[`docs/audits/HOLOLAND_EXPERIMENT_ARCHIVE_PLAN_2026-06-30.md`](audits/HOLOLAND_EXPERIMENT_ARCHIVE_PLAN_2026-06-30.md)
+hashes the superseded Human OS experiment candidates and maps them to the
+Jetson archive root. It is plan-only: no file was moved, deleted, or hidden.
+
 ## Package Boundary
 
 Two package-manager failure modes were observed during the reboot audit:

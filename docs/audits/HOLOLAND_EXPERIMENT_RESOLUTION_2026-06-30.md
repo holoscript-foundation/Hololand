@@ -60,9 +60,13 @@ usage should be demand-shaped by enterprise gates and builder proofs:
 
 ## Archive Boundary
 
-The archive set is now decision-ready, not execution-ready. Before moving files
-to Jetson or deleting repo paths, create a manifest with hashes and source-to-
-destination mapping for:
+The archive set is decision-ready, not deletion-ready. The plan-only manifest is:
+
+- [`HOLOLAND_EXPERIMENT_ARCHIVE_PLAN_2026-06-30.md`](HOLOLAND_EXPERIMENT_ARCHIVE_PLAN_2026-06-30.md)
+- [`hololand-experiment-archive-plan-2026-06-30.json`](hololand-experiment-archive-plan-2026-06-30.json)
+
+Before moving files to Jetson or deleting repo paths, verify the manifest hashes
+and create the remote tarball receipt for:
 
 - superseded promoted-drift experiment variants,
 - `asset-folder-playable-shard` after v2 visual witness receipt,

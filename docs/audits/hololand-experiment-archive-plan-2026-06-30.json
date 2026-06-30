@@ -1,0 +1,293 @@
+{
+  "schema": "hololand.experiment-archive-plan/v0.1.0",
+  "generatedAt": "2026-06-30T04:02:16.034Z",
+  "generatedFromCommit": "778f190cff450cfac46b5761980e0cbd35e01c11",
+  "status": "plan-only-no-files-moved",
+  "purpose": "Checksum and destination plan for superseded HoloLand Human OS experiment trios after app-source promotion.",
+  "archiveRoot": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake",
+  "proposedArchive": {
+    "localTarball": ".tmp/hololand/jetson-archive/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+    "jetsonTarball": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+    "manifestJetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-experiment-archive-plan-2026-06-30.json"
+  },
+  "deletionAllowed": false,
+  "transferExecuted": false,
+  "removalConditions": [
+    "HoloLand app-source replacement exists for each promoted workflow.",
+    "Asset-shard-2 visual witness receipt exists before archiving asset-folder-playable-shard v1.",
+    "Jetson tarball upload is verified by remote byte count and sha256sum.",
+    "Tracked experiment files are removed only in a separate explicit commit after archive receipt."
+  ],
+  "summary": {
+    "fileCount": 24,
+    "trackedCount": 2,
+    "untrackedCount": 22,
+    "aggregateSha256": "6af17fe9cbbe1127df33197111c0e810c7786d842567a1dc0ad2134f09d57de9"
+  },
+  "files": [
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/browser-account-export-pipeline.hs",
+      "status": "tracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-browser-account-export-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 5628,
+      "sha256": "a58c6399b479c49f9de6bbecce32361500d9b6393d50d078a9573be7e9868a0f",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/browser-account-export-pipeline.hs",
+      "restoreCommand": "git checkout 778f190cff450cfac46b5761980e0cbd35e01c11 -- experiments/holoshell-human-os-frontier/browser-account-export-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/browser-account-export-policy.hsplus",
+      "status": "tracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-browser-account-export-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 7512,
+      "sha256": "27722440a7ff3b1e27f7a0973d914c7b01f8fdfb73fab8aab30ee1c2653692ab",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/browser-account-export-policy.hsplus",
+      "restoreCommand": "git checkout 778f190cff450cfac46b5761980e0cbd35e01c11 -- experiments/holoshell-human-os-frontier/browser-account-export-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/browser-account-export-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-browser-account-export-room.holo",
+      "replacementExists": true,
+      "bytes": 5186,
+      "sha256": "6ca74793ac624f139122b28551c318126e28e025297b5ade07761652e07a3fde",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/browser-account-export-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/browser-account-export-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 2723,
+      "sha256": "c0789a8e76e57f5abc9e414f9acbd6f506a27388d42baae78b236a9fc43f18f1",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 5414,
+      "sha256": "7867030aa3ca3936f58f63e8595ec9ef83a93435bc2219b0d73fa27dacbee7c9",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-room.holo",
+      "replacementExists": true,
+      "bytes": 4728,
+      "sha256": "861f42861053f4d3e467de04c835b4fb6df942fa6d413137b5958e04169b931a",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/downloads-import-shelf-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-downloads-import-shelf-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 5890,
+      "sha256": "b9d738c5100aa085b18adc47b5bebec6d8843c18036f18f552672089ea091209",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/downloads-import-shelf-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/downloads-import-shelf-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/downloads-import-shelf-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "duplicate-policy-promoted",
+      "replacementPath": "apps/holoshell/source/holoshell-downloads-import-shelf-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 5488,
+      "sha256": "e87c2a4c19de87176c01acd4f3ccab9b00a7af28c4445d86f265f8f9abe700fc",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/downloads-import-shelf-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/downloads-import-shelf-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/downloads-import-shelf-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-downloads-import-shelf-room.holo",
+      "replacementExists": true,
+      "bytes": 4786,
+      "sha256": "90421cae9d679eebc3ce82eb0ae40158ac4593017cf80bd4e738767c5de6f9f1",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/downloads-import-shelf-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/downloads-import-shelf-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/family-photo-backup-custody-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-family-photo-backup-custody-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 4812,
+      "sha256": "07074b8f40971b321f7a2935490eadaa22ffe5fe43b66918da9a386d5737d99d",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/family-photo-backup-custody-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/family-photo-backup-custody-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/family-photo-backup-custody-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "receipt-field-merged",
+      "replacementPath": "apps/holoshell/source/holoshell-family-photo-backup-custody-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 6776,
+      "sha256": "3247ca884404456e8ac4660935966f627e41c78919f3218bef22ec28044f6453",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/family-photo-backup-custody-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/family-photo-backup-custody-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/family-photo-backup-custody-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted-drift-superseded",
+      "replacementPath": "apps/holoshell/source/holoshell-family-photo-backup-custody-room.holo",
+      "replacementExists": true,
+      "bytes": 5130,
+      "sha256": "a97ea0a51393aa4ed12064e8111c59f4b0d78b63362807a8b4cd30751436196d",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/family-photo-backup-custody-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/family-photo-backup-custody-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-shard-2-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-path-canonicalized",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 4945,
+      "sha256": "b89837c6a5df5320772044eaacb2abf72bb912d8dc890e466d9066419c061119",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-shard-2-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-shard-2-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-shard-2-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "promoted",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 5598,
+      "sha256": "967ccdcf08e909bbce33368905ba110a27593a7bee9faeedcd20d4554f59c239",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-shard-2-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-shard-2-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-shard-2-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+      "replacementExists": true,
+      "bytes": 5269,
+      "sha256": "8463df8487e7c03c59eec46a0999a7b03fac86d825d3abfe67339f0fb169ff37",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-shard-2-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-shard-2-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "superseded-by-asset-shard-2",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 5443,
+      "sha256": "c30b8a570f124f4866549563e30f227e0559f599bac24b89e8a23b6b185947e8",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "superseded-by-asset-shard-2",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 6500,
+      "sha256": "89b87d45f17e221c575bae54ccf6aa4c7553c72a6672f37228f70285992bccae",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+      "status": "untracked",
+      "archiveReason": "superseded-by-asset-shard-2",
+      "replacementPath": "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+      "replacementExists": true,
+      "bytes": 4962,
+      "sha256": "a2c8f340cf8609a49dad14c989446012babb4168a4cf2ce8736ab8eaf60d7961",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-path-canonicalized",
+      "replacementPath": "apps/holoshell/source/holoshell-local-codebase-trust-gate-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 2930,
+      "sha256": "51d8bb9263ac20951ee237195cc58e0885d782f3a8092e5be6734f3bc5e5a586",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/local-codebase-trust-gate-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/local-codebase-trust-gate-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "promoted-path-canonicalized",
+      "replacementPath": "apps/holoshell/source/holoshell-local-codebase-trust-gate-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 3620,
+      "sha256": "46c9a97788da2c1e9de5946251f9da77f173a188e141a27585ece36ea430823d",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/local-codebase-trust-gate-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/local-codebase-trust-gate-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted-path-canonicalized",
+      "replacementPath": "apps/holoshell/source/holoshell-local-codebase-trust-gate-room.holo",
+      "replacementExists": true,
+      "bytes": 4389,
+      "sha256": "f7793cbad1072e9e7ef05cac81099c748db6cece5b548f59d1b071eb9f0f7abf",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/local-codebase-trust-gate-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/local-codebase-trust-gate-room.holo"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/partial-download-recovery-pipeline.hs",
+      "status": "untracked",
+      "archiveReason": "promoted-path-canonicalized",
+      "replacementPath": "apps/holoshell/source/holoshell-partial-download-recovery-pipeline.hs",
+      "replacementExists": true,
+      "bytes": 6372,
+      "sha256": "b8dffa6d0e01c1ea409173c1bbae8bd5ffdbd3235ba6844da076a7d79815e55e",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/partial-download-recovery-pipeline.hs",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/partial-download-recovery-pipeline.hs"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/partial-download-recovery-policy.hsplus",
+      "status": "untracked",
+      "archiveReason": "promoted",
+      "replacementPath": "apps/holoshell/source/holoshell-partial-download-recovery-policy.hsplus",
+      "replacementExists": true,
+      "bytes": 6463,
+      "sha256": "f8d5b259ce3f72db86f16ec4887892713c72c074dcfa4fafafc3d044025d19b4",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/partial-download-recovery-policy.hsplus",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/partial-download-recovery-policy.hsplus"
+    },
+    {
+      "sourcePath": "experiments/holoshell-human-os-frontier/partial-download-recovery-room.holo",
+      "status": "untracked",
+      "archiveReason": "promoted",
+      "replacementPath": "apps/holoshell/source/holoshell-partial-download-recovery-room.holo",
+      "replacementExists": true,
+      "bytes": 4770,
+      "sha256": "85ff934c07e46ed53516006dc2ece4691e39fb4ee09f5057ff5b37e8c26ec1ad",
+      "jetsonPath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/experiments/holoshell-human-os-frontier/partial-download-recovery-room.holo",
+      "restoreCommand": "tar -xzf hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C <repo> experiments/holoshell-human-os-frontier/partial-download-recovery-room.holo"
+    }
+  ]
+}
