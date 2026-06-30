@@ -2,13 +2,17 @@
 
 **Date:** 2026-05-12
 **Class:** paper-instinct
-**Status:** seed
+**Status:** promoted
 **Repository:** Hololand
 **Source context:** docs/archive/HOLOLAND_UAA2_INTEGRATION.md
 **Archive score:** 59
 **Archive signals:** future:2, roadmap:1, next steps:1, opportunity:1, prototype:1, concept:3, phase:4, agent:23, hologram:1, vr:17, ar:19
+**Promoted outcome:** source-first HoloLand gate with read-only uaa2-service intake, adapter receipts, and learning signal
+**Promotion receipt:** docs/audits/HOLOLAND_UAA2_SERVICE_SEED_GATE_2026-06-30.md
 
 ## What Might Be Valuable
+
+Already represented by `apps/holoshell/source/holoshell-uaa2-service-seed-gate.hsplus` and `scripts/holoshell-uaa2-service-seed-gate.mjs`.
 
 Theoretical Future ("True Singularities"): - The concept of fully autonomous AI consciousness is EXTREMELY EXPERIMENTAL - Timeline: Unknown, possibly decades away, may never happen - This document includes theoretical scenarios for R&D purposes
 
@@ -22,7 +26,7 @@ Open the source archive, extract one current claim or feature idea, and decide w
 
 ## Reopen Trigger
 
-Reopen when current roadmap, paper work, HoloLand product planning, runtime cleanup, or tool development touches the same theme.
+Reopen only when a new current source contract needs a different uaa2-service adapter receipt, not for the old direct integration plan.
 
 ## Do Not Preserve
 

@@ -13,6 +13,30 @@ The rule is simple: scan read-only, preserve the useful weirdness, then promote
 through adapters and receipts. Do not normalize the corpus into generic YAML or
 plain dashboard data.
 
+## uaa2-service Seed Gate
+
+The archived `Hololand uaa2-service Integration` seed is now promoted as a
+source-first gate, not a direct backend integration plan. The current contract
+is:
+
+```text
+archive seed -> HoloScript gate source -> read-only wild intake ->
+adapter-required promotion map -> receipt -> learning signal
+```
+
+Source: `apps/holoshell/source/holoshell-uaa2-service-seed-gate.hsplus`
+Bridge: `scripts/holoshell-uaa2-service-seed-gate.mjs`
+
+Run:
+
+```powershell
+node scripts/holoshell-uaa2-service-seed-gate.mjs --uaa2-root C:\Users\josep\Documents\GitHub\uaa2-service
+```
+
+The seed can teach HoloLand prompt-to-HoloScript builder flows and agent-service
+boundaries. It does not authorize importing `uaa2-service` internals, executing
+wild source, or treating payment/singularity examples as current runtime scope.
+
 ## Run
 
 ```powershell

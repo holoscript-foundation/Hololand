@@ -1,0 +1,147 @@
+// HoloShell uaa2-service Seed Gate
+//
+// This promotes the archived "Hololand uaa2-service Integration" seed into
+// the current HoloLand reboot shape. The old idea was a direct backend product
+// integration. The active gate is narrower and healthier:
+//
+// archive seed -> current decision -> read-only wild HoloScript scan ->
+// adapter-required promotion map -> source/validation/receipt learning signal.
+//
+// HoloLand can learn from uaa2-service and accept HoloScript produced by agents,
+// but HoloLand does not become an opaque uaa2 runtime dependency.
+
+composition "HoloShell UAA2 Service Seed Gate" {
+  config {
+    title: "uaa2-service Seed Gate"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/holoshell-uaa2-service-seed-gate.hsplus"
+    archiveSeedPath: "docs/archive/HOLOLAND_UAA2_INTEGRATION.md"
+    wildIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
+    wildIntakeCommand: "node scripts/holoshell-wild-holoscript-intake.mjs"
+    bridgeCommand: "node scripts/holoshell-uaa2-service-seed-gate.mjs"
+    testCommand: "node scripts/__tests__/holoshell-uaa2-service-seed-gate.test.mjs"
+    receiptOutput: ".tmp/holoshell/uaa2-service-seed-gate/receipt.json"
+    wildIntakeReceipt: ".tmp/holoshell/uaa2-service-seed-gate/wild-holoscript-intake.json"
+    learningSignalOutput: ".tmp/holoshell/uaa2-service-seed-gate/learning-signal.jsonl"
+    validationTool: "HoloScript CLI parse"
+  }
+
+  state {
+    seedStatus: "unreviewed"
+    promotionOutcome: "unknown"
+    dependencyBoundary: "unknown"
+    wildIntakeStatus: "unknown"
+    adapterPromotionStatus: "required_before_execution"
+    generatedSourceStatus: "required"
+    validationStatus: "required"
+    receiptStatus: "required"
+    learningSignalStatus: "required"
+    directServiceRuntimeStatus: "retired"
+  }
+
+  channel "holoshell:uaa2-service:seed-gate" {
+    type: "append_only"
+    priority: "high"
+    description: "Promotes the archived uaa2-service seed into a source-first HoloLand gate"
+  }
+
+  template "Uaa2ServiceSeedGateReceipt" {
+    type: "uaa2_service_seed_gate_receipt"
+    receiptType: "hololand.holoshell.uaa2-service-seed-gate.v0.1.0"
+    requiredFields: [
+      "archive_seed_path",
+      "current_decision",
+      "dependency_boundary",
+      "wild_holoscript_intake",
+      "adapter_required_for_execution",
+      "holoscript_validation",
+      "learning_signal"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "ArchivedSeedIsNotRuntimePlan" {
+    appliesTo: ["archive_seed", "service_api_examples", "payment_examples", "speculative_mesh_claims"]
+    seedCanInspireGate: true
+    archiveApiExamplesAreNotCurrentProductContract: true
+    speculativeClaimsStayResearchOnly: true
+    currentDecisionMustBeRecorded: true
+    receiptRequired: true
+  }
+
+  policy "Uaa2IsReadOnlyCorpusOrContractedProducer" {
+    appliesTo: ["uaa2_service", "wild_holoscript_intake", "agent_builder_outputs"]
+    readOnlyScanAllowed: true
+    generatedHoloScriptAllowedAfterValidation: true
+    directRuntimeDependencyAllowed: false
+    privateServiceInternalsImported: false
+    receiptRequired: true
+  }
+
+  policy "AdapterBeforeExecution" {
+    appliesTo: ["wild_holoscript_files", "host_imports", "state_machines", "agent_orchestration"]
+    wildSourceMayBeDisplayed: true
+    wildSourceMayBeExecutedWithoutAdapter: false
+    adapterReceiptRequired: true
+    mutationAllowedDuringIntake: false
+  }
+
+  policy "PromptBuildMustEmitSourceAndReceipt" {
+    appliesTo: ["agent_prompt", "builder_output", "hololand_projection"]
+    outputMustBeHoloScriptSource: true
+    validationBlocksProjection: true
+    HoloLandProjectionIsNotSourceOfTruth: true
+    receiptRequired: true
+  }
+
+  policy "LearningSignalFeedsHoloTuneOnlyAfterValidation" {
+    appliesTo: ["learning_signal", "holotune_corpus_candidate", "knowledge_store"]
+    format: "jsonl"
+    validationRequiredBeforeCorpusPromotion: true
+    rawSecretsIncluded: false
+    labels: ["pattern", "decision", "next_action"]
+  }
+
+  action apply_seed_review(receipt) {
+    state.seedStatus = receipt.seedReview.status
+    state.promotionOutcome = receipt.decision.outcome
+    state.dependencyBoundary = receipt.decision.dependencyBoundary
+    state.wildIntakeStatus = receipt.wildIntake.summary.status
+    state.adapterPromotionStatus = receipt.wildIntake.adapterRequiredForExecution ? "required_before_execution" : "not_required"
+    state.validationStatus = receipt.validation.status
+    state.receiptStatus = receipt.status
+    state.learningSignalStatus = receipt.learningSignal.status
+
+    emit("holoshell:uaa2-service:seed-gate", {
+      action: "uaa2_service_seed_gate_applied",
+      seed_status: state.seedStatus,
+      outcome: state.promotionOutcome,
+      dependency_boundary: state.dependencyBoundary,
+      wild_intake_status: state.wildIntakeStatus,
+      adapter_required_for_execution: receipt.wildIntake.adapterRequiredForExecution,
+      validation_status: state.validationStatus,
+      receipt_path: receipt.receipt.output,
+      learning_signal_path: receipt.learningSignal.path,
+      source_files_mutated: receipt.wildIntake.sourceFilesMutated,
+      direct_service_runtime_status: state.directServiceRuntimeStatus,
+      receipt_required: true
+    })
+  }
+
+  action request_flagship_adapter_promotion(plan) {
+    state.adapterPromotionStatus = "requested"
+
+    emit("holoshell:uaa2-service:seed-gate", {
+      action: "flagship_adapter_promotion_requested",
+      source_path: plan.sourcePath,
+      target_object: plan.targetObject,
+      adapter: plan.adapter,
+      next_action: plan.nextAction,
+      read_only_intake_complete: state.wildIntakeStatus == "scanned",
+      execution_requires_adapter: true,
+      receipt_required: true
+    })
+  }
+}
