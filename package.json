@@ -79,6 +79,7 @@
     "holoshell:access-contract": "node scripts/check-brittney-desktop-source-contract.mjs && node scripts/check-brittney-access-contract.mjs",
     "holoshell:message-route": "node scripts/__tests__/holoshell-browser-terminal-coupling.test.mjs",
     "holoshell:first-run-doctor": "node scripts/holoshell-readiness-evidence.mjs --json && node scripts/holoshell-operator-terminal.mjs --agent --json",
+    "holoshell:contract-checks": "node scripts/holoshell-contract-checks.mjs",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "holoshell:mcp-custody-contract": "node scripts/holoshell-mcp-custody-contract.mjs",
     "holoshell:mcp-upstream-handoff": "node scripts/holoshell-mcp-upstream-handoff.mjs",

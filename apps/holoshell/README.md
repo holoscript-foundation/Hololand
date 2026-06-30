@@ -273,6 +273,14 @@ node scripts/holoshell-operator-terminal.mjs --agent --json
 Local contract checks:
 
 ```powershell
+pnpm run holoshell:contract-checks
+```
+
+The serial runner above is the preferred marathon/agent gate because it avoids
+parallel `pnpm` lifecycle races while checking the same access, message-route,
+and first-run doctor contracts. The individual checks remain available:
+
+```powershell
 pnpm run holoshell:access-contract
 pnpm run holoshell:message-route
 pnpm run holoshell:first-run-doctor
