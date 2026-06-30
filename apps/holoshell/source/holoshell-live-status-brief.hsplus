@@ -18,6 +18,8 @@ composition "HoloShell Live Status Brief" {
     modelLibrarySource: ".ai-ecosystem/model-library/library.json"
     holoClawSkillSource: "HoloScript/compositions/skills"
     primaryOperator: "brittney"
+    peerChatLane: "fara_peer_chat"
+    peerChatPermissionEnvelope: "read_only"
     visualGroundingLane: "fara_gui_grounding"
     receiptRequired: true
   }
@@ -96,7 +98,8 @@ composition "HoloShell Live Status Brief" {
 
   policy "NextStepsUseOperatingLanes" {
     appliesTo: ["next_steps", "improvement_batch", "desktop_app_control"]
-    requiredLanes: ["brittney_operator", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "fara_peer_chat", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
+    peerChatPermissionEnvelope: "read_only"
     requirePlanBeforeExecution: true
     improvementLoop: ["repo_issue", "patch", "targeted_validation", "receipt_or_commit_evidence", "feed_back_to_brittney"]
     holotuneDeferredUntilActualFixesPass: true

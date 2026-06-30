@@ -89,13 +89,19 @@ try {
   assert.equal(body.receipt.holotuneTracePolicy.serverControlledMode, 'server_controlled_after_codebase_fix_review');
   assert.match(body.receipt.holotuneTracePolicy.reason, /client payloads cannot enable tuning/);
   assert.equal(body.routing.visionUnderstanding.lane, 'vision_language');
+  assert.equal(body.routing.faraPeerChat.lane, 'fara_peer_chat');
+  assert.equal(body.routing.faraPeerChat.permissionEnvelope, 'read_only');
+  assert.equal(body.routing.faraPeerChat.approvalRequired, false);
   assert.equal(body.routing.desktopAutomation.lane, 'fara_gui_grounding');
   assert.match(body.routing.visionUnderstanding.role, /no desktop actuation/);
+  assert.match(body.routing.faraPeerChat.role, /read-only peer chat/);
   assert.match(body.routing.desktopAutomation.role, /desktop automation/);
   assert.ok(body.routing.visionUnderstanding.models.some((model) => /qwen3-vl|vision/i.test(`${model.model} ${model.role}`)));
   assert.ok(body.routing.visionUnderstanding.models.every((model) => !/holo-sdf|sdf|geometry|text-to-3d/i.test(`${model.model} ${model.role}`)));
+  assert.ok(body.routing.faraPeerChat.models.some((model) => /fara|computer-use/i.test(`${model.model} ${model.role}`)));
   assert.ok(body.routing.desktopAutomation.models.some((model) => /fara|computer-use/i.test(`${model.model} ${model.role}`)));
   assert.ok(body.routingSummary.includes('vision='));
+  assert.ok(body.routingSummary.includes('fara_chat='));
   assert.ok(body.routingSummary.includes('desktop='));
   assert.ok(existsSync(body.receipt.receiptPath));
 
@@ -191,12 +197,15 @@ try {
   assert.equal(firstExecution.desktopBridge.status, 'ready');
   assert.equal(firstExecution.desktopBridge.hostRole, 'laptop_desktop_bridge');
   assert.equal(firstExecution.desktopBridge.destructiveActionsTaken, false);
-  assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, true);
+  assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopOnly, false);
+  assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraPeerChatFree, true);
+  assert.equal(firstExecution.gpuBalancePlan.policy.keepFaraDesktopMutationGuarded, true);
   assert.equal(firstExecution.holotuneTrace.status, 'deferred');
   assert.equal(firstExecution.holotuneTrace.reason, 'actual_codebase_fixes_before_tuning');
   assert.equal(firstExecution.holotuneTrace.agentId, 'agent_brittney');
   assert.equal(firstExecution.holotuneTrace.emittedRows, 0);
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'vision_language'));
+  assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'fara_peer_chat' && assignment.preferredProcessor === 'laptop_rtx3060'));
   assert.ok(firstExecution.gpuBalancePlan.assignments.some((assignment) => assignment.lane === 'fara_gui_grounding' && assignment.preferredProcessor === 'laptop_desktop_bridge'));
   assert.equal(firstExecution.runResults.length, 0);
   assert.ok(existsSync(firstExecution.receipt.receiptPath));

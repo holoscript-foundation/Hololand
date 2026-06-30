@@ -2,7 +2,8 @@
 //
 // Source contract for queueing repeated Brittney-led codebase-fix shakedowns
 // from the desktop HoloShell app. Vision understanding is distinct from Fara:
-// vision models read screens/images, while Fara plans guarded desktop automation.
+// vision models read screens/images, Fara may freely chat with Brittney as a
+// read-only peer, and only Fara desktop action plans are guarded.
 // HoloTune traces are deliberately deferred until actual fixes pass review.
 
 composition "HoloShell Improvement Run Loop" {
@@ -121,10 +122,24 @@ composition "HoloShell Improvement Run Loop" {
   policy "VisionIsNotFara" {
     appliesTo: ["screen_understanding", "image_understanding", "desktop_automation"]
     visionUnderstandingLane: "vision_language"
+    faraPeerChatLane: "fara_peer_chat"
     desktopAutomationLane: "fara_gui_grounding"
     visionModelsReadOnly: true
+    faraPeerChatReadOnly: true
     faraPlansDesktopActions: true
     faraRequiresApprovalBeforeMutation: true
+    receiptRequired: true
+  }
+
+  policy "FaraPeerChatIsFree" {
+    appliesTo: ["fara_brittney_chat", "planning_dialogue", "receipt_discussion", "desktop_plan_discussion"]
+    lane: "fara_peer_chat"
+    participants: ["brittney", "fara"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mayDiscussDesktopPlans: true
+    mayExecuteDesktopActions: false
+    desktopMutationRequires: ["desktop_action_preflight", "fresh_user_gesture", "consent_token", "execution_receipt"]
     receiptRequired: true
   }
 
@@ -141,7 +156,7 @@ composition "HoloShell Improvement Run Loop" {
     appliesTo: ["improvement_batch", "model_routing", "skill_routing"]
     preferModelLibrary: true
     preferHoloClawSkills: true
-    requiredLanes: ["brittney_operator", "vision_language", "fara_gui_grounding", "holo_sdf_geometry", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "vision_language", "fara_peer_chat", "fara_gui_grounding", "holo_sdf_geometry", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
     receiptRequired: true
   }
 
@@ -191,11 +206,14 @@ composition "HoloShell Improvement Run Loop" {
       run_id: receipt.runId,
       operator_model: receipt.routing.operator.model,
       vision_models: receipt.routing.visionUnderstanding.models,
+      fara_peer_chat_models: receipt.routing.faraPeerChat.models,
       desktop_automation_models: receipt.routing.desktopAutomation.models,
       geometry_model: receipt.routing.geometry.model,
       embeddings_model: receipt.routing.embeddings.model,
       holoclaw_skill_count: receipt.routing.holoClawSkills.count,
-      fara_role: "desktop_automation",
+      fara_role: "peer_chat_and_guarded_desktop_planning",
+      fara_peer_chat_permission_envelope: "read_only",
+      fara_peer_chat_approval_required: false,
       vision_role: "screen_image_understanding",
       receipt_required: true
     })

@@ -1012,6 +1012,9 @@ function buildNativeRunRouting(snapshot, objective) {
     ['sdf', 'geometry', 'text-to-3d', 'holo-sdf']
   );
   const desktopAutomationModels = modelsMatching(models, ['computer-use', 'agentic', 'fara']);
+  const faraModels = desktopAutomationModels.length
+    ? desktopAutomationModels
+    : [{ name: 'fara:7b', role: 'computer-use/gui-grounding' }];
   const geometryModels = modelsMatching(models, ['sdf', 'geometry', 'text-to-3d', 'holo-sdf']);
   const embeddingModels = modelsMatching(models, ['embedding', 'semantic-search', 'holoembed', 'nomic']);
   const operatorModels = modelsMatching(models, ['tool-calls', 'operator', 'non-thinking', 'brittney-edge', 'qwen3:4b-instruct']);
@@ -1033,9 +1036,22 @@ function buildNativeRunRouting(snapshot, objective) {
         })),
       role: 'screen/image understanding only; no desktop actuation',
     },
+    faraPeerChat: {
+      lane: 'fara_peer_chat',
+      models: faraModels
+        .slice(0, 4)
+        .map((model) => ({
+          model: modelLabel(model),
+          role: 'read-only peer chat and co-planning',
+          status: model.status || 'available',
+        })),
+      role: 'read-only peer chat and co-planning with Brittney; no desktop actuation',
+      permissionEnvelope: 'read_only',
+      approvalRequired: false,
+    },
     desktopAutomation: {
       lane: 'fara_gui_grounding',
-      models: (desktopAutomationModels.length ? desktopAutomationModels : [{ name: 'fara:7b', role: 'computer-use/gui-grounding' }])
+      models: faraModels
         .slice(0, 4)
         .map((model) => ({
           model: modelLabel(model),
@@ -1572,6 +1588,7 @@ function buildImprovementRunReceipt(payload = {}) {
     routing,
     routingSummary: [
       `vision=${routing.visionUnderstanding.models.map((model) => model.model).join(', ')}`,
+      `fara_chat=${routing.faraPeerChat.models.map((model) => model.model).join(', ')}`,
       `desktop=${routing.desktopAutomation.models.map((model) => model.model).join(', ')}`,
       `operator=${routing.operator.model}`,
       `skills=${routing.holoClawSkills.selected.map((skill) => skill.name).join(', ') || 'none'}`,
@@ -1661,6 +1678,12 @@ function buildGpuBalancePlan(snapshot, routing) {
   const localHost = process.platform === 'win32'
     ? 'laptop_windows'
     : (HOST === '0.0.0.0' ? 'jetson_orin' : 'local_node');
+  const faraPeerChat = routing.faraPeerChat || {
+    lane: 'fara_peer_chat',
+    models: routing.desktopAutomation?.models?.length
+      ? routing.desktopAutomation.models
+      : [{ model: 'fara:7b', role: 'read-only peer chat and co-planning', status: 'available' }],
+  };
   return {
     schemaVersion: 'hololand.holoshell.gpu-balance-plan.v0.1.0',
     generatedAt: new Date().toISOString(),
@@ -1674,6 +1697,13 @@ function buildGpuBalancePlan(snapshot, routing) {
         preferredProcessor: 'jetson_orin',
         fallbackProcessor: 'laptop_rtx3060',
         reason: 'operator turns should stay near the always-on Brittney surface',
+      },
+      {
+        lane: faraPeerChat.lane,
+        model: faraPeerChat.models.map((model) => model.model).join(', '),
+        preferredProcessor: 'laptop_rtx3060',
+        fallbackProcessor: 'jetson_orin',
+        reason: 'Fara can chat and co-plan with Brittney as a read-only peer; desktop mutation stays on the bridge',
       },
       {
         lane: routing.visionUnderstanding.lane,
@@ -1706,7 +1736,9 @@ function buildGpuBalancePlan(snapshot, routing) {
     ],
     policy: {
       avoidCpuOnlyWhenGpuReported: snapshot.gpu.status === 'reported' || snapshot.gpu.status === 'available',
-      keepFaraDesktopOnly: true,
+      keepFaraDesktopOnly: false,
+      keepFaraPeerChatFree: true,
+      keepFaraDesktopMutationGuarded: true,
       requireMeasurementEveryRun: true,
     },
   };
@@ -1772,7 +1804,7 @@ function buildImprovementRunResult({ runNumber, sourceRun, snapshot, gpuBalanceP
       status: validationStatus,
       signals: validationSignals,
     },
-    lesson: `Run ${runNumber}: codebase fix "${codebaseFix?.summary || 'unknown'}" ${validationStatus}; keep Fara on ${routing.desktopAutomation.lane} only for guarded desktop automation.`,
+    lesson: `Run ${runNumber}: codebase fix "${codebaseFix?.summary || 'unknown'}" ${validationStatus}; keep Fara peer chat read-only/free while desktop mutation stays guarded on ${routing.desktopAutomation.lane}.`,
     destructiveActionsTaken: codebaseFix?.destructiveActionsTaken === true,
     desktopAutomationExecuted: false,
   };
@@ -2034,6 +2066,7 @@ function buildLiveStatusSnapshot() {
       'brittney_desktop_cockpit',
       'browser_terminal_coupling',
       'operator_terminal_session',
+      'fara_brittney_peer_chat',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -2051,6 +2084,7 @@ function buildLiveStatusSnapshot() {
     ],
     lanes: [
       { id: 'brittney_operator', model: process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct', role: 'operator chat and routing' },
+      { id: 'fara_peer_chat', model: 'fara:7b', role: 'read-only peer chat and co-planning with Brittney' },
       { id: 'fara_gui_grounding', model: 'fara:7b', role: 'guarded desktop automation planning' },
       { id: 'holo_sdf_geometry', model: 'holo-sdf:v0', role: 'text/image to SDFNode geometry' },
       { id: 'vision_language', model: 'qwen3-vl:4b', role: 'vision model stack for screen and image understanding' },
@@ -2136,7 +2170,7 @@ function buildGroundedStatusReply(snapshot, message) {
     return [
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
-      `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara stays the guarded desktop automation lane at ${snapshot.route.desktopControlEndpoint}.`,
+      `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
       `3. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
       `4. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
       `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
@@ -2935,7 +2969,8 @@ async function handleRequest(req, res) {
 
   // ── POST /api/improvement-runs — queue a receipt-backed improvement batch.
   // This endpoint only records routing and guardrails; execution remains a later,
-  // receipt-gated step, and Fara is only selected for desktop automation work.
+  // receipt-gated step. Fara peer chat stays free/read-only; Fara desktop
+  // automation is selected only through the guarded plan lane.
   const improvementRunExecute = /^\/api\/improvement-runs\/([^/]+)\/execute$/u.exec(path);
   if (req.method === 'POST' && improvementRunExecute) {
     let body = '';
@@ -3037,7 +3072,8 @@ async function handleRequest(req, res) {
   }
 
   // ── POST /api/desktop-control/plan — plan-only desktop control. Brittney is the
-  // operator surface; Fara is the GUI-grounding lane. This endpoint never clicks,
+  // operator surface; Fara is the GUI-grounding lane here. Fara's peer chat is
+  // read-only/free; this endpoint never clicks,
   // types, opens apps, sends messages, installs software, deletes data, or changes
   // settings. It returns a receipt-backed plan for a later guarded execution path.
   if (req.method === 'POST' && path === '/api/desktop-control/plan') {

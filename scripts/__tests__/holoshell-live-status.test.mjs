@@ -92,6 +92,9 @@ try {
     lane.id === 'vision_language' && /screen and image|vision model stack/i.test(lane.role)
   ));
   assert.ok(status.systemStatus.lanes.some((lane) =>
+    lane.id === 'fara_peer_chat' && /read-only peer chat|co-planning/i.test(lane.role)
+  ));
+  assert.ok(status.systemStatus.lanes.some((lane) =>
     lane.id === 'fara_gui_grounding' && /desktop automation/i.test(lane.role)
   ));
   assert.ok(status.systemStatus.modelLibrary.catalogCount >= 1);
@@ -123,7 +126,8 @@ try {
   assert.match(next.reply, /Next steps, grounded in live HoloShell state/);
   assert.match(next.reply, /Fara/i);
   assert.match(next.reply, /vision models read screens\/images/i);
-  assert.match(next.reply, /Fara.*desktop automation/i);
+  assert.match(next.reply, /Fara peer chat is read-only\/free/i);
+  assert.match(next.reply, /Fara desktop plans remain guarded/i);
   assert.match(next.reply, /No cube\/test object is needed/);
   assert.doesNotMatch(next.reply, /Begin with a minimal test object/i);
   assert.doesNotMatch(next.reply, /NaN/);

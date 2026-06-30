@@ -1,7 +1,8 @@
 // HoloShell Desktop Control Bridge
 //
 // Source contract for desktop-app control planning. Brittney remains the user
-// facing operator; Fara provides GUI/visual grounding when a screenshot or
+// facing operator; Fara is free to chat and co-plan with Brittney as a read-only
+// peer. Fara provides GUI/visual grounding only when a screenshot or
 // coordinate-bearing control step is needed. This bridge supports preflight and
 // HoloGate consent-token staging. Public open_url is the first admitted action
 // executor lane; consent is bound to the exact preflight target fingerprint, and
@@ -42,6 +43,9 @@ composition "HoloShell Desktop Control Bridge" {
     latestBridgeReportFreshnessMs: 120000
     preflightReceiptDir: ".tmp/holoshell/desktop-control-bridge/preflights"
     primaryOperator: "brittney"
+    peerChatLane: "fara_peer_chat"
+    peerChatParticipants: ["brittney", "fara"]
+    peerChatPermissionEnvelope: "read_only"
     visualGroundingLane: "fara_gui_grounding"
     visualGroundingModel: "fara:7b"
     fallbackVisionModel: "qwen3-vl:4b"
@@ -52,6 +56,8 @@ composition "HoloShell Desktop Control Bridge" {
     controlStatus: "idle"
     currentPlanId: ""
     currentIntent: ""
+    peerChatAllowed: true
+    peerChatPermissionEnvelope: "read_only"
     modelLane: "fara_gui_grounding"
     recommendedModel: "fara:7b"
     bridgeStatus: "awaiting_laptop_daemon"
@@ -78,6 +84,12 @@ composition "HoloShell Desktop Control Bridge" {
     type: "append_only"
     priority: "high"
     description: "Fara GUI grounding requests for screenshot/coordinate-bearing actions"
+  }
+
+  channel "holoshell:fara:brittney-peer-chat" {
+    type: "append_only"
+    priority: "high"
+    description: "Free read-only Fara and Brittney peer chat for coordination before any desktop action"
   }
 
   channel "holoshell:desktop-control:execution-request" {
@@ -243,6 +255,20 @@ composition "HoloShell Desktop Control Bridge" {
     mayExecute: false
   }
 
+  template "FaraBrittneyPeerChat" {
+    type: "fara_brittney_peer_chat"
+    participants: ["brittney", "fara"]
+    lane: "fara_peer_chat"
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mayDiscussDesktopPlans: true
+    mayInspectReceipts: true
+    mayExecuteDesktopActions: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
   template "DesktopControlReceipt" {
     type: "receipt"
     receiptType: "hololand.holoshell.desktop-control-plan.v0.1.0"
@@ -259,6 +285,20 @@ composition "HoloShell Desktop Control Bridge" {
     permissionEnvelope: "read_only"
     approvalRequired: false
     screenshotAllowed: true
+    receiptRequired: true
+  }
+
+  policy "FaraPeerChatIsFree" {
+    appliesTo: ["fara_brittney_chat", "planning_dialogue", "receipt_discussion", "desktop_plan_discussion"]
+    participants: ["brittney", "fara"]
+    lane: "fara_peer_chat"
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mayDiscussDesktopPlans: true
+    mayExecuteDesktopActions: false
+    desktopMutationRequires: ["desktop_action_preflight", "fresh_user_gesture", "consent_token", "execution_receipt"]
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
     receiptRequired: true
   }
 
@@ -367,6 +407,21 @@ composition "HoloShell Desktop Control Bridge" {
       fallback_model: "qwen3-vl:4b",
       requires_screenshot: true,
       may_execute: false,
+      receipt_required: true
+    })
+  }
+
+  action record_fara_brittney_peer_chat(turn) {
+    emit("holoshell:fara:brittney-peer-chat", {
+      action: "fara_brittney_peer_chat_recorded",
+      lane: "fara_peer_chat",
+      participants: ["brittney", "fara"],
+      permission_envelope: "read_only",
+      approval_required: false,
+      may_discuss_desktop_plans: true,
+      may_execute_desktop_actions: false,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
       receipt_required: true
     })
   }
