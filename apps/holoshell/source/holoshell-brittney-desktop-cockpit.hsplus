@@ -24,8 +24,11 @@ composition "HoloShell Brittney Desktop Cockpit" {
     laptopReasoningWorkerSource: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
     laptopReasoningBridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
     faraPeerAutomationSource: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
+    holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
     capsuleEndpoint: "GET /api/cockpit/capsule"
     liveStatusEndpoint: "GET /api/live-status"
+    holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    holoclawRuntimeBridgeWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
     operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
     operatorTerminalReportEndpoint: "POST /api/operator-terminal/report"
     laptopReasoningReportEndpoint: "POST /api/laptop-reasoning/report"
@@ -59,6 +62,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     latestFaraPeerPulseId: ""
     faraPeerAutomationScheduleStatus: "disabled"
     latestFaraPeerPromotionId: ""
+    holoclawRuntimeStatus: "unknown"
+    holoclawRuntimeBridgeStatus: "unknown"
+    holoclawRuntimeBridgePendingApprovalCount: 0
+    holoclawRuntimeBridgeReceiptObserved: false
     operatorTerminalStatus: "unknown"
     windowAwarenessStatus: "unknown"
     toolActionStatus: "unknown"
@@ -88,6 +95,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     status: "ready"
     cockpitLanes: []
     actionCards: []
+    holoclawRuntimeBridge: {}
     faraPeerAutomation: {}
     windowAwareness: {}
     preflightPaths: []
@@ -191,6 +199,16 @@ composition "HoloShell Brittney Desktop Cockpit" {
       label: "Fara Pulse"
       status: $faraAutomationStatus
       source: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
+    }
+
+    object "HoloClawRuntime" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "HoloClaw"
+      status: $holoclawRuntimeStatus
+      source: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
+      statusEndpoint: "GET /api/holoclaw/runtime-bridge"
+      workflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
     }
 
     object "OperatorTerminal" {
@@ -302,6 +320,22 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receiptRequired: true
   }
 
+  policy "HoloClawRuntimeVisibleBehindConsent" {
+    appliesTo: ["holoclaw_runtime", "holoclaw_runtime_bridge_status", "holoclaw_runtime_bridge_workflow"]
+    source: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
+    statusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    workflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
+    permissionEnvelope: "guarded_execute"
+    statusEndpointPermissionEnvelope: "read_only"
+    approvalRequired: true
+    directExecutionAllowed: false
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    desktopAutomationAllowed: false
+    destructiveActionsAllowed: false
+    receiptRequired: true
+  }
+
   policy "LaptopReceiptsCanReturnOverHttpWhenSshIsUnavailable" {
     appliesTo: ["laptop_reasoning", "operator_terminal", "window_awareness", "brittney_cockpit"]
     terminalReportEndpoint: "POST /api/operator-terminal/report"
@@ -330,6 +364,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     state.latestFaraPeerPulseId = capsule.summary.latestFaraPeerPulseId
     state.faraPeerAutomationScheduleStatus = capsule.summary.faraPeerAutomationScheduleStatus
     state.latestFaraPeerPromotionId = capsule.summary.latestFaraPeerPromotionId
+    state.holoclawRuntimeStatus = capsule.summary.holoclawRuntimeStatus
+    state.holoclawRuntimeBridgeStatus = capsule.summary.holoclawRuntimeBridgeStatus
+    state.holoclawRuntimeBridgePendingApprovalCount = capsule.summary.holoclawRuntimeBridgePendingApprovalCount
+    state.holoclawRuntimeBridgeReceiptObserved = capsule.summary.holoclawRuntimeBridgeReceiptObserved
     state.operatorTerminalStatus = capsule.summary.operatorTerminalStatus
     state.windowAwarenessStatus = capsule.summary.windowAwarenessStatus
     state.toolActionStatus = capsule.summary.toolActionStatus
@@ -359,6 +397,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
       latestFaraPeerPulse: state.latestFaraPeerPulseId,
       faraPeerAutomationSchedule: state.faraPeerAutomationScheduleStatus,
       latestFaraPeerPromotion: state.latestFaraPeerPromotionId,
+      holoclawRuntime: state.holoclawRuntimeStatus,
+      holoclawRuntimeBridge: state.holoclawRuntimeBridgeStatus,
+      holoclawRuntimeBridgePendingApprovals: state.holoclawRuntimeBridgePendingApprovalCount,
+      holoclawRuntimeBridgeReceiptObserved: state.holoclawRuntimeBridgeReceiptObserved,
       operatorTerminal: state.operatorTerminalStatus,
       windowAwareness: state.windowAwarenessStatus,
       toolActions: state.toolActionStatus,

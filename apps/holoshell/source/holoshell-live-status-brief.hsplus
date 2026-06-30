@@ -17,6 +17,9 @@ composition "HoloShell Live Status Brief" {
     desktopControlSource: "apps/holoshell/source/holoshell-desktop-control-bridge.hsplus"
     modelLibrarySource: ".ai-ecosystem/model-library/library.json"
     holoClawSkillSource: "HoloScript/compositions/skills"
+    holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
+    holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    holoclawRuntimeBridgeWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
     primaryOperator: "brittney"
     peerChatLane: "fara_peer_chat"
     peerChatPermissionEnvelope: "read_only"
@@ -38,6 +41,8 @@ composition "HoloShell Live Status Brief" {
     catalogModelCount: 0
     nativeResourceStatus: "not_reported"
     holoClawSkillCount: 0
+    holoclawRuntimeBridgeStatus: "not_staged"
+    holoclawRuntimeBridgePendingApprovalCount: 0
     statusBriefGeneratedAt: ""
     lastReplyMode: "live_status"
   }
@@ -63,6 +68,7 @@ composition "HoloShell Live Status Brief" {
     lanes: []
     modelLibrary: {}
     nativeResources: {}
+    holoclawRuntimeBridge: {}
     gpu: {}
     substratePressure: []
     worktreeHealth: []
@@ -98,7 +104,7 @@ composition "HoloShell Live Status Brief" {
 
   policy "NextStepsUseOperatingLanes" {
     appliesTo: ["next_steps", "improvement_batch", "desktop_app_control"]
-    requiredLanes: ["brittney_operator", "fara_peer_chat", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "codebase_fix", "receipt_gate"]
+    requiredLanes: ["brittney_operator", "fara_peer_chat", "fara_gui_grounding", "holo_sdf_geometry", "vision_language", "semantic_embeddings", "holoclaw_skills", "holoclaw_runtime", "codebase_fix", "receipt_gate"]
     peerChatPermissionEnvelope: "read_only"
     requirePlanBeforeExecution: true
     improvementLoop: ["repo_issue", "patch", "targeted_validation", "receipt_or_commit_evidence", "feed_back_to_brittney"]
@@ -111,6 +117,9 @@ composition "HoloShell Live Status Brief" {
     requiredInput: "live_status_snapshot"
     preferCatalogModels: true
     preferHoloClawSkills: true
+    preferHoloClawRuntimeBridge: true
+    holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    holoclawRuntimeBridgeWorkflowRequiresApproval: true
     receiptRequired: true
   }
 
@@ -128,6 +137,8 @@ composition "HoloShell Live Status Brief" {
     state.catalogModelCount = snapshot.modelLibrary.catalogCount
     state.nativeResourceStatus = snapshot.nativeResources.status
     state.holoClawSkillCount = snapshot.nativeResources.holoClawSkillCount
+    state.holoclawRuntimeBridgeStatus = snapshot.holoclawRuntimeBridge.status
+    state.holoclawRuntimeBridgePendingApprovalCount = snapshot.holoclawRuntimeBridge.pendingApprovalCount
     state.statusBriefGeneratedAt = snapshot.generatedAt
     emit("holoshell:live-status:snapshot", {
       action: "live_status_snapshot_assembled",
@@ -144,6 +155,8 @@ composition "HoloShell Live Status Brief" {
       catalog_model_count: state.catalogModelCount,
       native_resource_status: state.nativeResourceStatus,
       holoclaw_skill_count: state.holoClawSkillCount,
+      holoclaw_runtime_bridge_status: state.holoclawRuntimeBridgeStatus,
+      holoclaw_runtime_bridge_pending_approvals: state.holoclawRuntimeBridgePendingApprovalCount,
       receipt_required: true
     })
   }
@@ -160,6 +173,8 @@ composition "HoloShell Live Status Brief" {
       model_library_status: snapshot.modelLibrary.status,
       native_resource_status: snapshot.nativeResources.status,
       holoclaw_skill_count: snapshot.nativeResources.holoClawSkillCount,
+      holoclaw_runtime_bridge_status: snapshot.holoclawRuntimeBridge.status,
+      holoclaw_runtime_bridge_pending_approvals: snapshot.holoclawRuntimeBridge.pendingApprovalCount,
       model_reply_overridden_when_needed: true,
       receipt_required: true
     })

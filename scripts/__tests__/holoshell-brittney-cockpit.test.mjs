@@ -91,7 +91,21 @@ try {
   assert.equal(liveStatus.route.cockpitCapsuleEndpoint, 'GET /api/cockpit/capsule');
   assert.equal(liveStatus.route.laptopReasoningReportEndpoint, 'POST /api/laptop-reasoning/report');
   assert.equal(liveStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
+  assert.equal(liveStatus.route.holoclawRuntimeBridgeEndpoint, 'GET /api/holoclaw/runtime-bridge');
+  assert.equal(liveStatus.route.holoclawRuntimeBridgeWorkflowEndpoint, 'POST /workflow/holoclaw-runtime-bridge');
   assert.ok(liveStatus.capabilities.includes('brittney_desktop_cockpit'));
+  assert.ok(liveStatus.capabilities.includes('holoclaw_runtime_bridge_status'));
+  assert.equal(liveStatus.holoclawRuntimeBridge.directExecutionAllowed, false);
+
+  const holoclawRuntime = await getJson('/api/holoclaw/runtime-bridge');
+  assert.equal(holoclawRuntime.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0');
+  assert.equal(holoclawRuntime.source, 'apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus');
+  assert.equal(holoclawRuntime.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
+  assert.equal(holoclawRuntime.controlDaemonRoute, 'POST /workflow/holoclaw-runtime-bridge');
+  assert.equal(holoclawRuntime.directExecutionAllowed, false);
+  assert.equal(holoclawRuntime.endpointExecutesRuntime, false);
+  assert.equal(holoclawRuntime.openClawRuntimeBackendAllowed, false);
+  assert.equal(holoclawRuntime.nemoClawRuntimeBackendAllowed, false);
 
   const laptopReport = await postJson('/api/laptop-reasoning/report', {
     schemaVersion: 'hololand.holoshell.laptop-reasoning-result.v0.1.0',
@@ -166,7 +180,15 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'desktop_bridge' && lane.receiptRequired === true));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'laptop_reasoning' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'fara_peer_automation' && lane.permissionEnvelope === 'read_only'));
+  assert.ok(capsule.cockpitLanes.some((lane) =>
+    lane.id === 'holoclaw_runtime' &&
+    lane.permissionEnvelope === 'guarded_execute' &&
+    lane.sourceEndpoint === 'GET /api/holoclaw/runtime-bridge' &&
+    lane.directExecutionAllowed === false
+  ));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
+  assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, holoclawRuntime.status);
+  assert.equal(capsule.holoclawRuntimeBridge.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
   assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
   assert.equal(capsule.summary.laptopReasoningPingbackStatus, 'ready_for_brittney');
@@ -175,6 +197,18 @@ try {
   assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_pulse' && card.href === '/api/fara-peer-chat/automation-pulse'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_schedule' && card.permissionEnvelope === 'read_only_receipt_schedule'));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'holoclaw_runtime_bridge_status' &&
+    card.href === '/api/holoclaw/runtime-bridge' &&
+    card.mayExecuteWithoutConsent === true &&
+    card.endpointExecutesRuntime === false
+  ));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'holoclaw_runtime_bridge_workflow' &&
+    card.href === '/workflow/holoclaw-runtime-bridge' &&
+    card.permissionEnvelope === 'guarded_execute' &&
+    card.mayExecuteWithoutConsent === false
+  ));
   assert.ok(capsule.actionCards.some((card) => card.id === 'context_capsule' && card.href === '/api/cockpit/capsule'));
   assert.equal(capsule.faraPeerAutomation.schedule.status, 'disabled');
   assert.ok(capsule.windowAwareness);
@@ -222,6 +256,8 @@ try {
   assert.match(hsplusSource, /WindowAwarePreflightCards/);
   assert.match(hsplusSource, /LaptopReasoningPingbackIsVisible/);
   assert.match(hsplusSource, /FaraPeerAutomationIsVisibleButNonMutating/);
+  assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
+  assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /brittney_cockpit_source/);
@@ -233,6 +269,8 @@ try {
   assert.match(compileSource, /loadCockpitCapsule/);
   assert.match(compileSource, /cockpit-reasoning/);
   assert.match(compileSource, /laptop_reasoning_status/);
+  assert.match(compileSource, /_inspectHoloClawRuntimeBridge/);
+  assert.match(compileSource, /\/api\/holoclaw\/runtime-bridge/);
   assert.match(compileSource, /cockpit-action-cards/);
   assert.match(compileSource, /\/api\/cockpit\/capsule/);
 } finally {

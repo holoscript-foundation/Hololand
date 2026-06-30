@@ -19,6 +19,8 @@ composition "HoloShell Fara Peer Automation" {
     promotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
     promotionHistoryEndpoint: "GET /api/fara-peer-chat/promotions"
     liveStatusEndpoint: "GET /api/live-status"
+    holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    holoclawRuntimeBridgeWorkflowEndpoint: "POST /workflow/holoclaw-runtime-bridge"
     improvementRunEndpoint: "POST /api/improvement-runs"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
     peerChatLane: "fara_peer_chat"
@@ -60,6 +62,8 @@ composition "HoloShell Fara Peer Automation" {
     hiddenAutomationAllowed: false
     mayEmitNextSafeActions: true
     mayQueueReceiptsDirectly: false
+    mayInspectHoloClawRuntimeBridgeStatus: true
+    mayStageHoloClawRuntimeBridge: false
     mayExecuteDesktopActions: false
     mayMutateCode: false
     destructiveActionsTaken: false
@@ -103,9 +107,10 @@ composition "HoloShell Fara Peer Automation" {
     participants: ["brittney", "fara"]
     permissionEnvelope: "read_only"
     approvalRequired: false
-    allowedOutputs: ["status_summary", "next_safe_action", "receipt_review_nudge", "improvement_run_proposal", "desktop_bridge_check"]
-    forbiddenOutputs: ["desktop_execution", "hidden_browser_automation", "code_mutation", "send_message", "purchase", "delete_data"]
+    allowedOutputs: ["status_summary", "next_safe_action", "receipt_review_nudge", "improvement_run_proposal", "desktop_bridge_check", "holoclaw_runtime_bridge_status"]
+    forbiddenOutputs: ["desktop_execution", "hidden_browser_automation", "code_mutation", "send_message", "purchase", "delete_data", "holoclaw_runtime_tick", "holoclaw_runtime_run"]
     desktopMutationRequires: ["desktop_action_preflight", "fresh_user_gesture", "consent_token", "execution_receipt"]
+    holoclawRuntimeRequires: ["workflow_approval", "runtime_env_flag", "execution_receipt"]
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true

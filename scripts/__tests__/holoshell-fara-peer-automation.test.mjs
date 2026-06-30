@@ -55,10 +55,14 @@ try {
   assert.equal(live.route.faraPeerAutomationHistoryEndpoint, 'GET /api/fara-peer-chat/automation-pulses');
   assert.equal(live.route.faraPeerAutomationScheduleEndpoint, 'POST /api/fara-peer-chat/automation-schedule');
   assert.equal(live.route.faraPeerAutomationPromotionEndpoint, 'POST /api/fara-peer-chat/promote-proposal');
+  assert.equal(live.route.holoclawRuntimeBridgeEndpoint, 'GET /api/holoclaw/runtime-bridge');
+  assert.equal(live.route.holoclawRuntimeBridgeWorkflowEndpoint, 'POST /workflow/holoclaw-runtime-bridge');
   assert.ok(live.capabilities.includes('fara_peer_automation_pulse'));
   assert.ok(live.capabilities.includes('fara_peer_automation_schedule'));
   assert.ok(live.capabilities.includes('fara_peer_proposal_promotion'));
+  assert.ok(live.capabilities.includes('holoclaw_runtime_bridge_status'));
   assert.equal(live.faraPeerAutomation.schedule.status, 'disabled');
+  assert.equal(live.holoclawRuntimeBridge.directExecutionAllowed, false);
 
   const pulseResponse = await fetch(`${baseUrl}/api/fara-peer-chat/automation-pulse`, {
     method: 'POST',
@@ -81,6 +85,12 @@ try {
   assert.equal(pulse.desktopMutationAllowed, false);
   assert.equal(pulse.destructiveActionsTaken, false);
   assert.equal(pulse.desktopAutomationExecuted, false);
+  assert.ok(pulse.nextSafeActions.some((action) =>
+    action.operation === 'inspect_holoclaw_runtime_bridge_status' &&
+    action.lane === 'holoclaw_runtime' &&
+    action.route === 'GET /api/holoclaw/runtime-bridge' &&
+    action.permissionEnvelope === 'read_only'
+  ));
   assert.ok(pulse.nextSafeActions.some((action) => action.operation === 'queue_codebase_fix_shakedown_batch'));
   assert.ok(pulse.nextSafeActions.every((action) => action.automationMayExecute === false));
   assert.ok(existsSync(pulse.receipt.receiptPath));

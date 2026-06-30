@@ -26,8 +26,13 @@ const HTML_PATH = join(DIST_DIR, 'operate-room.html');
 const BRITTNEY_COCKPIT_CAPSULE_SCHEMA = 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0';
 const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus';
 const FARA_PEER_AUTOMATION_SOURCE = 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus';
+const HOLOCLAW_RUNTIME_BRIDGE_SOURCE = 'apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus';
+const HOLOCLAW_RUNTIME_BRIDGE_SCHEMA = 'hololand.holoshell.holoclaw-runtime-bridge.v0.1.0';
 const REPO_ROOT = join(__dirname, '..', '..');
 const HOLOSHELL_TMP_DIR = process.env.HOLOSHELL_TMP_DIR || join(REPO_ROOT, '.tmp', 'holoshell');
+const HOLOCLAW_RUNTIME_BRIDGE_RECEIPT =
+  process.env.HOLOSHELL_HOLOCLAW_RUNTIME_BRIDGE_RECEIPT ||
+  join(HOLOSHELL_TMP_DIR, 'holoclaw-runtime-bridge-latest.json');
 const LEGACY_WINDOW_INVENTORY_SOURCE = 'apps/holoshell/source/holoshell-legacy-window-inventory.hsplus';
 const LEGACY_WINDOW_INVENTORY_SCHEMA = 'hololand.holoshell.legacy-window-inventory.v0.1.0';
 const OPERATOR_BRIEF_SOURCE = 'apps/holoshell/source/holoshell-operator-brief.hsplus';
@@ -975,6 +980,74 @@ function nativeResourceSnapshot() {
   };
 }
 
+function holoclawRuntimeBridgeStatusSnapshot() {
+  const receipt = readJsonFileIfPresent(HOLOCLAW_RUNTIME_BRIDGE_RECEIPT);
+  const hasReceipt = receipt?.schemaVersion === HOLOCLAW_RUNTIME_BRIDGE_SCHEMA;
+  const summary = hasReceipt ? (receipt.summary || {}) : {};
+  const runtime = hasReceipt ? (receipt.runtime || {}) : {};
+  const policy = hasReceipt ? (receipt.policy || {}) : {};
+  const workflowPlan = hasReceipt ? (receipt.workflowPlan || {}) : {};
+  const skills = hasReceipt ? (receipt.skills || {}) : {};
+  const output = hasReceipt ? (receipt.output || {}) : {};
+  const status = hasReceipt
+    ? String(summary.status || runtime.status || 'receipt_reported')
+    : 'not_staged';
+  const runtimeReady = Boolean(summary.runtimeReady ?? runtime.status === 'ready_to_stage');
+  const selectedSkillCount = Number.isFinite(summary.selectedSkillCount)
+    ? summary.selectedSkillCount
+    : (Array.isArray(skills.selected) ? skills.selected.length : 0);
+  const pendingApprovalCount = Number.isFinite(summary.pendingApprovalCount)
+    ? summary.pendingApprovalCount
+    : (Array.isArray(workflowPlan.steps)
+        ? workflowPlan.steps.filter((step) => step?.approvalRequired === true).length
+        : 0);
+  const stageErrorCount = Number.isFinite(summary.stageErrorCount)
+    ? summary.stageErrorCount
+    : (Array.isArray(runtime.missing) ? runtime.missing.length : 0);
+  const directExecutionAllowed = policy.directExecutionAllowed === true;
+  return {
+    schemaVersion: 'hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0',
+    source: HOLOCLAW_RUNTIME_BRIDGE_SOURCE,
+    generatedAt: new Date().toISOString(),
+    status,
+    receiptObserved: hasReceipt,
+    receiptPath: hasReceipt ? (output.latestPath || HOLOCLAW_RUNTIME_BRIDGE_RECEIPT) : null,
+    receiptAgeMs: hasReceipt ? fileAgeMs(HOLOCLAW_RUNTIME_BRIDGE_RECEIPT) : null,
+    bridgeId: summary.bridgeId || receipt?.bridgeId || '',
+    runtimeReady,
+    runtimeStatus: String(runtime.status || (runtimeReady ? 'ready_to_stage' : 'not_staged')),
+    runtimeMode: summary.runtimeMode || workflowPlan.runtimeMode || 'tick',
+    agentHandle: summary.agentHandle || 'holoclaw',
+    selectedSkillCount,
+    selectedSkills: Array.isArray(skills.selected) ? skills.selected.slice(0, 6) : [],
+    pendingApprovalCount,
+    targetResolvedCount: Number.isFinite(summary.targetResolvedCount) ? summary.targetResolvedCount : 0,
+    stageErrorCount,
+    missing: Array.isArray(summary.missing)
+      ? summary.missing
+      : (Array.isArray(runtime.missing) ? runtime.missing : []),
+    permissionEnvelope: policy.permissionEnvelope || 'guarded_execute',
+    approvalRequired: policy.approvalRequired ?? runtimeReady,
+    directExecutionAllowed,
+    downstreamAdapterOwnsApproval: policy.downstreamAdapterOwnsApproval !== false,
+    openClawRuntimeBackendAllowed: policy.openClawRuntimeBackendAllowed === true,
+    nemoClawRuntimeBackendAllowed: policy.nemoClawRuntimeBackendAllowed === true,
+    lowerLevelSubstrateAllowed: Array.isArray(policy.lowerLevelSubstrateAllowed)
+      ? policy.lowerLevelSubstrateAllowed
+      : ['ollama_compatible_serving', 'cuda_tensorrt_rtx_jetson_acceleration'],
+    controlDaemonRoute: 'POST /workflow/holoclaw-runtime-bridge',
+    controlDaemonLatestRoute: 'GET /workflow/holoclaw-runtime-bridge/latest',
+    statusEndpoint: 'GET /api/holoclaw/runtime-bridge',
+    endpointExecutesRuntime: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    summary: hasReceipt
+      ? `${status}; ${selectedSkillCount} selected skill(s); ${pendingApprovalCount} pending approval(s); ${stageErrorCount} stage error(s)`
+      : 'No HoloClaw runtime bridge receipt staged yet',
+  };
+}
+
 function modelLabel(model) {
   return model?.name || model?.id || model?.display || '';
 }
@@ -1725,12 +1798,22 @@ function buildFaraPeerAutomationPulse(payload = {}) {
   const cadence = String(payload.cadence || payload.trigger || 'manual').trim().slice(0, 80) || 'manual';
   const latestRun = improvementRunHistory()[0] || null;
   const desktopBridge = desktopBridgeStatusSnapshot();
+  const holoclawRuntimeBridge = snapshot.holoclawRuntimeBridge || holoclawRuntimeBridgeStatusSnapshot();
   const nextSafeActions = [
     {
       operation: 'summarize_live_system_status',
       lane: 'brittney_operator',
       route: 'GET /api/live-status',
       reason: 'refresh the shared operating picture before choosing work',
+      permissionEnvelope: 'read_only',
+      automationMayExecute: false,
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_holoclaw_runtime_bridge_status',
+      lane: 'holoclaw_runtime',
+      route: 'GET /api/holoclaw/runtime-bridge',
+      reason: `keep HoloClaw visible as the native runtime gate; current status ${holoclawRuntimeBridge.status}`,
       permissionEnvelope: 'read_only',
       automationMayExecute: false,
       receiptRequired: true,
@@ -1794,6 +1877,8 @@ function buildFaraPeerAutomationPulse(payload = {}) {
       promotionEndpoint: 'POST /api/fara-peer-chat/promote-proposal',
       promotionHistoryEndpoint: 'GET /api/fara-peer-chat/promotions',
       liveStatusEndpoint: 'GET /api/live-status',
+      holoclawRuntimeBridgeStatusEndpoint: 'GET /api/holoclaw/runtime-bridge',
+      holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
     },
@@ -1804,6 +1889,8 @@ function buildFaraPeerAutomationPulse(payload = {}) {
       latestImprovementRunId: latestRun?.runId || null,
       latestImprovementRunRemaining: latestRun?.remainingRunCount ?? null,
       desktopBridgeStatus: desktopBridge.status || 'unknown',
+      holoclawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
+      holoclawRuntimeBridgePendingApprovalCount: holoclawRuntimeBridge.pendingApprovalCount,
       nextSafeActionCount: nextSafeActions.length,
     },
     nextSafeActions,
@@ -2375,6 +2462,7 @@ function buildLiveStatusSnapshot() {
   const modelLibrary = modelLibrarySnapshot();
   const nativeResources = nativeResourceSnapshot();
   const laptopReasoning = laptopReasoningStatusSnapshot();
+  const holoclawRuntimeBridge = holoclawRuntimeBridgeStatusSnapshot();
   const faraPeerAutomation = {
     latestPulse: faraPeerAutomationHistory()[0] || null,
     schedule: faraPeerAutomationScheduleSnapshot(),
@@ -2404,6 +2492,9 @@ function buildLiveStatusSnapshot() {
       faraPeerAutomationScheduleStatusEndpoint: 'GET /api/fara-peer-chat/automation-schedule',
       faraPeerAutomationPromotionEndpoint: 'POST /api/fara-peer-chat/promote-proposal',
       faraPeerAutomationPromotionHistoryEndpoint: 'GET /api/fara-peer-chat/promotions',
+      holoclawRuntimeBridgeEndpoint: 'GET /api/holoclaw/runtime-bridge',
+      holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
+      holoclawRuntimeBridgeLatestEndpoint: 'GET /workflow/holoclaw-runtime-bridge/latest',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
       holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
@@ -2429,6 +2520,8 @@ function buildLiveStatusSnapshot() {
       'daimon_rehydration',
       'model_library',
       'holoclaw_skill_shelf',
+      'holoclaw_runtime_bridge_status',
+      'holoclaw_runtime_guarded_workflow',
       'native_resource_inventory',
       'vision_model_routing',
       'improvement_run_queue',
@@ -2449,12 +2542,14 @@ function buildLiveStatusSnapshot() {
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
       { id: 'laptop_hardware', model: 'laptop-ollama receipt route', role: 'laptop reasoning dispatch/result receipts with GPU telemetry truth' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
+      { id: 'holoclaw_runtime', model: 'HoloClaw AgentRunner', role: 'consent-gated HoloScript agent runtime bridge' },
       { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
       { id: 'receipt_gate', model: 'local filesystem receipts', role: 'approval and audit boundary' },
       { id: 'holotune_trace', model: 'HoloTune trace writer', role: 'deferred corpus sink after real codebase fixes pass review' },
     ],
     modelLibrary,
     nativeResources,
+    holoclawRuntimeBridge,
     faraPeerAutomation,
     gpu: gpuStatusSnapshot(),
     laptopReasoning,
@@ -2501,6 +2596,10 @@ function nativeResourceSummary(snapshot) {
   return snapshot.nativeResources?.summary || 'No native resources reported';
 }
 
+function holoclawRuntimeBridgeSummary(snapshot) {
+  return snapshot.holoclawRuntimeBridge?.summary || 'No HoloClaw runtime bridge status reported';
+}
+
 function formatLiveStatusBrief(snapshot) {
   const latestPulse = snapshot.faraPeerAutomation?.latestPulse;
   const schedule = snapshot.faraPeerAutomation?.schedule;
@@ -2514,6 +2613,7 @@ function formatLiveStatusBrief(snapshot) {
     `Lanes: ${laneSummary(snapshot)}`,
     `Model library: ${modelLibrarySummary(snapshot)}`,
     `Native resources: ${nativeResourceSummary(snapshot)}`,
+    `HoloClaw runtime bridge: ${holoclawRuntimeBridgeSummary(snapshot)}`,
     `GPU telemetry: ${snapshot.gpu.summary}`,
     `Laptop reasoning: ${snapshot.laptopReasoning.summary}`,
     `Fara/Brittney pulse: ${latestPulse ? `${latestPulse.status} ${latestPulse.pulseId}; ${latestPulse.nextSafeActionCount} next-safe action(s)` : 'no pulse receipt yet'}`,
@@ -2541,12 +2641,13 @@ function buildGroundedStatusReply(snapshot, message) {
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
       `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}. Schedule/status live at ${snapshot.route.faraPeerAutomationScheduleStatusEndpoint}.`,
-      `4. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
-      `5. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
-      `6. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
-      `7. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `8. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
-      `9. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `4. Keep HoloClaw as the native agent-runtime gate: inspect ${snapshot.route.holoclawRuntimeBridgeEndpoint}; stage runtime work only through ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}. ${holoclawRuntimeBridgeSummary(snapshot)}.`,
+      `5. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
+      `6. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
+      `7. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
+      `8. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `9. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
+      `10. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
       'No cube/test object is needed here. The next move is real repo issue -> patch -> targeted validation -> receipt/commit evidence -> GPU/bridge measurement -> feed the verified fix back into Brittney. Tuning waits.',
     ].join('\n');
@@ -2559,6 +2660,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
     `Fara/Brittney automation pulse: ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}; promotion route ${snapshot.route.faraPeerAutomationPromotionEndpoint}.`,
+    `HoloClaw runtime bridge: ${holoclawRuntimeBridgeSummary(snapshot)}; status route ${snapshot.route.holoclawRuntimeBridgeEndpoint}; guarded workflow ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}.`,
     `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, count codebase-fix shakedowns through ${snapshot.route.improvementRunExecuteEndpoint} only after patch and validation evidence; HoloTune is deferred.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
@@ -2595,6 +2697,22 @@ function liveStatusProposals(snapshot, message) {
     {
       operation: 'inspect_holoclaw_skill_shelf',
       lane: 'holoclaw_skills',
+      receiptRequired: true,
+    },
+    {
+      operation: 'inspect_holoclaw_runtime_bridge_status',
+      lane: 'holoclaw_runtime',
+      endpoint: snapshot.route.holoclawRuntimeBridgeEndpoint,
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      operation: 'stage_holoclaw_runtime_bridge_with_approval',
+      lane: 'holoclaw_runtime',
+      endpoint: snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint,
+      permissionEnvelope: 'guarded_execute',
+      approvalRequired: true,
+      automationMayExecute: false,
       receiptRequired: true,
     },
     {
@@ -2732,6 +2850,7 @@ function liveStatusResponseEnvelope(snapshot) {
     laneCount: snapshot.lanes.length,
     modelLibrary: snapshot.modelLibrary,
     nativeResources: snapshot.nativeResources,
+    holoclawRuntimeBridge: snapshot.holoclawRuntimeBridge,
     faraPeerAutomation: snapshot.faraPeerAutomation,
     gpu: snapshot.gpu,
     laptopReasoning: snapshot.laptopReasoning,
@@ -2745,6 +2864,7 @@ function liveStatusResponseEnvelope(snapshot) {
 function buildBrittneyCockpitCapsule() {
   const liveStatus = buildLiveStatusSnapshot();
   const desktopBridge = desktopBridgeStatusSnapshot();
+  const holoclawRuntimeBridge = liveStatus.holoclawRuntimeBridge || holoclawRuntimeBridgeStatusSnapshot();
   const operatorTerminal = buildOperatorTerminalSession();
   const windowAwareness = buildWindowAwareness();
   const improvementRuns = improvementRunHistory();
@@ -2772,6 +2892,9 @@ function buildBrittneyCockpitCapsule() {
     : ['blocked', 'error'].includes(laptopReasoning.status)
       ? 'attention'
       : 'waiting';
+  const holoclawRuntimeStatus = holoclawRuntimeBridge.status === 'not_staged'
+    ? 'waiting'
+    : (/^(blocked|error|failed|runtime_command_missing)/u.test(holoclawRuntimeBridge.status) ? 'attention' : 'ready');
   const cockpitLanes = [
     {
       id: 'runtime_truth',
@@ -2835,6 +2958,21 @@ function buildBrittneyCockpitCapsule() {
         : `schedule ${faraAutomation.schedule.status}`,
       sourceEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
       permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'holoclaw_runtime',
+      label: 'HoloClaw',
+      status: holoclawRuntimeStatus,
+      value: holoclawRuntimeBridge.status,
+      detail: holoclawRuntimeBridge.receiptObserved
+        ? `${holoclawRuntimeBridge.selectedSkillCount} skill(s); ${holoclawRuntimeBridge.pendingApprovalCount} approval(s)`
+        : 'runtime bridge receipt not staged',
+      sourceEndpoint: 'GET /api/holoclaw/runtime-bridge',
+      workflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
+      permissionEnvelope: 'guarded_execute',
+      approvalRequired: true,
+      directExecutionAllowed: false,
       receiptRequired: true,
     },
     {
@@ -2942,6 +3080,32 @@ function buildBrittneyCockpitCapsule() {
       receiptRequired: true,
     },
     {
+      id: 'holoclaw_runtime_bridge_status',
+      label: 'HoloClaw Status',
+      method: 'GET',
+      href: '/api/holoclaw/runtime-bridge',
+      lane: 'holoclaw_runtime',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      endpointExecutesRuntime: false,
+      receiptRequired: true,
+    },
+    {
+      id: 'holoclaw_runtime_bridge_workflow',
+      label: 'Stage HoloClaw',
+      method: 'POST',
+      href: '/workflow/holoclaw-runtime-bridge',
+      externalWorkflowRoute: 'POST /workflow/holoclaw-runtime-bridge',
+      lane: 'holoclaw_runtime',
+      permissionEnvelope: 'guarded_execute',
+      approvalRequired: true,
+      mayExecuteWithoutConsent: false,
+      endpointExecutesRuntime: false,
+      planOnly: true,
+      holoGateRequired: true,
+      receiptRequired: true,
+    },
+    {
       id: 'context_capsule',
       label: 'Context Capsule',
       method: 'GET',
@@ -2986,6 +3150,10 @@ function buildBrittneyCockpitCapsule() {
       laptopReasoningModelInvocationPerformed: laptopReasoning.modelInvocationPerformed,
       laptopReasoningGpuStatus: laptopReasoning.gpuStatus,
       laptopReasoningPingbackStatus: laptopReasoning.pingbackStatus,
+      holoclawRuntimeStatus,
+      holoclawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
+      holoclawRuntimeBridgePendingApprovalCount: holoclawRuntimeBridge.pendingApprovalCount,
+      holoclawRuntimeBridgeReceiptObserved: holoclawRuntimeBridge.receiptObserved,
       cockpitLaneCount: cockpitLanes.length,
       actionCardCount: actionCards.length,
       windowActionCardCount: windowActionCards.length,
@@ -3003,6 +3171,7 @@ function buildBrittneyCockpitCapsule() {
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    holoclawRuntimeBridge,
     faraPeerAutomation: faraAutomation,
     laptopReasoning,
     windowAwareness,
@@ -3021,6 +3190,8 @@ function buildBrittneyCockpitCapsule() {
       admittedExecutorActions: ['open_url'],
       allOtherDesktopActionsRemainPlanOnly: true,
       browserTerminalCouplingRequires: ['shared_session_id', 'terminal_receipt', 'context_capsule', 'hologate_receipt'],
+      holoclawRuntimeRequires: ['status_receipt', 'workflow_approval', 'runtime_env_flag', 'execution_receipt'],
+      holoclawDirectExecutionAllowed: false,
       secretsIncluded: false,
       rawWindowTitlesIncluded: windowAwareness.safety.rawWindowTitlesIncluded,
       rawWindowTitlesHidden: windowAwareness.safety.rawWindowTitlesHidden,
@@ -3037,6 +3208,8 @@ function buildBrittneyCockpitCapsule() {
       latestFaraPeerPulseReceipt: faraAutomation.latestPulse?.receiptPath || null,
       latestFaraPeerPromotionId: faraAutomation.latestPromotion?.promotionId || '',
       latestFaraPeerPromotionReceipt: faraAutomation.latestPromotion?.receiptPath || null,
+      latestHoloClawRuntimeBridgeReceipt: holoclawRuntimeBridge.receiptPath,
+      latestHoloClawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
       operatorTerminalReceiptHash: operatorTerminal.terminal.receiptHash,
       operatorTerminalReceiptStatus: operatorTerminal.terminal.receiptStatus,
       legacyWindowInventoryHash: windowAwareness.receipts.legacyWindowInventoryHash,
@@ -3044,7 +3217,7 @@ function buildBrittneyCockpitCapsule() {
     },
     destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
     desktopAutomationExecuted: false,
-    nextSafeStep: 'Carry this capsule into the next agent turn, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
+    nextSafeStep: 'Carry this capsule into the next agent turn, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
   };
 }
 
@@ -3142,6 +3315,11 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/live-status') {
     respond(res, liveStatusResponseEnvelope(buildLiveStatusSnapshot()));
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/holoclaw/runtime-bridge') {
+    respond(res, holoclawRuntimeBridgeStatusSnapshot());
     return;
   }
 

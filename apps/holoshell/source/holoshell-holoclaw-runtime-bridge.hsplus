@@ -19,6 +19,7 @@ composition "HoloShell HoloClaw Runtime Bridge" {
     bridgeReceipt: ".tmp/holoshell/holoclaw-runtime-bridge-latest.json"
     workflowReceipt: ".tmp/holoshell/workflow-latest.json"
     intentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
+    statusEndpoint: "GET /api/holoclaw/runtime-bridge"
     controlDaemonRoute: "POST /workflow/holoclaw-runtime-bridge"
     dispatchCapabilityId: "holoclaw_runtime_bridge"
     receiptRequired: true
@@ -50,6 +51,12 @@ composition "HoloShell HoloClaw Runtime Bridge" {
     description: "Receipt proving HoloClaw runtime discovery, skill selection, policy envelope, and execution outcome"
   }
 
+  channel "holoshell:holoclaw:runtime-bridge-status" {
+    type: "request_response"
+    priority: "high"
+    description: "Read-only HoloShell projection of the latest HoloClaw runtime bridge receipt"
+  }
+
   template "HoloClawRuntimeBridgeReceipt" {
     type: "holoclaw_runtime_bridge_receipt"
     schemaVersion: "hololand.holoshell.holoclaw-runtime-bridge.v0.1.0"
@@ -74,6 +81,18 @@ composition "HoloShell HoloClaw Runtime Bridge" {
     targetSurface: "HoloClaw AgentRunner"
     pendingApprovalCount: 1
     mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "HoloClawRuntimeBridgeStatus" {
+    type: "holoclaw_runtime_bridge_status"
+    schemaVersion: "hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0"
+    source: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
+    statusEndpoint: "GET /api/holoclaw/runtime-bridge"
+    controlDaemonRoute: "POST /workflow/holoclaw-runtime-bridge"
+    permissionEnvelope: "read_only"
+    endpointExecutesRuntime: false
+    directExecutionAllowed: false
     receiptRequired: true
   }
 
@@ -133,6 +152,21 @@ composition "HoloShell HoloClaw Runtime Bridge" {
       openclaw_backend_allowed: state.openClawRuntimeBackendAllowed,
       nemoclaw_backend_allowed: state.nemoClawRuntimeBackendAllowed,
       mutation_executed: state.mutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action report_holoclaw_runtime_bridge_status(status) {
+    emit("holoshell:holoclaw:runtime-bridge-status", {
+      action: "holoclaw_runtime_bridge_status_reported",
+      bridge_id: status.bridgeId,
+      status: status.status,
+      runtime_ready: status.runtimeReady,
+      pending_approval_count: status.pendingApprovalCount,
+      selected_skill_count: status.selectedSkillCount,
+      permission_envelope: "read_only",
+      endpoint_executes_runtime: false,
+      direct_execution_allowed: false,
       receipt_required: true
     })
   }
