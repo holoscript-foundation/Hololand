@@ -152,6 +152,18 @@ function fixtureWorkflow() {
 }
 
 function workflowRequest(workflow) {
+  if (workflow.summary?.workflowKind === 'holoclaw_runtime_bridge') {
+    return {
+      profile: workflow.profile || 'holoclaw_runtime_bridge',
+      intent: workflow.request?.intentPreview || '',
+      prompt: '',
+      runtimeMode: workflow.holoclawRuntime?.runtimeMode || 'tick',
+      agentHandle: workflow.holoclawRuntime?.envPlan?.HOLOSCRIPT_AGENT_HANDLE || 'holoclaw',
+      provider: workflow.modelRoute?.provider || 'sovereign',
+      model: workflow.summary?.model || workflow.modelRoute?.model || 'sovereign-local',
+      selectedSkill: workflow.holoclawRuntime?.skills?.[0]?.name || '',
+    };
+  }
   const byId = Object.fromEntries((workflow.steps || []).map((step) => [step.id, step]));
   return {
     profile: workflow.profile || 'room_marathon_lofi',
@@ -167,7 +179,20 @@ function workflowRequest(workflow) {
   };
 }
 
-function executeCommand(approvalId, nonce, bundlePath) {
+function executeCommand(approvalId, nonce, bundlePath, workflow) {
+  if (workflow?.summary?.workflowKind === 'holoclaw_runtime_bridge') {
+    return [
+      'node',
+      'scripts\\holoshell-holoclaw-runtime-bridge.mjs',
+      '--workflow-approval-bundle',
+      bundlePath,
+      '--workflow-approval-id',
+      approvalId,
+      '--workflow-approval-nonce',
+      nonce,
+      '--execute-workflow',
+    ];
+  }
   return [
     'node',
     'scripts\\holoshell-room-marathon-workflow.mjs',
@@ -206,7 +231,10 @@ function buildBundle(args) {
   const mutationExecuted = Boolean(workflow.summary?.mutationExecuted);
   const executionAllowed = pending > 0 && !mutationExecuted && stageErrors === 0 && targetResolved === stepCount;
   const bundlePath = resolveRepoPath(path.join(args.bundleDir, `${approvalId}.json`));
-  const command = executeCommand(approvalId, nonce, bundlePath);
+  const command = executeCommand(approvalId, nonce, bundlePath, workflow);
+  const workflowAdapter = workflow.summary?.workflowKind === 'holoclaw_runtime_bridge'
+    ? 'scripts/holoshell-holoclaw-runtime-bridge.mjs'
+    : 'scripts/holoshell-room-marathon-workflow.mjs';
   const status = executionAllowed ? 'pending_user_approval' : pending > 0 ? 'blocked' : 'not_required';
 
   return {
@@ -218,7 +246,7 @@ function buildBundle(args) {
     sourceAnchors: {
       source: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       adapter: 'scripts/holoshell-workflow-approval-bundle.mjs',
-      workflowAdapter: 'scripts/holoshell-room-marathon-workflow.mjs',
+      workflowAdapter,
       workflowReceipt: workflow.output?.latestPath || resolveRepoPath(args.workflow),
     },
     host: {
@@ -244,7 +272,9 @@ function buildBundle(args) {
       expiresAt,
       ttlMinutes: args.ttlMinutes,
       approvalText: `Approve ${workflow.title || 'HoloShell workflow'} (${pending} guarded steps)`,
-      risk: 'opens programs, types a room command, submits it, and opens YouTube media',
+      risk: workflow.summary?.workflowKind === 'holoclaw_runtime_bridge'
+        ? 'starts a local HoloClaw AgentRunner tick after runtime/env checks pass'
+        : 'opens programs, types a room command, submits it, and opens YouTube media',
       rollback: 'manual_or_app_specific',
     },
     execution: {

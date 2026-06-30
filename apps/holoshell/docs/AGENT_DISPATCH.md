@@ -8,6 +8,7 @@ Examples:
 ```text
 Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube
 launch Codex locally
+run HoloClaw locally as the OpenClaw and NemoClaw replacement
 start a sovereign room marathon for local-tagged tasks
 start a sovereign room marathon for cloud-tagged tasks
 open Excel
@@ -18,7 +19,9 @@ Runtime contract:
 
 ```text
 apps/holoshell/source/holoshell-agent-dispatch.hsplus
+apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus
 scripts/holoshell-agent-dispatch.mjs
+scripts/holoshell-holoclaw-runtime-bridge.mjs
 ```
 
 The dispatch script writes:
@@ -41,6 +44,7 @@ hands off to the selected existing adapter:
 ```text
 /workflow/founder-command
 /workflow/room-marathon
+/workflow/holoclaw-runtime-bridge
 /workflow/laptop-reasoning-job
 /action
 ```

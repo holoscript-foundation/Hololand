@@ -95,6 +95,14 @@ const CAPABILITIES = [
     examples: ['launch Codex locally', 'start a local sovereign agent session'],
   },
   {
+    id: 'holoclaw_runtime_bridge',
+    label: 'HoloClaw Runtime Bridge',
+    route: '/workflow/holoclaw-runtime-bridge',
+    dispatchKind: 'workflow',
+    permissionEnvelope: 'guarded_execute',
+    examples: ['run HoloClaw locally', 'use HoloClaw instead of OpenClaw', 'start the HoloClaw runtime bridge'],
+  },
+  {
     id: 'browser_lofi',
     label: 'YouTube Lofi',
     route: '/action',
@@ -496,6 +504,14 @@ function scoreIntent(intent) {
   if (/\b(local sovereign agent|sovereign agent|agent session|sovereign session)\b/u.test(text)) {
     scores.set('sovereign_agent_session', 94);
   }
+  if (
+    text.includes('holoclaw')
+    || text.includes('openclaw')
+    || text.includes('nemoclaw')
+    || /\b(agent runtime|runtime bridge|local custody runtime)\b/u.test(text)
+  ) {
+    scores.set('holoclaw_runtime_bridge', 97);
+  }
   if (text.includes('grok') || text.includes('grok build') || text.includes('supergrok') || text.includes('xai')) {
     scores.set('grok_build', 96);
   }
@@ -584,6 +600,21 @@ function buildRouteBody(capability, args, agent) {
       agent: agent?.slug || 'local-shell',
       selectedAgentLabel: agent?.label || 'Local Shell',
       roomCommand: '',
+    };
+  }
+  if (capability.id === 'holoclaw_runtime_bridge') {
+    return {
+      actor: args.actor,
+      intent: args.intent,
+      prompt: promptFromIntent(args),
+      runtimeMode: 'tick',
+      agentHandle: 'holoclaw',
+      provider: 'sovereign',
+      model: 'sovereign-local',
+      replacementFor: ['OpenClaw', 'NemoClaw'],
+      permissionEnvelope: 'guarded_execute',
+      receiptRequired: true,
+      destructiveActionsTaken: false,
     };
   }
   if (capability.id === 'browser_lofi') {
@@ -770,6 +801,8 @@ function assertSelfTest() {
     ['have the laptop inspect the repo and reason through the plan', 'laptop_reasoning_job', 'reasoning_job'],
     ['launch Codex locally', 'sovereign_agent_session', 'workflow'],
     ['start a local sovereign agent session', 'sovereign_agent_session', 'workflow'],
+    ['run HoloClaw locally', 'holoclaw_runtime_bridge', 'workflow'],
+    ['replace OpenClaw with HoloClaw runtime', 'holoclaw_runtime_bridge', 'workflow'],
     ['open Grok Build', 'grok_build', 'workflow'],
     ['ask Grok to inspect this repo', 'grok_build', 'workflow'],
     ['Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube', 'founder_command', 'workflow'],

@@ -98,6 +98,7 @@ Routes:
   GET  /agents/grok-heartbeat
   GET  /services/supervisor
   GET  /workflow/founder-command/latest
+  GET  /workflow/holoclaw-runtime-bridge/latest
   GET  /dispatch/latest
   GET  /workflow/laptop-reasoning/latest
   GET  /workflow/conversation-plan-dispatch/latest
@@ -108,6 +109,7 @@ Routes:
   POST /workflow/conversation-plan-dispatch
   POST /workflow/room-marathon
   POST /workflow/grok-build
+  POST /workflow/holoclaw-runtime-bridge
   POST /workflow/founder-command
   POST /workflow/approval
   POST /workflow/intent-gate
@@ -272,6 +274,22 @@ function grokBuildWorkflow(body = {}) {
   return runChecked(cli);
 }
 
+function holoclawRuntimeBridge(body = {}) {
+  const cli = ['scripts/holoshell-holoclaw-runtime-bridge.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--actor', body.actor);
+  add('--intent', body.intent || body.text || body.ask || body.request);
+  add('--prompt', body.prompt || body.task || body.chatPrompt);
+  add('--runtime-mode', body.runtimeMode);
+  add('--agent-handle', body.agentHandle);
+  add('--provider', body.provider);
+  add('--model', body.model);
+  add('--selected-skill', body.selectedSkill || body.skill);
+  return runChecked(cli);
+}
+
 function agentDispatch(body = {}) {
   const cli = ['scripts/holoshell-agent-dispatch.mjs'];
   const intent = body.intent || body.text || body.ask || body.request || '';
@@ -416,6 +434,7 @@ function latestSnapshot(args) {
     grokHeartbeat: readJson(tmpPath(args, 'grok-heartbeat.json'), {}),
     serviceSupervisor: readJson(tmpPath(args, 'service-supervisor.json'), {}),
     founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
+    holoclawRuntimeBridge: readJson(tmpPath(args, 'holoclaw-runtime-bridge-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
     laptopReasoningBridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
     laptopReasoningResult: readJson(tmpPath(args, 'laptop-reasoning-result-latest.json'), {}),
@@ -479,6 +498,7 @@ function commandFromWorkflowApprovalBundle(bundle) {
   const allowedWorkflowScripts = [
     `scripts${path.sep}holoshell-room-marathon-workflow.mjs`,
     `scripts${path.sep}holoshell-grok-build-workflow.mjs`,
+    `scripts${path.sep}holoshell-holoclaw-runtime-bridge.mjs`,
   ];
   if (first !== 'node' || !allowedWorkflowScripts.some((allowed) => script.endsWith(allowed))) {
     throw new Error('Workflow approval command is not a HoloShell workflow command.');
@@ -507,6 +527,7 @@ function executeWorkflow(args, body = {}) {
   const adapter = String(bundle.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
   const localApprovalGateCases = new Map([
     [`scripts${path.sep}holoshell-grok-build-workflow.mjs`, 'holoshell-grok-build-local-approval.v0'],
+    [`scripts${path.sep}holoshell-holoclaw-runtime-bridge.mjs`, 'holoshell-holoclaw-runtime-bridge.v0'],
   ]);
   const localApprovalGateCase = [...localApprovalGateCases.entries()]
     .find(([script]) => adapter.endsWith(script))?.[1] || '';
@@ -592,6 +613,26 @@ function stageGrokBuild(args, body = {}) {
   };
 }
 
+function stageHoloClawRuntimeBridge(args, body = {}) {
+  refreshRegistry(args);
+  const bridgeResult = holoclawRuntimeBridge(body);
+  const workflowApprovalResult = workflowApprovalBundle();
+  refreshLiveFeed();
+  return {
+    ok: true,
+    holoclawRuntimeBridge: readJson(tmpPath(args, 'holoclaw-runtime-bridge-latest.json'), {}),
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      holoclawRuntimeBridge: bridgeResult.stdout.trim(),
+      workflowApproval: workflowApprovalResult.stdout.trim(),
+      workflowIntentGate: 'HoloClaw bridge wrote a local runtime gate.',
+    },
+  };
+}
+
 function stageFounderCommand(args, body = {}) {
   refreshRegistry(args);
   const commandResult = founderCommand(body);
@@ -660,6 +701,7 @@ function stageAgentDispatch(args, body = {}) {
   const routedBody = dispatch.dispatch?.body || {};
   let downstream;
   if (route === '/workflow/grok-build') downstream = stageGrokBuild(args, routedBody);
+  else if (route === '/workflow/holoclaw-runtime-bridge') downstream = stageHoloClawRuntimeBridge(args, routedBody);
   else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
   else if (route === '/workflow/laptop-reasoning-job') downstream = stageLaptopReasoningJob(args, routedBody);
@@ -681,6 +723,7 @@ function stageAgentDispatch(args, body = {}) {
     workflowApproval: downstream.workflowApproval,
     workflowIntentGate: downstream.workflowIntentGate,
     grokBuildSetup: downstream.grokBuildSetup,
+    holoclawRuntimeBridge: downstream.holoclawRuntimeBridge,
     founderCommand: downstream.founderCommand,
     laptopReasoningBridge: downstream.laptopReasoningBridge,
     laptopReasoningResult: downstream.laptopReasoningResult,
@@ -722,6 +765,9 @@ function routeGet(args, pathname) {
   if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
   if (pathname === '/workflow/grok-build/setup') return readJson(tmpPath(args, 'grok-build-setup.json'), {});
+  if (pathname === '/workflow/holoclaw-runtime-bridge/latest') {
+    return readJson(tmpPath(args, 'holoclaw-runtime-bridge-latest.json'), {});
+  }
   if (pathname === '/agents/grok-heartbeat') return readJson(tmpPath(args, 'grok-heartbeat.json'), {});
   if (pathname === '/services/supervisor') return readJson(tmpPath(args, 'service-supervisor.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
@@ -748,6 +794,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/workflow/conversation-plan-dispatch') return stageConversationPlanDispatch(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
   if (pathname === '/workflow/grok-build') return stageGrokBuild(args, body);
+  if (pathname === '/workflow/holoclaw-runtime-bridge') return stageHoloClawRuntimeBridge(args, body);
   if (pathname === '/workflow/founder-command') return stageFounderCommand(args, body);
   if (pathname === '/workflow/approval') {
     const activeWorkflow = readJson(tmpPath(args, 'workflow-latest.json'), {});

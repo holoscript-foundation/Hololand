@@ -20,6 +20,7 @@ scripts/holoshell-control-daemon.mjs
 scripts/holoshell-agent-dispatch.mjs
 scripts/holoshell-founder-command.mjs
 scripts/holoshell-room-marathon-workflow.mjs
+scripts/holoshell-holoclaw-runtime-bridge.mjs
 scripts/holoshell-workflow-approval-bundle.mjs
 scripts/holoshell-package-custody.mjs
 ```
@@ -65,6 +66,8 @@ the reusable validator is upstream in
 .tmp/holoshell/agent-dispatch-latest.json
 .tmp/holoshell/agent-dispatch-latest.js
 .tmp/holoshell/agent-dispatches/
+.tmp/holoshell/holoclaw-runtime-bridge-latest.json
+.tmp/holoshell/holoclaw-runtime-bridge-latest.js
 .tmp/holoshell/founder-command-latest.json
 .tmp/holoshell/founder-command-latest.js
 .tmp/holoshell/founder-commands/
@@ -213,11 +216,13 @@ GET  /approval/latest
 GET  /workflow/latest
 GET  /workflow/approval/latest
 GET  /workflow/founder-command/latest
+GET  /workflow/holoclaw-runtime-bridge/latest
 GET  /dispatch/latest
 POST /action
 POST /approval/execute
 POST /workflow/agent-dispatch
 POST /workflow/room-marathon
+POST /workflow/holoclaw-runtime-bridge
 POST /workflow/founder-command
 POST /workflow/approval
 POST /workflow/execute
@@ -277,8 +282,24 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/agent-dispatc
 
 Dispatch does not execute anything directly. It writes
 `.tmp/holoshell/agent-dispatch-latest.json`, chooses a route such as
-`/workflow/room-marathon`, `/workflow/laptop-reasoning-job`, `/workflow/founder-command`,
-or `/action`, and then the selected adapter writes the normal approval bundle.
+`/workflow/room-marathon`, `/workflow/holoclaw-runtime-bridge`,
+`/workflow/laptop-reasoning-job`, `/workflow/founder-command`, or `/action`, and
+then the selected adapter writes the normal approval bundle.
+
+Stage the HoloClaw runtime bridge without running an agent tick:
+
+```powershell
+node scripts\holoshell-holoclaw-runtime-bridge.mjs --intent "run HoloClaw locally" --runtime-mode tick --agent-handle holoclaw --json
+```
+
+Or stage it through the daemon:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/holoclaw-runtime-bridge -ContentType application/json -Body (@{ intent = "run HoloClaw locally as the OpenClaw and NemoClaw replacement"; runtimeMode = "tick"; agentHandle = "holoclaw" } | ConvertTo-Json)
+```
+
+HoloClaw is the runtime path here. OpenClaw and NemoClaw may appear only as
+replacement references in receipts; the bridge blocks them as runtime backends.
 
 Stage the full Founder command receipt:
 
@@ -345,6 +366,7 @@ node scripts\holoshell-control-daemon.mjs --self-test
 node scripts\holoshell-agent-dispatch.mjs --self-test
 node scripts\holoshell-founder-command.mjs --self-test
 node scripts\holoshell-room-marathon-workflow.mjs --self-test
+node scripts\holoshell-holoclaw-runtime-bridge.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 node scripts\holoshell-laptop-reasoning-worker.mjs --self-test
 ```

@@ -1,0 +1,152 @@
+// HoloShell HoloClaw Runtime Bridge
+//
+// Source contract for routing HoloShell/Brittney intent into the native
+// HoloClaw agent runtime. HoloClaw replaces OpenClaw/NemoClaw at the runtime
+// and product layer; those names may appear only as competitor/replacement
+// references, never as runtime backends.
+
+composition "HoloShell HoloClaw Runtime Bridge" {
+  config {
+    title: "HoloShell HoloClaw Runtime Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-holoclaw-runtime-bridge.mjs"
+    dispatchSource: "apps/holoshell/source/holoshell-agent-dispatch.hsplus"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    holoscriptAgentPackage: "../HoloScript/packages/holoscript-agent"
+    holoclawBrain: "../HoloScript/compositions/holoclaw-brain.hsplus"
+    holoclawSkillShelf: "../HoloScript/compositions/skills"
+    bridgeReceipt: ".tmp/holoshell/holoclaw-runtime-bridge-latest.json"
+    workflowReceipt: ".tmp/holoshell/workflow-latest.json"
+    intentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
+    controlDaemonRoute: "POST /workflow/holoclaw-runtime-bridge"
+    dispatchCapabilityId: "holoclaw_runtime_bridge"
+    receiptRequired: true
+  }
+
+  state {
+    bridgeStatus: "unknown"
+    runtimeReady: false
+    agentHandle: "holoclaw"
+    runtimeMode: "tick"
+    selectedSkillCount: 0
+    pendingApprovalCount: 0
+    targetResolvedCount: 0
+    stageErrorCount: 0
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    mutationExecuted: false
+  }
+
+  channel "holoshell:workflow:holoclaw-runtime-bridge" {
+    type: "request_response"
+    priority: "critical"
+    description: "Brittney/HoloShell route into the native HoloClaw AgentRunner workflow"
+  }
+
+  channel "holoshell:holoclaw:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipt proving HoloClaw runtime discovery, skill selection, policy envelope, and execution outcome"
+  }
+
+  template "HoloClawRuntimeBridgeReceipt" {
+    type: "holoclaw_runtime_bridge_receipt"
+    schemaVersion: "hololand.holoshell.holoclaw-runtime-bridge.v0.1.0"
+    bridgeId: ""
+    runtimeReady: false
+    runtimeMode: "tick"
+    agentHandle: "holoclaw"
+    selectedSkillCount: 0
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    directExecutionAllowed: false
+    downstreamAdapterOwnsApproval: true
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  template "HoloClawRuntimeWorkflow" {
+    type: "workflow"
+    schemaVersion: "hololand.holoshell.workflow.v0.1.0"
+    workflowKind: "holoclaw_runtime_bridge"
+    title: "HoloClaw Runtime Bridge"
+    targetSurface: "HoloClaw AgentRunner"
+    pendingApprovalCount: 1
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "HoloClawPolicyEnvelope" {
+    type: "permission_envelope"
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    directExecutionAllowed: false
+    breakGlassActionsAllowed: false
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    lowerLevelSubstrateAllowed: ["ollama_compatible_serving", "cuda_tensorrt_rtx_jetson_acceleration"]
+    receiptRequired: true
+  }
+
+  policy "HoloClawReplacesOpenClawAndNemoClaw" {
+    appliesTo: ["agent_runtime", "local_agent_gateway", "secured_local_inference"]
+    replacementRuntime: "HoloClaw"
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
+    competitorPatternsMayBeHarvested: true
+    lowerLevelSubstrateAllowed: ["ollama_compatible_serving", "cuda_tensorrt_rtx_jetson_acceleration"]
+    receiptRequired: true
+  }
+
+  policy "HoloShellOwnsConsentSurface" {
+    appliesTo: ["holoclaw_runtime_tick", "holoclaw_runtime_run"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    directExecutionAllowed: false
+    controlDaemonExecuteFlagRequired: true
+    runtimeEnvFlagRequired: true
+    receiptRequired: true
+  }
+
+  action apply_holoclaw_runtime_bridge_receipt(receipt) {
+    state.bridgeStatus = receipt.summary.status
+    state.runtimeReady = receipt.summary.runtimeReady
+    state.agentHandle = receipt.summary.agentHandle
+    state.runtimeMode = receipt.summary.runtimeMode
+    state.selectedSkillCount = receipt.summary.selectedSkillCount
+    state.pendingApprovalCount = receipt.summary.pendingApprovalCount
+    state.targetResolvedCount = receipt.summary.targetResolvedCount
+    state.stageErrorCount = receipt.summary.stageErrorCount
+    state.mutationExecuted = receipt.summary.mutationExecuted
+    state.openClawRuntimeBackendAllowed = receipt.policy.openClawRuntimeBackendAllowed
+    state.nemoClawRuntimeBackendAllowed = receipt.policy.nemoClawRuntimeBackendAllowed
+    emit("holoshell:holoclaw:receipt", {
+      action: "holoclaw_runtime_bridge_receipt_applied",
+      bridge_id: receipt.bridgeId,
+      status: state.bridgeStatus,
+      runtime_ready: state.runtimeReady,
+      runtime_mode: state.runtimeMode,
+      selected_skill_count: state.selectedSkillCount,
+      pending_approval_count: state.pendingApprovalCount,
+      stage_error_count: state.stageErrorCount,
+      openclaw_backend_allowed: state.openClawRuntimeBackendAllowed,
+      nemoclaw_backend_allowed: state.nemoClawRuntimeBackendAllowed,
+      mutation_executed: state.mutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action route_holoclaw_runtime_bridge(request) {
+    emit("holoshell:workflow:holoclaw-runtime-bridge", {
+      action: "holoclaw_runtime_bridge_requested",
+      actor: request.actor,
+      intent_hash: request.intentHash,
+      permission_envelope: "guarded_execute",
+      approval_required: true,
+      route: config.controlDaemonRoute,
+      adapter: config.runtimeScript,
+      receipt_required: true
+    })
+  }
+}

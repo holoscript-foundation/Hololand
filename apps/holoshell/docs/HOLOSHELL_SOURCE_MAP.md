@@ -93,6 +93,7 @@ contracts.
 | Brittney ambient tone         | `apps/holoshell/source/holoshell-brittney-ambient-tone.hsplus`         |
 | Agent dispatch                | `apps/holoshell/source/holoshell-agent-dispatch.hsplus`                |
 | Agent presence lanes          | `apps/holoshell/source/holoshell-agent-presence-lanes.hsplus`          |
+| HoloClaw runtime bridge       | `apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus`       |
 | Grok build workflow           | `apps/holoshell/source/holoshell-grok-build-workflow.hsplus`           |
 | Grok heartbeat                | `apps/holoshell/source/holoshell-grok-heartbeat.hsplus`                |
 

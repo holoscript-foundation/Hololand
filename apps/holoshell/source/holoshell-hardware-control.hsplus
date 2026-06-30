@@ -19,12 +19,14 @@ composition "HoloShell Hardware Program Control" {
     controlDaemonScript: "scripts/holoshell-control-daemon.mjs"
     roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
     grokBuildWorkflowScript: "scripts/holoshell-grok-build-workflow.mjs"
+    holoclawRuntimeBridgeScript: "scripts/holoshell-holoclaw-runtime-bridge.mjs"
     grokHeartbeatScript: "scripts/holoshell-grok-heartbeat.mjs"
     agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
     founderCommandScript: "scripts/holoshell-founder-command.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
+    holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
     grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
     trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
     founderCommandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
@@ -42,6 +44,7 @@ composition "HoloShell Hardware Program Control" {
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
     latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
     latestGrokBuildSetup: ".tmp/holoshell/grok-build-setup.json"
+    latestHoloClawRuntimeBridgeReceipt: ".tmp/holoshell/holoclaw-runtime-bridge-latest.json"
     latestGrokHeartbeat: ".tmp/holoshell/grok-heartbeat.json"
     latestTrustLedger: ".tmp/holoshell/trust-ledger.json"
     latestFounderCommandReceipt: ".tmp/holoshell/founder-command-latest.json"
@@ -202,6 +205,12 @@ composition "HoloShell Hardware Program Control" {
     description: "Guarded Brittney workflow for launching Grok Build as a local coding-agent lane"
   }
 
+  channel "holoshell:workflow:holoclaw-runtime-bridge" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded Brittney workflow for routing HoloShell intent into the native HoloClaw AgentRunner"
+  }
+
   channel "holoshell:trust:ledger" {
     type: "pub_sub"
     priority: "critical"
@@ -356,7 +365,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "GET /workflow/holoclaw-runtime-bridge/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/grok-build", "POST /workflow/holoclaw-runtime-bridge", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -395,6 +404,22 @@ composition "HoloShell Hardware Program Control" {
     receiptRequired: true
   }
 
+  template "HoloClawRuntimeBridgeWorkflow" {
+    type: "holoclaw_runtime_bridge_workflow"
+    receiptType: "hololand.holoshell.workflow.v0.1.0"
+    title: "HoloClaw Runtime Bridge"
+    workflowKind: "holoclaw_runtime_bridge"
+    targetSurface: "HoloClaw AgentRunner"
+    agentHandle: "holoclaw"
+    runtimeMode: "tick"
+    replacementFor: ["OpenClaw", "NemoClaw"]
+    steps: ["resolve_holoscript_root", "resolve_holoclaw_brain", "resolve_holoscript_agent", "select_holoclaw_skills", "apply_runtime_policy", "stage_runtime_tick"]
+    defaultExecutionPolicy: "staged_until_user_approval"
+    approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
   template "GrokObservation" {
     type: "grok_observation"
     receiptType: "hololand.holoshell.grok-observation.v0.1.0"
@@ -420,7 +445,7 @@ composition "HoloShell Hardware Program Control" {
     receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
     title: "Agent Dispatch"
     route: "POST /workflow/agent-dispatch"
-    supportedCapabilities: ["sovereign_agent_session", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser", "launch_program"]
+    supportedCapabilities: ["sovereign_agent_session", "grok_build", "holoclaw_runtime_bridge", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser", "launch_program"]
     steps: ["parse_intent", "rank_capabilities", "select_guarded_route", "handoff_to_existing_adapter"]
     defaultExecutionPolicy: "dispatch_only"
     directExecutionAllowed: false
@@ -797,6 +822,35 @@ composition "HoloShell Hardware Program Control" {
       mutation_executed: state.activeWorkflowMutationExecuted,
       grok_observation_status: state.grokBuildObservationStatus,
       grok_primary_finding: state.grokBuildPrimaryFinding,
+      receipt_required: true
+    })
+  }
+
+  action apply_holoclaw_runtime_bridge_workflow(workflow) {
+    state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowKind = workflow.summary.workflowKind || "holoclaw_runtime_bridge"
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowTargetSurface = workflow.summary.targetSurface || "HoloClaw AgentRunner"
+    state.activeWorkflowAgent = workflow.summary.agentHandle || "holoclaw"
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowStepCount = workflow.summary.stepCount
+    state.activeWorkflowModelRoute = workflow.summary.provider || "sovereign"
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    emit("holoshell:workflow:holoclaw-runtime-bridge", {
+      action: "holoclaw_runtime_bridge_workflow_applied",
+      workflow_id: state.activeWorkflowId,
+      status: state.activeWorkflowStatus,
+      title: state.activeWorkflowTitle,
+      target_surface: state.activeWorkflowTargetSurface,
+      agent: state.activeWorkflowAgent,
+      runtime_mode: workflow.summary.runtimeMode,
+      provider: workflow.summary.provider,
+      selected_skill_count: workflow.summary.selectedSkillCount,
+      replacement_for: workflow.summary.replacementFor,
+      steps: state.activeWorkflowStepCount,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      mutation_executed: state.activeWorkflowMutationExecuted,
       receipt_required: true
     })
   }

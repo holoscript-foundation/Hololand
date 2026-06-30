@@ -16,6 +16,8 @@ composition "HoloShell Agent Dispatch" {
     dispatchReceiptDir: ".tmp/holoshell/agent-dispatches"
     browserBootstrap: ".tmp/holoshell/agent-dispatch-latest.js"
     controlDaemonRoute: "POST /workflow/agent-dispatch"
+    holoclawRuntimeBridgeRoute: "POST /workflow/holoclaw-runtime-bridge"
+    holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"
   }
 
   state {
@@ -178,11 +180,23 @@ composition "HoloShell Agent Dispatch" {
   }
 
   policy "DispatchToGuardedAdapter" {
-    appliesTo: ["founder_command", "room_marathon", "sovereign_agent_session", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    appliesTo: ["founder_command", "room_marathon", "sovereign_agent_session", "holoclaw_runtime_bridge", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
     mutating: true
     downstreamAdapterOwnsApproval: true
+    receiptRequired: true
+  }
+
+  policy "HoloClawRuntimeBridgeIsReplacementPath" {
+    appliesTo: ["holoclaw_runtime_bridge", "openclaw_replacement", "nemoclaw_replacement"]
+    route: "POST /workflow/holoclaw-runtime-bridge"
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    directExecutionAllowed: false
+    downstreamAdapterOwnsApproval: true
+    openClawRuntimeBackendAllowed: false
+    nemoClawRuntimeBackendAllowed: false
     receiptRequired: true
   }
 

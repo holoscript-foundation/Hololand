@@ -63,6 +63,17 @@ assert.equal(codexLaunch.summary.capabilityId, 'sovereign_agent_session');
 assert.equal(codexLaunch.summary.route, '/workflow/room-marathon');
 assert.equal(codexLaunch.dispatch.body.agent, 'codex');
 
+const holoclawRuntime = receiptFor('run HoloClaw locally as the OpenClaw and NemoClaw replacement');
+assert.equal(holoclawRuntime.summary.capabilityId, 'holoclaw_runtime_bridge');
+assert.equal(holoclawRuntime.summary.route, '/workflow/holoclaw-runtime-bridge');
+assert.equal(holoclawRuntime.summary.dispatchKind, 'workflow');
+assert.equal(holoclawRuntime.summary.permissionEnvelope, 'guarded_execute');
+assert.equal(holoclawRuntime.summary.approvalRequired, true);
+assert.equal(holoclawRuntime.dispatch.body.agentHandle, 'holoclaw');
+assert.equal(holoclawRuntime.dispatch.body.runtimeMode, 'tick');
+assert.deepEqual(holoclawRuntime.dispatch.body.replacementFor, ['OpenClaw', 'NemoClaw']);
+assert.equal(holoclawRuntime.dispatch.body.destructiveActionsTaken, false);
+
 const lofiOnly = receiptFor('open browser and play lofi music on YouTube');
 assert.equal(lofiOnly.summary.capabilityId, 'browser_lofi');
 assert.equal(lofiOnly.summary.dispatchKind, 'hardware_action');
