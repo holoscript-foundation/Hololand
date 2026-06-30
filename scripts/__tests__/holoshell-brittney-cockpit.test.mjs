@@ -107,6 +107,28 @@ try {
   assert.equal(holoclawRuntime.openClawRuntimeBackendAllowed, false);
   assert.equal(holoclawRuntime.nemoClawRuntimeBackendAllowed, false);
 
+  const stagedHoloClaw = await postJson('/workflow/holoclaw-runtime-bridge', {
+    intent: 'Stage HoloClaw as the OpenClaw and NemoClaw replacement for a browser chat turn.',
+    runtimeMode: 'tick',
+    agentHandle: 'holoclaw',
+  });
+  assert.equal(stagedHoloClaw.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge-response.v0.1.0');
+  assert.equal(stagedHoloClaw.directExecutionAllowed, false);
+  assert.equal(stagedHoloClaw.endpointExecutesRuntime, false);
+  assert.equal(stagedHoloClaw.destructiveActionsTaken, false);
+  assert.equal(stagedHoloClaw.holoclawRuntimeBridge.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge.v0.1.0');
+  assert.equal(stagedHoloClaw.holoclawRuntimeBridge.policy.openClawRuntimeBackendAllowed, false);
+  assert.equal(stagedHoloClaw.holoclawRuntimeBridge.policy.nemoClawRuntimeBackendAllowed, false);
+
+  const latestHoloClaw = await getJson('/workflow/holoclaw-runtime-bridge/latest');
+  assert.equal(latestHoloClaw.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge.v0.1.0');
+  assert.equal(latestHoloClaw.summary.bridgeId, stagedHoloClaw.bridgeId);
+
+  const stagedHoloClawRuntime = await getJson('/api/holoclaw/runtime-bridge');
+  assert.equal(stagedHoloClawRuntime.receiptObserved, true);
+  assert.equal(stagedHoloClawRuntime.bridgeId, stagedHoloClaw.bridgeId);
+  assert.equal(stagedHoloClawRuntime.directExecutionAllowed, false);
+
   const laptopReport = await postJson('/api/laptop-reasoning/report', {
     schemaVersion: 'hololand.holoshell.laptop-reasoning-result.v0.1.0',
     resultId: 'laptop_reasoning_result_http_fixture',
@@ -187,7 +209,7 @@ try {
     lane.directExecutionAllowed === false
   ));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
-  assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, holoclawRuntime.status);
+  assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, stagedHoloClawRuntime.status);
   assert.equal(capsule.holoclawRuntimeBridge.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
   assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
@@ -259,6 +281,8 @@ try {
   assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
   assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
   assert.match(hsplusSource, /BrowserRefreshPreservesOperatorSession/);
+  assert.match(hsplusSource, /ParallelChatWorkspacesStayIsolated/);
+  assert.match(hsplusSource, /browserChatWorkspaceIds: \["brittney", "holoclaw", "terminal", "improvement"\]/);
   assert.match(hsplusSource, /holoshell:brittney:browser-session:v1/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
@@ -275,6 +299,11 @@ try {
   assert.match(compileSource, /\/api\/holoclaw\/runtime-bridge/);
   assert.match(compileSource, /HOLOSHELL_BROWSER_STATE_SCHEMA/);
   assert.match(compileSource, /holoshell:brittney:browser-session:v1/);
+  assert.match(compileSource, /HOLOSHELL_CHAT_WORKSPACES/);
+  assert.match(compileSource, /transcriptByChat/);
+  assert.match(compileSource, /parallel-chat-stack/);
+  assert.match(compileSource, /_sendHoloClawChat/);
+  assert.match(compileSource, /\/workflow\/holoclaw-runtime-bridge/);
   assert.match(compileSource, /_restoreBrowserSession/);
   assert.match(compileSource, /localStorage/);
   assert.match(compileSource, /cockpit-action-cards/);

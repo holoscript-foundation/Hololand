@@ -43,6 +43,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
     browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"
     browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"
+    browserChatWorkspaceIds: ["brittney", "holoclaw", "terminal", "improvement"]
+    defaultChatWorkspaceId: "brittney"
     cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
     desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"
     legacyUiRole: "adapter_projection_only"
@@ -80,6 +82,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     latestImprovementRunId: ""
     browserSessionStateStatus: "unknown"
     browserTranscriptEntryCount: 0
+    activeChatWorkspaceId: "brittney"
+    expandedChatWorkspaceCount: 0
+    holoclawChatStatus: "unknown"
     browserDraftStatus: "unknown"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -117,11 +122,29 @@ composition "HoloShell Brittney Desktop Cockpit" {
     schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
     storageAdapter: "window.localStorage"
     storageKey: "holoshell:brittney:browser-session:v1"
-    persists: ["visible_transcript", "input_drafts", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
+    persists: ["visible_transcript_by_chat", "input_drafts_by_chat", "active_chat_workspace", "expanded_chat_workspaces", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
     maxTranscriptEntries: 120
     secretsIncluded: false
     hostMutationAllowed: false
     refreshMayClearSession: false
+    receiptRequired: true
+  }
+
+  template "ChatWorkspace" {
+    type: "browser_chat_workspace"
+    workspaceIds: ["brittney", "holoclaw", "terminal", "improvement"]
+    defaultWorkspaceId: "brittney"
+    routeMap: {
+      brittney: "POST /api/brittney/chat"
+      holoclaw: "POST /workflow/holoclaw-runtime-bridge"
+      terminal: "GET /api/operator-terminal/session"
+      improvement: "POST /api/improvement-runs"
+    }
+    transcriptIsolationRequired: true
+    parallelExpansionAllowed: true
+    refreshPersistenceRequired: true
+    secretsIncluded: false
+    hostMutationAllowed: false
     receiptRequired: true
   }
 
@@ -299,17 +322,38 @@ composition "HoloShell Brittney Desktop Cockpit" {
   }
 
   policy "BrowserRefreshPreservesOperatorSession" {
-    appliesTo: ["browser_cockpit", "brittney_chat", "draft_inputs", "improvement_run_selection", "latest_cockpit_capsule"]
+    appliesTo: ["browser_cockpit", "brittney_chat", "holoclaw_chat", "terminal_chat", "improvement_chat", "draft_inputs", "improvement_run_selection", "latest_cockpit_capsule"]
     source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     storageAdapter: "window.localStorage"
     storageKey: "holoshell:brittney:browser-session:v1"
     schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
-    persists: ["visible_transcript", "input_drafts", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
+    persists: ["visible_transcript_by_chat", "input_drafts_by_chat", "active_chat_workspace", "expanded_chat_workspaces", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
     maxTranscriptEntries: 120
     refreshMayClearSession: false
     secretsIncluded: false
     hostMutationAllowed: false
     destructiveActionsAllowed: false
+    receiptRequired: true
+  }
+
+  policy "ParallelChatWorkspacesStayIsolated" {
+    appliesTo: ["brittney_chat", "holoclaw_chat", "terminal_chat", "improvement_chat", "expanded_parallel_chats"]
+    source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    defaultWorkspaceId: "brittney"
+    workspaceIds: ["brittney", "holoclaw", "terminal", "improvement"]
+    routeMap: {
+      brittney: "POST /api/brittney/chat"
+      holoclaw: "POST /workflow/holoclaw-runtime-bridge"
+      terminal: "GET /api/operator-terminal/session"
+      improvement: "POST /api/improvement-runs"
+    }
+    oneComposerMayRouteByActiveWorkspace: true
+    simultaneousWorkspaceExpansionAllowed: true
+    transcriptIsolationRequired: true
+    holoclawChatUsesGuardedRuntimeBridge: true
+    terminalChatIsEvidenceOnly: true
+    destructiveActionsAllowed: false
+    desktopAutomationAllowed: false
     receiptRequired: true
   }
 

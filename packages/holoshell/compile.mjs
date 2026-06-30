@@ -395,6 +395,105 @@ function compileOperateRoomShell(holoComposition) {
       overflow-wrap: anywhere;
       text-align: right;
     }
+    .chat-workspace-bar {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #30363d;
+      background: #0b0f14;
+    }
+    .chat-workspace-button {
+      min-width: 0;
+      height: 46px;
+      padding: 7px 8px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #161b22;
+      color: #c9d1d9;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    .chat-workspace-button[data-active="true"] {
+      border-color: #58a6ff;
+      background: color-mix(in srgb, #58a6ff 12%, #161b22);
+    }
+    .chat-workspace-button[data-expanded="true"] {
+      box-shadow: inset 0 -2px 0 #d29922;
+    }
+    .chat-workspace-button strong {
+      font-size: 12px;
+      line-height: 1.1;
+      color: #f0f6fc;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-workspace-button span {
+      font-size: 10px;
+      line-height: 1.2;
+      color: #8b949e;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .parallel-chat-stack {
+      flex: 0 0 auto;
+      display: none;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+      max-height: 190px;
+      overflow: auto;
+      padding: 8px 10px;
+      border-bottom: 1px solid #30363d;
+      background: #0b0f14;
+      scrollbar-width: thin;
+    }
+    .parallel-chat-stack[data-visible="true"] {
+      display: grid;
+    }
+    .parallel-chat-card {
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+    }
+    .parallel-chat-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .parallel-chat-card strong {
+      color: #f0f6fc;
+      font-size: 12px;
+    }
+    .parallel-chat-card button {
+      flex: 0 0 auto;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #c9d1d9;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .parallel-chat-card pre {
+      margin: 0;
+      max-height: 98px;
+      overflow: hidden;
+      white-space: pre-wrap;
+      color: #8b949e;
+      font: 11px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
     .brittney-message-stream {
       flex: 1 1 auto;
       min-height: 0;
@@ -544,29 +643,103 @@ const runtimeScript = `  <script>
     var HOLOSHELL_BROWSER_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
     var HOLOSHELL_BROWSER_STATE_KEY = 'holoshell:brittney:browser-session:v1';
     var HOLOSHELL_TRANSCRIPT_LIMIT = 120;
+    var HOLOSHELL_DEFAULT_CHAT_ID = 'brittney';
+    var HOLOSHELL_CHAT_WORKSPACES = [
+      {
+        id: 'brittney',
+        label: 'Brittney',
+        detail: 'operator route',
+        speaker: 'Brittney',
+        color: '#bc8cff',
+        placeholder: 'Talk to Brittney - she manages the system and agents do the data work...'
+      },
+      {
+        id: 'holoclaw',
+        label: 'HoloClaw',
+        detail: 'runtime staging',
+        speaker: 'HoloClaw',
+        color: '#ffa657',
+        placeholder: 'Stage HoloClaw work through the guarded runtime bridge...'
+      },
+      {
+        id: 'terminal',
+        label: 'Terminal',
+        detail: 'execution evidence',
+        speaker: 'Terminal',
+        color: '#d29922',
+        placeholder: 'Capture terminal evidence or notes for this operating turn...'
+      },
+      {
+        id: 'improvement',
+        label: 'Improvement',
+        detail: 'fix runs',
+        speaker: 'Improvement',
+        color: '#3fb950',
+        placeholder: 'Queue a codebase-fix shakedown objective...'
+      }
+    ];
+    var _activeChatId = HOLOSHELL_DEFAULT_CHAT_ID;
+    var _expandedChatIds = ['holoclaw'];
     var _browserStateRestoring = false;
     function _emptyBrowserState() {
       return {
         schemaVersion: HOLOSHELL_BROWSER_STATE_SCHEMA,
         transcript: [],
+        transcriptByChat: {},
         drafts: {},
+        activeChatId: HOLOSHELL_DEFAULT_CHAT_ID,
+        expandedChatIds: ['holoclaw'],
         runtime: {},
         latestCockpitCapsule: null,
         updatedAt: null
       };
     }
+    function _chatIds() {
+      return HOLOSHELL_CHAT_WORKSPACES.map(function(chat) { return chat.id; });
+    }
+    function _normalizeChatId(chatId) {
+      var id = String(chatId || _activeChatId || HOLOSHELL_DEFAULT_CHAT_ID);
+      return _chatIds().indexOf(id) >= 0 ? id : HOLOSHELL_DEFAULT_CHAT_ID;
+    }
+    function _chatSpec(chatId) {
+      var id = _normalizeChatId(chatId);
+      return HOLOSHELL_CHAT_WORKSPACES.find(function(chat) { return chat.id === id; }) || HOLOSHELL_CHAT_WORKSPACES[0];
+    }
+    function _ensureBrowserStateShape(state) {
+      if (!state || typeof state !== 'object') state = _emptyBrowserState();
+      if (!Array.isArray(state.transcript)) state.transcript = [];
+      if (!state.transcriptByChat || typeof state.transcriptByChat !== 'object') {
+        state.transcriptByChat = {};
+      }
+      if (state.transcript.length && !Array.isArray(state.transcriptByChat.brittney)) {
+        state.transcriptByChat.brittney = state.transcript.slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
+      }
+      _chatIds().forEach(function(chatId) {
+        if (!Array.isArray(state.transcriptByChat[chatId])) state.transcriptByChat[chatId] = [];
+        state.transcriptByChat[chatId] = state.transcriptByChat[chatId].slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
+      });
+      if (!state.drafts || typeof state.drafts !== 'object') state.drafts = {};
+      if (!state.drafts.chatInputs || typeof state.drafts.chatInputs !== 'object') state.drafts.chatInputs = {};
+      if (state.drafts.brittneyInput && !state.drafts.chatInputs.brittney) {
+        state.drafts.chatInputs.brittney = state.drafts.brittneyInput;
+      }
+      state.activeChatId = _normalizeChatId(state.activeChatId);
+      if (!Array.isArray(state.expandedChatIds)) state.expandedChatIds = ['holoclaw'];
+      state.expandedChatIds = state.expandedChatIds.map(_normalizeChatId).filter(function(chatId, index, all) {
+        return all.indexOf(chatId) === index;
+      });
+      if (!state.runtime || typeof state.runtime !== 'object') state.runtime = {};
+      return state;
+    }
     function _readBrowserState() {
       try {
         var raw = window.localStorage && window.localStorage.getItem(HOLOSHELL_BROWSER_STATE_KEY);
-        if (!raw) return _emptyBrowserState();
+        if (!raw) return _ensureBrowserStateShape(_emptyBrowserState());
         var state = JSON.parse(raw);
         if (!state || state.schemaVersion !== HOLOSHELL_BROWSER_STATE_SCHEMA) return _emptyBrowserState();
-        if (!Array.isArray(state.transcript)) state.transcript = [];
-        if (!state.drafts || typeof state.drafts !== 'object') state.drafts = {};
-        if (!state.runtime || typeof state.runtime !== 'object') state.runtime = {};
-        return state;
+        return _ensureBrowserStateShape(state);
       } catch (error) {
-        return _emptyBrowserState();
+        return _ensureBrowserStateShape(_emptyBrowserState());
       }
     }
     function _writeBrowserState(state) {
@@ -581,12 +754,18 @@ const runtimeScript = `  <script>
       mutator(state);
       _writeBrowserState(state);
     }
-    function _rememberTranscript(entry) {
+    function _rememberTranscript(entry, chatId) {
       if (_browserStateRestoring || !entry) return;
+      var targetChatId = _normalizeChatId(chatId);
       _patchBrowserState(function(state) {
-        state.transcript.push(Object.assign({ savedAt: new Date().toISOString() }, entry));
-        state.transcript = state.transcript.slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
+        if (!state.transcriptByChat[targetChatId]) state.transcriptByChat[targetChatId] = [];
+        state.transcriptByChat[targetChatId].push(Object.assign({ savedAt: new Date().toISOString(), chatId: targetChatId }, entry));
+        state.transcriptByChat[targetChatId] = state.transcriptByChat[targetChatId].slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
+        state.transcript = state.transcriptByChat.brittney.slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
       });
+      if (targetChatId !== _activeChatId) _ensureChatExpanded(targetChatId);
+      _renderChatWorkspaceBar();
+      _renderExpandedChats();
     }
     function _persistRuntimeState() {
       _patchBrowserState(function(state) {
@@ -596,9 +775,19 @@ const runtimeScript = `  <script>
     }
     function _persistDraftState() {
       _patchBrowserState(function(state) {
-        state.drafts.brittneyInput = document.getElementById('brittney-input')?.value || '';
+        var activeInput = document.getElementById('brittney-input')?.value || '';
+        state.drafts.chatInputs[_activeChatId] = activeInput;
+        state.drafts.brittneyInput = state.drafts.chatInputs.brittney || '';
         state.drafts.improvementObjective = document.getElementById('improvement-objective')?.value || '';
         state.drafts.improvementCount = document.getElementById('improvement-count')?.value || '';
+      });
+    }
+    function _persistChatWorkspaceState() {
+      _patchBrowserState(function(state) {
+        state.activeChatId = _normalizeChatId(_activeChatId);
+        state.expandedChatIds = _expandedChatIds.map(_normalizeChatId).filter(function(chatId, index, all) {
+          return all.indexOf(chatId) === index;
+        });
       });
     }
     function _persistCockpitCapsule(capsule) {
@@ -636,39 +825,175 @@ const runtimeScript = `  <script>
         _lastImprovementRunId = state.runtime.lastImprovementRunId || null;
         _lastLaptopDesktopBridgeBaseUrl = state.runtime.lastLaptopDesktopBridgeBaseUrl || null;
       }
+      _activeChatId = _normalizeChatId(state.activeChatId);
+      _expandedChatIds = Array.isArray(state.expandedChatIds) ? state.expandedChatIds.map(_normalizeChatId) : ['holoclaw'];
       if (state.drafts) {
         var input = document.getElementById('brittney-input');
         var objective = document.getElementById('improvement-objective');
         var count = document.getElementById('improvement-count');
-        if (input) input.value = state.drafts.brittneyInput || '';
+        if (input) input.value = (state.drafts.chatInputs && state.drafts.chatInputs[_activeChatId]) || '';
         if (objective) objective.value = state.drafts.improvementObjective || '';
         if (count && state.drafts.improvementCount) count.value = state.drafts.improvementCount;
       }
+      _renderChatWorkspaceBar();
+      _renderActiveChatHeader();
+      _renderExpandedChats();
     }
-    function _restoreTranscriptEntry(entry) {
+    function _restoreTranscriptEntry(entry, box) {
       if (!entry || !entry.type) return;
       if (entry.type === 'message') {
-        _bMsg(entry.who || 'HoloShell', entry.text || '', entry.color || '#c9d1d9', { persist: false });
+        _appendMessageRow(box, entry.who || 'HoloShell', entry.text || '', entry.color || '#c9d1d9');
       } else if (entry.type === 'turn_card') {
-        _appendTurnCard(entry.title || 'Receipt', entry.lines || [], entry.tone || 'neutral', entry.variant || '', { persist: false });
+        box.appendChild(_makeTurnCard(entry.title || 'Receipt', entry.lines || [], entry.tone || 'neutral', entry.variant || ''));
       } else if (entry.type === 'card_grid') {
         var cards = (entry.cards || []).map(function(card) {
           return _makeTurnCard(card.title || 'Proposal', card.lines || [], card.tone || 'neutral', card.variant || '');
         });
-        _appendCardGrid(cards, { persist: false });
+        var grid = document.createElement('div');
+        grid.className = 'operator-card-grid';
+        cards.forEach(function(card) { grid.appendChild(card); });
+        box.appendChild(grid);
       }
+    }
+    function _renderActiveChatTranscript() {
+      var box = document.getElementById('brittney-messages');
+      if (!box) return;
+      var state = _readBrowserState();
+      box.textContent = '';
+      (state.transcriptByChat[_activeChatId] || []).forEach(function(entry) {
+        _restoreTranscriptEntry(entry, box);
+      });
+      box.scrollTop = box.scrollHeight;
     }
     function _restoreBrowserSession() {
       var state = _readBrowserState();
       _browserStateRestoring = true;
       _restoreDraftsAndRuntime(state);
       if (state.latestCockpitCapsule) _renderCockpitCapsule(state.latestCockpitCapsule);
-      (state.transcript || []).forEach(_restoreTranscriptEntry);
+      _renderActiveChatTranscript();
       _browserStateRestoring = false;
-      return { transcriptCount: (state.transcript || []).length };
+      return { transcriptCount: (state.transcriptByChat[_activeChatId] || []).length };
     }
-    function _bMsg(who, text, color, options) {
-      var box = document.getElementById('brittney-messages'); if (!box) return null;
+    function _chatIdForLane(lane) {
+      var text = String(lane || '').toLowerCase();
+      if (text.indexOf('holoclaw') >= 0) return 'holoclaw';
+      if (text.indexOf('terminal') >= 0 || text.indexOf('receipt_gate') >= 0) return 'terminal';
+      if (text.indexOf('improvement') >= 0 || text.indexOf('codebase') >= 0) return 'improvement';
+      return 'brittney';
+    }
+    function _ensureChatExpanded(chatId) {
+      var id = _normalizeChatId(chatId);
+      if (id === _activeChatId) return;
+      if (_expandedChatIds.indexOf(id) < 0) {
+        _expandedChatIds.push(id);
+        _persistChatWorkspaceState();
+      }
+    }
+    function _setActiveChat(chatId) {
+      var id = _normalizeChatId(chatId);
+      if (id === _activeChatId) return;
+      _persistDraftState();
+      _activeChatId = id;
+      _expandedChatIds = _expandedChatIds.filter(function(item) { return item !== id; });
+      _persistChatWorkspaceState();
+      _renderActiveChatHeader();
+      _renderChatWorkspaceBar();
+      _renderActiveChatTranscript();
+      _renderExpandedChats();
+      var input = document.getElementById('brittney-input');
+      var state = _readBrowserState();
+      if (input) {
+        input.value = (state.drafts.chatInputs && state.drafts.chatInputs[_activeChatId]) || '';
+        input.focus();
+      }
+    }
+    function _toggleChatExpanded(chatId) {
+      var id = _normalizeChatId(chatId);
+      if (id === _activeChatId) return;
+      if (_expandedChatIds.indexOf(id) >= 0) {
+        _expandedChatIds = _expandedChatIds.filter(function(item) { return item !== id; });
+      } else {
+        _expandedChatIds.push(id);
+      }
+      _persistChatWorkspaceState();
+      _renderChatWorkspaceBar();
+      _renderExpandedChats();
+    }
+    function _renderActiveChatHeader() {
+      var spec = _chatSpec(_activeChatId);
+      _setText('active-chat-title', spec.label);
+      _setText('active-chat-detail', spec.detail);
+      var input = document.getElementById('brittney-input');
+      if (input) input.placeholder = spec.placeholder;
+    }
+    function _transcriptPreview(entries) {
+      var lines = (entries || []).slice(-4).map(function(entry) {
+        if (entry.type === 'message') return (entry.who || 'HoloShell') + ': ' + _shortText(entry.text || '', '');
+        if (entry.type === 'turn_card') return (entry.title || 'Receipt') + ': ' + _shortText((entry.lines || []).join(' | '), '');
+        if (entry.type === 'card_grid') return 'Cards: ' + (entry.cards || []).map(function(card) { return card.title || 'Proposal'; }).join(', ');
+        return entry.type || 'entry';
+      });
+      return lines.length ? lines.join('\\n') : 'No messages yet';
+    }
+    function _renderChatWorkspaceBar() {
+      var bar = document.getElementById('chat-workspace-bar');
+      if (!bar) return;
+      var state = _readBrowserState();
+      bar.textContent = '';
+      HOLOSHELL_CHAT_WORKSPACES.forEach(function(spec) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'chat-workspace-button';
+        button.dataset.chatId = spec.id;
+        button.dataset.active = spec.id === _activeChatId ? 'true' : 'false';
+        button.dataset.expanded = _expandedChatIds.indexOf(spec.id) >= 0 ? 'true' : 'false';
+        button.title = spec.label + ' - click to focus; Alt-click toggles the parallel view.';
+        var transcriptCount = ((state.transcriptByChat && state.transcriptByChat[spec.id]) || []).length;
+        var strong = document.createElement('strong');
+        strong.textContent = spec.label;
+        var span = document.createElement('span');
+        span.textContent = transcriptCount + ' saved - ' + spec.detail;
+        button.append(strong, span);
+        button.onclick = function(event) {
+          if (event.altKey) _toggleChatExpanded(spec.id);
+          else _setActiveChat(spec.id);
+        };
+        button.ondblclick = function() { _toggleChatExpanded(spec.id); };
+        bar.appendChild(button);
+      });
+    }
+    function _renderExpandedChats() {
+      var deck = document.getElementById('parallel-chat-stack');
+      if (!deck) return;
+      var state = _readBrowserState();
+      var visibleIds = _expandedChatIds.filter(function(chatId) { return chatId !== _activeChatId; });
+      deck.textContent = '';
+      deck.dataset.visible = visibleIds.length ? 'true' : 'false';
+      visibleIds.forEach(function(chatId) {
+        var spec = _chatSpec(chatId);
+        var card = document.createElement('section');
+        card.className = 'parallel-chat-card';
+        card.dataset.chatId = chatId;
+        var header = document.createElement('header');
+        var title = document.createElement('strong');
+        title.textContent = spec.label;
+        var focus = document.createElement('button');
+        focus.type = 'button';
+        focus.textContent = 'Focus';
+        focus.onclick = function() { _setActiveChat(chatId); };
+        var collapse = document.createElement('button');
+        collapse.type = 'button';
+        collapse.textContent = 'Close';
+        collapse.onclick = function() { _toggleChatExpanded(chatId); };
+        header.append(title, focus, collapse);
+        var preview = document.createElement('pre');
+        preview.textContent = _transcriptPreview((state.transcriptByChat && state.transcriptByChat[chatId]) || []);
+        card.append(header, preview);
+        deck.appendChild(card);
+      });
+    }
+    function _appendMessageRow(box, who, text, color) {
+      if (!box) return null;
       var row = document.createElement('div');
       row.className = 'chat-message-row';
       row.dataset.speaker = who;
@@ -678,8 +1003,14 @@ const runtimeScript = `  <script>
       span.style.cssText = 'color:#c9d1d9;white-space:pre-wrap'; span.textContent = text;
       row.appendChild(label); row.appendChild(span);
       box.appendChild(row); box.scrollTop = box.scrollHeight;
+      return row;
+    }
+    function _bMsg(who, text, color, options) {
+      var chatId = _normalizeChatId(options && options.chatId);
+      var box = document.getElementById('brittney-messages');
+      var row = chatId === _activeChatId ? _appendMessageRow(box, who, text, color) : null;
       if (!options || options.persist !== false) {
-        _rememberTranscript({ type: 'message', who: who, text: text, color: color });
+        _rememberTranscript({ type: 'message', who: who, text: text, color: color }, chatId);
       }
       return row;
     }
@@ -744,26 +1075,31 @@ const runtimeScript = `  <script>
       return card;
     }
     function _appendTurnCard(title, lines, tone, variant, options) {
+      var chatId = _normalizeChatId(options && options.chatId);
       var box = document.getElementById('brittney-messages');
-      if (!box) return null;
       var card = _makeTurnCard(title, lines, tone, variant);
-      box.appendChild(card);
-      box.scrollTop = box.scrollHeight;
+      if (box && chatId === _activeChatId) {
+        box.appendChild(card);
+        box.scrollTop = box.scrollHeight;
+      }
       if (!options || options.persist !== false) {
-        _rememberTranscript({ type: 'turn_card', title: title, lines: lines || [], tone: tone || 'neutral', variant: variant || '' });
+        _rememberTranscript({ type: 'turn_card', title: title, lines: lines || [], tone: tone || 'neutral', variant: variant || '' }, chatId);
       }
       return card;
     }
     function _appendCardGrid(cards, options) {
+      var chatId = _normalizeChatId(options && options.chatId);
       var box = document.getElementById('brittney-messages');
-      if (!box || !cards || !cards.length) return;
+      if (!cards || !cards.length) return;
       var grid = document.createElement('div');
       grid.className = 'operator-card-grid';
       cards.forEach(function(card) { grid.appendChild(card); });
-      box.appendChild(grid);
-      box.scrollTop = box.scrollHeight;
+      if (box && chatId === _activeChatId) {
+        box.appendChild(grid);
+        box.scrollTop = box.scrollHeight;
+      }
       if (!options || options.persist !== false) {
-        _rememberTranscript({ type: 'card_grid', cards: cards.map(_serializeTurnCardElement).filter(Boolean) });
+        _rememberTranscript({ type: 'card_grid', cards: cards.map(_serializeTurnCardElement).filter(Boolean) }, chatId);
       }
     }
     function _setText(id, text) {
@@ -858,7 +1194,7 @@ const runtimeScript = `  <script>
           value: lanes.desktop.value || summary.desktopBridgeStatus || 'attention',
           detail: 'Probe the laptop bridge and report the receipt back to Jetson.',
           button: 'Probe bridge',
-          action: function() { probeLaptopDesktopBridge(); _bMsg('Evidence refresh', 'Desktop bridge probe requested from the browser surface.', '#d29922'); }
+          action: function() { probeLaptopDesktopBridge(); _bMsg('Evidence refresh', 'Desktop bridge probe requested from the browser surface.', '#d29922', { chatId: 'terminal' }); }
         });
       }
       if (_toneForStatus(summary.operatorTerminalStatus || lanes.terminal.status) !== 'ready') {
@@ -922,9 +1258,9 @@ const runtimeScript = `  <script>
             'status: ' + (d.status || 'unknown'),
             'receipt: ' + (d.terminal?.receiptStatus || 'unknown') + (d.terminal?.receiptHash ? ' / ' + d.terminal.receiptHash.slice(0, 12) : ''),
             'next: ' + (d.nextSafeStep || 'not reported')
-          ], _toneForStatus(d.status || d.terminal?.receiptStatus), 'receipt');
+          ], _toneForStatus(d.status || d.terminal?.receiptStatus), 'receipt', { chatId: 'terminal' });
         })
-        .catch(function(e) { _bMsg('Terminal evidence', 'network error: ' + e.message, '#f85149'); });
+        .catch(function(e) { _bMsg('Terminal evidence', 'network error: ' + e.message, '#f85149', { chatId: 'terminal' }); });
     }
     function _inspectLiveStatusForChat() {
       fetch('/api/live-status', { cache: 'no-store' })
@@ -949,9 +1285,9 @@ const runtimeScript = `  <script>
             'runtime: ' + (d.runtimeStatus || 'unknown'),
             'skills: ' + (d.selectedSkillCount || 0) + '; approvals: ' + (d.pendingApprovalCount || 0),
             'executes from endpoint: ' + (d.endpointExecutesRuntime ? 'yes' : 'no')
-          ], _toneForStatus(d.runtimeReady ? 'ready' : d.status), 'receipt');
+          ], _toneForStatus(d.runtimeReady ? 'ready' : d.status), 'receipt', { chatId: 'holoclaw' });
         })
-        .catch(function(e) { _bMsg('HoloClaw runtime', 'network error: ' + e.message, '#f85149'); });
+        .catch(function(e) { _bMsg('HoloClaw runtime', 'network error: ' + e.message, '#f85149', { chatId: 'holoclaw' }); });
     }
     function _cardText(card) {
       var action = card.primaryAction || card.lane || card.method || 'action';
@@ -960,6 +1296,7 @@ const runtimeScript = `  <script>
     }
     function _runCockpitActionCard(card, button) {
       var original = button.textContent;
+      var chatId = _chatIdForLane(card.lane || card.id || card.label);
       button.disabled = true;
       button.textContent = 'Planning...';
       var request = card.method === 'POST'
@@ -969,6 +1306,8 @@ const runtimeScript = `  <script>
             body: JSON.stringify({
               intent: card.intent || card.label,
               sourceCardId: card.id,
+              runtimeMode: card.lane === 'holoclaw_runtime' ? 'tick' : undefined,
+              agentHandle: card.lane === 'holoclaw_runtime' ? 'holoclaw' : undefined,
               planOnly: true
             })
           })
@@ -978,13 +1317,13 @@ const runtimeScript = `  <script>
         .then(function(result) {
           if (!result.ok || result.data.error) throw new Error(result.data.error || 'request_failed');
           var data = result.data;
-          var receipt = data.planId || data.receipt?.planId || data.status || 'receipt ready';
+          var receipt = data.planId || data.receipt?.planId || data.bridgeId || data.holoclawRuntimeBridge?.bridgeId || data.status || 'receipt ready';
           button.textContent = 'Receipt';
-          _bMsg('Cockpit card', card.label + '\\n' + receipt + '\\n' + (card.preflightPath ? card.preflightPath.requiredSequence.join(' -> ') : card.permissionEnvelope), '#3fb950');
+          _bMsg('Cockpit card', card.label + '\\n' + receipt + '\\n' + (card.preflightPath ? card.preflightPath.requiredSequence.join(' -> ') : card.permissionEnvelope), '#3fb950', { chatId: chatId });
         })
         .catch(function(e) {
           button.textContent = 'Blocked';
-          _bMsg('Cockpit card', card.label + ' blocked: ' + e.message, '#f85149');
+          _bMsg('Cockpit card', card.label + ' blocked: ' + e.message, '#f85149', { chatId: chatId });
         })
         .finally(function() {
           setTimeout(function() {
@@ -1147,12 +1486,12 @@ const runtimeScript = `  <script>
           button.textContent = 'Opened';
           button.style.cursor = 'default';
           var receipt = execution.receiptPath || execution.executionId || 'receipt unavailable';
-          _bMsg('Desktop execution', (execution.status || 'completed') + '\\n' + (execution.executionMode || 'admitted_open_url_executor') + '\\nReceipt: ' + receipt, '#3fb950');
+          _bMsg('Desktop execution', (execution.status || 'completed') + '\\n' + (execution.executionMode || 'admitted_open_url_executor') + '\\nReceipt: ' + receipt, '#3fb950', { chatId: 'terminal' });
         }).catch(function(e) {
           button.disabled = false;
           button.style.cursor = 'pointer';
           button.textContent = 'Retry open URL';
-          _bMsg('Desktop execution', 'refused: ' + e.message, '#f85149');
+          _bMsg('Desktop execution', 'refused: ' + e.message, '#f85149', { chatId: 'terminal' });
         });
       });
     }
@@ -1164,7 +1503,7 @@ const runtimeScript = `  <script>
         'route: ' + (systemStatus.route?.chatEndpoint || 'chat route unknown'),
         'reasoning: ' + (reasoning.lane || 'laptop-hardware') + '; ' + (reasoning.gpuStatus || 'gpu unknown') + '; model ' + (reasoning.modelInvocationPerformed ? 'invoked' : 'not invoked'),
         'receipts: pending ' + (systemStatus.pendingConsentCount || 0) + '; recent ' + (systemStatus.recentExecutionCount || 0)
-      ], _toneForStatus(systemStatus.status));
+      ], _toneForStatus(systemStatus.status), '', { chatId: 'brittney' });
     }
     function _renderDesktopControlCard(desktopControl) {
       if (!desktopControl) return;
@@ -1173,7 +1512,7 @@ const runtimeScript = `  <script>
         'lane: ' + (desktopControl.modelLane || 'unknown') + '; model: ' + (desktopControl.recommendedModel || 'unknown'),
         'permission: ' + (desktopControl.permissionEnvelope || 'unknown') + '; approval: ' + (desktopControl.approvalRequired ? 'required' : 'not required'),
         'next: ' + (desktopControl.nextSafeStep || 'not reported')
-      ], _toneForStatus(desktopControl.status || desktopControl.permissionEnvelope));
+      ], _toneForStatus(desktopControl.status || desktopControl.permissionEnvelope), '', { chatId: 'brittney' });
     }
     function _renderProposalCards(proposals) {
       if (!proposals || !proposals.length) return;
@@ -1184,7 +1523,7 @@ const runtimeScript = `  <script>
           'receipt: ' + (proposal.receiptRequired === false ? 'not required' : 'required')
         ], proposal.receiptRequired === false ? 'attention' : 'ready');
       });
-      _appendCardGrid(cards);
+      _appendCardGrid(cards, { chatId: 'brittney' });
     }
     function _renderAgentHandoffCards(proposals) {
       var handoffs = (proposals || []).filter(function(proposal) {
@@ -1194,7 +1533,7 @@ const runtimeScript = `  <script>
       if (!handoffs.length) return;
       _appendTurnCard('Agent handoff', handoffs.slice(0, 3).map(function(proposal) {
         return (proposal.operation || 'agent work') + ' -> ' + (proposal.lane || 'lane not specified') + '; receipt required';
-      }), 'ready');
+      }), 'ready', '', { chatId: 'brittney' });
     }
     function _renderReceiptNarration(response) {
       var lines = [];
@@ -1203,7 +1542,7 @@ const runtimeScript = `  <script>
       if (response.desktopControl?.planId) lines.push('desktop plan: ' + response.desktopControl.planId);
       if (response.systemStatus?.route?.cockpitCapsuleEndpoint) lines.push('capsule: ' + response.systemStatus.route.cockpitCapsuleEndpoint);
       if (!lines.length) lines.push('turn returned without receipt metadata; do not treat as completed evidence');
-      _appendTurnCard('Receipt narration', lines, response.receiptType ? 'ready' : 'attention', 'receipt');
+      _appendTurnCard('Receipt narration', lines, response.receiptType ? 'ready' : 'attention', 'receipt', { chatId: 'brittney' });
     }
     function _renderTurnOperatorCards(response) {
       _renderSystemStatusCard(response.systemStatus);
@@ -1215,26 +1554,84 @@ const runtimeScript = `  <script>
     function sendBrittneyChat() {
       var inp = document.getElementById('brittney-input'); if (!inp) return;
       var msg = inp.value.trim(); if (!msg) return;
-      inp.value = ''; _bMsg('You', msg, '#58a6ff');
+      if (_activeChatId === 'holoclaw') { _sendHoloClawChat(msg, inp); return; }
+      if (_activeChatId === 'terminal') { _sendTerminalChat(msg, inp); return; }
+      if (_activeChatId === 'improvement') { _sendImprovementChat(msg, inp); return; }
+      inp.value = ''; _bMsg('You', msg, '#58a6ff', { chatId: 'brittney' });
       _persistDraftState();
-      var pending = _bMsg('Brittney', 'thinking…', '#bc8cff', { persist: false });
+      var pending = _bMsg('Brittney', 'thinking…', '#bc8cff', { persist: false, chatId: 'brittney' });
       fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) })
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
-          if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149'); return; }
-          _bMsg('Brittney', d.reply, '#bc8cff');
+          if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149', { chatId: 'brittney' }); return; }
+          _bMsg('Brittney', d.reply, '#bc8cff', { chatId: 'brittney' });
           _renderTurnOperatorCards(d);
           if (d.desktopControl) {
             _offerDesktopOpenUrl(msg, d.desktopControl);
           }
           if (d.proposals && d.proposals.length) {
             var lines = d.proposals.map(function(x) { return '• ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
-            _bMsg('Proposed actions', lines, '#3fb950');
+            _bMsg('Proposed actions', lines, '#3fb950', { chatId: 'brittney' });
           }
           loadCockpitCapsule();
         })
-        .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149'); });
+        .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149', { chatId: 'brittney' }); });
+    }
+    function _sendHoloClawChat(msg, inp) {
+      inp.value = '';
+      _bMsg('You', msg, '#58a6ff', { chatId: 'holoclaw' });
+      _persistDraftState();
+      var pending = _bMsg('HoloClaw', 'staging guarded runtime bridge...', '#ffa657', { persist: false, chatId: 'holoclaw' });
+      fetch('/workflow/holoclaw-runtime-bridge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actor: 'brittney',
+          intent: msg,
+          prompt: msg,
+          runtimeMode: 'tick',
+          agentHandle: 'holoclaw'
+        })
+      })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+          if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
+          if (!result.ok || result.data.error) throw new Error(result.data.error || 'holoclaw_stage_failed');
+          var d = result.data;
+          var bridge = d.holoclawRuntimeBridge || d.receipt || d;
+          var summary = bridge.summary || {};
+          _appendTurnCard('HoloClaw staged', [
+            'status: ' + (d.status || summary.status || 'staged'),
+            'bridge: ' + (d.bridgeId || summary.bridgeId || bridge.bridgeId || 'receipt written'),
+            'runtime: ' + (summary.runtimeReady ? 'ready_to_stage' : (summary.missing && summary.missing.length ? 'missing ' + summary.missing.join(', ') : 'reported')),
+            'approval: ' + ((summary.pendingApprovalCount || 0) + ' pending')
+          ], _toneForStatus(d.status || summary.status), 'receipt', { chatId: 'holoclaw' });
+          loadCockpitCapsule();
+        })
+        .catch(function(e) {
+          if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
+          _bMsg('HoloClaw', 'network error: ' + e.message, '#f85149', { chatId: 'holoclaw' });
+        });
+    }
+    function _sendTerminalChat(msg, inp) {
+      inp.value = '';
+      _bMsg('You', msg, '#58a6ff', { chatId: 'terminal' });
+      _persistDraftState();
+      _appendTurnCard('Terminal note captured', [
+        'note stored in browser session state',
+        'execution evidence still comes from GET /api/operator-terminal/session',
+        'host mutation: none'
+      ], 'attention', 'receipt', { chatId: 'terminal' });
+    }
+    function _sendImprovementChat(msg, inp) {
+      inp.value = '';
+      _bMsg('You', msg, '#58a6ff', { chatId: 'improvement' });
+      _persistDraftState();
+      var objectiveInput = document.getElementById('improvement-objective');
+      if (objectiveInput) objectiveInput.value = msg;
+      _persistDraftState();
+      queueImprovementRun();
     }
     function _setImprovementStatus(text, color) {
       var el = document.getElementById('improvement-status'); if (!el) return;
@@ -1319,8 +1716,8 @@ const runtimeScript = `  <script>
           if (d.error) { _setImprovementStatus('Execute error: ' + d.error, '#f85149'); return; }
           _setImprovementStatus('Counted ' + d.totalExecutedRunCount + ' fix(es); ' + d.remainingRunCount + ' left', d.executedRunCount ? '#3fb950' : '#d29922');
           var traceLine = d.holotuneTrace ? '\\nHoloTune: ' + d.holotuneTrace.status + ' (' + d.holotuneTrace.emittedRows + ' rows)' : '';
-          _bMsg('Codebase-fix shakedown', d.status + ' - ' + d.executedRunCount + ' fix(es) counted in this batch; ' + d.remainingRunCount + ' left\\nVision/GPU: ' + d.gpuBalancePlan.localGpu.summary + '\\nDesktop bridge: ' + d.desktopBridge.status + traceLine + '\\nNext: ' + d.nextSafeStep, d.executedRunCount ? '#3fb950' : '#d29922');
-          if (d.lessons && d.lessons.length) _bMsg('Lessons', d.lessons.slice(0, 4).join('\\n'), '#3fb950');
+          _bMsg('Codebase-fix shakedown', d.status + ' - ' + d.executedRunCount + ' fix(es) counted in this batch; ' + d.remainingRunCount + ' left\\nVision/GPU: ' + d.gpuBalancePlan.localGpu.summary + '\\nDesktop bridge: ' + d.desktopBridge.status + traceLine + '\\nNext: ' + d.nextSafeStep, d.executedRunCount ? '#3fb950' : '#d29922', { chatId: 'improvement' });
+          if (d.lessons && d.lessons.length) _bMsg('Lessons', d.lessons.slice(0, 4).join('\\n'), '#3fb950', { chatId: 'improvement' });
           loadImprovementRuns();
         })
         .catch(function(e) { _setImprovementStatus('Execute network error: ' + e.message, '#f85149'); });
@@ -1345,10 +1742,10 @@ const runtimeScript = `  <script>
           _lastImprovementRunId = d.runId;
           _persistRuntimeState();
           _setImprovementStatus('Queued ' + d.queuedRunCount + ' run(s): ' + d.runId, '#3fb950');
-          _bMsg('Improvement run', 'Queued ' + d.queuedRunCount + ' run(s) for: ' + d.objective + '\\n' + d.routingSummary + '\\nNext: ' + d.nextSafeStep, '#3fb950');
+          _bMsg('Improvement run', 'Queued ' + d.queuedRunCount + ' run(s) for: ' + d.objective + '\\n' + d.routingSummary + '\\nNext: ' + d.nextSafeStep, '#3fb950', { chatId: 'improvement' });
           if (d.proposals && d.proposals.length) {
             var lines = d.proposals.map(function(x) { return '- ' + x.operation + (x.lane ? ' [' + x.lane + ']' : ''); }).join('\\n');
-            _bMsg('Run proposals', lines, '#3fb950');
+            _bMsg('Run proposals', lines, '#3fb950', { chatId: 'improvement' });
           }
           loadImprovementRuns();
         })
@@ -1385,11 +1782,21 @@ const runtimeScript = `  <script>
       var chatHeader = document.createElement('div');
       chatHeader.className = 'brittney-chat-header';
       var title = document.createElement('strong');
+      title.id = 'active-chat-title';
       title.textContent = 'Brittney';
       var detail = document.createElement('span');
+      detail.id = 'active-chat-detail';
       detail.textContent = 'local chat route with receipted agents';
       chatHeader.append(title, detail);
-      chatPanel.append(chatHeader, messages, composer);
+      var workspaceBar = document.createElement('div');
+      workspaceBar.id = 'chat-workspace-bar';
+      workspaceBar.className = 'chat-workspace-bar';
+      workspaceBar.setAttribute('aria-label', 'Chat workspaces');
+      var parallelStack = document.createElement('div');
+      parallelStack.id = 'parallel-chat-stack';
+      parallelStack.className = 'parallel-chat-stack';
+      parallelStack.setAttribute('aria-label', 'Expanded parallel chats');
+      chatPanel.append(chatHeader, workspaceBar, parallelStack, messages, composer);
 
       var leftRail = document.createElement('aside');
       leftRail.className = 'operator-side-rail operator-left-rail';

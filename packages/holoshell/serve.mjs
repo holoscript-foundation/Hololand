@@ -1048,6 +1048,76 @@ function holoclawRuntimeBridgeStatusSnapshot() {
   };
 }
 
+function stageHoloClawRuntimeBridgeForChat(payload = {}) {
+  const script = join(REPO_ROOT, 'scripts', 'holoshell-holoclaw-runtime-bridge.mjs');
+  const bridgeJsOutput = join(HOLOSHELL_TMP_DIR, 'holoclaw-runtime-bridge-latest.js');
+  const bridgeDir = join(HOLOSHELL_TMP_DIR, 'holoclaw-runtime-bridges');
+  const workflowOutput = join(HOLOSHELL_TMP_DIR, 'workflow-latest.json');
+  const workflowJsOutput = join(HOLOSHELL_TMP_DIR, 'workflow-latest.js');
+  const gateOutput = join(HOLOSHELL_TMP_DIR, 'brain-intent-gate-latest.json');
+  const gateJsOutput = join(HOLOSHELL_TMP_DIR, 'brain-intent-gate-latest.js');
+  const args = [
+    script,
+    '--actor',
+    String(payload.actor || 'brittney'),
+    '--intent',
+    String(payload.intent || payload.message || payload.text || payload.ask || payload.request || 'Stage HoloClaw runtime bridge from HoloShell.'),
+    '--runtime-mode',
+    String(payload.runtimeMode || 'tick'),
+    '--agent-handle',
+    String(payload.agentHandle || 'holoclaw'),
+    '--bridge-output',
+    HOLOCLAW_RUNTIME_BRIDGE_RECEIPT,
+    '--bridge-js-output',
+    bridgeJsOutput,
+    '--bridge-dir',
+    bridgeDir,
+    '--workflow-output',
+    workflowOutput,
+    '--workflow-js-output',
+    workflowJsOutput,
+    '--gate-output',
+    gateOutput,
+    '--gate-js-output',
+    gateJsOutput,
+    '--json',
+  ];
+  const prompt = payload.prompt || payload.task || payload.chatPrompt;
+  if (prompt) args.push('--prompt', String(prompt));
+  if (payload.provider) args.push('--provider', String(payload.provider));
+  if (payload.model) args.push('--model', String(payload.model));
+  if (payload.selectedSkill || payload.skill) args.push('--selected-skill', String(payload.selectedSkill || payload.skill));
+  const output = execFileSync(process.execPath, args, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 45_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const bridge = parseJsonFromNodeOutput(output);
+  const workflow = readHoloShellTmpJson('workflow-latest.json');
+  const gate = readHoloShellTmpJson('brain-intent-gate-latest.json');
+  const summary = bridge.summary || {};
+  return {
+    schemaVersion: 'hololand.holoshell.holoclaw-runtime-bridge-response.v0.1.0',
+    status: summary.status || bridge.status || 'staged',
+    bridgeId: summary.bridgeId || bridge.bridgeId || '',
+    workflowId: workflow?.workflowId || '',
+    runtimeReady: Boolean(summary.runtimeReady),
+    pendingApprovalCount: summary.pendingApprovalCount || 0,
+    stageErrorCount: summary.stageErrorCount || 0,
+    permissionEnvelope: bridge.policy?.permissionEnvelope || 'guarded_execute',
+    approvalRequired: bridge.policy?.approvalRequired !== false,
+    directExecutionAllowed: false,
+    endpointExecutesRuntime: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    holoclawRuntimeBridge: bridge,
+    workflow,
+    gate,
+  };
+}
+
 function modelLabel(model) {
   return model?.name || model?.id || model?.display || '';
 }
@@ -3320,6 +3390,40 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/holoclaw/runtime-bridge') {
     respond(res, holoclawRuntimeBridgeStatusSnapshot());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/workflow/holoclaw-runtime-bridge/latest') {
+    respond(res, readJsonFileIfPresent(HOLOCLAW_RUNTIME_BRIDGE_RECEIPT) || {
+      schemaVersion: HOLOCLAW_RUNTIME_BRIDGE_SCHEMA,
+      status: 'not_staged',
+      receiptObserved: false,
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/workflow/holoclaw-runtime-bridge') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        respond(res, stageHoloClawRuntimeBridgeForChat(payload));
+      } catch (err) {
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.holoclaw-runtime-bridge-response.v0.1.0',
+          error: String(err.message || err).slice(0, 300),
+          directExecutionAllowed: false,
+          endpointExecutesRuntime: false,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+        }, 500);
+      }
+    });
     return;
   }
 
