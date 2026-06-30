@@ -41,14 +41,18 @@ requireIncludes('desktop cockpit source', source, [
   'desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"',
   'legacyGatewayAdapter: "scripts/start-brittney.ts"',
   'operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"',
+  'sovereignRoomMarathonReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"',
   'browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"',
   'browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"',
-  'browserChatWorkspaceIds: ["brittney", "holoclaw", "terminal", "improvement"]',
+  'browserChatWorkspaceIds: ["brittney", "sovereign", "holoclaw", "terminal", "improvement"]',
   'ChatWorkspace',
   'ParallelChatWorkspacesStayIsolated',
   'BrowserRefreshPreservesOperatorSession',
   'cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"',
   'desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"',
+  'sovereignRoomMarathonSource: "apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus"',
+  'sovereignRoomMarathonStatusEndpoint: "GET /api/sovereign-room/marathon"',
+  'SovereignRoomMarathonVisibleAsLocalReceipt',
   'holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"',
   'holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"',
   'HoloClawRuntimeVisibleBehindConsent',
@@ -108,6 +112,10 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/cockpit/capsule'",
   "'/api/brittney/chat'",
   "'/api/operator-terminal/session'",
+  "'/api/sovereign-room/marathon'",
+  "'/workflow/sovereign-room-marathon'",
+  'stageSovereignRoomMarathonForChat',
+  'sovereignRoomMarathonStatusSnapshot()',
   "'/api/holoclaw/runtime-bridge'",
   "'/workflow/holoclaw-runtime-bridge'",
   'stageHoloClawRuntimeBridgeForChat',
@@ -120,7 +128,9 @@ requireIncludes('HoloShell compiler bridge', compiler, [
   'HOLOSHELL_CHAT_WORKSPACES',
   'transcriptByChat',
   '_setActiveChat',
+  '_sendSovereignRoomChat',
   '_sendHoloClawChat',
+  '_inspectSovereignRoomMarathon',
   'parallel-chat-stack',
   '_restoreBrowserSession',
   '_rememberTranscript',
@@ -141,4 +151,4 @@ if (failures.length > 0) {
 
 console.log('[brittney-desktop-source-contract] ok');
 console.log(`source: ${files.source}`);
-console.log('route: desktop shortcut -> Jetson HoloShell surface -> operator terminal receipt -> HoloClaw status -> HoloShell server receipts');
+console.log('route: desktop shortcut -> Jetson HoloShell surface -> operator terminal receipt -> Sovereign Room status -> HoloClaw status -> HoloShell server receipts');

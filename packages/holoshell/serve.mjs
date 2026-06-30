@@ -28,11 +28,17 @@ const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-deskto
 const FARA_PEER_AUTOMATION_SOURCE = 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus';
 const HOLOCLAW_RUNTIME_BRIDGE_SOURCE = 'apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus';
 const HOLOCLAW_RUNTIME_BRIDGE_SCHEMA = 'hololand.holoshell.holoclaw-runtime-bridge.v0.1.0';
+const SOVEREIGN_ROOM_MARATHON_SOURCE = 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus';
+const SOVEREIGN_ROOM_MARATHON_SCRIPT = 'scripts/holoshell-sovereign-room-marathon.mjs';
+const SOVEREIGN_ROOM_MARATHON_SCHEMA = 'hololand.holoshell.sovereign-room-marathon.v0.1.0';
 const REPO_ROOT = join(__dirname, '..', '..');
 const HOLOSHELL_TMP_DIR = process.env.HOLOSHELL_TMP_DIR || join(REPO_ROOT, '.tmp', 'holoshell');
 const HOLOCLAW_RUNTIME_BRIDGE_RECEIPT =
   process.env.HOLOSHELL_HOLOCLAW_RUNTIME_BRIDGE_RECEIPT ||
   join(HOLOSHELL_TMP_DIR, 'holoclaw-runtime-bridge-latest.json');
+const SOVEREIGN_ROOM_MARATHON_RECEIPT =
+  process.env.HOLOSHELL_SOVEREIGN_ROOM_MARATHON_RECEIPT ||
+  join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathon-latest.json');
 const LEGACY_WINDOW_INVENTORY_SOURCE = 'apps/holoshell/source/holoshell-legacy-window-inventory.hsplus';
 const LEGACY_WINDOW_INVENTORY_SCHEMA = 'hololand.holoshell.legacy-window-inventory.v0.1.0';
 const OPERATOR_BRIEF_SOURCE = 'apps/holoshell/source/holoshell-operator-brief.hsplus';
@@ -1115,6 +1121,121 @@ function stageHoloClawRuntimeBridgeForChat(payload = {}) {
     holoclawRuntimeBridge: bridge,
     workflow,
     gate,
+  };
+}
+
+function sovereignRoomMarathonStatusSnapshot() {
+  const receipt = readJsonFileIfPresent(SOVEREIGN_ROOM_MARATHON_RECEIPT);
+  const hasReceipt = receipt?.schemaVersion === SOVEREIGN_ROOM_MARATHON_SCHEMA;
+  const summary = hasReceipt ? (receipt.summary || {}) : {};
+  const status = hasReceipt ? String(summary.status || receipt.status || 'unknown') : 'not_checked';
+  const selectedTask = hasReceipt ? (receipt.selectedTask || {}) : {};
+  const selectedTaskId = String(summary.selectedTaskId || selectedTask.id || '');
+  const selectedTaskTitle = String(summary.selectedTaskTitle || selectedTask.title || '');
+  const selectedTaskTag = String(summary.selectedTaskTag || selectedTask.classification || 'unknown');
+  const matchedCandidateCount = Number.isFinite(summary.matchedCandidateCount)
+    ? summary.matchedCandidateCount
+    : (Array.isArray(receipt?.candidates) ? receipt.candidates.length : 0);
+  const queueOpenCount = Number.isFinite(summary.queueOpenCount) ? summary.queueOpenCount : 0;
+  const queueClaimableOpenCount = Number.isFinite(summary.queueClaimableOpenCount) ? summary.queueClaimableOpenCount : 0;
+  return {
+    schemaVersion: 'hololand.holoshell.sovereign-room-marathon-status.v0.1.0',
+    source: SOVEREIGN_ROOM_MARATHON_SOURCE,
+    generatedAt: new Date().toISOString(),
+    status,
+    receiptObserved: hasReceipt,
+    receiptPath: hasReceipt
+      ? (receipt.output?.latestResolvedPath || receipt.output?.latestPath || SOVEREIGN_ROOM_MARATHON_RECEIPT)
+      : null,
+    receiptAgeMs: hasReceipt ? fileAgeMs(SOVEREIGN_ROOM_MARATHON_RECEIPT) : null,
+    receiptId: hasReceipt ? (receipt.receiptId || '') : '',
+    taskLane: String(summary.taskLane || 'local'),
+    taskTag: String(summary.taskTag || 'local'),
+    cloudEscalationAllowed: summary.cloudEscalationAllowed === true,
+    queueStatus: String(summary.queueStatus || (hasReceipt ? 'unknown' : 'not_checked')),
+    queueOpenCount,
+    queueClaimableOpenCount,
+    matchedCandidateCount,
+    selectedTaskId,
+    selectedTaskTitle,
+    selectedTaskTag,
+    selectedTask: hasReceipt ? (receipt.selectedTask || null) : null,
+    candidates: hasReceipt && Array.isArray(receipt.candidates) ? receipt.candidates.slice(0, 8) : [],
+    claimRequested: summary.claimRequested === true,
+    claimAttempted: summary.claimAttempted === true,
+    claimSucceeded: summary.claimSucceeded === true,
+    sovereignConsumptionDefault: summary.sovereignConsumptionDefault !== false,
+    completionClaimAllowed: summary.completionClaimAllowed === true,
+    directExecutionAllowed: false,
+    endpointExecutesRuntime: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    controlDaemonRoute: 'POST /workflow/sovereign-room-marathon',
+    controlDaemonLatestRoute: 'GET /workflow/sovereign-room-marathon/latest',
+    statusEndpoint: 'GET /api/sovereign-room/marathon',
+    nextAction: String(summary.nextAction || (hasReceipt ? 'inspect_receipt_before_claim' : 'refresh_sovereign_room_receipt')),
+    summary: hasReceipt
+      ? `${status}; ${matchedCandidateCount} local candidate(s); selected ${selectedTaskTitle || selectedTaskId || 'none'}; claim attempted ${summary.claimAttempted === true ? 'yes' : 'no'}`
+      : 'No sovereign room marathon receipt staged yet',
+  };
+}
+
+function stageSovereignRoomMarathonForChat(payload = {}) {
+  const script = join(REPO_ROOT, SOVEREIGN_ROOM_MARATHON_SCRIPT);
+  const marathonJsOutput = join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathon-latest.js');
+  const marathonDir = join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathons');
+  const taskLane = String(payload.taskLane || payload.lane || 'local');
+  const taskTag = String(payload.taskTag || payload.tag || taskLane || 'local');
+  const maxCandidates = Number(payload.maxCandidates || 8);
+  const args = [
+    script,
+    '--task-lane',
+    taskLane,
+    '--task-tag',
+    taskTag,
+    '--max-candidates',
+    String(Number.isFinite(maxCandidates) && maxCandidates >= 1 ? maxCandidates : 8),
+    '--output',
+    SOVEREIGN_ROOM_MARATHON_RECEIPT,
+    '--js-output',
+    marathonJsOutput,
+    '--receipt-dir',
+    marathonDir,
+    '--json',
+  ];
+  if (payload.cloudEscalationAllowed === true) args.push('--cloud-escalation-allowed');
+  if (payload.queueFixture && process.env.HOLOSHELL_ALLOW_QUEUE_FIXTURE === '1') {
+    args.push('--queue-fixture', String(payload.queueFixture));
+  }
+  const output = execFileSync(process.execPath, args, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 45_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const receipt = parseJsonFromNodeOutput(output);
+  const summary = receipt.summary || {};
+  return {
+    schemaVersion: 'hololand.holoshell.sovereign-room-marathon-response.v0.1.0',
+    status: summary.status || receipt.status || 'staged',
+    receiptId: receipt.receiptId || '',
+    taskLane: summary.taskLane || 'local',
+    taskTag: summary.taskTag || 'local',
+    cloudEscalationAllowed: summary.cloudEscalationAllowed === true,
+    matchedCandidateCount: summary.matchedCandidateCount || 0,
+    selectedTaskId: summary.selectedTaskId || '',
+    selectedTaskTitle: summary.selectedTaskTitle || '',
+    claimRequested: summary.claimRequested === true,
+    claimAttempted: summary.claimAttempted === true,
+    claimSucceeded: summary.claimSucceeded === true,
+    directExecutionAllowed: false,
+    endpointExecutesRuntime: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    sovereignRoomMarathon: receipt,
+    summary,
   };
 }
 
@@ -2532,6 +2653,7 @@ function buildLiveStatusSnapshot() {
   const modelLibrary = modelLibrarySnapshot();
   const nativeResources = nativeResourceSnapshot();
   const laptopReasoning = laptopReasoningStatusSnapshot();
+  const sovereignRoomMarathon = sovereignRoomMarathonStatusSnapshot();
   const holoclawRuntimeBridge = holoclawRuntimeBridgeStatusSnapshot();
   const faraPeerAutomation = {
     latestPulse: faraPeerAutomationHistory()[0] || null,
@@ -2562,6 +2684,9 @@ function buildLiveStatusSnapshot() {
       faraPeerAutomationScheduleStatusEndpoint: 'GET /api/fara-peer-chat/automation-schedule',
       faraPeerAutomationPromotionEndpoint: 'POST /api/fara-peer-chat/promote-proposal',
       faraPeerAutomationPromotionHistoryEndpoint: 'GET /api/fara-peer-chat/promotions',
+      sovereignRoomMarathonEndpoint: 'GET /api/sovereign-room/marathon',
+      sovereignRoomMarathonWorkflowEndpoint: 'POST /workflow/sovereign-room-marathon',
+      sovereignRoomMarathonLatestEndpoint: 'GET /workflow/sovereign-room-marathon/latest',
       holoclawRuntimeBridgeEndpoint: 'GET /api/holoclaw/runtime-bridge',
       holoclawRuntimeBridgeWorkflowEndpoint: 'POST /workflow/holoclaw-runtime-bridge',
       holoclawRuntimeBridgeLatestEndpoint: 'GET /workflow/holoclaw-runtime-bridge/latest',
@@ -2586,6 +2711,8 @@ function buildLiveStatusSnapshot() {
       'fara_peer_automation_pulse',
       'fara_peer_automation_schedule',
       'fara_peer_proposal_promotion',
+      'sovereign_room_marathon_status',
+      'sovereign_room_marathon_receipt_refresh',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -2610,7 +2737,8 @@ function buildLiveStatusSnapshot() {
       { id: 'holo_sdf_geometry', model: 'holo-sdf:v0', role: 'text/image to SDFNode geometry' },
       { id: 'vision_language', model: 'qwen3-vl:4b', role: 'vision model stack for screen and image understanding' },
       { id: 'semantic_embeddings', model: 'nomic-embed-text:latest', role: 'semantic recall and search' },
-      { id: 'laptop_hardware', model: 'laptop-ollama receipt route', role: 'laptop reasoning dispatch/result receipts with GPU telemetry truth' },
+      { id: 'laptop_hardware', model: 'laptop sovereign receipt route', role: 'laptop reasoning dispatch/result receipts with GPU telemetry truth' },
+      { id: 'sovereign_room_marathon', model: 'local sovereign room queue', role: 'local tagged HoloMesh room receipt and claim boundary' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'holoclaw_runtime', model: 'HoloClaw AgentRunner', role: 'consent-gated HoloScript agent runtime bridge' },
       { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
@@ -2619,6 +2747,7 @@ function buildLiveStatusSnapshot() {
     ],
     modelLibrary,
     nativeResources,
+    sovereignRoomMarathon,
     holoclawRuntimeBridge,
     faraPeerAutomation,
     gpu: gpuStatusSnapshot(),
@@ -2670,6 +2799,10 @@ function holoclawRuntimeBridgeSummary(snapshot) {
   return snapshot.holoclawRuntimeBridge?.summary || 'No HoloClaw runtime bridge status reported';
 }
 
+function sovereignRoomMarathonSummary(snapshot) {
+  return snapshot.sovereignRoomMarathon?.summary || 'No sovereign room marathon status reported';
+}
+
 function formatLiveStatusBrief(snapshot) {
   const latestPulse = snapshot.faraPeerAutomation?.latestPulse;
   const schedule = snapshot.faraPeerAutomation?.schedule;
@@ -2683,6 +2816,7 @@ function formatLiveStatusBrief(snapshot) {
     `Lanes: ${laneSummary(snapshot)}`,
     `Model library: ${modelLibrarySummary(snapshot)}`,
     `Native resources: ${nativeResourceSummary(snapshot)}`,
+    `Sovereign room marathon: ${sovereignRoomMarathonSummary(snapshot)}`,
     `HoloClaw runtime bridge: ${holoclawRuntimeBridgeSummary(snapshot)}`,
     `GPU telemetry: ${snapshot.gpu.summary}`,
     `Laptop reasoning: ${snapshot.laptopReasoning.summary}`,
@@ -2711,13 +2845,14 @@ function buildGroundedStatusReply(snapshot, message) {
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
       `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}. Schedule/status live at ${snapshot.route.faraPeerAutomationScheduleStatusEndpoint}.`,
-      `4. Keep HoloClaw as the native agent-runtime gate: inspect ${snapshot.route.holoclawRuntimeBridgeEndpoint}; stage runtime work only through ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}. ${holoclawRuntimeBridgeSummary(snapshot)}.`,
-      `5. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
-      `6. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
-      `7. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
-      `8. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `9. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
-      `10. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `4. Inspect local-tagged room work through ${snapshot.route.sovereignRoomMarathonEndpoint}; refresh receipts through ${snapshot.route.sovereignRoomMarathonWorkflowEndpoint} without browser claims. ${sovereignRoomMarathonSummary(snapshot)}.`,
+      `5. Keep HoloClaw as the native agent-runtime gate: inspect ${snapshot.route.holoclawRuntimeBridgeEndpoint}; stage runtime work only through ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}. ${holoclawRuntimeBridgeSummary(snapshot)}.`,
+      `6. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
+      `7. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
+      `8. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
+      `9. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `10. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
+      `11. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
       'No cube/test object is needed here. The next move is real repo issue -> patch -> targeted validation -> receipt/commit evidence -> GPU/bridge measurement -> feed the verified fix back into Brittney. Tuning waits.',
     ].join('\n');
@@ -2730,6 +2865,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
     `Fara/Brittney automation pulse: ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}; promotion route ${snapshot.route.faraPeerAutomationPromotionEndpoint}.`,
+    `Sovereign room marathon: ${sovereignRoomMarathonSummary(snapshot)}; status route ${snapshot.route.sovereignRoomMarathonEndpoint}; receipt refresh ${snapshot.route.sovereignRoomMarathonWorkflowEndpoint}.`,
     `HoloClaw runtime bridge: ${holoclawRuntimeBridgeSummary(snapshot)}; status route ${snapshot.route.holoclawRuntimeBridgeEndpoint}; guarded workflow ${snapshot.route.holoclawRuntimeBridgeWorkflowEndpoint}.`,
     `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, count codebase-fix shakedowns through ${snapshot.route.improvementRunExecuteEndpoint} only after patch and validation evidence; HoloTune is deferred.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
@@ -2920,6 +3056,7 @@ function liveStatusResponseEnvelope(snapshot) {
     laneCount: snapshot.lanes.length,
     modelLibrary: snapshot.modelLibrary,
     nativeResources: snapshot.nativeResources,
+    sovereignRoomMarathon: snapshot.sovereignRoomMarathon,
     holoclawRuntimeBridge: snapshot.holoclawRuntimeBridge,
     faraPeerAutomation: snapshot.faraPeerAutomation,
     gpu: snapshot.gpu,
@@ -2934,6 +3071,7 @@ function liveStatusResponseEnvelope(snapshot) {
 function buildBrittneyCockpitCapsule() {
   const liveStatus = buildLiveStatusSnapshot();
   const desktopBridge = desktopBridgeStatusSnapshot();
+  const sovereignRoomMarathon = liveStatus.sovereignRoomMarathon || sovereignRoomMarathonStatusSnapshot();
   const holoclawRuntimeBridge = liveStatus.holoclawRuntimeBridge || holoclawRuntimeBridgeStatusSnapshot();
   const operatorTerminal = buildOperatorTerminalSession();
   const windowAwareness = buildWindowAwareness();
@@ -2965,6 +3103,9 @@ function buildBrittneyCockpitCapsule() {
   const holoclawRuntimeStatus = holoclawRuntimeBridge.status === 'not_staged'
     ? 'waiting'
     : (/^(blocked|error|failed|runtime_command_missing)/u.test(holoclawRuntimeBridge.status) ? 'attention' : 'ready');
+  const sovereignRoomStatus = ['not_checked', 'empty'].includes(sovereignRoomMarathon.status)
+    ? 'waiting'
+    : (/^(blocked|error|failed|claim_failed)/u.test(sovereignRoomMarathon.status) ? 'attention' : 'ready');
   const cockpitLanes = [
     {
       id: 'runtime_truth',
@@ -3028,6 +3169,20 @@ function buildBrittneyCockpitCapsule() {
         : `schedule ${faraAutomation.schedule.status}`,
       sourceEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
       permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'sovereign_room',
+      label: 'Sovereign Room',
+      status: sovereignRoomStatus,
+      value: sovereignRoomMarathon.status,
+      detail: `matched ${sovereignRoomMarathon.matchedCandidateCount}; open ${sovereignRoomMarathon.queueOpenCount}; selected ${sovereignRoomMarathon.selectedTaskTitle || sovereignRoomMarathon.selectedTaskId || 'none'}`,
+      sourceEndpoint: 'GET /api/sovereign-room/marathon',
+      workflowEndpoint: 'POST /workflow/sovereign-room-marathon',
+      permissionEnvelope: 'read_only_receipt_refresh',
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      approvalRequired: false,
       receiptRequired: true,
     },
     {
@@ -3107,6 +3262,37 @@ function buildBrittneyCockpitCapsule() {
       lane: 'laptop-hardware',
       permissionEnvelope: 'read_only',
       mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'sovereign_room_status',
+      label: 'Sovereign Room',
+      method: 'GET',
+      href: '/api/sovereign-room/marathon',
+      lane: 'sovereign_room',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      primaryAction: 'inspect_sovereign_room',
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      receiptRequired: true,
+    },
+    {
+      id: 'sovereign_room_receipt_refresh',
+      label: 'Refresh Room Receipt',
+      method: 'POST',
+      href: '/workflow/sovereign-room-marathon',
+      externalWorkflowRoute: 'POST /workflow/sovereign-room-marathon',
+      lane: 'sovereign_room',
+      permissionEnvelope: 'read_only_receipt_refresh',
+      mayExecuteWithoutConsent: true,
+      primaryAction: 'refresh_sovereign_room_receipt',
+      defaultTaskLane: 'local',
+      defaultTaskTag: 'local',
+      cloudEscalationAllowed: false,
+      maxCandidates: 8,
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
       receiptRequired: true,
     },
     {
@@ -3220,6 +3406,12 @@ function buildBrittneyCockpitCapsule() {
       laptopReasoningModelInvocationPerformed: laptopReasoning.modelInvocationPerformed,
       laptopReasoningGpuStatus: laptopReasoning.gpuStatus,
       laptopReasoningPingbackStatus: laptopReasoning.pingbackStatus,
+      sovereignRoomStatus,
+      sovereignRoomMarathonStatus: sovereignRoomMarathon.status,
+      sovereignRoomReceiptObserved: sovereignRoomMarathon.receiptObserved,
+      sovereignRoomMatchedCandidateCount: sovereignRoomMarathon.matchedCandidateCount,
+      sovereignRoomSelectedTaskId: sovereignRoomMarathon.selectedTaskId,
+      sovereignRoomSelectedTaskTitle: sovereignRoomMarathon.selectedTaskTitle,
       holoclawRuntimeStatus,
       holoclawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
       holoclawRuntimeBridgePendingApprovalCount: holoclawRuntimeBridge.pendingApprovalCount,
@@ -3237,10 +3429,14 @@ function buildBrittneyCockpitCapsule() {
       ...liveStatus.route,
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
+      sovereignRoomMarathonEndpoint: 'GET /api/sovereign-room/marathon',
+      sovereignRoomMarathonWorkflowEndpoint: 'POST /workflow/sovereign-room-marathon',
+      sovereignRoomMarathonLatestEndpoint: 'GET /workflow/sovereign-room-marathon/latest',
     },
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    sovereignRoomMarathon,
     holoclawRuntimeBridge,
     faraPeerAutomation: faraAutomation,
     laptopReasoning,
@@ -3260,6 +3456,8 @@ function buildBrittneyCockpitCapsule() {
       admittedExecutorActions: ['open_url'],
       allOtherDesktopActionsRemainPlanOnly: true,
       browserTerminalCouplingRequires: ['shared_session_id', 'terminal_receipt', 'context_capsule', 'hologate_receipt'],
+      sovereignRoomClaimRequires: ['terminal_or_control_daemon', 'local_task_match', 'execution_receipt_before_done'],
+      sovereignRoomBrowserClaimAllowed: false,
       holoclawRuntimeRequires: ['status_receipt', 'workflow_approval', 'runtime_env_flag', 'execution_receipt'],
       holoclawDirectExecutionAllowed: false,
       secretsIncluded: false,
@@ -3278,6 +3476,8 @@ function buildBrittneyCockpitCapsule() {
       latestFaraPeerPulseReceipt: faraAutomation.latestPulse?.receiptPath || null,
       latestFaraPeerPromotionId: faraAutomation.latestPromotion?.promotionId || '',
       latestFaraPeerPromotionReceipt: faraAutomation.latestPromotion?.receiptPath || null,
+      latestSovereignRoomMarathonReceipt: sovereignRoomMarathon.receiptPath,
+      latestSovereignRoomMarathonStatus: sovereignRoomMarathon.status,
       latestHoloClawRuntimeBridgeReceipt: holoclawRuntimeBridge.receiptPath,
       latestHoloClawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
       operatorTerminalReceiptHash: operatorTerminal.terminal.receiptHash,
@@ -3287,7 +3487,7 @@ function buildBrittneyCockpitCapsule() {
     },
     destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
     desktopAutomationExecuted: false,
-    nextSafeStep: 'Carry this capsule into the next agent turn, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
+    nextSafeStep: 'Carry this capsule into the next agent turn, inspect Sovereign Room status before claiming local work, claim only in the guarded terminal/control-daemon path, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
   };
 }
 
@@ -3390,6 +3590,50 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/holoclaw/runtime-bridge') {
     respond(res, holoclawRuntimeBridgeStatusSnapshot());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/sovereign-room/marathon') {
+    respond(res, sovereignRoomMarathonStatusSnapshot());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/workflow/sovereign-room-marathon/latest') {
+    respond(res, readJsonFileIfPresent(SOVEREIGN_ROOM_MARATHON_RECEIPT) || {
+      schemaVersion: SOVEREIGN_ROOM_MARATHON_SCHEMA,
+      status: 'not_checked',
+      receiptObserved: false,
+      claimRequested: false,
+      claimAttempted: false,
+      claimSucceeded: false,
+      directExecutionAllowed: false,
+      endpointExecutesRuntime: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      receiptRequired: true,
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/workflow/sovereign-room-marathon') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        respond(res, stageSovereignRoomMarathonForChat(payload));
+      } catch (err) {
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.sovereign-room-marathon-response.v0.1.0',
+          error: String(err.message || err).slice(0, 300),
+          directExecutionAllowed: false,
+          endpointExecutesRuntime: false,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+        }, 500);
+      }
+    });
     return;
   }
 

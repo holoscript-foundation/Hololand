@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -8,6 +8,30 @@ import { setTimeout as delay } from 'node:timers/promises';
 const port = 9070 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const tmpDir = mkdtempSync(join(tmpdir(), 'holoshell-cockpit-'));
+const sovereignQueueFixture = join(tmpDir, 'sovereign-room-queue.json');
+
+writeFileSync(sovereignQueueFixture, `${JSON.stringify({
+  openCount: 2,
+  claimableOpenCount: 2,
+  tasks: [
+    {
+      id: 'task_local_fixture',
+      title: '[local] test sovereign room from cockpit',
+      status: 'open',
+      priority: 50,
+      tags: ['local', 'sovereign'],
+      claimable: true,
+    },
+    {
+      id: 'task_cloud_fixture',
+      title: '[cloud] provider work',
+      status: 'open',
+      priority: 80,
+      tags: ['cloud'],
+      claimable: true,
+    },
+  ],
+}, null, 2)}\n`, 'utf8');
 
 execFileSync(process.execPath, [
   'scripts/holoshell-legacy-window-inventory.mjs',
@@ -34,6 +58,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_HOST: '127.0.0.1',
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSHELL_TMP_DIR: tmpDir,
+    HOLOSHELL_ALLOW_QUEUE_FIXTURE: '1',
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
   },
@@ -93,9 +118,50 @@ try {
   assert.equal(liveStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeWorkflowEndpoint, 'POST /workflow/holoclaw-runtime-bridge');
+  assert.equal(liveStatus.route.sovereignRoomMarathonEndpoint, 'GET /api/sovereign-room/marathon');
+  assert.equal(liveStatus.route.sovereignRoomMarathonWorkflowEndpoint, 'POST /workflow/sovereign-room-marathon');
   assert.ok(liveStatus.capabilities.includes('brittney_desktop_cockpit'));
+  assert.ok(liveStatus.capabilities.includes('sovereign_room_marathon_status'));
+  assert.ok(liveStatus.capabilities.includes('sovereign_room_marathon_receipt_refresh'));
   assert.ok(liveStatus.capabilities.includes('holoclaw_runtime_bridge_status'));
+  assert.equal(liveStatus.sovereignRoomMarathon.directExecutionAllowed, false);
   assert.equal(liveStatus.holoclawRuntimeBridge.directExecutionAllowed, false);
+
+  const initialSovereignRoom = await getJson('/api/sovereign-room/marathon');
+  assert.equal(initialSovereignRoom.schemaVersion, 'hololand.holoshell.sovereign-room-marathon-status.v0.1.0');
+  assert.equal(initialSovereignRoom.source, 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus');
+  assert.equal(initialSovereignRoom.statusEndpoint, 'GET /api/sovereign-room/marathon');
+  assert.equal(initialSovereignRoom.controlDaemonRoute, 'POST /workflow/sovereign-room-marathon');
+  assert.equal(initialSovereignRoom.directExecutionAllowed, false);
+  assert.equal(initialSovereignRoom.endpointExecutesRuntime, false);
+
+  const stagedSovereignRoom = await postJson('/workflow/sovereign-room-marathon', {
+    intent: 'Review local sovereign queue from the browser without claiming it.',
+    taskLane: 'local',
+    taskTag: 'local',
+    queueFixture: sovereignQueueFixture,
+  });
+  assert.equal(stagedSovereignRoom.schemaVersion, 'hololand.holoshell.sovereign-room-marathon-response.v0.1.0');
+  assert.equal(stagedSovereignRoom.directExecutionAllowed, false);
+  assert.equal(stagedSovereignRoom.endpointExecutesRuntime, false);
+  assert.equal(stagedSovereignRoom.destructiveActionsTaken, false);
+  assert.equal(stagedSovereignRoom.sovereignRoomMarathon.schemaVersion, 'hololand.holoshell.sovereign-room-marathon.v0.1.0');
+  assert.equal(stagedSovereignRoom.summary.taskLane, 'local');
+  assert.equal(stagedSovereignRoom.summary.taskTag, 'local');
+  assert.equal(stagedSovereignRoom.summary.cloudEscalationAllowed, false);
+  assert.equal(stagedSovereignRoom.summary.claimAttempted, false);
+  assert.equal(stagedSovereignRoom.summary.status, 'ready_to_claim');
+  assert.equal(stagedSovereignRoom.summary.selectedTaskId, 'task_local_fixture');
+
+  const latestSovereignRoom = await getJson('/workflow/sovereign-room-marathon/latest');
+  assert.equal(latestSovereignRoom.schemaVersion, 'hololand.holoshell.sovereign-room-marathon.v0.1.0');
+  assert.equal(latestSovereignRoom.receiptId, stagedSovereignRoom.receiptId);
+
+  const stagedSovereignRoomStatus = await getJson('/api/sovereign-room/marathon');
+  assert.equal(stagedSovereignRoomStatus.receiptObserved, true);
+  assert.equal(stagedSovereignRoomStatus.matchedCandidateCount, 1);
+  assert.equal(stagedSovereignRoomStatus.selectedTaskId, 'task_local_fixture');
+  assert.equal(stagedSovereignRoomStatus.claimAttempted, false);
 
   const holoclawRuntime = await getJson('/api/holoclaw/runtime-bridge');
   assert.equal(holoclawRuntime.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0');
@@ -203,12 +269,27 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'laptop_reasoning' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'fara_peer_automation' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) =>
+    lane.id === 'sovereign_room' &&
+    lane.permissionEnvelope === 'read_only_receipt_refresh' &&
+    lane.sourceEndpoint === 'GET /api/sovereign-room/marathon' &&
+    lane.workflowEndpoint === 'POST /workflow/sovereign-room-marathon' &&
+    lane.directExecutionAllowed === false &&
+    lane.endpointExecutesRuntime === false
+  ));
+  assert.ok(capsule.cockpitLanes.some((lane) =>
     lane.id === 'holoclaw_runtime' &&
     lane.permissionEnvelope === 'guarded_execute' &&
     lane.sourceEndpoint === 'GET /api/holoclaw/runtime-bridge' &&
     lane.directExecutionAllowed === false
   ));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
+  assert.equal(capsule.summary.sovereignRoomStatus, 'ready');
+  assert.equal(capsule.summary.sovereignRoomReceiptObserved, true);
+  assert.equal(capsule.summary.sovereignRoomMatchedCandidateCount, 1);
+  assert.equal(capsule.summary.sovereignRoomSelectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.summary.sovereignRoomSelectedTaskTitle, '[local] test sovereign room from cockpit');
+  assert.equal(capsule.sovereignRoomMarathon.statusEndpoint, 'GET /api/sovereign-room/marathon');
+  assert.equal(capsule.sovereignRoomMarathon.selectedTaskId, 'task_local_fixture');
   assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, stagedHoloClawRuntime.status);
   assert.equal(capsule.holoclawRuntimeBridge.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
@@ -217,6 +298,22 @@ try {
   assert.equal(capsule.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(capsule.actionCards.some((card) => card.id === 'desktop_control_plan' && card.permissionEnvelope === 'read_only_plan'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'sovereign_room_status' &&
+    card.href === '/api/sovereign-room/marathon' &&
+    card.mayExecuteWithoutConsent === true &&
+    card.endpointExecutesRuntime === false
+  ));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'sovereign_room_receipt_refresh' &&
+    card.href === '/workflow/sovereign-room-marathon' &&
+    card.permissionEnvelope === 'read_only_receipt_refresh' &&
+    card.defaultTaskLane === 'local' &&
+    card.defaultTaskTag === 'local' &&
+    card.cloudEscalationAllowed === false &&
+    card.mayExecuteWithoutConsent === true &&
+    card.endpointExecutesRuntime === false
+  ));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_pulse' && card.href === '/api/fara-peer-chat/automation-pulse'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_schedule' && card.permissionEnvelope === 'read_only_receipt_schedule'));
   assert.ok(capsule.actionCards.some((card) =>
@@ -265,8 +362,11 @@ try {
   assert.ok(capsule.actionCards.some((card) => card.id.startsWith('focus_window_window-') && card.target?.rawTitleHidden === true));
   assert.deepEqual(capsule.safety.admittedExecutorActions, ['open_url']);
   assert.equal(capsule.safety.allOtherDesktopActionsRemainPlanOnly, true);
+  assert.equal(capsule.safety.sovereignRoomBrowserClaimAllowed, false);
+  assert.ok(capsule.safety.sovereignRoomClaimRequires.includes('terminal_or_control_daemon'));
   assert.equal(capsule.safety.rawWindowTitlesHidden, true);
   assert.equal(capsule.safety.destructiveActionsTaken, false);
+  assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'ready_to_claim');
   assert.ok(capsule.contextCapsuleTemplate.requiredFields.includes('next_command'));
   assert.ok(capsule.contextCapsuleTemplate.memoryInputs.includes('knowledge_store'));
   assert.match(capsule.nextSafeStep, /preflight -> consent-token -> receipt/);
@@ -278,11 +378,13 @@ try {
   assert.match(hsplusSource, /WindowAwarePreflightCards/);
   assert.match(hsplusSource, /LaptopReasoningPingbackIsVisible/);
   assert.match(hsplusSource, /FaraPeerAutomationIsVisibleButNonMutating/);
+  assert.match(hsplusSource, /SovereignRoomMarathonVisibleAsLocalReceipt/);
+  assert.match(hsplusSource, /POST \/workflow\/sovereign-room-marathon/);
   assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
   assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
   assert.match(hsplusSource, /BrowserRefreshPreservesOperatorSession/);
   assert.match(hsplusSource, /ParallelChatWorkspacesStayIsolated/);
-  assert.match(hsplusSource, /browserChatWorkspaceIds: \["brittney", "holoclaw", "terminal", "improvement"\]/);
+  assert.match(hsplusSource, /browserChatWorkspaceIds: \["brittney", "sovereign", "holoclaw", "terminal", "improvement"\]/);
   assert.match(hsplusSource, /holoshell:brittney:browser-session:v1/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
@@ -295,6 +397,10 @@ try {
   assert.match(compileSource, /loadCockpitCapsule/);
   assert.match(compileSource, /cockpit-reasoning/);
   assert.match(compileSource, /laptop_reasoning_status/);
+  assert.match(compileSource, /_inspectSovereignRoomMarathon/);
+  assert.match(compileSource, /_sendSovereignRoomChat/);
+  assert.match(compileSource, /\/workflow\/sovereign-room-marathon/);
+  assert.match(compileSource, /Sovereign Room/);
   assert.match(compileSource, /_inspectHoloClawRuntimeBridge/);
   assert.match(compileSource, /\/api\/holoclaw\/runtime-bridge/);
   assert.match(compileSource, /HOLOSHELL_BROWSER_STATE_SCHEMA/);

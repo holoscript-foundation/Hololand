@@ -398,7 +398,7 @@ function compileOperateRoomShell(holoComposition) {
     .chat-workspace-bar {
       flex: 0 0 auto;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
       gap: 6px;
       padding: 8px 10px;
       border-bottom: 1px solid #30363d;
@@ -654,6 +654,14 @@ const runtimeScript = `  <script>
         placeholder: 'Talk to Brittney - she manages the system and agents do the data work...'
       },
       {
+        id: 'sovereign',
+        label: 'Sovereign Room',
+        detail: 'local queue',
+        speaker: 'Sovereign Room',
+        color: '#58a6ff',
+        placeholder: 'Review local-tagged room tasks without claiming from the browser...'
+      },
+      {
         id: 'holoclaw',
         label: 'HoloClaw',
         detail: 'runtime staging',
@@ -679,7 +687,7 @@ const runtimeScript = `  <script>
       }
     ];
     var _activeChatId = HOLOSHELL_DEFAULT_CHAT_ID;
-    var _expandedChatIds = ['holoclaw'];
+    var _expandedChatIds = ['sovereign', 'holoclaw'];
     var _browserStateRestoring = false;
     function _emptyBrowserState() {
       return {
@@ -688,7 +696,7 @@ const runtimeScript = `  <script>
         transcriptByChat: {},
         drafts: {},
         activeChatId: HOLOSHELL_DEFAULT_CHAT_ID,
-        expandedChatIds: ['holoclaw'],
+        expandedChatIds: ['sovereign', 'holoclaw'],
         runtime: {},
         latestCockpitCapsule: null,
         updatedAt: null
@@ -724,7 +732,7 @@ const runtimeScript = `  <script>
         state.drafts.chatInputs.brittney = state.drafts.brittneyInput;
       }
       state.activeChatId = _normalizeChatId(state.activeChatId);
-      if (!Array.isArray(state.expandedChatIds)) state.expandedChatIds = ['holoclaw'];
+      if (!Array.isArray(state.expandedChatIds)) state.expandedChatIds = ['sovereign', 'holoclaw'];
       state.expandedChatIds = state.expandedChatIds.map(_normalizeChatId).filter(function(chatId, index, all) {
         return all.indexOf(chatId) === index;
       });
@@ -803,6 +811,7 @@ const runtimeScript = `  <script>
           actionCards: capsule.actionCards,
           contextCapsuleTemplate: capsule.contextCapsuleTemplate,
           receipts: capsule.receipts,
+          sovereignRoomMarathon: capsule.sovereignRoomMarathon,
           holoclawRuntimeBridge: capsule.holoclawRuntimeBridge,
           nextSafeStep: capsule.nextSafeStep
         };
@@ -826,7 +835,7 @@ const runtimeScript = `  <script>
         _lastLaptopDesktopBridgeBaseUrl = state.runtime.lastLaptopDesktopBridgeBaseUrl || null;
       }
       _activeChatId = _normalizeChatId(state.activeChatId);
-      _expandedChatIds = Array.isArray(state.expandedChatIds) ? state.expandedChatIds.map(_normalizeChatId) : ['holoclaw'];
+      _expandedChatIds = Array.isArray(state.expandedChatIds) ? state.expandedChatIds.map(_normalizeChatId) : ['sovereign', 'holoclaw'];
       if (state.drafts) {
         var input = document.getElementById('brittney-input');
         var objective = document.getElementById('improvement-objective');
@@ -877,6 +886,7 @@ const runtimeScript = `  <script>
     function _chatIdForLane(lane) {
       var text = String(lane || '').toLowerCase();
       if (text.indexOf('holoclaw') >= 0) return 'holoclaw';
+      if (text.indexOf('sovereign') >= 0 || text.indexOf('room_marathon') >= 0 || text.indexOf('room') >= 0) return 'sovereign';
       if (text.indexOf('terminal') >= 0 || text.indexOf('receipt_gate') >= 0) return 'terminal';
       if (text.indexOf('improvement') >= 0 || text.indexOf('codebase') >= 0) return 'improvement';
       return 'brittney';
@@ -1127,6 +1137,7 @@ const runtimeScript = `  <script>
       var route = (capsule && capsule.route) || {};
       var avatar = (capsule && capsule.avatar) || {};
       var receipts = (capsule && capsule.receipts) || {};
+      var sovereign = (capsule && capsule.sovereignRoomMarathon) || {};
       var holoclaw = (capsule && capsule.holoclawRuntimeBridge) || {};
       var holoclawApprovalCount = summary.holoclawRuntimeBridgePendingApprovalCount;
       if (holoclawApprovalCount == null) holoclawApprovalCount = holoclaw.pendingApprovalCount || 0;
@@ -1152,6 +1163,12 @@ const runtimeScript = `  <script>
           value: summary.laptopReasoningLane || 'laptop-hardware',
           detail: (summary.laptopReasoningStatus || 'unknown') + '; ' + reasoningDetail,
           tone: _toneForStatus(summary.laptopReasoningStatus || summary.laptopReasoningGpuStatus)
+        },
+        {
+          label: 'Sovereign Room',
+          value: summary.sovereignRoomStatus || sovereign.status || 'unknown',
+          detail: 'matched ' + (summary.sovereignRoomMatchedCandidateCount || sovereign.matchedCandidateCount || 0) + '; selected ' + (summary.sovereignRoomSelectedTaskTitle || sovereign.selectedTaskTitle || 'none'),
+          tone: _toneForStatus(summary.sovereignRoomStatus || sovereign.status)
         },
         {
           label: 'HoloClaw',
@@ -1185,6 +1202,7 @@ const runtimeScript = `  <script>
         desktop: _lane(capsule, 'desktop_bridge') || {},
         terminal: _lane(capsule, 'operator_terminal') || {},
         reasoning: _lane(capsule, 'laptop_reasoning') || {},
+        sovereign: _lane(capsule, 'sovereign_room') || {},
         holoclaw: _lane(capsule, 'holoclaw_runtime') || {}
       };
       var prompts = [];
@@ -1213,6 +1231,15 @@ const runtimeScript = `  <script>
           detail: 'Check the current live-status envelope before claiming GPU inference.',
           button: 'Inspect lane',
           action: _inspectLiveStatusForChat
+        });
+      }
+      if (_toneForStatus(summary.sovereignRoomStatus || lanes.sovereign.status) !== 'ready') {
+        prompts.push({
+          label: 'Sovereign Room',
+          value: lanes.sovereign.value || summary.sovereignRoomMarathonStatus || 'attention',
+          detail: 'Inspect local room receipts before any terminal/control-daemon claim.',
+          button: 'Inspect room',
+          action: _inspectSovereignRoomMarathon
         });
       }
       if (_toneForStatus(summary.holoclawRuntimeStatus || lanes.holoclaw.status) !== 'ready') {
@@ -1276,6 +1303,19 @@ const runtimeScript = `  <script>
         })
         .catch(function(e) { _bMsg('Laptop reasoning', 'network error: ' + e.message, '#f85149'); });
     }
+    function _inspectSovereignRoomMarathon() {
+      fetch('/api/sovereign-room/marathon', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          _appendTurnCard('Sovereign Room', [
+            'status: ' + (d.status || 'unknown'),
+            'queue: open ' + (d.queueOpenCount || 0) + '; matched ' + (d.matchedCandidateCount || 0),
+            'selected: ' + (d.selectedTaskTitle || d.selectedTaskId || 'none'),
+            'claim attempted: ' + (d.claimAttempted ? 'yes' : 'no') + '; browser claim: no'
+          ], _toneForStatus(d.status), 'receipt', { chatId: 'sovereign' });
+        })
+        .catch(function(e) { _bMsg('Sovereign Room', 'network error: ' + e.message, '#f85149', { chatId: 'sovereign' }); });
+    }
     function _inspectHoloClawRuntimeBridge() {
       fetch('/api/holoclaw/runtime-bridge', { cache: 'no-store' })
         .then(function(r) { return r.json(); })
@@ -1308,6 +1348,10 @@ const runtimeScript = `  <script>
               sourceCardId: card.id,
               runtimeMode: card.lane === 'holoclaw_runtime' ? 'tick' : undefined,
               agentHandle: card.lane === 'holoclaw_runtime' ? 'holoclaw' : undefined,
+              taskLane: card.defaultTaskLane || (card.lane === 'sovereign_room' ? 'local' : undefined),
+              taskTag: card.defaultTaskTag || (card.lane === 'sovereign_room' ? 'local' : undefined),
+              cloudEscalationAllowed: card.lane === 'sovereign_room' ? card.cloudEscalationAllowed === true : undefined,
+              maxCandidates: card.lane === 'sovereign_room' ? (card.maxCandidates || 8) : undefined,
               planOnly: true
             })
           })
@@ -1317,7 +1361,7 @@ const runtimeScript = `  <script>
         .then(function(result) {
           if (!result.ok || result.data.error) throw new Error(result.data.error || 'request_failed');
           var data = result.data;
-          var receipt = data.planId || data.receipt?.planId || data.bridgeId || data.holoclawRuntimeBridge?.bridgeId || data.status || 'receipt ready';
+          var receipt = data.planId || data.receiptId || data.receipt?.planId || data.sovereignRoomMarathon?.receiptId || data.bridgeId || data.holoclawRuntimeBridge?.bridgeId || data.status || 'receipt ready';
           button.textContent = 'Receipt';
           _bMsg('Cockpit card', card.label + '\\n' + receipt + '\\n' + (card.preflightPath ? card.preflightPath.requiredSequence.join(' -> ') : card.permissionEnvelope), '#3fb950', { chatId: chatId });
         })
@@ -1338,7 +1382,7 @@ const runtimeScript = `  <script>
       mount.textContent = '';
       var cards = ((capsule && capsule.actionCards) || []).filter(function(card) {
         return card && (card.primaryAction || card.id === 'desktop_control_plan' || card.id === 'context_capsule' || card.id === 'laptop_reasoning_status');
-      }).slice(0, 8);
+      }).slice(0, 10);
       if (!cards.length) {
         mount.textContent = 'no cards reported';
         return;
@@ -1366,6 +1410,7 @@ const runtimeScript = `  <script>
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
       _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
       _setText('cockpit-reasoning', _laneText(_lane(capsule, 'laptop_reasoning')));
+      _setText('cockpit-sovereign', _laneText(_lane(capsule, 'sovereign_room')));
       _setText('cockpit-windows', _laneText(_lane(capsule, 'window_awareness')));
       _setText('cockpit-terminal', _laneText(_lane(capsule, 'operator_terminal')));
       var cards = (capsule && capsule.actionCards) || [];
@@ -1554,6 +1599,7 @@ const runtimeScript = `  <script>
     function sendBrittneyChat() {
       var inp = document.getElementById('brittney-input'); if (!inp) return;
       var msg = inp.value.trim(); if (!msg) return;
+      if (_activeChatId === 'sovereign') { _sendSovereignRoomChat(msg, inp); return; }
       if (_activeChatId === 'holoclaw') { _sendHoloClawChat(msg, inp); return; }
       if (_activeChatId === 'terminal') { _sendTerminalChat(msg, inp); return; }
       if (_activeChatId === 'improvement') { _sendImprovementChat(msg, inp); return; }
@@ -1577,6 +1623,44 @@ const runtimeScript = `  <script>
           loadCockpitCapsule();
         })
         .catch(function(e) { if (pending && pending.parentNode) pending.parentNode.removeChild(pending); _bMsg('Brittney', 'network error: ' + e.message, '#f85149', { chatId: 'brittney' }); });
+    }
+    function _sendSovereignRoomChat(msg, inp) {
+      inp.value = '';
+      _bMsg('You', msg, '#58a6ff', { chatId: 'sovereign' });
+      _persistDraftState();
+      var pending = _bMsg('Sovereign Room', 'refreshing local room receipt...', '#58a6ff', { persist: false, chatId: 'sovereign' });
+      fetch('/workflow/sovereign-room-marathon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actor: 'brittney',
+          intent: msg,
+          taskLane: 'local',
+          taskTag: 'local',
+          cloudEscalationAllowed: false,
+          maxCandidates: 8
+        })
+      })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+          if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
+          if (!result.ok || result.data.error) throw new Error(result.data.error || 'sovereign_room_refresh_failed');
+          var d = result.data;
+          var receipt = d.sovereignRoomMarathon || d.receipt || d;
+          var summary = receipt.summary || d.summary || {};
+          _appendTurnCard('Sovereign Room receipt', [
+            'status: ' + (d.status || summary.status || 'staged'),
+            'queue: open ' + (summary.queueOpenCount || 0) + '; matched ' + (summary.matchedCandidateCount || d.matchedCandidateCount || 0),
+            'selected: ' + (summary.selectedTaskTitle || d.selectedTaskTitle || summary.selectedTaskId || d.selectedTaskId || 'none'),
+            'claim attempted: ' + (summary.claimAttempted ? 'yes' : 'no') + '; browser claim: no',
+            'next: ' + (summary.nextAction || 'inspect receipt before claim')
+          ], _toneForStatus(d.status || summary.status), 'receipt', { chatId: 'sovereign' });
+          loadCockpitCapsule();
+        })
+        .catch(function(e) {
+          if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
+          _bMsg('Sovereign Room', 'network error: ' + e.message, '#f85149', { chatId: 'sovereign' });
+        });
     }
     function _sendHoloClawChat(msg, inp) {
       inp.value = '';
@@ -1823,6 +1907,7 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
         '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
         '<div class="cockpit-card"><strong>Reasoning</strong><span id="cockpit-reasoning">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Sovereign</strong><span id="cockpit-sovereign">checking</span></div>' +
         '<div class="cockpit-card"><strong>Terminal</strong><span id="cockpit-terminal">checking</span></div>' +
         '<div class="cockpit-card"><strong>Windows</strong><span id="cockpit-windows">checking</span></div>' +
         '<div class="cockpit-card"><strong>Tools</strong><span id="cockpit-actions">checking</span></div>' +
