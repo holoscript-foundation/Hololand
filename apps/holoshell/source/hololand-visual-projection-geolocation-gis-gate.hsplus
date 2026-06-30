@@ -17,11 +17,13 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
     sourceProjectionPackageScope: "holoscript"
     sourceProjectionPackageName: "plugin-geolocation-gis"
     sourceProjectionId: "geolocation-gis.base-map-room"
+    sourceProjectionManifestPath: "../HoloScript/packages/plugins/geolocation-gis-plugin/visual.projection.json"
     hololandPluginScope: "hololand"
     hololandPluginName: "plugin-geolocation-gis"
     sourcePath: "apps/holoshell/source/hololand-visual-projection-geolocation-gis-gate.hsplus"
     manifestPath: "apps/holoshell/enterprise-gates/geolocation-gis-map-room/package-gate.json"
     runnerCommand: "node scripts/hololand-visual-projection-sandwich-gate.mjs"
+    adapterReceiptField: "visualRuntimeAdapter"
     validationTool: "mcp__holoscript.validate_holoscript"
     renderOutput: ".tmp/hololand/visual-projection-sandwich/geolocation-gis-map-room/gate.html"
     receiptOutput: ".tmp/hololand/visual-projection-sandwich/geolocation-gis-map-room/receipt.json"
@@ -29,7 +31,7 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
 
   state {
     sourceProjectionStatus: "required"
-    hololandAdapterStatus: "declared"
+    hololandAdapterStatus: "implemented"
     sourceSemanticsRewritten: false
     validationStatus: "required"
     runtimeStatus: "required"
@@ -53,7 +55,9 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
       "source_projection_schema",
       "source_projection_package",
       "source_projection_id",
+      "source_projection_manifest_sha256",
       "hololand_plugin_id",
+      "adapter_consumes_source_projection_manifest",
       "object_mappings",
       "panel_mappings",
       "interaction_verbs",
@@ -107,6 +111,7 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
       source_projection_package_scope: config.sourceProjectionPackageScope,
       source_projection_package_name: config.sourceProjectionPackageName,
       source_projection_id: config.sourceProjectionId,
+      source_projection_manifest_path: config.sourceProjectionManifestPath,
       source_semantics_rewritten: false,
       object_mappings: projection.objectMappings,
       panel_mappings: projection.panelMappings,
@@ -125,6 +130,8 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
       hololand_plugin_scope: config.hololandPluginScope,
       hololand_plugin_name: config.hololandPluginName,
       adapter_role: "visual_runtime_sandwich",
+      adapter_consumes_source_projection_manifest: true,
+      adapter_receipt_field: config.adapterReceiptField,
       visual_responsibilities: adapter.visualResponsibilities,
       source_semantics_owner: "HoloScript",
       source_semantics_rewritten: false
@@ -146,6 +153,7 @@ composition "HoloLand Visual Projection Sandwich: Geolocation GIS Map Room" {
       hololand_plugin_name: config.hololandPluginName,
       validation_status: state.validationStatus,
       render_output: receipt.render.html,
+      adapter_receipt_field: config.adapterReceiptField,
       interaction_status: state.interactionStatus,
       enterprise_receipt_status: state.enterpriseReceiptStatus
     })

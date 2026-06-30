@@ -65,6 +65,15 @@
     "promotionSurface": "Hololand deployable room",
     "localRewriteAllowed": false
   },
+  "runtimeAdapter": {
+    "status": "implemented",
+    "script": "scripts/hololand-visual-projection-sandwich-gate.mjs",
+    "browserReceiptScript": "scripts/hololand-visual-projection-sandwich-browser-receipt.mjs",
+    "consumesSourceProjectionManifest": true,
+    "adapterReceiptField": "visualRuntimeAdapter",
+    "sourceSemanticsRewritten": false,
+    "localRewriteAllowed": false
+  },
   "holoscriptPackages": [
     {
       "name": "@holoscript/plugin-geolocation-gis",
@@ -138,11 +147,18 @@
       "missing interaction receipt"
     ]
   },
-  "openWork": [
+  "openWork": [],
+  "closedWork": [
     {
       "id": "hololand-visual-runtime-adapter",
       "owner": "HoloLand",
-      "description": "Implement the polished runtime adapter that turns the projection contract into a live multiplayer map room.",
+      "status": "implemented",
+      "description": "Runtime adapter consumes the upstream HoloScript visual projection manifest and renders the live HoloLand map-room sandwich without rewriting source semantics.",
+      "evidence": [
+        "scripts/hololand-visual-projection-sandwich-gate.mjs",
+        "scripts/hololand-visual-projection-sandwich-browser-receipt.mjs",
+        "scripts/__tests__/hololand-visual-projection-sandwich-gate.test.mjs"
+      ],
       "localRewriteAllowed": false
     }
   ]

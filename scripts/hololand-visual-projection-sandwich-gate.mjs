@@ -15,6 +15,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     gateDir: DEFAULT_GATE_DIR,
     manifest: '',
     source: '',
+    projection: '',
     outputDir: DEFAULT_OUTPUT_DIR,
     receipt: '',
     html: '',
@@ -37,6 +38,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     if (arg === '--gate-dir') args.gateDir = next();
     else if (arg === '--manifest') args.manifest = next();
     else if (arg === '--source') args.source = next();
+    else if (arg === '--projection') args.projection = next();
     else if (arg === '--output-dir') args.outputDir = next();
     else if (arg === '--receipt') args.receipt = next();
     else if (arg === '--html') args.html = next();
@@ -51,6 +53,7 @@ function parseArgs(argv = process.argv.slice(2)) {
 
   args.gateDir = resolveRepoPath(args.gateDir);
   args.manifest = args.manifest ? resolveRepoPath(args.manifest) : path.join(args.gateDir, 'package-gate.json');
+  args.projection = args.projection ? resolveRepoPath(args.projection) : '';
   args.outputDir = resolveRepoPath(args.outputDir);
   args.receipt = args.receipt ? resolveRepoPath(args.receipt) : path.join(args.outputDir, 'receipt.json');
   args.html = args.html ? resolveRepoPath(args.html) : path.join(args.outputDir, 'gate.html');
@@ -69,6 +72,7 @@ Options:
   --gate-dir <dir>       Gate directory (default: ${DEFAULT_GATE_DIR})
   --manifest <file>      Gate manifest JSON
   --source <file>        HoloScript source override
+  --projection <file>    HoloScript visual projection manifest override
   --output-dir <dir>     Evidence directory (default: ${DEFAULT_OUTPUT_DIR})
   --receipt <file>       Receipt JSON path
   --html <file>          Render HTML path
@@ -105,6 +109,141 @@ function escapeHtml(value) {
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
+}
+
+function sourceProjectionPath(manifest, overridePath) {
+  const hint = overridePath || manifest.sourceProjection?.sourcePathHint;
+  return hint ? resolveRepoPath(hint) : '';
+}
+
+function idsFrom(items, key) {
+  return Array.isArray(items) ? items.map((item) => item?.[key]).filter(Boolean) : [];
+}
+
+function validateSourceProjectionManifest(manifest, projection) {
+  const errors = [];
+  if (!projection || typeof projection !== 'object') {
+    errors.push('source projection manifest must be a JSON object');
+    return errors;
+  }
+  if (projection.schemaVersion !== manifest.sourceProjection?.schemaVersion) {
+    errors.push('source projection schemaVersion does not match gate manifest');
+  }
+  if (projection.sourcePackage !== manifest.sourceProjection?.sourcePackage) {
+    errors.push('source projection package does not match gate manifest');
+  }
+  if (projection.projectionId !== manifest.sourceProjection?.projectionId) {
+    errors.push('source projection id does not match gate manifest');
+  }
+  if (projection.consumerHints?.hololandPluginId !== manifest.hololandLayer?.adapterId) {
+    errors.push('source projection consumerHints.hololandPluginId must match the HoloLand adapter id');
+  }
+
+  requireArrayIncludes(
+    errors,
+    idsFrom(projection.objectMappings, 'id'),
+    'source projection objectMappings',
+    manifest.sourceProjection?.requiredObjectMappings || [],
+  );
+  requireArrayIncludes(
+    errors,
+    idsFrom(projection.panelMappings, 'id'),
+    'source projection panelMappings',
+    manifest.sourceProjection?.requiredPanelMappings || [],
+  );
+  requireArrayIncludes(
+    errors,
+    idsFrom(projection.interactions, 'verb'),
+    'source projection interactions',
+    manifest.sourceProjection?.requiredInteractions || [],
+  );
+  return errors;
+}
+
+function loadSourceProjectionManifest(manifest, overridePath) {
+  const projectionPath = sourceProjectionPath(manifest, overridePath);
+  if (!projectionPath) {
+    return {
+      status: 'missing',
+      path: '',
+      sha256: '',
+      manifest: null,
+      errors: ['sourceProjection.sourcePathHint or --projection is required'],
+    };
+  }
+  if (!existsSync(projectionPath)) {
+    return {
+      status: 'missing',
+      path: projectionPath,
+      sha256: '',
+      manifest: null,
+      errors: [`HoloScript visual projection manifest not found: ${projectionPath}`],
+    };
+  }
+  const raw = readFileSync(projectionPath, 'utf8');
+  const projection = JSON.parse(raw);
+  const errors = validateSourceProjectionManifest(manifest, projection);
+  return {
+    status: errors.length ? 'fail' : 'pass',
+    path: projectionPath,
+    sha256: sha256(raw),
+    manifest: projection,
+    errors,
+  };
+}
+
+function createRuntimeAdapter(manifest, projectionLoad) {
+  const projection = projectionLoad.manifest || {};
+  const objectMappings = Array.isArray(projection.objectMappings) ? projection.objectMappings : [];
+  const panelMappings = Array.isArray(projection.panelMappings) ? projection.panelMappings : [];
+  const interactions = Array.isArray(projection.interactions) ? projection.interactions : [];
+  return {
+    status: projectionLoad.status === 'pass' ? 'ready' : 'blocked',
+    adapterId: manifest.hololandLayer?.adapterId,
+    adapterRole: manifest.hololandLayer?.adapterRole,
+    consumesSourceProjectionManifest: projectionLoad.status === 'pass',
+    sourceSemanticsOwner: manifest.hololandLayer?.sourceSemanticsOwner,
+    sourceSemanticsRewritten: false,
+    localRewriteAllowed: false,
+    projectionManifest: {
+      path: projectionLoad.path ? relativeToRepo(projectionLoad.path) : '',
+      sha256: projectionLoad.sha256,
+      schemaVersion: projection.schemaVersion || '',
+      sourcePackage: projection.sourcePackage || '',
+      projectionId: projection.projectionId || '',
+      displayName: projection.displayName || '',
+    },
+    scene: projection.defaultScene || null,
+    runtimeTargets: Array.isArray(projection.defaultScene?.viewport) ? projection.defaultScene.viewport : [],
+    objectMappings: objectMappings.map((mapping) => ({
+      id: mapping.id,
+      sourceTrait: mapping.sourceTrait,
+      visualRole: mapping.visualRole,
+      primitive: mapping.primitive,
+      label: mapping.label,
+      affordances: Array.isArray(mapping.affordances) ? mapping.affordances : [],
+    })),
+    panelMappings: panelMappings.map((panel) => ({
+      id: panel.id,
+      title: panel.title,
+      layout: panel.layout,
+      source: panel.source,
+      fields: Array.isArray(panel.fields) ? panel.fields : [],
+    })),
+    interactions: interactions.map((interaction) => ({
+      verb: interaction.verb,
+      label: interaction.label,
+      target: interaction.target,
+      agentAction: interaction.agentAction,
+      humanAction: interaction.humanAction,
+      receiptKey: interaction.receiptKey,
+    })),
+    receiptHooks: Array.isArray(projection.receiptHooks) ? projection.receiptHooks : [],
+    remixPrompts: Array.isArray(projection.remixPrompts) ? projection.remixPrompts : [],
+    visualResponsibilities: Array.isArray(manifest.hololandLayer?.visualResponsibilities)
+      ? manifest.hololandLayer.visualResponsibilities
+      : [],
+  };
 }
 
 function bracesBalanced(source) {
@@ -185,6 +324,15 @@ function validateManifest(manifest, sourcePath) {
   if (manifest.hololandLayer?.localRewriteAllowed !== false) {
     errors.push('hololandLayer.localRewriteAllowed must be false');
   }
+  if (manifest.runtimeAdapter?.status !== 'implemented') {
+    errors.push('runtimeAdapter.status must be implemented');
+  }
+  if (manifest.runtimeAdapter?.consumesSourceProjectionManifest !== true) {
+    errors.push('runtimeAdapter.consumesSourceProjectionManifest must be true');
+  }
+  if (manifest.runtimeAdapter?.sourceSemanticsRewritten !== false) {
+    errors.push('runtimeAdapter.sourceSemanticsRewritten must be false');
+  }
   if (!Array.isArray(manifest.holoscriptPackages) || manifest.holoscriptPackages.length < 3) {
     errors.push('holoscriptPackages must name at least three consumed upstream packages');
   }
@@ -215,8 +363,10 @@ function validateSource(source, sourcePath) {
     'sourceProjectionPackageScope: "holoscript"',
     'sourceProjectionPackageName: "plugin-geolocation-gis"',
     'sourceProjectionId: "geolocation-gis.base-map-room"',
+    'sourceProjectionManifestPath: "../HoloScript/packages/plugins/geolocation-gis-plugin/visual.projection.json"',
     'hololandPluginScope: "hololand"',
     'hololandPluginName: "plugin-geolocation-gis"',
+    'adapterReceiptField: "visualRuntimeAdapter"',
     'template "VisualProjectionSandwichReceipt"',
     'benchmarkGate: "holoscript_visual_projection_geolocation_gis"',
     'policy "HoloScriptOwnsBaseProjection"',
@@ -225,6 +375,7 @@ function validateSource(source, sourcePath) {
     'action accept_holoscript_visual_projection',
     'action compose_hololand_visual_sandwich',
     'action capture_visual_projection_receipt',
+    'adapter_consumes_source_projection_manifest: true',
     'mcp__holoscript.validate_holoscript',
     'sourceSemanticsRewritten: false',
     'localRewriteAllowed: false',
@@ -281,8 +432,14 @@ function createReceipt(args) {
   if (!existsSync(sourcePath)) throw new Error(`Source file not found: ${sourcePath}`);
   const source = readFileSync(sourcePath, 'utf8');
   const sourceValidation = validateSource(source, sourcePath);
+  const sourceProjectionManifest = loadSourceProjectionManifest(manifest, args.projection);
+  const visualRuntimeAdapter = createRuntimeAdapter(manifest, sourceProjectionManifest);
   const manifestErrors = validateManifest(manifest, sourcePath);
-  const localStatus = sourceValidation.status === 'pass' && manifestErrors.length === 0 ? 'pass' : 'fail';
+  const localStatus = sourceValidation.status === 'pass' &&
+    manifestErrors.length === 0 &&
+    sourceProjectionManifest.status === 'pass'
+    ? 'pass'
+    : 'fail';
   const mcpValidation = statusFromMcp(args);
   const validationStatus = localStatus === 'pass' &&
     (!args.mcpStatus || args.mcpStatus === 'pass' || args.mcpStatus === 'valid')
@@ -315,11 +472,21 @@ function createReceipt(args) {
     sourceProjection: {
       status: validationStatus === 'pass' ? 'accepted' : 'blocked',
       ...manifest.sourceProjection,
+      manifest: {
+        status: sourceProjectionManifest.status,
+        path: sourceProjectionManifest.path ? relativeToRepo(sourceProjectionManifest.path) : '',
+        sha256: sourceProjectionManifest.sha256,
+        displayName: sourceProjectionManifest.manifest?.displayName || '',
+        objectMappingCount: visualRuntimeAdapter.objectMappings.length,
+        panelMappingCount: visualRuntimeAdapter.panelMappings.length,
+        interactionCount: visualRuntimeAdapter.interactions.length,
+      },
     },
     hololandLayer: {
       status: validationStatus === 'pass' ? 'adapter_contract_ready' : 'blocked',
       ...manifest.hololandLayer,
     },
+    visualRuntimeAdapter,
     holoscriptPackages: manifest.holoscriptPackages,
     benchmarkGates: manifest.benchmarkGates,
     validation: {
@@ -330,6 +497,11 @@ function createReceipt(args) {
         manifest: {
           status: manifestErrors.length ? 'fail' : 'pass',
           errors: manifestErrors,
+        },
+        sourceProjectionManifest: {
+          status: sourceProjectionManifest.status,
+          path: sourceProjectionManifest.path ? relativeToRepo(sourceProjectionManifest.path) : '',
+          errors: sourceProjectionManifest.errors,
         },
       },
       mcp: mcpValidation,
@@ -345,8 +517,9 @@ function createReceipt(args) {
       status: validationStatus === 'pass' ? 'ready' : 'blocked',
       html: relativeToRepo(args.html),
       js: relativeToRepo(args.js),
-      renderer: 'HoloLand visual sandwich projection generated from HoloScript-facing source and gate manifest',
+      renderer: 'HoloLand visual sandwich projection generated from HoloScript source, gate manifest, and upstream visual projection manifest',
       sourceSemanticsRewritten: false,
+      adapterConsumesSourceProjectionManifest: visualRuntimeAdapter.consumesSourceProjectionManifest,
     },
     interaction: {
       status: 'pending_browser_receipt',
@@ -360,6 +533,7 @@ function createReceipt(args) {
     },
     promotion: manifest.promotion,
     openWork: manifest.openWork || [],
+    closedWork: manifest.closedWork || [],
     commands: {
       build: 'node scripts/hololand-visual-projection-sandwich-gate.mjs',
       test: 'node scripts/__tests__/hololand-visual-projection-sandwich-gate.test.mjs',
@@ -384,13 +558,40 @@ function renderList(items) {
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join('\n          ');
 }
 
+function renderObjectMappings(items) {
+  return items.map((item) => `
+        <li>
+          <strong>${escapeHtml(item.id)}</strong>
+          <span>${escapeHtml(item.sourceTrait)} -> ${escapeHtml(item.primitive)} / ${escapeHtml(item.visualRole)}</span>
+        </li>`).join('\n');
+}
+
+function renderPanelMappings(items) {
+  return items.map((item) => `
+        <li>
+          <strong>${escapeHtml(item.id)}</strong>
+          <span>${escapeHtml(item.title)} (${escapeHtml(item.layout)}) from ${escapeHtml(item.source)}</span>
+        </li>`).join('\n');
+}
+
+function renderInteractions(items) {
+  return items.map((item) => `
+        <li>
+          <strong>${escapeHtml(item.verb)}</strong>
+          <span>${escapeHtml(item.label)}: ${escapeHtml(item.humanAction)} / ${escapeHtml(item.agentAction)}</span>
+        </li>`).join('\n');
+}
+
 function renderHtml(receipt) {
   const embeddedReceipt = JSON.stringify(receipt).replace(/</g, '\\u003c');
   const packages = receipt.holoscriptPackages
     .map((pkg) => `<li><strong>${escapeHtml(pkg.name)}</strong><span>${escapeHtml(pkg.gates.join(', '))}</span></li>`)
     .join('\n          ');
   const responsibilities = renderList(receipt.hololandLayer.visualResponsibilities);
-  const interactions = renderList(receipt.sourceProjection.requiredInteractions);
+  const interactions = renderInteractions(receipt.visualRuntimeAdapter.interactions);
+  const objectMappings = renderObjectMappings(receipt.visualRuntimeAdapter.objectMappings);
+  const panelMappings = renderPanelMappings(receipt.visualRuntimeAdapter.panelMappings);
+  const receiptHooks = renderList(receipt.visualRuntimeAdapter.receiptHooks.map((hook) => `${hook.id}: ${hook.event}`));
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -461,6 +662,57 @@ function renderHtml(receipt) {
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
+    .map-stage {
+      position: relative;
+      min-height: 280px;
+      margin: 22px 0;
+      border: 1px solid #38514b;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(123, 217, 192, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(123, 217, 192, 0.08) 1px, transparent 1px),
+        #0b1110;
+      background-size: 44px 44px;
+    }
+    .route {
+      position: absolute;
+      left: 16%;
+      top: 54%;
+      width: 68%;
+      height: 3px;
+      background: #f0ce68;
+      transform: rotate(-10deg);
+      transform-origin: left center;
+      box-shadow: 0 0 18px rgba(240, 206, 104, 0.42);
+    }
+    .geofence {
+      position: absolute;
+      right: 12%;
+      top: 18%;
+      width: 28%;
+      height: 42%;
+      border: 2px dashed #7bd9c0;
+      background: rgba(123, 217, 192, 0.08);
+    }
+    .poi {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #ff7a90;
+      box-shadow: 0 0 0 8px rgba(255, 122, 144, 0.14);
+    }
+    .poi.one { left: 22%; top: 42%; }
+    .poi.two { left: 52%; top: 32%; }
+    .poi.three { left: 74%; top: 58%; }
+    .map-label {
+      position: absolute;
+      left: 14px;
+      bottom: 12px;
+      color: #9fb3ac;
+      font-size: 12px;
+    }
     pre {
       max-height: 360px;
       overflow: auto;
@@ -504,9 +756,27 @@ function renderHtml(receipt) {
       <div class="metric-grid">
         <div class="metric" id="source-projection"><strong>HoloScript Projection</strong>${escapeHtml(receipt.sourceProjection.projectionId)}</div>
         <div class="metric" id="hololand-adapter"><strong>Hololand Adapter</strong>${escapeHtml(receipt.hololandLayer.adapterId)}</div>
+        <div class="metric" id="source-projection-manifest"><strong>Projection Manifest</strong>${escapeHtml(receipt.sourceProjection.manifest.path)}</div>
         <div class="metric" id="source-semantics"><strong>Semantics Rewritten</strong>${escapeHtml(receipt.hololandLayer.sourceSemanticsRewritten)}</div>
         <div class="metric" id="gate-validation"><strong>Validation</strong>${escapeHtml(receipt.validation.status)}</div>
+        <div class="metric" id="runtime-targets"><strong>Runtime Targets</strong>${escapeHtml(receipt.visualRuntimeAdapter.runtimeTargets.join(', '))}</div>
       </div>
+      <div class="map-stage" id="runtime-adapter-proof" data-consumes-source-projection="${escapeHtml(receipt.visualRuntimeAdapter.consumesSourceProjectionManifest)}">
+        <div class="route" aria-hidden="true"></div>
+        <div class="geofence" aria-hidden="true"></div>
+        <div class="poi one" aria-hidden="true"></div>
+        <div class="poi two" aria-hidden="true"></div>
+        <div class="poi three" aria-hidden="true"></div>
+        <div class="map-label">Adapter view generated from ${escapeHtml(receipt.visualRuntimeAdapter.projectionManifest.displayName)}</div>
+      </div>
+      <h2>Preserved Object Mappings</h2>
+      <ul id="source-object-mappings">
+        ${objectMappings}
+      </ul>
+      <h2>Preserved Panel Mappings</h2>
+      <ul id="source-panel-mappings">
+        ${panelMappings}
+      </ul>
       <h2>Preserved Interaction Verbs</h2>
       <ul id="source-interactions">
         ${interactions}
@@ -530,10 +800,16 @@ function renderHtml(receipt) {
         gate: receipt.gate.id,
         status: receipt.status,
         projectionId: receipt.sourceProjection.projectionId,
+        projectionManifest: receipt.sourceProjection.manifest.path,
         adapterId: receipt.hololandLayer.adapterId,
+        adapterConsumesSourceProjectionManifest: receipt.visualRuntimeAdapter.consumesSourceProjectionManifest,
         sourceSemanticsRewritten: receipt.hololandLayer.sourceSemanticsRewritten,
         validation: receipt.validation.status,
       }, null, 2))}</pre>
+      <h2>Receipt Hooks</h2>
+      <ul id="source-receipt-hooks">
+        ${receiptHooks}
+      </ul>
     </aside>
   </div>
   <script>

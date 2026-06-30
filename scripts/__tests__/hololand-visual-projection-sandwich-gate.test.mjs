@@ -59,6 +59,14 @@ assert.equal(receipt.sourceProjection.contractOwner, 'HoloScript');
 assert.equal(receipt.sourceProjection.schemaVersion, 'holoscript.visual.projection.v1');
 assert.equal(receipt.sourceProjection.sourcePackage, '@holoscript/plugin-geolocation-gis');
 assert.equal(receipt.sourceProjection.projectionId, 'geolocation-gis.base-map-room');
+assert.equal(
+  receipt.sourceProjection.manifest.path,
+  '../HoloScript/packages/plugins/geolocation-gis-plugin/visual.projection.json',
+);
+assert.match(receipt.sourceProjection.manifest.sha256, /^[a-f0-9]{64}$/);
+assert.equal(receipt.sourceProjection.manifest.objectMappingCount, 4);
+assert.equal(receipt.sourceProjection.manifest.panelMappingCount, 3);
+assert.equal(receipt.sourceProjection.manifest.interactionCount, 3);
 assert.deepEqual(receipt.sourceProjection.requiredObjectMappings, [
   'map-layer',
   'poi-marker',
@@ -80,10 +88,32 @@ assert.equal(receipt.hololandLayer.adapterRole, 'visual_runtime_sandwich');
 assert.equal(receipt.hololandLayer.sourceSemanticsOwner, 'HoloScript');
 assert.equal(receipt.hololandLayer.sourceSemanticsRewritten, false);
 assert.equal(receipt.hololandLayer.localRewriteAllowed, false);
+assert.equal(receipt.visualRuntimeAdapter.status, 'ready');
+assert.equal(receipt.visualRuntimeAdapter.adapterId, '@hololand/plugin-geolocation-gis');
+assert.equal(receipt.visualRuntimeAdapter.consumesSourceProjectionManifest, true);
+assert.equal(receipt.visualRuntimeAdapter.sourceSemanticsRewritten, false);
+assert.deepEqual(receipt.visualRuntimeAdapter.runtimeTargets, ['2d', '3d', 'xr', 'ar']);
+assert.deepEqual(
+  receipt.visualRuntimeAdapter.objectMappings.map((mapping) => mapping.id),
+  ['map-layer', 'poi-marker', 'route-path', 'geofence-zone'],
+);
+assert.deepEqual(
+  receipt.visualRuntimeAdapter.panelMappings.map((panel) => panel.id),
+  ['location-detail-panel', 'route-timeline-panel', 'geo-receipt-panel'],
+);
+assert.deepEqual(
+  receipt.visualRuntimeAdapter.interactions.map((interaction) => interaction.verb),
+  ['inspect_location', 'compare_routes', 'review_geofence'],
+);
+assert.deepEqual(
+  receipt.visualRuntimeAdapter.receiptHooks.map((hook) => hook.id),
+  ['geo-selection-receipt', 'geo-agent-action-receipt'],
+);
 assert.equal(receipt.validation.status, 'pass');
 assert.equal(receipt.validation.local.status, 'pass');
 assert.equal(receipt.validation.local.source.status, 'pass');
 assert.equal(receipt.validation.local.manifest.status, 'pass');
+assert.equal(receipt.validation.local.sourceProjectionManifest.status, 'pass');
 assert.equal(receipt.validation.mcp.status, 'not_embedded');
 assert.ok(receipt.validation.local.source.policies.includes('HoloScriptOwnsBaseProjection'));
 assert.ok(receipt.validation.local.source.policies.includes('HoloLandOwnsVisualSandwich'));
@@ -104,15 +134,27 @@ assert.equal(receipt.benchmarkGates[0].id, 'holoscript_visual_projection_geoloca
 assert.equal(receipt.runtime.status, 'ready');
 assert.equal(receipt.render.status, 'ready');
 assert.equal(receipt.render.sourceSemanticsRewritten, false);
+assert.equal(receipt.render.adapterConsumesSourceProjectionManifest, true);
 assert.equal(receipt.interaction.status, 'pending_browser_receipt');
 assert.equal(receipt.enterpriseReceipt.status, 'ready');
 assert.equal(receipt.promotion.status, 'adapter_contract_ready');
+assert.equal(receipt.openWork.length, 0);
+assert.equal(receipt.closedWork[0].id, 'hololand-visual-runtime-adapter');
 assert.ok(existsSync(HTML_PATH), 'gate HTML missing');
 assert.ok(existsSync(JS_PATH), 'gate receipt JS missing');
 
 const html = readFileSync(HTML_PATH, 'utf8');
 assert.match(html, /Geolocation GIS Map Room/);
 assert.match(html, /geolocation-gis\.base-map-room/);
+assert.match(html, /visual\.projection\.json/);
+assert.match(html, /runtime-adapter-proof/);
+assert.match(html, /map-layer/);
+assert.match(html, /poi-marker/);
+assert.match(html, /route-path/);
+assert.match(html, /geofence-zone/);
+assert.match(html, /location-detail-panel/);
+assert.match(html, /route-timeline-panel/);
+assert.match(html, /geo-receipt-panel/);
 assert.match(html, /@hololand\/plugin-geolocation-gis/);
 assert.match(html, /@holoscript\/visual/);
 assert.match(html, /sourceSemanticsRewritten/);
@@ -144,11 +186,17 @@ assert.equal(browserReceipt.interaction.status, 'pass');
 assert.equal(browserReceipt.state.assertions.rootVisible, true);
 assert.equal(browserReceipt.state.assertions.workflowVisible, true);
 assert.equal(browserReceipt.state.assertions.projectionVisible, true);
+assert.equal(browserReceipt.state.assertions.projectionManifestVisible, true);
 assert.equal(browserReceipt.state.assertions.adapterVisible, true);
+assert.equal(browserReceipt.state.assertions.runtimeAdapterVisible, true);
+assert.equal(browserReceipt.state.assertions.runtimeAdapterReceiptReady, true);
 assert.equal(browserReceipt.state.assertions.sourceSemanticsVisible, true);
 assert.equal(browserReceipt.state.assertions.sourceSemanticsNotRewritten, true);
 assert.equal(browserReceipt.state.assertions.validationVisible, true);
+assert.equal(browserReceipt.state.assertions.objectMappingsVisible, true);
+assert.equal(browserReceipt.state.assertions.panelMappingsVisible, true);
 assert.equal(browserReceipt.state.assertions.interactionsVisible, true);
+assert.equal(browserReceipt.state.assertions.receiptHooksVisible, true);
 assert.equal(browserReceipt.state.assertions.responsibilitiesVisible, true);
 assert.equal(browserReceipt.state.assertions.packageListVisible, true);
 assert.equal(browserReceipt.state.assertions.receiptVisible, true);

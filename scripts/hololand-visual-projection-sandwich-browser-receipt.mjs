@@ -317,15 +317,33 @@ const STATE_EXPRESSION = `(() => {
     rootVisible: visible('#visual-projection-sandwich-root'),
     workflowVisible: visible('#business-workflow') && /field operations team/i.test(text('#business-workflow')),
     projectionVisible: visible('#source-projection') && /geolocation-gis\\.base-map-room/i.test(text('#source-projection')),
+    projectionManifestVisible: visible('#source-projection-manifest') && /HoloScript\\/packages\\/plugins\\/geolocation-gis-plugin\\/visual\\.projection\\.json/i.test(text('#source-projection-manifest')),
     adapterVisible: visible('#hololand-adapter') && /@hololand\\/plugin-geolocation-gis/i.test(text('#hololand-adapter')),
+    runtimeAdapterVisible: visible('#runtime-adapter-proof') &&
+      document.querySelector('#runtime-adapter-proof')?.dataset?.consumesSourceProjection === 'true',
+    runtimeAdapterReceiptReady: gate.visualRuntimeAdapter?.status === 'ready' &&
+      gate.visualRuntimeAdapter?.consumesSourceProjectionManifest === true &&
+      gate.visualRuntimeAdapter?.sourceSemanticsRewritten === false,
     sourceSemanticsVisible: visible('#source-semantics') && /false/i.test(text('#source-semantics')),
     sourceSemanticsNotRewritten: root?.dataset?.sourceSemanticsRewritten === 'false' &&
       gate.hololandLayer?.sourceSemanticsRewritten === false,
     validationVisible: visible('#gate-validation') && /pass/i.test(text('#gate-validation')),
+    objectMappingsVisible: visible('#source-object-mappings') &&
+      /map-layer/i.test(text('#source-object-mappings')) &&
+      /poi-marker/i.test(text('#source-object-mappings')) &&
+      /route-path/i.test(text('#source-object-mappings')) &&
+      /geofence-zone/i.test(text('#source-object-mappings')),
+    panelMappingsVisible: visible('#source-panel-mappings') &&
+      /location-detail-panel/i.test(text('#source-panel-mappings')) &&
+      /route-timeline-panel/i.test(text('#source-panel-mappings')) &&
+      /geo-receipt-panel/i.test(text('#source-panel-mappings')),
     interactionsVisible: visible('#source-interactions') &&
       /inspect_location/i.test(text('#source-interactions')) &&
       /compare_routes/i.test(text('#source-interactions')) &&
       /review_geofence/i.test(text('#source-interactions')),
+    receiptHooksVisible: visible('#source-receipt-hooks') &&
+      /geo-selection-receipt/i.test(text('#source-receipt-hooks')) &&
+      /geo-agent-action-receipt/i.test(text('#source-receipt-hooks')),
     responsibilitiesVisible: visible('#hololand-responsibilities') &&
       /spatial_map_room_composition/i.test(text('#hololand-responsibilities')) &&
       /hardware_browser_render_receipt/i.test(text('#hololand-responsibilities')),
@@ -346,6 +364,7 @@ const STATE_EXPRESSION = `(() => {
     visibleTextSamples: {
       workflow: text('#business-workflow'),
       projection: text('#source-projection'),
+      projectionManifest: text('#source-projection-manifest'),
       adapter: text('#hololand-adapter'),
       semantics: text('#source-semantics'),
       validation: text('#gate-validation'),
