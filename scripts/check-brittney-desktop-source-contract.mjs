@@ -11,6 +11,7 @@ const files = {
   gateway: 'scripts/start-brittney.ts',
   terminal: 'scripts/holoshell-operator-terminal.mjs',
   serve: 'packages/holoshell/serve.mjs',
+  compiler: 'packages/holoshell/compile.mjs',
   packageJson: 'package.json',
 };
 
@@ -32,6 +33,7 @@ const launch = read(files.launch);
 const gateway = read(files.gateway);
 const terminal = read(files.terminal);
 const serve = read(files.serve);
+const compiler = read(files.compiler);
 const packageJson = read(files.packageJson);
 const failures = [];
 
@@ -39,6 +41,9 @@ requireIncludes('desktop cockpit source', source, [
   'desktopLaunchAdapter: "scripts/brittney-studio-launch.ps1"',
   'legacyGatewayAdapter: "scripts/start-brittney.ts"',
   'operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"',
+  'browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"',
+  'browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"',
+  'BrowserRefreshPreservesOperatorSession',
   'cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"',
   'desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"',
   'holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"',
@@ -102,6 +107,14 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/operator-terminal/session'",
   "'/api/holoclaw/runtime-bridge'",
   'holoclawRuntimeBridgeStatusSnapshot()',
+], failures);
+
+requireIncludes('HoloShell compiler bridge', compiler, [
+  "HOLOSHELL_BROWSER_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0'",
+  "HOLOSHELL_BROWSER_STATE_KEY = 'holoshell:brittney:browser-session:v1'",
+  '_restoreBrowserSession',
+  '_rememberTranscript',
+  '_persistCockpitCapsule',
 ], failures);
 
 requireIncludes('package scripts', packageJson, [

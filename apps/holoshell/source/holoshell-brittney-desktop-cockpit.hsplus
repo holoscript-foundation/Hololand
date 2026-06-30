@@ -41,6 +41,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     faraPeerAutomationPromotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
     improvementRunEndpoint: "POST /api/improvement-runs"
     operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"
+    browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"
     cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
     desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"
     legacyUiRole: "adapter_projection_only"
@@ -76,6 +78,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     pendingConsentCount: 0
     recentExecutionCount: 0
     latestImprovementRunId: ""
+    browserSessionStateStatus: "unknown"
+    browserTranscriptEntryCount: 0
+    browserDraftStatus: "unknown"
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     lastCapsuleReceiptId: ""
@@ -104,6 +109,19 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receipts: {}
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "BrowserSessionState" {
+    type: "browser_session_state"
+    schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
+    storageAdapter: "window.localStorage"
+    storageKey: "holoshell:brittney:browser-session:v1"
+    persists: ["visible_transcript", "input_drafts", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
+    maxTranscriptEntries: 120
+    secretsIncluded: false
+    hostMutationAllowed: false
+    refreshMayClearSession: false
     receiptRequired: true
   }
 
@@ -277,6 +295,21 @@ composition "HoloShell Brittney Desktop Cockpit" {
     browserIsPrimaryConversationSurface: true
     terminalIsExecutionEvidenceSurface: true
     terminalMayBypassHoloGate: false
+    receiptRequired: true
+  }
+
+  policy "BrowserRefreshPreservesOperatorSession" {
+    appliesTo: ["browser_cockpit", "brittney_chat", "draft_inputs", "improvement_run_selection", "latest_cockpit_capsule"]
+    source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    storageAdapter: "window.localStorage"
+    storageKey: "holoshell:brittney:browser-session:v1"
+    schemaVersion: "hololand.holoshell.browser-session-state.v0.1.0"
+    persists: ["visible_transcript", "input_drafts", "latest_cockpit_capsule", "last_improvement_run_id", "last_laptop_desktop_bridge_base_url"]
+    maxTranscriptEntries: 120
+    refreshMayClearSession: false
+    secretsIncluded: false
+    hostMutationAllowed: false
+    destructiveActionsAllowed: false
     receiptRequired: true
   }
 

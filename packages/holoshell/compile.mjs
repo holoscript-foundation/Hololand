@@ -541,7 +541,133 @@ const runtimeScript = `  <script>
     var _lastLaptopDesktopBridgeBaseUrl = null;
     var _laptopDesktopBridgeBases = ['http://127.0.0.1:8751', 'http://127.0.0.1:8752', 'http://127.0.0.1:8753'];
     var _lastCockpitCapsule = null;
-    function _bMsg(who, text, color) {
+    var HOLOSHELL_BROWSER_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
+    var HOLOSHELL_BROWSER_STATE_KEY = 'holoshell:brittney:browser-session:v1';
+    var HOLOSHELL_TRANSCRIPT_LIMIT = 120;
+    var _browserStateRestoring = false;
+    function _emptyBrowserState() {
+      return {
+        schemaVersion: HOLOSHELL_BROWSER_STATE_SCHEMA,
+        transcript: [],
+        drafts: {},
+        runtime: {},
+        latestCockpitCapsule: null,
+        updatedAt: null
+      };
+    }
+    function _readBrowserState() {
+      try {
+        var raw = window.localStorage && window.localStorage.getItem(HOLOSHELL_BROWSER_STATE_KEY);
+        if (!raw) return _emptyBrowserState();
+        var state = JSON.parse(raw);
+        if (!state || state.schemaVersion !== HOLOSHELL_BROWSER_STATE_SCHEMA) return _emptyBrowserState();
+        if (!Array.isArray(state.transcript)) state.transcript = [];
+        if (!state.drafts || typeof state.drafts !== 'object') state.drafts = {};
+        if (!state.runtime || typeof state.runtime !== 'object') state.runtime = {};
+        return state;
+      } catch (error) {
+        return _emptyBrowserState();
+      }
+    }
+    function _writeBrowserState(state) {
+      try {
+        state.schemaVersion = HOLOSHELL_BROWSER_STATE_SCHEMA;
+        state.updatedAt = new Date().toISOString();
+        window.localStorage.setItem(HOLOSHELL_BROWSER_STATE_KEY, JSON.stringify(state));
+      } catch (error) {}
+    }
+    function _patchBrowserState(mutator) {
+      var state = _readBrowserState();
+      mutator(state);
+      _writeBrowserState(state);
+    }
+    function _rememberTranscript(entry) {
+      if (_browserStateRestoring || !entry) return;
+      _patchBrowserState(function(state) {
+        state.transcript.push(Object.assign({ savedAt: new Date().toISOString() }, entry));
+        state.transcript = state.transcript.slice(-HOLOSHELL_TRANSCRIPT_LIMIT);
+      });
+    }
+    function _persistRuntimeState() {
+      _patchBrowserState(function(state) {
+        state.runtime.lastImprovementRunId = _lastImprovementRunId;
+        state.runtime.lastLaptopDesktopBridgeBaseUrl = _lastLaptopDesktopBridgeBaseUrl;
+      });
+    }
+    function _persistDraftState() {
+      _patchBrowserState(function(state) {
+        state.drafts.brittneyInput = document.getElementById('brittney-input')?.value || '';
+        state.drafts.improvementObjective = document.getElementById('improvement-objective')?.value || '';
+        state.drafts.improvementCount = document.getElementById('improvement-count')?.value || '';
+      });
+    }
+    function _persistCockpitCapsule(capsule) {
+      if (_browserStateRestoring || !capsule || capsule.error) return;
+      _patchBrowserState(function(state) {
+        state.latestCockpitCapsule = {
+          generatedAt: capsule.generatedAt,
+          status: capsule.status,
+          summary: capsule.summary,
+          route: capsule.route,
+          avatar: capsule.avatar,
+          cockpitLanes: capsule.cockpitLanes,
+          actionCards: capsule.actionCards,
+          contextCapsuleTemplate: capsule.contextCapsuleTemplate,
+          receipts: capsule.receipts,
+          holoclawRuntimeBridge: capsule.holoclawRuntimeBridge,
+          nextSafeStep: capsule.nextSafeStep
+        };
+      });
+    }
+    function _serializeTurnCardElement(card) {
+      if (!card) return null;
+      var title = card.querySelector('strong')?.textContent || 'Card';
+      var lines = Array.from(card.querySelectorAll('span')).map(function(span) { return span.textContent || ''; }).filter(Boolean);
+      return {
+        type: 'turn_card',
+        title: title,
+        lines: lines,
+        tone: card.dataset?.tone || 'neutral',
+        variant: card.dataset?.variant || ''
+      };
+    }
+    function _restoreDraftsAndRuntime(state) {
+      if (state.runtime) {
+        _lastImprovementRunId = state.runtime.lastImprovementRunId || null;
+        _lastLaptopDesktopBridgeBaseUrl = state.runtime.lastLaptopDesktopBridgeBaseUrl || null;
+      }
+      if (state.drafts) {
+        var input = document.getElementById('brittney-input');
+        var objective = document.getElementById('improvement-objective');
+        var count = document.getElementById('improvement-count');
+        if (input) input.value = state.drafts.brittneyInput || '';
+        if (objective) objective.value = state.drafts.improvementObjective || '';
+        if (count && state.drafts.improvementCount) count.value = state.drafts.improvementCount;
+      }
+    }
+    function _restoreTranscriptEntry(entry) {
+      if (!entry || !entry.type) return;
+      if (entry.type === 'message') {
+        _bMsg(entry.who || 'HoloShell', entry.text || '', entry.color || '#c9d1d9', { persist: false });
+      } else if (entry.type === 'turn_card') {
+        _appendTurnCard(entry.title || 'Receipt', entry.lines || [], entry.tone || 'neutral', entry.variant || '', { persist: false });
+      } else if (entry.type === 'card_grid') {
+        var cards = (entry.cards || []).map(function(card) {
+          return _makeTurnCard(card.title || 'Proposal', card.lines || [], card.tone || 'neutral', card.variant || '');
+        });
+        _appendCardGrid(cards, { persist: false });
+      }
+    }
+    function _restoreBrowserSession() {
+      var state = _readBrowserState();
+      _browserStateRestoring = true;
+      _restoreDraftsAndRuntime(state);
+      if (state.latestCockpitCapsule) _renderCockpitCapsule(state.latestCockpitCapsule);
+      (state.transcript || []).forEach(_restoreTranscriptEntry);
+      _browserStateRestoring = false;
+      return { transcriptCount: (state.transcript || []).length };
+    }
+    function _bMsg(who, text, color, options) {
       var box = document.getElementById('brittney-messages'); if (!box) return null;
       var row = document.createElement('div');
       row.className = 'chat-message-row';
@@ -551,7 +677,11 @@ const runtimeScript = `  <script>
       var span = document.createElement('span');
       span.style.cssText = 'color:#c9d1d9;white-space:pre-wrap'; span.textContent = text;
       row.appendChild(label); row.appendChild(span);
-      box.appendChild(row); box.scrollTop = box.scrollHeight; return row;
+      box.appendChild(row); box.scrollTop = box.scrollHeight;
+      if (!options || options.persist !== false) {
+        _rememberTranscript({ type: 'message', who: who, text: text, color: color });
+      }
+      return row;
     }
     function _bActionButton(row, label, onClick) {
       if (!row) return null;
@@ -613,15 +743,18 @@ const runtimeScript = `  <script>
       });
       return card;
     }
-    function _appendTurnCard(title, lines, tone, variant) {
+    function _appendTurnCard(title, lines, tone, variant, options) {
       var box = document.getElementById('brittney-messages');
       if (!box) return null;
       var card = _makeTurnCard(title, lines, tone, variant);
       box.appendChild(card);
       box.scrollTop = box.scrollHeight;
+      if (!options || options.persist !== false) {
+        _rememberTranscript({ type: 'turn_card', title: title, lines: lines || [], tone: tone || 'neutral', variant: variant || '' });
+      }
       return card;
     }
-    function _appendCardGrid(cards) {
+    function _appendCardGrid(cards, options) {
       var box = document.getElementById('brittney-messages');
       if (!box || !cards || !cards.length) return;
       var grid = document.createElement('div');
@@ -629,6 +762,9 @@ const runtimeScript = `  <script>
       cards.forEach(function(card) { grid.appendChild(card); });
       box.appendChild(grid);
       box.scrollTop = box.scrollHeight;
+      if (!options || options.persist !== false) {
+        _rememberTranscript({ type: 'card_grid', cards: cards.map(_serializeTurnCardElement).filter(Boolean) });
+      }
     }
     function _setText(id, text) {
       var el = document.getElementById(id);
@@ -882,6 +1018,7 @@ const runtimeScript = `  <script>
     }
     function _renderCockpitCapsule(capsule) {
       _lastCockpitCapsule = capsule;
+      _persistCockpitCapsule(capsule);
       _renderOperatorTruth(capsule);
       _renderEvidencePrompts(capsule);
       _renderContextCapsule(capsule);
@@ -936,6 +1073,7 @@ const runtimeScript = `  <script>
           try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
           if (r.ok) {
             _lastLaptopDesktopBridgeBaseUrl = urls[offset].slice(0, -path.length);
+            _persistRuntimeState();
             return data;
           }
           if (r.status === 404) return _postLaptopBridge(path, body, offset + 1);
@@ -1078,7 +1216,8 @@ const runtimeScript = `  <script>
       var inp = document.getElementById('brittney-input'); if (!inp) return;
       var msg = inp.value.trim(); if (!msg) return;
       inp.value = ''; _bMsg('You', msg, '#58a6ff');
-      var pending = _bMsg('Brittney', 'thinking…', '#bc8cff');
+      _persistDraftState();
+      var pending = _bMsg('Brittney', 'thinking…', '#bc8cff', { persist: false });
       fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) })
         .then(function(r) { return r.json(); })
         .then(function(d) {
@@ -1140,6 +1279,7 @@ const runtimeScript = `  <script>
           }
           _setDesktopBridgeStatus('Bridge: ' + d.status + ' (laptop)');
           _lastLaptopDesktopBridgeBaseUrl = urls[index].replace('/api/desktop-control/bridge', '');
+          _persistRuntimeState();
           _reportLaptopDesktopBridge(d);
         })
         .catch(function() {
@@ -1159,6 +1299,7 @@ const runtimeScript = `  <script>
         .then(function(d) {
           if (d.error) { _setImprovementStatus('History error: ' + d.error, '#f85149'); return; }
           if (d.items && d.items.length) _lastImprovementRunId = d.items[0].runId;
+          _persistRuntimeState();
           _renderImprovementHistory(d.items || []);
         })
         .catch(function(e) { _setImprovementStatus('History network error: ' + e.message, '#f85149'); });
@@ -1202,6 +1343,7 @@ const runtimeScript = `  <script>
         .then(function(d) {
           if (d.error) { _setImprovementStatus('Error: ' + d.error, '#f85149'); return; }
           _lastImprovementRunId = d.runId;
+          _persistRuntimeState();
           _setImprovementStatus('Queued ' + d.queuedRunCount + ' run(s): ' + d.runId, '#3fb950');
           _bMsg('Improvement run', 'Queued ' + d.queuedRunCount + ' run(s) for: ' + d.objective + '\\n' + d.routingSummary + '\\nNext: ' + d.nextSafeStep, '#3fb950');
           if (d.proposals && d.proposals.length) {
@@ -1314,8 +1456,15 @@ const runtimeScript = `  <script>
       document.getElementById('improvement-refresh').addEventListener('click', loadImprovementRuns);
       document.getElementById('brittney-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') sendBrittneyChat(); });
       document.getElementById('improvement-objective').addEventListener('keydown', function(e) { if (e.key === 'Enter') queueImprovementRun(); });
+      ['brittney-input', 'improvement-objective', 'improvement-count'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', _persistDraftState);
+      });
+      var restored = _restoreBrowserSession();
       document.getElementById('brittney-input').focus();
-      _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
+      if (!restored.transcriptCount) {
+        _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
+      }
       loadImprovementRuns();
     }
     document.addEventListener('DOMContentLoaded', initBrittneyChat);

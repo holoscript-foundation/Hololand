@@ -258,6 +258,8 @@ try {
   assert.match(hsplusSource, /FaraPeerAutomationIsVisibleButNonMutating/);
   assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
   assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
+  assert.match(hsplusSource, /BrowserRefreshPreservesOperatorSession/);
+  assert.match(hsplusSource, /holoshell:brittney:browser-session:v1/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /brittney_cockpit_source/);
@@ -271,6 +273,10 @@ try {
   assert.match(compileSource, /laptop_reasoning_status/);
   assert.match(compileSource, /_inspectHoloClawRuntimeBridge/);
   assert.match(compileSource, /\/api\/holoclaw\/runtime-bridge/);
+  assert.match(compileSource, /HOLOSHELL_BROWSER_STATE_SCHEMA/);
+  assert.match(compileSource, /holoshell:brittney:browser-session:v1/);
+  assert.match(compileSource, /_restoreBrowserSession/);
+  assert.match(compileSource, /localStorage/);
   assert.match(compileSource, /cockpit-action-cards/);
   assert.match(compileSource, /\/api\/cockpit\/capsule/);
 } finally {
