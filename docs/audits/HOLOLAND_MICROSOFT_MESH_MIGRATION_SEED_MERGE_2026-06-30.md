@@ -28,7 +28,10 @@ Verified on 2026-06-30 against Microsoft-owned sources:
 - HoloLens 2:
   `https://learn.microsoft.com/en-us/answers/questions/2151213/microsoft-stops-hololens-2-production-support-to-e`
   records critical/security fix support through December 2027 and
-  customer/developer support through December 31, 2027.
+  customer/developer support through December 31, 2027. Current HoloLens
+  release notes also list a UK PSTI minimum security update period through
+  February 28, 2028 for units purchased until February 28, 2025:
+  `https://learn.microsoft.com/en-us/hololens/hololens-release-notes`.
 
 ## Decision
 

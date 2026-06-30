@@ -45,7 +45,10 @@ not current product truth by itself. Official Microsoft surfaces verified on
 - Microsoft says Dynamics 365 Guides and Remote Assist reach end of support on
   December 31, 2026.
 - Microsoft Learn Answers records HoloLens 2 critical/security fix and
-  customer/developer support through December 31, 2027.
+  customer/developer support through December 31, 2027, while current HoloLens
+  release notes list a UK PSTI minimum security update period through
+  February 28, 2028. Treat HoloLens dates as source-specific, not a single
+  blanket EOL.
 
 The useful HoloLand action is already represented in existing product surfaces:
 
