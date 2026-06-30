@@ -1,0 +1,184 @@
+// HoloShell Describe-to-HoloLand Proof Loop
+//
+// Source contract for the next reboot tracer bullet:
+// plain-language intent -> generated HoloScript source -> validation ->
+// HoloLand/HoloShell registration -> rendered proof surface -> agent trace ->
+// learning signal.
+//
+// JavaScript in scripts/ is bridge-only receipt machinery. The proof behavior
+// lives here so agents can inspect, validate, remix, and learn from source.
+
+composition "HoloShell Describe To HoloLand Proof Loop" {
+  config {
+    title: "Describe To HoloLand Proof Loop"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/holoshell-describe-to-hololand-proof-loop.hsplus"
+    bridgeCommand: "node scripts/holoshell-describe-to-hololand-proof-loop.mjs"
+    testCommand: "node scripts/__tests__/holoshell-describe-to-hololand-proof-loop.test.mjs"
+    generatedWorldSource: ".tmp/holoshell/describe-to-hololand-proof-loop/generated-world.holo"
+    renderOutput: ".tmp/holoshell/describe-to-hololand-proof-loop/proof-loop.html"
+    receiptOutput: ".tmp/holoshell/describe-to-hololand-proof-loop/receipt.json"
+    learningSignalOutput: ".tmp/holoshell/describe-to-hololand-proof-loop/learning-signal.jsonl"
+    registryOutput: ".tmp/holoshell/describe-to-hololand-proof-loop/hololand-registry.json"
+    validationTool: "HoloScript CLI parse"
+  }
+
+  state {
+    descriptionStatus: "required"
+    generatedSourceStatus: "required"
+    validationStatus: "required"
+    registrationStatus: "required"
+    renderStatus: "required"
+    agentTraceStatus: "required"
+    learningSignalStatus: "required"
+    packageGraphRestorationStatus: "not_required_for_this_proof"
+    r3fCompilerParityStatus: "not_the_goal"
+  }
+
+  channel "hololand:describe-proof-loop" {
+    type: "append_only"
+    priority: "critical"
+    description: "Agent-authored description becomes HoloScript source, HoloLand projection, and learning signal"
+  }
+
+  template "DescribeToHoloLandReceipt" {
+    type: "describe_to_hololand_receipt"
+    receiptType: "hololand.holoshell.describe-to-hololand-proof-loop.v0.1.0"
+    requiredFields: [
+      "description",
+      "contract_source_path",
+      "contract_source_sha256",
+      "generated_world_source_path",
+      "generated_world_sha256",
+      "holoscript_validation",
+      "hololand_registration",
+      "render_output",
+      "agent_action_trace",
+      "learning_signal"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "DescriptionCreatesSource" {
+    appliesTo: ["agent_description", "generated_world_source"]
+    descriptionRequired: true
+    generatedSourceMustBeHoloScript: true
+    generatedSourcePathMustBeVisible: true
+    generatedSourceHashMustBeVisible: true
+    receiptRequired: true
+  }
+
+  policy "ValidateBeforeRegistration" {
+    appliesTo: ["contract_source", "generated_world_source", "hololand_registration"]
+    parserSourceOfTruth: "HoloScript CLI parse"
+    failureBlocksRegistrationClaim: true
+    failureBlocksRenderClaim: true
+    receiptRequired: true
+  }
+
+  policy "HoloLandProjectionOnly" {
+    appliesTo: ["render_surface", "registry_receipt", "agent_handoff"]
+    sourceRequiredBeforeProjection: true
+    generatedSurfaceIsProjectionOnly: true
+    compileTargetParityRequired: false
+    legacyPackageGraphRestorationRequired: false
+    proofGoal: "HoloScript language renders and runs for agents"
+    receiptRequired: true
+  }
+
+  policy "AgentActionLeavesTrace" {
+    appliesTo: ["agent_trace", "proof_surface", "learning_signal"]
+    requiredAction: "agent registers the generated world and records the first next command"
+    traceMustNameSource: true
+    traceMustNameValidation: true
+    traceMustNameReceipt: true
+    receiptRequired: true
+  }
+
+  policy "LearningSignalIsStructured" {
+    appliesTo: ["learning_signal", "holotune_corpus_candidate", "knowledge_store"]
+    format: "jsonl"
+    labels: ["decision", "pattern", "gotcha", "receipt", "next_action"]
+    rawSecretsIncluded: false
+    promoteToTrainingOnlyAfterValidation: true
+    receiptRequired: true
+  }
+
+  action capture_description(description) {
+    state.descriptionStatus = "captured"
+
+    emit("hololand:describe-proof-loop", {
+      action: "description_captured",
+      description: description.summary,
+      contract_source_path: config.sourcePath,
+      generated_world_source: config.generatedWorldSource,
+      receipt_required: true
+    })
+  }
+
+  action accept_generated_source(worldSource) {
+    state.generatedSourceStatus = worldSource.status
+
+    emit("hololand:describe-proof-loop", {
+      action: "generated_source_accepted",
+      status: worldSource.status,
+      generated_world_source: worldSource.path,
+      generated_world_sha256: worldSource.sha256,
+      validation_required: true
+    })
+  }
+
+  action accept_validation(validation) {
+    state.validationStatus = validation.status
+
+    emit("hololand:describe-proof-loop", {
+      action: "validation_accepted",
+      status: validation.status,
+      contract_source_status: validation.contractSource.status,
+      generated_world_status: validation.generatedWorld.status,
+      registration_allowed: validation.status == "pass",
+      receipt_required: true
+    })
+  }
+
+  action register_hololand_projection(registration) {
+    state.registrationStatus = registration.status
+    state.renderStatus = registration.renderStatus
+
+    emit("hololand:describe-proof-loop", {
+      action: "hololand_projection_registered",
+      status: registration.status,
+      registry_receipt: registration.registryPath,
+      render_output: registration.renderOutput,
+      generated_surface_is_projection_only: true,
+      receipt_required: true
+    })
+  }
+
+  action record_agent_trace(trace) {
+    state.agentTraceStatus = trace.status
+
+    emit("hololand:describe-proof-loop", {
+      action: "agent_trace_recorded",
+      status: trace.status,
+      first_next_command: trace.firstNextCommand,
+      receipt_path: trace.receiptPath,
+      receipt_required: true
+    })
+  }
+
+  action export_learning_signal(signal) {
+    state.learningSignalStatus = signal.status
+
+    emit("hololand:describe-proof-loop", {
+      action: "learning_signal_exported",
+      status: signal.status,
+      jsonl_path: signal.path,
+      row_count: signal.rowCount,
+      corpus_candidate: true,
+      receipt_required: true
+    })
+  }
+}
