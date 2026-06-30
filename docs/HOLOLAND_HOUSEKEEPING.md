@@ -64,10 +64,10 @@ Resolution receipt:
 records the first validated decision pass: promoted app source stays canonical
 for the four drifted workflows, `family-photo-backup-custody` gets its missing
 `targetKind` verification receipt field restored, `asset-shard-2`,
-`local-codebase-trust-gate`, and `partial-download-recovery` become promotion
-candidates, `asset-shard-2` is promoted under app source and enterprise gate
-coverage, and `asset-folder-playable-shard` waits for v2 visual witness before
-archive.
+`asset-shard-2`, `local-codebase-trust-gate`, and
+`partial-download-recovery` are promoted under app source, the creator asset
+shard has enterprise gate coverage, and `asset-folder-playable-shard` waits for
+v2 visual witness before archive.
 
 ## Package Boundary
 

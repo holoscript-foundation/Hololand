@@ -1,0 +1,107 @@
+// HoloShell Local Codebase Trust Gate Policy
+//
+// Makes codebase-intelligence trust visible before a non-developer is told
+// that this computer is ready to build a HoloLand world.
+
+composition "HoloShellLocalCodebaseTrustGatePolicy" {
+  config {
+    title: "Local Codebase Trust Gate Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    roomSource: "apps/holoshell/source/holoshell-local-codebase-trust-gate-room.holo"
+    pipelineSource: "apps/holoshell/source/holoshell-local-codebase-trust-gate-pipeline.hs"
+    defaultMode: "read_only_until_authoritative"
+  }
+
+  state {
+    workflow: "ready-to-build-hololand-world"
+    graphStatus: "unknown"
+    localBundleStatus: "missing"
+    absorbReplayStatus: "missing"
+    codebaseTruthClaimAllowed: false
+    taskFilingAllowed: false
+    mutationAllowed: false
+  }
+
+  template "CodebaseTrustRequirement" {
+    gateId: ""
+    requiredReceipt: ""
+    ownerSurface: ""
+    mutationClass: "none"
+    blocksReadinessClaim: true
+    receiptRequired: true
+  }
+
+  gate "HostedGraphGate" using "CodebaseTrustRequirement" {
+    gateId: "hosted-graph"
+    requiredReceipt: "GraphUnavailableReceipt"
+    ownerSurface: "HoloScript MCP Absorb"
+    mutationClass: "none"
+  }
+
+  gate "LocalSourceFilesGate" using "CodebaseTrustRequirement" {
+    gateId: "local-source-files"
+    requiredReceipt: "LocalCodebaseSnapshotReceipt"
+    ownerSurface: "HoloShell local filesystem adapter"
+    mutationClass: "none"
+  }
+
+  gate "AbsorbReplayGate" using "CodebaseTrustRequirement" {
+    gateId: "absorb-replay"
+    requiredReceipt: "CodebaseAbsorbReplayReceipt"
+    ownerSurface: "HoloScript codebase intelligence"
+    mutationClass: "guarded_execute"
+  }
+
+  policy "StaleHostedGraphCannotAuthorizeReadiness" {
+    appliesTo: ["readiness_claim", "architecture_claim", "task_filing", "brittney_world_build_plan"]
+    hostedGraphAuthoritativeRequired: true
+    staleGraphAllowedAsWarning: true
+    localSourceFilesFallbackAllowed: true
+    receiptRequired: true
+  }
+
+  policy "SourceFilesBundleMustStayLocalSafe" {
+    appliesTo: ["source_files_bundle", "inline_absorb_payload", "codebase_snapshot"]
+    absolutePathsAllowedInPayload: false
+    secretAdjacentFilesAllowed: false
+    buildArtifactsAllowed: false
+    maxFilesRequired: true
+    maxBytesRequired: true
+    redactionStatusRequired: "pass"
+    receiptRequired: true
+  }
+
+  policy "NoProductMutationFromUntrustedGraph" {
+    appliesTo: ["modify_hololand_worktree", "publish_world", "import_asset", "close_task_as_fixed"]
+    defaultAllowed: false
+    requiresCodebaseTruthClaim: true
+    requiresHumanPromotion: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  action evaluate_trust(graphReceipt, bundleReceipt, replayReceipt) {
+    state.graphStatus = graphReceipt.authoritative == true ? "trusted" : "warning"
+    state.localBundleStatus = bundleReceipt.status || "missing"
+    state.absorbReplayStatus = replayReceipt.status || "missing"
+
+    if (state.graphStatus == "trusted") {
+      state.codebaseTruthClaimAllowed = true
+    } else if (state.localBundleStatus == "ready" && state.absorbReplayStatus == "complete") {
+      state.codebaseTruthClaimAllowed = true
+    } else {
+      state.codebaseTruthClaimAllowed = false
+    }
+
+    state.taskFilingAllowed = state.codebaseTruthClaimAllowed
+    emit("holoshell:codebase_trust:evaluated", {
+      workflow: state.workflow,
+      graph: state.graphStatus,
+      bundle: state.localBundleStatus,
+      replay: state.absorbReplayStatus,
+      claim_allowed: state.codebaseTruthClaimAllowed,
+      mutation_allowed: false
+    })
+  }
+}

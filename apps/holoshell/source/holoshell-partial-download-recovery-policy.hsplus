@@ -1,0 +1,208 @@
+// HoloShell partial-download recovery policy and state machine.
+
+composition "HoloShellPartialDownloadRecoveryPolicy" {
+  state PartialDownloadRecoveryState {
+    selectedWorkflow: "partial-download-recovery"
+    approvedRoots: ["Downloads", "browser download cache", "Desktop drop zone"]
+    partialCount: 0
+    stalePartialCount: 0
+    duplicateCandidateCount: 0
+    recoverableCount: 0
+    verifiedCompleteCount: 0
+    retryPlanHash: ""
+    finalFileHash: ""
+    rawPrivateDataPublished: false
+    executableLaunched: false
+    originalFileDeleted: false
+    networkRetryExecuted: false
+    blockers: []
+    taskSeeds: []
+  }
+
+  template "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    freshUserGesture: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "PartialFileReceipt" {
+    receiptType: "partial_file_receipt"
+    approvedRootRequired: true
+    privateAbsolutePathStoredLocallyOnly: true
+    publicReceiptMayContainAbsolutePath: false
+    partialExtensionRequired: true
+    sizeAndMtimeRequired: true
+    fileLockStateRequired: true
+  }
+
+  template "DownloadIntegrityReceipt" {
+    receiptType: "download_integrity_receipt"
+    expectedSizeChecked: true
+    actualSizeChecked: true
+    hashRequired: true
+    archiveOpenTestRecorded: true
+    extensionRenameIsNotProof: true
+  }
+
+  template "RetryPlanReceipt" {
+    receiptType: "download_retry_plan_receipt"
+    sourceUrlRedacted: true
+    networkRetryRequiresApproval: true
+    overwriteRequiresApproval: true
+    retryWritesQuarantineFirst: true
+    failedBytesKeptAsEvidence: true
+  }
+
+  policy "ReadOnlyDetectAndVerify" using "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    appliesTo: [
+      "scan_approved_roots",
+      "detect_partial_extensions",
+      "read_size_and_mtime",
+      "check_file_lock_state",
+      "hash_existing_bytes",
+      "compare_duplicate_candidates",
+      "test_archive_open_without_extracting"
+    ]
+  }
+
+  policy "GuardedRetryAndHandoff" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    freshUserGesture: true
+    appliesTo: [
+      "resume_download",
+      "restart_download_to_quarantine",
+      "rename_verified_complete_file",
+      "copy_to_import_shelf",
+      "write_retry_receipt",
+      "write_import_handoff_receipt"
+    ]
+  }
+
+  policy "BreakGlassDiscardOrExecute" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    freshUserGesture: true
+    appliesTo: [
+      "delete_partial_file",
+      "overwrite_existing_file",
+      "execute_downloaded_installer",
+      "auto_extract_archive",
+      "publish_raw_file"
+    ]
+  }
+
+  state_machine "PartialDownloadRecoveryWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "detected",
+      "evidence_frozen",
+      "completeness_checked",
+      "retry_planned",
+      "approval_pending",
+      "retrying",
+      "quarantined",
+      "handoff_ready",
+      "discard_pending",
+      "receipt_written",
+      "blocked"
+    ]
+    transition "detect" { from: "idle", to: "detected" }
+    transition "freeze" { from: "detected", to: "evidence_frozen" }
+    transition "verify" { from: "evidence_frozen", to: "completeness_checked" }
+    transition "plan_retry" { from: "completeness_checked", to: "retry_planned" }
+    transition "request_approval" { from: "retry_planned", to: "approval_pending" }
+    transition "retry" { from: "approval_pending", to: "retrying" }
+    transition "quarantine" { from: "retrying", to: "quarantined" }
+    transition "handoff" { from: "quarantined", to: "handoff_ready" }
+    transition "stage_discard" { from: "completeness_checked", to: "discard_pending" }
+    transition "write_receipt" { from: "*", to: "receipt_written" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["local_scan", "file_locks", "hashing", "archive_open_test", "discard_receipt"]
+  }
+
+  role "BrowserStateAgent" {
+    laneId: "browser-state"
+    owns: ["download_history_correlation", "source_url_redaction", "range_resume_capability", "network_retry_receipt"]
+  }
+
+  role "FileCustodyAgent" {
+    laneId: "file-custody"
+    owns: ["partial_file_receipts", "duplicate_groups", "quarantine", "private_path_split"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["recovery_room", "NPC_recovery_lesson", "import_shelf_handoff", "creator_preview"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["retry_policy", "integrity_validators", "partial_receipts", "runtime_adapter_contracts"]
+  }
+
+  action classifyPartial(fileProxy) {
+    if (fileProxy.fileLocked == true) {
+      return "browser_still_writing"
+    }
+    if (fileProxy.expectedSize > 0 && fileProxy.actualSize < fileProxy.expectedSize) {
+      return "incomplete"
+    }
+    if (fileProxy.archiveOpenTest == "failed") {
+      return "corrupt_archive"
+    }
+    if (fileProxy.duplicateHashMatch == true) {
+      return "duplicate_candidate"
+    }
+    return "needs_integrity_proof"
+  }
+
+  action recordPartialReceipt(receipt) {
+    PartialDownloadRecoveryState.partialCount = receipt.partialCount
+    PartialDownloadRecoveryState.stalePartialCount = receipt.stalePartialCount
+    PartialDownloadRecoveryState.duplicateCandidateCount = receipt.duplicateCandidateCount
+    emit("holoshell:partial_download:inventory", {
+      partialCount: receipt.partialCount,
+      stalePartialCount: receipt.stalePartialCount,
+      publicReceiptMayContainAbsolutePath: false,
+      executableLaunched: false
+    })
+  }
+
+  action recordIntegrityReceipt(receipt) {
+    PartialDownloadRecoveryState.verifiedCompleteCount = receipt.verifiedCompleteCount
+    PartialDownloadRecoveryState.finalFileHash = receipt.finalFileHash
+    emit("holoshell:partial_download:integrity", {
+      status: receipt.status,
+      finalFileHash: receipt.finalFileHash,
+      extensionRenameIsNotProof: true
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    PartialDownloadRecoveryWorkflow.transition("block")
+    PartialDownloadRecoveryState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:partial_download:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}

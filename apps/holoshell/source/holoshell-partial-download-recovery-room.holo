@@ -1,0 +1,134 @@
+/**
+ * HoloShell Partial Download Recovery Room
+ *
+ * Visible HoloShell room for:
+ * "A download failed or duplicated; recover the useful file, prove what is
+ * complete, and avoid deleting or executing anything by default."
+ */
+
+composition "HoloShell Partial Download Recovery Room" {
+  environment {
+    backgroundColor: "#0f1418"
+    ambient_light: 0.64
+    shadows: true
+  }
+
+  template "RecoveryPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.52, 0.58, 0.08]
+    material: {
+      color: "#1a2429"
+      emissive: "#25383f"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "RecoveryToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "cube"
+    scale: [0.18, 0.18, 0.18]
+    material: { color: "#7aa2f7" }
+  }
+
+  object "HumanJob" using "RecoveryPanel" {
+    position: [0, 2.45, -2.8]
+    label: "Recover a failed download without guessing"
+    properties: {
+      plainLanguageJob: "find incomplete downloads, stale browser temp files, duplicate half-archives, and interrupted installers; tell me what is recoverable; retry or discard only with receipts"
+      hiddenMachinery: ["browser download state", "partial extensions", "file locks", "ETag and content length", "hash ranges", "archive part manifests", "network retry", "quarantine", "delete permissions"]
+      substrateBoundary: "HoloScript owns generic partial-file receipts, retry policy, validators, replay, and network/file adapters; HoloLand owns the recovery room, NPC explanation, and import shelf handoff"
+    }
+  }
+
+  object "InterruptedLane" using "RecoveryPanel" {
+    position: [-4.4, 1.55, -1.16]
+    label: "Interrupted"
+    properties: {
+      detects: ["crdownload", "part", "tmp", "download lock", "mtime still changing"]
+      visibleControls: ["wait", "retry source", "mark stale"]
+      failureStates: ["browser still owns file", "source URL missing", "network offline", "size unknown"]
+    }
+  }
+
+  object "CompletenessLane" using "RecoveryPanel" {
+    position: [-2.2, 1.55, -1.16]
+    label: "Completeness"
+    properties: {
+      checks: ["expected size", "actual size", "range hash", "archive open test", "provider checksum", "signature when available"]
+      receipts: ["partial_file_receipt", "range_hash_receipt", "archive_integrity_receipt"]
+      unsafeAssumption: "extension rename never means complete"
+    }
+  }
+
+  object "RetryLane" using "RecoveryPanel" {
+    position: [0, 1.55, -1.16]
+    label: "Retry plan"
+    properties: {
+      actions: ["resume if server supports ranges", "restart into quarantine", "keep failed bytes as evidence", "compare duplicate downloads"]
+      defaultExecution: "plan_only"
+      approvalRule: "network retry and overwrite require fresh approval"
+    }
+  }
+
+  object "QuarantineLane" using "RecoveryPanel" {
+    position: [2.2, 1.55, -1.16]
+    label: "Quarantine"
+    properties: {
+      blocked: ["execute installer", "auto extract archive", "publish private file", "delete original"]
+      safeOutputs: ["redacted proxy", "integrity badge", "recoverable status", "discard candidate"]
+      rollback: "delete only through recycle-bin receipt or permanent-delete break glass"
+    }
+  }
+
+  object "ImportShelfHandoff" using "RecoveryPanel" {
+    position: [4.4, 1.55, -1.16]
+    label: "Import shelf handoff"
+    properties: {
+      allowedWhen: ["complete", "verified", "preview safe", "public path redacted"]
+      adoption: ["Downloads Import Shelf", "creator import tray", "NPC recovery lesson", "Twin Earth personal inventory"]
+      replayKey: "root hash + partial file hashes + retry plan hash + final file hash + decision receipt"
+    }
+  }
+
+  object "PartialToken" using "RecoveryToken" {
+    position: [-3.45, 0.78, 0.12]
+    material: { color: "#e0af68" }
+    label: "partial file"
+    properties: { receiptKind: "partial_file_receipt", safeToImport: false }
+  }
+
+  object "IntegrityToken" using "RecoveryToken" {
+    position: [-1.18, 0.78, 0.12]
+    material: { color: "#9ece6a" }
+    label: "integrity check"
+    properties: { receiptKind: "download_integrity_receipt" }
+  }
+
+  object "RetryToken" using "RecoveryToken" {
+    position: [1.18, 0.78, 0.12]
+    label: "retry approval"
+    properties: { networkMutationRequiresApproval: true }
+  }
+
+  object "DiscardToken" using "RecoveryToken" {
+    position: [3.45, 0.78, 0.12]
+    material: { color: "#f7768e" }
+    label: "discard locked"
+    properties: { requiresFreshUserGesture: true }
+  }
+
+  object "RecoveryTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.8, 0.08, 0.14]
+    color: "#687883"
+    label: "timeline: detect -> freeze evidence -> verify completeness -> plan retry -> approve -> quarantine -> handoff -> receipt -> replay"
+  }
+}

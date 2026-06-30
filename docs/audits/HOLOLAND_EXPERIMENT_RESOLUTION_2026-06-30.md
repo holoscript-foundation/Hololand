@@ -35,14 +35,15 @@ Result: pass.
 | --- | --- | --- |
 | `asset-shard-2` | Promoted as the canonical creator asset-shard v2 gate. It adds conversion bench, validation ring, replay/rollback rail, visual witness token, and explicit agent lane containment. | App-source trio promoted under `apps/holoshell/source/holoshell-asset-shard-2-*` with enterprise gate coverage in `apps/holoshell/enterprise-gates/creator-asset-shard-room/package-gate.json`. Archive experiment copies only after visual witness and checksum receipts. |
 | `asset-folder-playable-shard` | Superseded by `asset-shard-2`. The v1 trio remains valid source but lacks the visual witness and replay/rollback coverage. | Archive only after `asset-shard-2` is promoted and has a gate receipt. |
-| `local-codebase-trust-gate` | Promote as the world-build cockpit local codebase trust subgate. It matches the cockpit's existing metadata reference and protects codebase truth before world-build readiness. | Integrate under `apps/holoshell/source/**` or enterprise-gate coverage; keep visible until promoted. |
-| `partial-download-recovery` | Promote as a downloads recovery subgate. It is distinct from the broader downloads recovery dock because it models file locks, range hashes, retry plans, discard receipts, and replay from root/partial/final hashes. | Merge or register beside `holoshell-downloads-recovery-dock-*`; keep visible until promoted. |
+| `local-codebase-trust-gate` | Promoted as the world-build cockpit local codebase trust subgate. It matches the cockpit's existing metadata reference and protects codebase truth before world-build readiness. | App-source trio promoted under `apps/holoshell/source/holoshell-local-codebase-trust-gate-*`; archive experiment copies only after checksum receipt. |
+| `partial-download-recovery` | Promoted as a downloads recovery subgate. It is distinct from the broader downloads recovery dock because it models file locks, range hashes, retry plans, discard receipts, and replay from root/partial/final hashes. | App-source trio promoted under `apps/holoshell/source/holoshell-partial-download-recovery-*`; archive experiment copies only after checksum receipt. |
 
-After `asset-shard-2` promotion, the intake classifier reports that workflow as
-`promoted-drift` only because the canonical promoted pipeline rewrites
-`roomSource`, `policySource`, and validation output paths from
-`experiments/holoshell-human-os-frontier/**` to `apps/holoshell/source/**`.
-Treat that as intentional path canonicalization, not a semantic gap.
+After `asset-shard-2`, `local-codebase-trust-gate`, and
+`partial-download-recovery` promotion, the intake classifier reports those
+workflows as `promoted-drift` only because the canonical promoted copies rewrite
+source pointers from `experiments/holoshell-human-os-frontier/**` to
+`apps/holoshell/source/**`. Treat that as intentional path canonicalization, not
+semantic drift.
 
 ## Package Boundary Decision
 

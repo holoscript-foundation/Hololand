@@ -1,0 +1,144 @@
+// HoloShell Local Codebase Trust Gate
+//
+// Prototype room slice for the flagship workflow:
+// "Make this computer ready to build a HoloLand world, use local files,
+// verify it works, and show what changed."
+
+composition "HoloShell Local Codebase Trust Gate" {
+  metadata {
+    title: "Local Codebase Trust Gate"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    workflow: "ready-to-build-hololand-world"
+    behavior_source: "apps/holoshell/source/holoshell-local-codebase-trust-gate-policy.hsplus"
+    pipeline_source: "apps/holoshell/source/holoshell-local-codebase-trust-gate-pipeline.hs"
+    upstream_room_source: "apps/holoshell/source/holoshell-world-build-cockpit.holo"
+  }
+
+  environment {
+    theme: "holo_os_codebase_trust"
+    render_mode: "desktop_spatial"
+    ambient_light: 0.56
+    receipt_underlay: true
+  }
+
+  state {
+    graphTrustState: "unknown"
+    localBundleState: "not_created"
+    authoritativeSource: "none"
+    skippedFileCount: 0
+    staleGraphAgeHours: 0
+    readyToClaimCodebaseTruth: false
+  }
+
+  template "TrustPanel" {
+    type: "readiness_gate"
+    mesh: "rounded_panel"
+    material: "liquid_glass"
+    color: "#18242c"
+    active_color: "#73daca"
+    warning_color: "#e0af68"
+    blocked_color: "#f7768e"
+    inspectable: true
+    receipt_required: true
+  }
+
+  object "HumanOutcome" using "TrustPanel" {
+    label: "Can HoloShell Trust This Local Codebase?"
+    gate_id: "local_codebase_trust"
+    position: [0, 2.2, -2.7]
+    scale: [3.2, 0.72, 0.08]
+    status_binding: "graphTrustState"
+    plain_language: "Do not claim this computer is ready until the codebase facts came from this machine or an explicit source-files receipt."
+  }
+
+  object "HostedGraphPanel" using "TrustPanel" {
+    label: "Hosted Graph"
+    gate_id: "hosted_graph"
+    receipt: "GraphUnavailableReceipt"
+    failure_states: ["cache_stale", "rootDir_unavailable", "runtime_namespace_mismatch"]
+    position: [-2.65, 1.12, -1.25]
+    scale: [1.75, 0.62, 0.08]
+  }
+
+  object "LocalBundlePanel" using "TrustPanel" {
+    label: "Local Source Bundle"
+    gate_id: "local_source_files"
+    receipt: "LocalCodebaseSnapshotReceipt"
+    failure_states: ["bundle_missing", "too_many_files", "secret_adjacent_file", "absolute_path_leak"]
+    position: [0, 1.12, -1.25]
+    scale: [1.95, 0.62, 0.08]
+  }
+
+  object "AbsorbReplayPanel" using "TrustPanel" {
+    label: "Replay Absorb"
+    gate_id: "replay_absorb"
+    receipt: "CodebaseAbsorbReplayReceipt"
+    failure_states: ["missing_payload_hash", "missing_tool_result", "non_authoritative_graph"]
+    position: [2.65, 1.12, -1.25]
+    scale: [1.75, 0.62, 0.08]
+  }
+
+  object "SkippedFilesShelf" {
+    type: "receipt_shelf"
+    label: "Skipped files"
+    mesh: "cube"
+    material: "hologram"
+    color: "#8aadf4"
+    position: [-1.45, 0.25, 0.3]
+    scale: [1.85, 0.12, 0.4]
+    count_binding: "skippedFileCount"
+    inspectable: true
+  }
+
+  object "TrustTimeline" {
+    type: "timeline"
+    label: "graph status -> local bundle -> sourceFiles absorb -> query -> readiness claim"
+    mesh: "cube"
+    material: "hologram"
+    color: "#6a7282"
+    position: [0, -0.22, 1.05]
+    scale: [5.6, 0.08, 0.12]
+    receipt_required: true
+  }
+
+  object "ClaimToken" {
+    type: "receipt_token"
+    label: "Codebase truth claim"
+    mesh: "sphere"
+    material: "hologram"
+    radius: 0.18
+    color: "#73daca"
+    position: [1.45, 0.25, 0.3]
+    visible_when: "readyToClaimCodebaseTruth"
+    receipt_required: true
+  }
+
+  logic {
+    on_enter {
+      emit "holoshell_local_codebase_trust_gate_loaded"
+    }
+
+    action consume_graph_receipt(receipt) {
+      state.staleGraphAgeHours = receipt.cacheAgeHours
+      if (receipt.authoritative == true) {
+        state.graphTrustState = "trusted"
+        state.authoritativeSource = "hosted_graph"
+      } else {
+        state.graphTrustState = "warning"
+        state.authoritativeSource = "none"
+      }
+      emit "holoshell_local_codebase_graph_receipt_consumed"
+    }
+
+    action consume_local_bundle(receipt) {
+      state.localBundleState = receipt.status
+      state.skippedFileCount = receipt.skippedFileCount
+      if (receipt.status == "ready" && receipt.redactionStatus == "pass") {
+        state.readyToClaimCodebaseTruth = true
+        state.authoritativeSource = "source_files_bundle"
+      }
+      emit "holoshell_local_codebase_bundle_consumed"
+    }
+  }
+}
