@@ -23,7 +23,7 @@ const REPORT_SCHEMA = 'hololand.holoshell.laptop-receipt-freshness.v0.1.0';
 
 const GOLD_CODEBASE_SOURCE_REF = 'apps/holoshell/source/holoshell-holoscript-gold-codebase-bridge.hsplus';
 const GOLD_CODEBASE_SCRIPT_REF = 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs';
-const SOVEREIGN_ROOM_MARATHON_REF = 'scripts/holoshell-sovereign-room-marathon.mjs';
+const LAPTOP_REASONING_WORKER_REF = 'scripts/holoshell-laptop-reasoning-worker.mjs';
 const STUDIO_ORCHESTRATOR_REF = 'packages/brittney/service/src/orchestrator.ts';
 const STUDIO_MODEL_ROUTER_REF = 'packages/brittney/service/src/model-router.ts';
 const STUDIO_FLEET_BRIDGE_REF = 'packages/shared/inference/src/integrations/spatial-fleet-bridge.ts';
@@ -193,9 +193,9 @@ function buildFreshnessDispatch(args, generatedAt) {
             sourceAnchors: [GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
           },
           sovereignPeerContext: {
-            id: 'workflow.sovereign-room-marathon',
-            route: '/workflow/sovereign-room-marathon',
-            sourceAnchors: [SOVEREIGN_ROOM_MARATHON_REF],
+            id: 'workflow.laptop-reasoning-job',
+            route: '/workflow/laptop-reasoning-job',
+            sourceAnchors: [LAPTOP_REASONING_WORKER_REF],
           },
           studioBrittney: {
             id: 'studio.brittney.chat_and_fleet',

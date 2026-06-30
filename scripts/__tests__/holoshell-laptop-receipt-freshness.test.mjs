@@ -114,6 +114,32 @@ try {
 
   const saved = JSON.parse(readFileSync(outputPath, 'utf8'));
   assert.equal(saved.status, 'ready');
+
+  const dryRunTmp = join(tempDir, 'client-dry-run');
+  const dryRunOutputPath = join(tempDir, 'freshness-dry-run.json');
+  const dryRunResult = spawnSync(process.execPath, [
+    'scripts/holoshell-laptop-receipt-freshness.mjs',
+    '--base-url',
+    baseUrl,
+    '--tmp-dir',
+    dryRunTmp,
+    '--output',
+    dryRunOutputPath,
+    '--dry-run',
+    '--json',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    timeout: 60_000,
+    windowsHide: true,
+  });
+
+  assert.equal(dryRunResult.status, 0, `${dryRunResult.stdout}\n${dryRunResult.stderr}`);
+  const dryRunReport = JSON.parse(dryRunResult.stdout);
+  assert.equal(dryRunReport.endpoints.find((endpoint) => endpoint.id === 'laptop_reasoning').status, 'completed');
+  const dispatch = JSON.parse(readFileSync(join(dryRunTmp, 'laptop-receipt-freshness-dispatch.json'), 'utf8'));
+  assert.equal(dispatch.dispatch.body.canonicalSurfaces.sovereignPeerContext.id, 'workflow.laptop-reasoning-job');
+  assert.equal(dispatch.dispatch.body.canonicalSurfaces.sovereignPeerContext.route, '/workflow/laptop-reasoning-job');
 } finally {
   server.kill();
   await delay(200);
