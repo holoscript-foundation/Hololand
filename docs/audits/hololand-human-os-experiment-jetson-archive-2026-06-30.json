@@ -1,0 +1,93 @@
+{
+  "schema": "hololand-jetson-archive-receipt/v0.1.0",
+  "generatedAt": "2026-06-30T07:29:10.000Z",
+  "purpose": "Archive superseded HoloLand Human OS frontier experiment candidates to Jetson before any active-source removal.",
+  "archivePlan": "docs/audits/hololand-experiment-archive-plan-2026-06-30.json",
+  "archivePlanGeneratedFromCommit": "778f190cff450cfac46b5761980e0cbd35e01c11",
+  "executionBaseCommit": "6b96344e231881acf7d6de7d1865799716f65fb5",
+  "deletionAllowed": false,
+  "sourcePathsDeleted": false,
+  "sourcePathsHidden": false,
+  "archives": [
+    {
+      "kind": "human-os-frontier-experiments",
+      "localPath": ".tmp/hololand/jetson-archive/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+      "remote": "username@holojetson.local",
+      "remotePath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+      "paths": [
+        "experiments/holoshell-human-os-frontier/browser-account-export-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/browser-account-export-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/browser-account-export-room.holo",
+        "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/cloud-drive-permission-cleanup-room.holo",
+        "experiments/holoshell-human-os-frontier/downloads-import-shelf-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/downloads-import-shelf-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/downloads-import-shelf-room.holo",
+        "experiments/holoshell-human-os-frontier/family-photo-backup-custody-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/family-photo-backup-custody-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/family-photo-backup-custody-room.holo",
+        "experiments/holoshell-human-os-frontier/asset-shard-2-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/asset-shard-2-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/asset-shard-2-room.holo",
+        "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+        "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-room.holo",
+        "experiments/holoshell-human-os-frontier/partial-download-recovery-pipeline.hs",
+        "experiments/holoshell-human-os-frontier/partial-download-recovery-policy.hsplus",
+        "experiments/holoshell-human-os-frontier/partial-download-recovery-room.holo"
+      ],
+      "fileCount": 24,
+      "bytes": 28173,
+      "sha256": "cd7c0f1e26162d0ccf49875d9695225f4c8f167222d0d5c3ee491921c098d6c5",
+      "remoteVerification": {
+        "verified": true,
+        "verifiedAt": "2026-06-30T00:29:10-07:00",
+        "remotePath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+        "bytes": 28173,
+        "sha256": "cd7c0f1e26162d0ccf49875d9695225f4c8f167222d0d5c3ee491921c098d6c5"
+      }
+    }
+  ],
+  "manifest": {
+    "localPath": "docs/audits/hololand-experiment-archive-plan-2026-06-30.json",
+    "remotePath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-experiment-archive-plan-2026-06-30.json",
+    "bytes": 20072,
+    "sha256": "f398f435bc2e2320981447d4f9cb0e8ef2d595fefe840123cd569a3055872deb",
+    "remoteVerification": {
+      "verified": true,
+      "verifiedAt": "2026-06-30T00:29:10-07:00",
+      "remotePath": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-experiment-archive-plan-2026-06-30.json",
+      "bytes": 20072,
+      "sha256": "f398f435bc2e2320981447d4f9cb0e8ef2d595fefe840123cd569a3055872deb"
+    }
+  },
+  "jetson": {
+    "host": "holojetson",
+    "remote": "username@holojetson.local",
+    "archiveRoot": "/mnt/nvme/archives/hololand/2026-06-30-experiment-intake",
+    "nvmeDfBytes": {
+      "filesystem": "/dev/nvme0n1p1",
+      "size": 983349346304,
+      "used": 87196356608,
+      "available": 846126059520,
+      "usedPercent": "10%",
+      "mount": "/mnt/nvme"
+    }
+  },
+  "restoreCommands": [
+    "scp username@holojetson.local:/mnt/nvme/archives/hololand/2026-06-30-experiment-intake/hololand-human-os-frontier-experiments-778f190cff45.tar.gz .tmp/hololand/restore/hololand-human-os-frontier-experiments-778f190cff45.tar.gz",
+    "tar -xzf .tmp/hololand/restore/hololand-human-os-frontier-experiments-778f190cff45.tar.gz -C C:\\Users\\josep\\Documents\\GitHub\\Hololand",
+    "Use docs/audits/hololand-experiment-archive-plan-2026-06-30.json for per-file git checkout or tar restore commands."
+  ],
+  "validation": [
+    "PASS: manifest local source verification: 24/24 files matched planned bytes and sha256.",
+    "PASS: ssh -i ~/.ssh/jetson_ed25519 username@holojetson.local hostname/date/df /mnt/nvme.",
+    "PASS: tar -czf .tmp/hololand/jetson-archive/hololand-human-os-frontier-experiments-778f190cff45.tar.gz <24 manifest paths>.",
+    "PASS: scp tarball and archive manifest to /mnt/nvme/archives/hololand/2026-06-30-experiment-intake.",
+    "PASS: remote stat and sha256sum matched local tarball and manifest."
+  ]
+}
