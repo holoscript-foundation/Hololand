@@ -181,6 +181,7 @@ composition "HoloShellFamilyPhotoBackupCustodyPolicy" {
     PhotoBackupState.originalsDeleted = false
 
     emit("holoshell:photo_backup:verified", {
+      targetKind: receipt.summary.targetKind,
       sampleRestorePassed: PhotoBackupState.restoreVerified,
       replayReady: PhotoBackupState.replayReady,
       originalsDeleted: PhotoBackupState.originalsDeleted,

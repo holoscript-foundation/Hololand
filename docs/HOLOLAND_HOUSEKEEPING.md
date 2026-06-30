@@ -59,6 +59,15 @@ labels each workflow as `duplicate-of-app-source`, `promote-or-archive`,
 names with different content are `promoted-drift` and need diff/merge review.
 It does not move, archive, delete, or ignore files.
 
+Resolution receipt:
+[`docs/audits/HOLOLAND_EXPERIMENT_RESOLUTION_2026-06-30.md`](audits/HOLOLAND_EXPERIMENT_RESOLUTION_2026-06-30.md)
+records the first validated decision pass: promoted app source stays canonical
+for the four drifted workflows, `family-photo-backup-custody` gets its missing
+`targetKind` verification receipt field restored, `asset-shard-2`,
+`local-codebase-trust-gate`, and `partial-download-recovery` become promotion
+candidates, and `asset-folder-playable-shard` waits for v2 promotion before
+archive.
+
 ## Package Boundary
 
 Two package-manager failure modes were observed during the reboot audit:

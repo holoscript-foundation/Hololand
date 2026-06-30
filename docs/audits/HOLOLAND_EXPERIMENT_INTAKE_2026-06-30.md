@@ -3,6 +3,11 @@
 Status: read-only classification. No archive, delete, move, or ignore rule was
 executed.
 
+Resolution follow-up:
+[`HOLOLAND_EXPERIMENT_RESOLUTION_2026-06-30.md`](HOLOLAND_EXPERIMENT_RESOLUTION_2026-06-30.md)
+records the diff decisions, experiment validation receipt, and promotion/archive
+boundaries for this intake.
+
 Command:
 
 ```powershell
