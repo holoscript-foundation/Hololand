@@ -28,6 +28,11 @@ const STUDIO_ORCHESTRATOR_REF = 'packages/brittney/service/src/orchestrator.ts';
 const STUDIO_MODEL_ROUTER_REF = 'packages/brittney/service/src/model-router.ts';
 const STUDIO_FLEET_BRIDGE_REF = 'packages/shared/inference/src/integrations/spatial-fleet-bridge.ts';
 const PROVIDER_ROUTING_REGISTRY_REF = 'C:/Users/josep/.ai-ecosystem/config/provider-routing-registry.json';
+const ADVISORY_COCKPIT_LANES = new Set([
+  'fara_peer_automation',
+  'sovereign_room',
+  'holoclaw_runtime',
+]);
 
 function usage() {
   return `Usage: node scripts/holoshell-laptop-receipt-freshness.mjs [options]
@@ -366,9 +371,9 @@ function cockpitAttentionSignals(cockpitCapsule, operatorSession, args) {
   const signals = [];
   addNonReadySignal(signals, 'cockpit.status', cockpitCapsule?.status);
   for (const lane of cockpitCapsule?.cockpitLanes || []) {
-    const readyValues = lane.id === 'tool_action_cards'
-      ? ['ready', 'window_preflights_ready']
-      : ['ready'];
+    let readyValues = ['ready'];
+    if (lane.id === 'tool_action_cards') readyValues = ['ready', 'window_preflights_ready'];
+    if (ADVISORY_COCKPIT_LANES.has(lane.id)) readyValues = ['ready', 'attention', 'waiting', 'disabled', 'not_checked', 'not_staged'];
     addNonReadySignal(signals, `cockpit.lane.${lane.id}`, lane.status, readyValues);
   }
 

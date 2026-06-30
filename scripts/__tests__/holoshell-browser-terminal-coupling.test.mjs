@@ -128,7 +128,19 @@ try {
   assert.equal(session.terminal.receiptStatus, 'fresh');
   assert.equal(session.terminal.receiptHash, 'terminal-test-hash');
   assert.equal(session.terminal.refreshCommand, 'node scripts/holoshell-operator-terminal.mjs --agent --json');
+  assert.equal(session.terminal.runCards.length, 3);
+  assert.equal(session.runCards.length, 3);
+  assert.equal(session.runCards[0].label, 'Refresh Terminal Receipt');
+  assert.equal(session.runCards[0].browserMayExecuteCommand, false);
+  assert.equal(session.runCards[0].endpointExecutesCommand, false);
+  assert.equal(session.symbiosis.mode, 'always_on_native_terminal_plus_browser');
+  assert.equal(session.symbiosis.browserMayExecuteTerminalCommand, false);
+  assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
+  assert.equal(session.refreshRecovery.status, 'enabled');
+  assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
+  assert.equal(session.refreshRecovery.browserRefreshMayResetTruth, false);
   assert.deepEqual(session.sharedMemory.requiredFields, ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command']);
+  assert.equal(session.sharedMemory.browserStateKey, 'holoshell:brittney:browser-session:v1');
   assert.equal(session.safety.browserIsPrimaryConversationSurface, true);
   assert.equal(session.safety.terminalIsExecutionEvidenceSurface, true);
   assert.equal(session.safety.directTerminalMutationAllowed, false);
@@ -195,12 +207,18 @@ try {
   ));
   assert.equal(capsule.operatorTerminal.sessionId, 'test-browser-terminal-session');
   assert.equal(capsule.receipts.operatorTerminalReceiptHash, 'terminal-post-hash');
+  assert.equal(capsule.summary.operatorTerminalRunCardCount >= 2, true);
+  assert.equal(capsule.summary.browserRefreshRecoveryStatus, 'enabled');
+  assert.equal(capsule.receipts.operatorTerminalRunCardCount >= 2, true);
   assert.equal(capsule.safety.browserTerminalCouplingRequires.includes('shared_session_id'), true);
 
   const source = readFileSync(resolve('apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'), 'utf8');
   assert.match(source, /composition "HoloShell Browser Terminal Coupling"/);
   assert.match(source, /OneSessionTwoSurfaces/);
   assert.match(source, /TerminalCannotBypassHoloGate/);
+  assert.match(source, /NativeTerminalBrowserSymbiosis/);
+  assert.match(source, /BrowserRefreshRehydratesFromReceipts/);
+  assert.match(source, /TerminalRunCardsStayPresentable/);
 
   const launcher = readFileSync(resolve('scripts/brittney-studio-launch.ps1'), 'utf8');
   assert.match(launcher, /\[switch\]\$NoTerminal/);
@@ -211,6 +229,10 @@ try {
   const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
   assert.match(compileSource, /cockpit-terminal/);
   assert.match(compileSource, /operator_terminal/);
+  assert.match(compileSource, /evidenceLedger/);
+  assert.match(compileSource, /_rehydrateTerminalSessionFromServer/);
+  assert.match(compileSource, /Evidence ledger/);
+  assert.match(compileSource, /loadCockpitCapsule\(\)/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /browser_terminal_coupling_source/);

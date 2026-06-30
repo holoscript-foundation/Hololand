@@ -34,6 +34,9 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalReceiptStatus: "unknown"
     terminalReceiptAgeMs: 0
     terminalReceiptHash: ""
+    browserStateKey: "holoshell:brittney:browser-session:v1"
+    evidenceLedgerStatus: "unknown"
+    terminalRunCardCount: 0
     browserIsPrimaryConversationSurface: true
     terminalIsExecutionEvidenceSurface: true
     directTerminalMutationAllowed: false
@@ -53,6 +56,12 @@ composition "HoloShell Browser Terminal Coupling" {
     description: "Receipt stream proving both surfaces are bound to one HoloShell session"
   }
 
+  channel "holoshell:browser-terminal:evidence-ledger" {
+    type: "append_only"
+    priority: "critical"
+    description: "Compact browser-presentable evidence ledger that survives refresh and mirrors terminal proof"
+  }
+
   template "BrowserTerminalSession" {
     type: "dual_surface_session"
     schemaVersion: "hololand.holoshell.browser-terminal-coupling.v0.1.0"
@@ -62,6 +71,9 @@ composition "HoloShell Browser Terminal Coupling" {
     browser: {}
     terminal: {}
     sharedMemory: {}
+    symbiosis: {}
+    refreshRecovery: {}
+    runCards: []
     safety: {}
     receiptRequired: true
     destructiveActionsTaken: false
@@ -78,6 +90,21 @@ composition "HoloShell Browser Terminal Coupling" {
     receipt: ""
     permissionEnvelope: "read_only"
     mayMutateWithoutConsent: false
+  }
+
+  template "TerminalRunCard" {
+    type: "presentable_terminal_run_card"
+    id: ""
+    label: ""
+    flow: ""
+    lane: "operator_terminal"
+    status: "unknown"
+    receipt: ""
+    permissionEnvelope: "read_only_projection"
+    browserMayRequest: true
+    browserMayExecuteCommand: false
+    endpointExecutesCommand: false
+    receiptRequired: true
   }
 
   room "BrowserTerminalCouplingRoom" {
@@ -145,6 +172,35 @@ composition "HoloShell Browser Terminal Coupling" {
     receiptRequired: true
   }
 
+  policy "NativeTerminalBrowserSymbiosis" {
+    appliesTo: ["browser_cockpit", "operator_terminal", "terminal_run_cards", "evidence_ledger"]
+    browserRole: "intent_approval_presentable_state"
+    terminalRole: "proof_repair_execution_evidence"
+    browserAndTerminalAreAlwaysOnPeers: true
+    terminalMessinessMayBeSummarizedForNonDevelopers: true
+    rawShellIsNotTheDefaultHumanInterface: true
+    receiptRequired: true
+  }
+
+  policy "BrowserRefreshRehydratesFromReceipts" {
+    appliesTo: ["browser_refresh", "local_storage_state", "operator_terminal_session", "cockpit_capsule"]
+    browserStateKey: "holoshell:brittney:browser-session:v1"
+    rehydrateFrom: ["localStorage", "GET /api/cockpit/capsule", "GET /api/operator-terminal/session"]
+    browserRefreshMayResetTruth: false
+    terminalReceiptsAreDurableTruth: true
+    evidenceLedgerSurvivesRefresh: true
+    receiptRequired: true
+  }
+
+  policy "TerminalRunCardsStayPresentable" {
+    appliesTo: ["terminal_command", "human_label", "agent_json_receipt", "browser_chat"]
+    humanLabelsOverShellGrammar: true
+    browserMayShowRunCards: true
+    browserMayExecuteRunCardsDirectly: false
+    endpointMayExecuteTerminalCommand: false
+    receiptRequired: true
+  }
+
   action consume_browser_terminal_session(session) {
     state.sessionStatus = session.status
     state.sharedSessionId = session.sessionId
@@ -153,6 +209,9 @@ composition "HoloShell Browser Terminal Coupling" {
     state.terminalReceiptStatus = session.terminal.receiptStatus
     state.terminalReceiptAgeMs = session.terminal.receiptAgeMs || 0
     state.terminalReceiptHash = session.terminal.receiptHash || ""
+    state.browserStateKey = session.refreshRecovery.browserStateKey || "holoshell:brittney:browser-session:v1"
+    state.evidenceLedgerStatus = session.refreshRecovery.evidenceLedgerStatus || "unknown"
+    state.terminalRunCardCount = session.runCards.length || 0
     state.browserIsPrimaryConversationSurface = session.safety.browserIsPrimaryConversationSurface
     state.terminalIsExecutionEvidenceSurface = session.safety.terminalIsExecutionEvidenceSurface
     state.directTerminalMutationAllowed = session.safety.directTerminalMutationAllowed
@@ -168,6 +227,9 @@ composition "HoloShell Browser Terminal Coupling" {
       terminal_receipt_status: state.terminalReceiptStatus,
       terminal_receipt_age_ms: state.terminalReceiptAgeMs,
       terminal_receipt_hash: state.terminalReceiptHash,
+      browser_state_key: state.browserStateKey,
+      evidence_ledger_status: state.evidenceLedgerStatus,
+      terminal_run_card_count: state.terminalRunCardCount,
       browser_primary_conversation_surface: state.browserIsPrimaryConversationSurface,
       terminal_execution_evidence_surface: state.terminalIsExecutionEvidenceSurface,
       direct_terminal_mutation_allowed: state.directTerminalMutationAllowed,

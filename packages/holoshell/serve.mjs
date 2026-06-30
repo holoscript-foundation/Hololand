@@ -51,6 +51,7 @@ const OPERATOR_TERMINAL_RECEIPT =
   join(process.cwd(), '.tmp', 'holoshell', 'operator-terminal.json');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
+const BROWSER_SESSION_STATE_KEY = 'holoshell:brittney:browser-session:v1';
 const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
@@ -2531,6 +2532,41 @@ function sharedHoloShellSessionId() {
   return process.env.HOLOSHELL_SESSION_ID || `holoshell:${HOST}:${PORT}`;
 }
 
+function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash }) {
+  const runCards = commands.map((command) => ({
+    id: `terminal_run_card:${command.id || command.label}`,
+    label: command.label || command.id || 'Terminal evidence',
+    flow: command.flow || 'operator_terminal',
+    lane: 'operator_terminal',
+    status: terminalStatus,
+    receipt: command.receipt || OPERATOR_TERMINAL_RECEIPT,
+    permissionEnvelope: command.permissionEnvelope || 'read_only_projection',
+    approvalRequired: command.approvalRequired ?? 'classified_by_intent',
+    browserMayRequest: true,
+    browserMayExecuteCommand: false,
+    endpointExecutesCommand: false,
+    receiptRequired: true,
+    receiptHash: receiptHash || null,
+  }));
+  runCards.unshift({
+    id: 'terminal_run_card:refresh_operator_terminal_receipt',
+    label: 'Refresh Terminal Receipt',
+    flow: 'operator_terminal_receipt_refresh',
+    lane: 'operator_terminal',
+    status: terminalStatus,
+    receipt: OPERATOR_TERMINAL_RECEIPT,
+    permissionEnvelope: 'read_only_receipt_refresh',
+    approvalRequired: false,
+    browserMayRequest: true,
+    browserMayExecuteCommand: false,
+    endpointExecutesCommand: false,
+    receiptRequired: true,
+    command: OPERATOR_TERMINAL_REFRESH_COMMAND,
+    receiptHash: receiptHash || null,
+  });
+  return runCards;
+}
+
 function buildOperatorTerminalSession() {
   const liveStatus = buildLiveStatusSnapshot();
   const terminalReceipt = readJsonFileIfPresent(OPERATOR_TERMINAL_RECEIPT);
@@ -2554,6 +2590,11 @@ function buildOperatorTerminalSession() {
         receipt: command.receipt,
       }))
     : [];
+  const terminalReceiptHash = terminalReceipt?.receipt?.terminalHash || null;
+  const terminalRunCards = terminalRunCardsFromCommands(terminalCommands, {
+    terminalStatus,
+    receiptHash: terminalReceiptHash,
+  });
 
   return {
     schemaVersion: OPERATOR_TERMINAL_SESSION_SCHEMA,
@@ -2580,13 +2621,14 @@ function buildOperatorTerminalSession() {
       receiptPath: OPERATOR_TERMINAL_RECEIPT,
       receiptAgeMs,
       freshnessMs: OPERATOR_TERMINAL_FRESHNESS_MS,
-      receiptHash: terminalReceipt?.receipt?.terminalHash || null,
+      receiptHash: terminalReceiptHash,
       source: OPERATOR_TERMINAL_SOURCE,
       adapter: 'scripts/holoshell-operator-terminal.mjs',
       launcher: 'scripts/brittney-studio-launch.ps1',
       mode: terminalReceipt?.summary?.mode || 'agent',
       labels: terminalLabels,
       commands: terminalCommands,
+      runCards: terminalRunCards,
       refreshCommand: OPERATOR_TERMINAL_REFRESH_COMMAND,
       jsonCommand: terminalReceipt?.agentContract?.jsonCommand || OPERATOR_TERMINAL_REFRESH_COMMAND,
       primarySurfaceUrl: terminalReceipt?.route?.primarySurfaceUrl || liveStatus.route.url,
@@ -2600,8 +2642,30 @@ function buildOperatorTerminalSession() {
       browserWrites: ['chat_turns', 'approval_state', 'context_capsule'],
       terminalWrites: ['command_results', 'test_logs', 'agent_run_receipts'],
       receiptLedger: '.tmp/holoshell/',
+      browserStateKey: BROWSER_SESSION_STATE_KEY,
+      evidenceLedger: 'browser_local_storage_plus_terminal_receipts',
       sessionId: sharedHoloShellSessionId(),
     },
+    symbiosis: {
+      mode: 'always_on_native_terminal_plus_browser',
+      browserRole: 'intent_approval_presentable_state',
+      terminalRole: 'proof_repair_execution_evidence',
+      browserTerminalRelationship: 'full_time_symbiosis',
+      messyTerminalTruthPresentedAs: ['run_cards', 'receipt_digest', 'next_safe_action'],
+      rawShellIsDefaultHumanInterface: false,
+      browserMayExecuteTerminalCommand: false,
+      endpointMayExecuteTerminalCommand: false,
+    },
+    refreshRecovery: {
+      status: 'enabled',
+      browserStateKey: BROWSER_SESSION_STATE_KEY,
+      evidenceLedgerStatus: receiptObserved ? 'available' : 'needs_terminal_receipt',
+      rehydrateFrom: ['localStorage', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
+      browserRefreshMayResetTruth: false,
+      terminalReceiptsAreDurableTruth: true,
+      transcriptLimit: 120,
+    },
+    runCards: terminalRunCards,
     actionCards: [
       {
         id: 'refresh_operator_terminal_receipt',
@@ -2707,6 +2771,8 @@ function buildLiveStatusSnapshot() {
       'brittney_desktop_cockpit',
       'browser_terminal_coupling',
       'operator_terminal_session',
+      'operator_terminal_run_cards',
+      'browser_refresh_evidence_rehydration',
       'fara_brittney_peer_chat',
       'fara_peer_automation_pulse',
       'fara_peer_automation_schedule',
@@ -3416,6 +3482,9 @@ function buildBrittneyCockpitCapsule() {
       holoclawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
       holoclawRuntimeBridgePendingApprovalCount: holoclawRuntimeBridge.pendingApprovalCount,
       holoclawRuntimeBridgeReceiptObserved: holoclawRuntimeBridge.receiptObserved,
+      operatorTerminalRunCardCount: operatorTerminal.runCards.length,
+      browserRefreshRecoveryStatus: operatorTerminal.refreshRecovery.status,
+      evidenceLedgerStatus: operatorTerminal.refreshRecovery.evidenceLedgerStatus,
       cockpitLaneCount: cockpitLanes.length,
       actionCardCount: actionCards.length,
       windowActionCardCount: windowActionCards.length,
@@ -3482,6 +3551,8 @@ function buildBrittneyCockpitCapsule() {
       latestHoloClawRuntimeBridgeStatus: holoclawRuntimeBridge.status,
       operatorTerminalReceiptHash: operatorTerminal.terminal.receiptHash,
       operatorTerminalReceiptStatus: operatorTerminal.terminal.receiptStatus,
+      operatorTerminalRunCardCount: operatorTerminal.runCards.length,
+      evidenceLedgerStatus: operatorTerminal.refreshRecovery.evidenceLedgerStatus,
       legacyWindowInventoryHash: windowAwareness.receipts.legacyWindowInventoryHash,
       operatorBriefHash: windowAwareness.receipts.operatorBriefHash,
     },

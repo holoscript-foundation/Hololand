@@ -643,6 +643,7 @@ const runtimeScript = `  <script>
     var HOLOSHELL_BROWSER_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
     var HOLOSHELL_BROWSER_STATE_KEY = 'holoshell:brittney:browser-session:v1';
     var HOLOSHELL_TRANSCRIPT_LIMIT = 120;
+    var HOLOSHELL_EVIDENCE_LEDGER_LIMIT = 80;
     var HOLOSHELL_DEFAULT_CHAT_ID = 'brittney';
     var HOLOSHELL_CHAT_WORKSPACES = [
       {
@@ -695,6 +696,7 @@ const runtimeScript = `  <script>
         transcript: [],
         transcriptByChat: {},
         drafts: {},
+        evidenceLedger: [],
         activeChatId: HOLOSHELL_DEFAULT_CHAT_ID,
         expandedChatIds: ['sovereign', 'holoclaw'],
         runtime: {},
@@ -731,6 +733,10 @@ const runtimeScript = `  <script>
       if (state.drafts.brittneyInput && !state.drafts.chatInputs.brittney) {
         state.drafts.chatInputs.brittney = state.drafts.brittneyInput;
       }
+      if (!Array.isArray(state.evidenceLedger)) state.evidenceLedger = [];
+      state.evidenceLedger = state.evidenceLedger.filter(function(entry) {
+        return entry && typeof entry === 'object';
+      }).slice(-HOLOSHELL_EVIDENCE_LEDGER_LIMIT);
       state.activeChatId = _normalizeChatId(state.activeChatId);
       if (!Array.isArray(state.expandedChatIds)) state.expandedChatIds = ['sovereign', 'holoclaw'];
       state.expandedChatIds = state.expandedChatIds.map(_normalizeChatId).filter(function(chatId, index, all) {
@@ -775,6 +781,46 @@ const runtimeScript = `  <script>
       _renderChatWorkspaceBar();
       _renderExpandedChats();
     }
+    function _evidenceKey(entry) {
+      return [
+        entry.kind || 'evidence',
+        entry.chatId || 'terminal',
+        entry.receiptHash || '',
+        entry.status || '',
+        entry.sourceEndpoint || ''
+      ].join('|');
+    }
+    function _latestEvidenceForChat(state, chatId) {
+      var id = _normalizeChatId(chatId);
+      var entries = (state.evidenceLedger || []).filter(function(entry) {
+        return _normalizeChatId(entry.chatId || 'terminal') === id;
+      });
+      return entries.length ? entries[entries.length - 1] : null;
+    }
+    function _rememberEvidenceLedger(entry) {
+      if (_browserStateRestoring || !entry) return;
+      var normalized = Object.assign({
+        kind: 'evidence',
+        chatId: 'terminal',
+        savedAt: new Date().toISOString(),
+        title: 'Evidence',
+        tone: 'neutral',
+        lines: [],
+        receiptRequired: true
+      }, entry);
+      normalized.chatId = _normalizeChatId(normalized.chatId);
+      normalized.key = _evidenceKey(normalized);
+      _patchBrowserState(function(state) {
+        state.evidenceLedger = (state.evidenceLedger || []).filter(function(item) {
+          return item && item.key !== normalized.key;
+        });
+        state.evidenceLedger.push(normalized);
+        state.evidenceLedger = state.evidenceLedger.slice(-HOLOSHELL_EVIDENCE_LEDGER_LIMIT);
+      });
+      _renderChatWorkspaceBar();
+      _renderExpandedChats();
+      if (normalized.chatId === _activeChatId) _renderActiveChatTranscript();
+    }
     function _persistRuntimeState() {
       _patchBrowserState(function(state) {
         state.runtime.lastImprovementRunId = _lastImprovementRunId;
@@ -813,6 +859,7 @@ const runtimeScript = `  <script>
           receipts: capsule.receipts,
           sovereignRoomMarathon: capsule.sovereignRoomMarathon,
           holoclawRuntimeBridge: capsule.holoclawRuntimeBridge,
+          operatorTerminal: capsule.operatorTerminal,
           nextSafeStep: capsule.nextSafeStep
         };
       });
@@ -864,6 +911,19 @@ const runtimeScript = `  <script>
         box.appendChild(grid);
       }
     }
+    function _renderEvidenceLedgerIntoBox(box, state, chatId) {
+      if (!box || chatId !== 'terminal') return;
+      var entries = ((state && state.evidenceLedger) || []).filter(function(entry) {
+        return _normalizeChatId(entry.chatId || 'terminal') === 'terminal';
+      }).slice(-5);
+      if (!entries.length) return;
+      var ledgerCard = _makeTurnCard('Evidence ledger', entries.map(function(entry) {
+        var stamp = entry.savedAt ? new Date(entry.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'time unknown';
+        var hash = entry.receiptHash ? ' / ' + String(entry.receiptHash).slice(0, 12) : '';
+        return stamp + ' - ' + (entry.status || 'unknown') + hash + ' - ' + (entry.summary || entry.title || 'terminal evidence');
+      }), _toneForStatus(entries[entries.length - 1].status), 'receipt');
+      box.appendChild(ledgerCard);
+    }
     function _renderActiveChatTranscript() {
       var box = document.getElementById('brittney-messages');
       if (!box) return;
@@ -872,6 +932,7 @@ const runtimeScript = `  <script>
       (state.transcriptByChat[_activeChatId] || []).forEach(function(entry) {
         _restoreTranscriptEntry(entry, box);
       });
+      _renderEvidenceLedgerIntoBox(box, state, _activeChatId);
       box.scrollTop = box.scrollHeight;
     }
     function _restoreBrowserSession() {
@@ -936,13 +997,17 @@ const runtimeScript = `  <script>
       var input = document.getElementById('brittney-input');
       if (input) input.placeholder = spec.placeholder;
     }
-    function _transcriptPreview(entries) {
+    function _transcriptPreview(entries, chatId, state) {
       var lines = (entries || []).slice(-4).map(function(entry) {
         if (entry.type === 'message') return (entry.who || 'HoloShell') + ': ' + _shortText(entry.text || '', '');
         if (entry.type === 'turn_card') return (entry.title || 'Receipt') + ': ' + _shortText((entry.lines || []).join(' | '), '');
         if (entry.type === 'card_grid') return 'Cards: ' + (entry.cards || []).map(function(card) { return card.title || 'Proposal'; }).join(', ');
         return entry.type || 'entry';
       });
+      var evidence = _latestEvidenceForChat(state || _readBrowserState(), chatId || _activeChatId);
+      if (evidence) {
+        lines.push('Evidence: ' + (evidence.status || 'unknown') + (evidence.receiptHash ? ' / ' + String(evidence.receiptHash).slice(0, 12) : ''));
+      }
       return lines.length ? lines.join('\\n') : 'No messages yet';
     }
     function _renderChatWorkspaceBar() {
@@ -959,10 +1024,11 @@ const runtimeScript = `  <script>
         button.dataset.expanded = _expandedChatIds.indexOf(spec.id) >= 0 ? 'true' : 'false';
         button.title = spec.label + ' - click to focus; Alt-click toggles the parallel view.';
         var transcriptCount = ((state.transcriptByChat && state.transcriptByChat[spec.id]) || []).length;
+        var evidence = _latestEvidenceForChat(state, spec.id);
         var strong = document.createElement('strong');
         strong.textContent = spec.label;
         var span = document.createElement('span');
-        span.textContent = transcriptCount + ' saved - ' + spec.detail;
+        span.textContent = transcriptCount + ' saved - ' + (evidence ? ((evidence.status || 'evidence') + ' evidence') : spec.detail);
         button.append(strong, span);
         button.onclick = function(event) {
           if (event.altKey) _toggleChatExpanded(spec.id);
@@ -997,7 +1063,7 @@ const runtimeScript = `  <script>
         collapse.onclick = function() { _toggleChatExpanded(chatId); };
         header.append(title, focus, collapse);
         var preview = document.createElement('pre');
-        preview.textContent = _transcriptPreview((state.transcriptByChat && state.transcriptByChat[chatId]) || []);
+        preview.textContent = _transcriptPreview((state.transcriptByChat && state.transcriptByChat[chatId]) || [], chatId, state);
         card.append(header, preview);
         deck.appendChild(card);
       });
@@ -1277,15 +1343,59 @@ const runtimeScript = `  <script>
       _setText('context-capsule-identity', identity);
       _setText('context-capsule-memory', memory);
     }
+    function _terminalEvidenceLines(session) {
+      var terminal = (session && session.terminal) || {};
+      var recovery = (session && session.refreshRecovery) || {};
+      var symbiosis = (session && session.symbiosis) || {};
+      var runCards = (session && session.runCards) || terminal.runCards || [];
+      return [
+        'status: ' + (session?.status || 'unknown') + '; terminal ' + (terminal.status || terminal.receiptStatus || 'unknown'),
+        'receipt: ' + (terminal.receiptStatus || 'unknown') + (terminal.receiptHash ? ' / ' + String(terminal.receiptHash).slice(0, 12) : ''),
+        'run cards: ' + runCards.length + '; browser executes commands: ' + (symbiosis.browserMayExecuteTerminalCommand ? 'yes' : 'no'),
+        'refresh recovery: ' + (recovery.status || 'unknown') + '; ledger ' + (recovery.evidenceLedgerStatus || 'unknown'),
+        'next: ' + (session?.nextSafeStep || 'not reported')
+      ];
+    }
+    function _rememberTerminalSessionEvidence(session) {
+      var terminal = (session && session.terminal) || {};
+      var recovery = (session && session.refreshRecovery) || {};
+      var runCards = (session && session.runCards) || terminal.runCards || [];
+      _rememberEvidenceLedger({
+        kind: 'operator_terminal_session',
+        chatId: 'terminal',
+        title: 'Terminal evidence',
+        summary: 'terminal ' + (terminal.receiptStatus || terminal.status || 'unknown') + '; ' + runCards.length + ' run cards',
+        status: session?.status || terminal.status || terminal.receiptStatus || 'unknown',
+        tone: _toneForStatus(session?.status || terminal.status || terminal.receiptStatus),
+        receiptHash: terminal.receiptHash || '',
+        sourceEndpoint: 'GET /api/operator-terminal/session',
+        evidenceLedgerStatus: recovery.evidenceLedgerStatus || 'unknown',
+        lines: _terminalEvidenceLines(session)
+      });
+    }
+    function _rehydrateTerminalSessionFromServer() {
+      fetch('/api/operator-terminal/session', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { _rememberTerminalSessionEvidence(d); })
+        .catch(function(e) {
+          _rememberEvidenceLedger({
+            kind: 'operator_terminal_session',
+            chatId: 'terminal',
+            title: 'Terminal evidence',
+            summary: 'network error: ' + e.message,
+            status: 'failed',
+            tone: 'blocked',
+            sourceEndpoint: 'GET /api/operator-terminal/session',
+            lines: ['network error: ' + e.message]
+          });
+        });
+    }
     function _inspectOperatorTerminalSession() {
       fetch('/api/operator-terminal/session', { cache: 'no-store' })
         .then(function(r) { return r.json(); })
         .then(function(d) {
-          _appendTurnCard('Terminal evidence', [
-            'status: ' + (d.status || 'unknown'),
-            'receipt: ' + (d.terminal?.receiptStatus || 'unknown') + (d.terminal?.receiptHash ? ' / ' + d.terminal.receiptHash.slice(0, 12) : ''),
-            'next: ' + (d.nextSafeStep || 'not reported')
-          ], _toneForStatus(d.status || d.terminal?.receiptStatus), 'receipt', { chatId: 'terminal' });
+          _rememberTerminalSessionEvidence(d);
+          _appendTurnCard('Terminal evidence', _terminalEvidenceLines(d), _toneForStatus(d.status || d.terminal?.receiptStatus), 'receipt', { chatId: 'terminal' });
         })
         .catch(function(e) { _bMsg('Terminal evidence', 'network error: ' + e.message, '#f85149', { chatId: 'terminal' }); });
     }
@@ -1402,6 +1512,7 @@ const runtimeScript = `  <script>
     function _renderCockpitCapsule(capsule) {
       _lastCockpitCapsule = capsule;
       _persistCockpitCapsule(capsule);
+      if (capsule && capsule.operatorTerminal) _rememberTerminalSessionEvidence(capsule.operatorTerminal);
       _renderOperatorTruth(capsule);
       _renderEvidencePrompts(capsule);
       _renderContextCapsule(capsule);
@@ -1707,6 +1818,7 @@ const runtimeScript = `  <script>
         'execution evidence still comes from GET /api/operator-terminal/session',
         'host mutation: none'
       ], 'attention', 'receipt', { chatId: 'terminal' });
+      _inspectOperatorTerminalSession();
     }
     function _sendImprovementChat(msg, inp) {
       inp.value = '';
@@ -1957,6 +2069,8 @@ const runtimeScript = `  <script>
       if (!restored.transcriptCount) {
         _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
       }
+      loadCockpitCapsule();
+      _rehydrateTerminalSessionFromServer();
       loadImprovementRuns();
     }
     document.addEventListener('DOMContentLoaded', initBrittneyChat);
