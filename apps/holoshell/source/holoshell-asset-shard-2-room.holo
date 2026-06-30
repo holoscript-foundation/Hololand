@@ -1,0 +1,148 @@
+/**
+ * HoloShell Asset Folder to Playable Shard Room v2
+ *
+ * Visible room concept for:
+ * "Turn this local folder into a playable HoloLand shard, verify it works,
+ * and show exactly what changed without mutating my source files."
+ */
+
+composition "HoloShell Asset Folder to Playable Shard Room v2" {
+  environment {
+    backgroundColor: "#10171d"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "ShardPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.46, 0.56, 0.08]
+    material: {
+      color: "#16232b"
+      emissive: "#263744"
+      emissiveIntensity: 0.2
+      transparent: true
+      opacity: 0.95
+    }
+  }
+
+  template "ReceiptToken" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.15, 0.15, 0.15]
+    material: { color: "#75d5ff" }
+  }
+
+  object "HumanJob" using "ShardPanel" {
+    position: [0, 2.42, -2.9]
+    label: "Make this folder playable"
+    properties: {
+      humanJob: "classify local assets, generate HoloScript source, stage a playable preview, verify it, and show receipts before import"
+      defaultPromise: "read and stage first; conversion, import, publish, overwrite, upload, and delete require explicit approval"
+      sourceBoundary: "HoloScript owns reusable asset intake validators and conversion receipts; HoloLand owns the creator room and playable shard loop"
+    }
+  }
+
+  object "SourceFolderGate" using "ShardPanel" {
+    position: [-4.35, 1.55, -1.25]
+    label: "Source folder gate"
+    properties: {
+      shows: "folder nickname, local privacy class, file count, blocked count, fingerprint, path redaction status"
+      hides: "absolute source paths from public/world projection"
+      failureState: "missing folder, symlink escape, credential-like file, unreadable file, scan cap reached"
+    }
+  }
+
+  object "AssetClassifier" using "ShardPanel" {
+    position: [-2.18, 1.55, -1.25]
+    label: "Asset classifier"
+    properties: {
+      kinds: ["model", "image", "audio", "media", "source", "manifest", "unknown"]
+      visibleAs: "file proxies with kind, hash status, blocked state, and relative path only"
+      failureState: "unknown asset promoted without review, large file not hashed, private metadata exposed"
+    }
+  }
+
+  object "ConversionBench" using "ShardPanel" {
+    position: [0, 1.55, -1.25]
+    label: "Conversion bench"
+    properties: {
+      stages: ["normalize_manifest", "generate_preview_holo", "optional_convert_texture", "optional_optimize_model", "optional_transcode_audio"]
+      defaultMode: "preview_only"
+      failureState: "conversion changed source files, missing tool, non-deterministic output, unsupported format"
+    }
+  }
+
+  object "ValidationRing" using "ShardPanel" {
+    position: [2.18, 1.55, -1.25]
+    label: "Validation ring"
+    properties: {
+      checks: ["source_contract", "preview_validate", "manifest_schema", "blocked_file_gate", "playability_smoke", "receipt_completeness"]
+      localEvidence: ".tmp/holoshell/shard-workflow-latest.json and .tmp/holoshell/shard-preview.holo"
+      failureState: "preview parses but cannot become a playable HoloLand shard"
+    }
+  }
+
+  object "ReplayRollbackRail" using "ShardPanel" {
+    position: [4.35, 1.55, -1.25]
+    label: "Replay and rollback"
+    properties: {
+      replayKey: "intent hash + folder fingerprint + asset hashes + preview hash + approval id + import receipt"
+      rollback: "delete generated tmp/import files; source assets stay read-only"
+      failureState: "approved import cannot be traced to immutable preview or rollback list"
+    }
+  }
+
+  object "ReadOnlyScanToken" using "ReceiptToken" {
+    position: [-3.25, 0.78, 0.08]
+    label: "read-only scan"
+    properties: {
+      receiptKind: "AssetIntakeReceipt"
+      allowed: ["list_files", "classify_files", "hash_nonblocked_files", "write_private_receipt"]
+    }
+  }
+
+  object "PreviewSourceToken" using "ReceiptToken" {
+    position: [-1.1, 0.78, 0.08]
+    material: { color: "#9ece6a" }
+    label: "preview source"
+    properties: {
+      receiptKind: "PreviewShardSourceReceipt"
+      output: ".tmp/holoshell/shard-preview.holo"
+      sourceAssetsMutated: false
+    }
+  }
+
+  object "ImportApprovalToken" using "ReceiptToken" {
+    position: [1.1, 0.78, 0.08]
+    material: { color: "#e0af68" }
+    label: "import locked"
+    properties: {
+      receiptKind: "AssetShardImportApproval"
+      permissionEnvelope: "guarded_execute"
+      requires: ["workflow_hash", "approval_id", "nonce", "expiry", "rollback_list", "human_gesture"]
+    }
+  }
+
+  object "VisualWitnessToken" using "ReceiptToken" {
+    position: [3.25, 0.78, 0.08]
+    material: { color: "#f7768e" }
+    label: "visual witness missing"
+    properties: {
+      receiptKind: "PlayableShardWitnessReceipt"
+      needed: "rendered HoloLand preview screenshot or browser/headset witness for generated shard"
+      currentGap: "workflow validates source and import receipts but does not prove the shard is visible/playable"
+    }
+  }
+
+  object "AssetShardTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.6, 0.08, 0.14]
+    color: "#697483"
+    label: "timeline: choose folder -> scan -> classify -> block secrets -> generate preview -> validate -> approve import -> witness -> replay -> rollback"
+  }
+}

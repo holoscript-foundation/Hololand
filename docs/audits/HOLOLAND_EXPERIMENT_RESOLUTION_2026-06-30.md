@@ -33,10 +33,16 @@ Result: pass.
 
 | Workflow | Decision | Follow-up |
 | --- | --- | --- |
-| `asset-shard-2` | Promote as the canonical creator asset-shard v2 gate. It adds conversion bench, validation ring, replay/rollback rail, visual witness token, and explicit agent lane containment. | Turn into app-source or enterprise-gate coverage before archiving either asset-shard experiment. |
+| `asset-shard-2` | Promoted as the canonical creator asset-shard v2 gate. It adds conversion bench, validation ring, replay/rollback rail, visual witness token, and explicit agent lane containment. | App-source trio promoted under `apps/holoshell/source/holoshell-asset-shard-2-*` with enterprise gate coverage in `apps/holoshell/enterprise-gates/creator-asset-shard-room/package-gate.json`. Archive experiment copies only after visual witness and checksum receipts. |
 | `asset-folder-playable-shard` | Superseded by `asset-shard-2`. The v1 trio remains valid source but lacks the visual witness and replay/rollback coverage. | Archive only after `asset-shard-2` is promoted and has a gate receipt. |
 | `local-codebase-trust-gate` | Promote as the world-build cockpit local codebase trust subgate. It matches the cockpit's existing metadata reference and protects codebase truth before world-build readiness. | Integrate under `apps/holoshell/source/**` or enterprise-gate coverage; keep visible until promoted. |
 | `partial-download-recovery` | Promote as a downloads recovery subgate. It is distinct from the broader downloads recovery dock because it models file locks, range hashes, retry plans, discard receipts, and replay from root/partial/final hashes. | Merge or register beside `holoshell-downloads-recovery-dock-*`; keep visible until promoted. |
+
+After `asset-shard-2` promotion, the intake classifier reports that workflow as
+`promoted-drift` only because the canonical promoted pipeline rewrites
+`roomSource`, `policySource`, and validation output paths from
+`experiments/holoshell-human-os-frontier/**` to `apps/holoshell/source/**`.
+Treat that as intentional path canonicalization, not a semantic gap.
 
 ## Package Boundary Decision
 
@@ -58,7 +64,7 @@ to Jetson or deleting repo paths, create a manifest with hashes and source-to-
 destination mapping for:
 
 - superseded promoted-drift experiment variants,
-- `asset-folder-playable-shard` after v2 promotion,
+- `asset-folder-playable-shard` after v2 visual witness receipt,
 - any tracked utility files only with their parent workflow receipt.
 
 No broad ignore rule should hide `experiments/**`; visible source-like work is a

@@ -1,0 +1,144 @@
+// HoloShell Asset Folder to Playable Shard v2 policy.
+// Defines permission envelopes, agent lanes, receipts, and failure states.
+
+composition "HoloShell Asset Shard Policy v2" {
+  config {
+    title: "Asset Folder to Playable Shard v2"
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    bridgeScript: "scripts/holoshell-asset-shard-workflow.mjs"
+    approvalScript: "scripts/holoshell-shard-import-approval.mjs"
+    workflowReceipt: ".tmp/holoshell/shard-workflow-latest.json"
+    previewSource: ".tmp/holoshell/shard-preview.holo"
+    importReceipt: ".tmp/holoshell/shard-import-latest.json"
+  }
+
+  state {
+    phase: "idle"
+    selectedFolderFingerprint: ""
+    sourcePrivacyClass: "local_private"
+    assetCount: 0
+    blockedAssetCount: 0
+    conversionPlanCount: 0
+    previewValidation: "unknown"
+    visualWitness: "missing"
+    approvalStatus: "not_requested"
+    runtimeMutationExecuted: false
+    sourceAssetsMutated: false
+    rollbackReady: false
+    currentBlocker: ""
+  }
+
+  channel "holoshell:asset-shard:intake" {
+    type: "request_response"
+    priority: "high"
+    description: "Classify local assets with public path redaction and private path receipt custody"
+  }
+
+  channel "holoshell:asset-shard:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Nonce-bound guarded approval for runtime import, conversion, publish, overwrite, or delete"
+  }
+
+  channel "holoshell:asset-shard:witness" {
+    type: "append_only"
+    priority: "high"
+    description: "Rendered preview, HoloLand runtime smoke, replay, and rollback receipts"
+  }
+
+  policy "ReadOnlyAssetIntake" {
+    list_files: "silent_read"
+    classify_files: "silent_read"
+    hash_nonblocked_files: "silent_read"
+    write_private_path_receipt: "allowed"
+    expose_absolute_paths_to_world: false
+    source_asset_mutation: false
+  }
+
+  policy "GuardedShardMutation" {
+    write_tmp_preview: "allowed"
+    write_tmp_manifest: "allowed"
+    import_runtime_copy: "guarded_execute"
+    asset_conversion: "guarded_execute"
+    publish_or_upload: "break_glass"
+    overwrite_existing_shard: "break_glass"
+    delete_source_assets: "break_glass"
+  }
+
+  policy "AgentLaneContainment" {
+    codexHardware: "scan validate run local commands and write receipts"
+    brittneyShell: "explain state and request human approval"
+    holoscriptSource: "own validators receipt primitives and runtime adapters"
+    hololandProduct: "own room NPC creator kiosk quest and playable witness"
+    browserWitness: "render preview and produce screenshot or interaction receipt"
+    holomesh: "file tasks and expose team-readable evidence"
+  }
+
+  action apply_intake_receipt(receipt) {
+    state.phase = receipt.summary.status == "staged" ? "preview_ready" : "blocked"
+    state.selectedFolderFingerprint = receipt.source.assetFolderFingerprint
+    state.assetCount = receipt.summary.assetCount
+    state.blockedAssetCount = receipt.summary.blockedAssetCount
+    state.previewValidation = receipt.validation.previewSourceValidation
+    state.sourceAssetsMutated = receipt.rollback.sourceAssetsMutated
+    state.rollbackReady = receipt.rollback.generatedTmpPaths.length > 0
+    state.currentBlocker = receipt.summary.status == "blocked" ? "blocked_asset_present" : ""
+    emit("holoshell:asset-shard:intake", {
+      action: "asset_intake_applied",
+      phase: state.phase,
+      asset_count: state.assetCount,
+      blocked_asset_count: state.blockedAssetCount,
+      preview_validation: state.previewValidation,
+      source_assets_mutated: state.sourceAssetsMutated,
+      rollback_ready: state.rollbackReady,
+      receipt_required: true
+    })
+  }
+
+  action apply_import_approval(bundle) {
+    state.approvalStatus = bundle.summary.status
+    state.phase = bundle.summary.executionAllowed ? "awaiting_human_import_review" : state.phase
+    emit("holoshell:asset-shard:approval", {
+      action: "asset_shard_import_approval_applied",
+      approval_status: state.approvalStatus,
+      shard_id: bundle.summary.shardId,
+      approval_id: bundle.approvalId,
+      expires_at: bundle.summary.expiresAt,
+      execution_allowed: bundle.summary.executionAllowed,
+      nonce_bound: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_visual_witness(witness) {
+    state.visualWitness = witness.summary.status
+    state.phase = witness.summary.status == "pass" ? "playable_witnessed" : "needs_repair"
+    state.currentBlocker = witness.summary.status == "pass" ? "" : "visual_witness_failed"
+    emit("holoshell:asset-shard:witness", {
+      action: "asset_shard_visual_witness_applied",
+      witness_status: state.visualWitness,
+      preview_hash: witness.previewHash,
+      screenshot: witness.output.screenshotPath,
+      runtime_mutation_executed: state.runtimeMutationExecuted,
+      source_assets_mutated: state.sourceAssetsMutated,
+      receipt_required: true
+    })
+  }
+
+  action apply_import_receipt(receipt) {
+    state.runtimeMutationExecuted = receipt.summary.runtimeMutationExecuted
+    state.sourceAssetsMutated = receipt.summary.sourceAssetsMutated
+    state.phase = receipt.summary.status == "completed" ? "runtime_imported" : "import_failed"
+    emit("holoshell:asset-shard:witness", {
+      action: "asset_shard_import_receipt_applied",
+      shard_id: receipt.summary.shardId,
+      import_status: receipt.summary.status,
+      manifest: receipt.output.manifestPath,
+      shard_source: receipt.output.shardSourcePath,
+      rollback_paths: receipt.rollback.generatedTmpPaths,
+      source_assets_mutated: state.sourceAssetsMutated,
+      receipt_required: true
+    })
+  }
+}

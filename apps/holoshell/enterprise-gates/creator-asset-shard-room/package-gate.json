@@ -1,0 +1,112 @@
+{
+  "schema": "hololand.enterprise-package-gate.v0.1.0",
+  "id": "creator-asset-shard-room",
+  "title": "Creator Asset Shard Room",
+  "vertical": "creator_tooling",
+  "packageClass": "enterprise_creator_workflow",
+  "humanUserSurface": "deployed_hololand_room",
+  "developerPackageSurface": false,
+  "sourcePath": "apps/holoshell/source/holoshell-asset-shard-workflow.hsplus",
+  "supportingSourcePaths": [
+    "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+    "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+    "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs"
+  ],
+  "businessWorkflow": {
+    "id": "creator_asset_folder_to_playable_shard",
+    "summary": "A creator or enterprise content team turns a local asset folder into a staged playable HoloLand shard with preview, guarded import, rollback, and visual witness receipts.",
+    "actors": [
+      "creator_operator",
+      "asset_reviewer",
+      "agent_copilot",
+      "browser_witness"
+    ],
+    "criticalPath": [
+      "scan_local_folder",
+      "classify_assets",
+      "generate_preview_holo",
+      "validate_preview_and_policy",
+      "approve_import",
+      "import_if_approved",
+      "capture_visual_witness",
+      "publish_followup_tasks",
+      "record_rollback_receipt"
+    ]
+  },
+  "holoscriptPackages": [
+    {
+      "name": "@holoscript/core",
+      "gates": [
+        "composition",
+        "object_manifest",
+        "state",
+        "policy",
+        "action",
+        "emit"
+      ]
+    },
+    {
+      "name": "@holoscript/visual",
+      "gates": [
+        "preview_holo_generation",
+        "visual_witness_contract",
+        "remix_seed"
+      ]
+    },
+    {
+      "name": "@holoscript/agent-protocol",
+      "gates": [
+        "guarded_approval",
+        "agent_lane_containment",
+        "task_receipt"
+      ]
+    }
+  ],
+  "benchmarkGates": [
+    {
+      "id": "holoscript_creator_asset_shard_v2",
+      "description": "HoloScript can express a creator asset folder intake, validation, guarded import, visual witness, and rollback loop that HoloLand can project as a playable shard room.",
+      "mustProve": [
+        "source_folder_paths_remain_private",
+        "preview_source_is_holoscript",
+        "source_assets_are_not_mutated",
+        "import_requires_guarded_approval",
+        "visual_witness_receipt_is_required",
+        "rollback_receipt_is_available"
+      ]
+    }
+  ],
+  "requiredReceipts": [
+    "source",
+    "validation",
+    "preview_source",
+    "approval",
+    "runtime_import",
+    "visual_witness",
+    "rollback"
+  ],
+  "promotion": {
+    "status": "source_promoted",
+    "requires": [
+      "HoloScript source validation pass",
+      "HoloShell asset shard workflow receipt pass",
+      "browser or hardware visual witness receipt pass before deployment",
+      "archive manifest before retiring experiment copies"
+    ],
+    "blocksOn": [
+      "source asset mutation",
+      "missing visual witness",
+      "missing rollback receipt",
+      "missing checksum manifest for archived experiments"
+    ]
+  },
+  "upstreamGaps": [
+    {
+      "id": "hs-asset-shard-visual-witness-package",
+      "owner": "HoloScript",
+      "primitive": "asset_shard_visual_witness",
+      "description": "HoloScript should own the reusable visual witness and replay/rollback receipt primitive so HoloLand only sandwiches it into the creator room.",
+      "localRewriteAllowed": false
+    }
+  ]
+}
