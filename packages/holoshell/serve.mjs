@@ -1124,6 +1124,26 @@ function improvementExecutionReceipts() {
   return readReceipts('.improvement-execution.json');
 }
 
+function faraPeerAutomationReceipts() {
+  return readReceipts('.fara-peer-automation.json');
+}
+
+function faraPeerAutomationHistory() {
+  return faraPeerAutomationReceipts().slice(0, 20).map((receipt) => ({
+    pulseId: receipt.pulseId,
+    status: receipt.status,
+    generatedAt: receipt.generatedAt,
+    cadence: receipt.cadence,
+    objective: receipt.objective,
+    lane: receipt.lane,
+    permissionEnvelope: receipt.permissionEnvelope,
+    nextSafeActionCount: receipt.nextSafeActions?.length || 0,
+    destructiveActionsTaken: receipt.destructiveActionsTaken,
+    desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+    receiptPath: receipt.receiptPath,
+  }));
+}
+
 function improvementExecutionHistory(runId = null) {
   return improvementExecutionReceipts()
     .filter((receipt) => !runId || receipt.sourceRunId === runId)
@@ -1159,6 +1179,15 @@ function writeImprovementRunReceipt(receipt) {
 function writeImprovementExecutionReceipt(receipt) {
   mkdirSync(RECEIPTS_DIR, { recursive: true });
   const fileName = `${receipt.executionId}.improvement-execution.json`;
+  const receiptPath = join(RECEIPTS_DIR, fileName);
+  const withPath = { ...receipt, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
+function writeFaraPeerAutomationReceipt(receipt) {
+  mkdirSync(RECEIPTS_DIR, { recursive: true });
+  const fileName = `${receipt.pulseId}.fara-peer-automation.json`;
   const receiptPath = join(RECEIPTS_DIR, fileName);
   const withPath = { ...receipt, receiptPath };
   writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
@@ -1539,6 +1568,100 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
       fix.desktopAutomationExecuted === false
     )
     .slice(0, limit);
+}
+
+function buildFaraPeerAutomationPulse(payload = {}) {
+  const snapshot = buildLiveStatusSnapshot();
+  const routing = buildNativeRunRouting(snapshot, payload.objective || payload.message || '');
+  const generatedAt = new Date().toISOString();
+  const pulseId = `fara_peer_pulse_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const objective = String(
+    payload.objective
+    || payload.message
+    || 'Keep HoloShell moving through read-only Fara/Brittney peer coordination'
+  ).trim().slice(0, 500);
+  const cadence = String(payload.cadence || payload.trigger || 'manual').trim().slice(0, 80) || 'manual';
+  const latestRun = improvementRunHistory()[0] || null;
+  const desktopBridge = desktopBridgeStatusSnapshot();
+  const nextSafeActions = [
+    {
+      operation: 'summarize_live_system_status',
+      lane: 'brittney_operator',
+      route: 'GET /api/live-status',
+      reason: 'refresh the shared operating picture before choosing work',
+      permissionEnvelope: 'read_only',
+      automationMayExecute: false,
+      receiptRequired: true,
+    },
+    {
+      operation: 'review_improvement_run_receipts',
+      lane: 'receipt_gate',
+      route: 'GET /api/improvement-runs',
+      reason: latestRun
+        ? `latest run ${latestRun.runId} has ${latestRun.remainingRunCount} remaining counted slot(s)`
+        : 'no recent improvement-run receipt is visible',
+      permissionEnvelope: 'read_only',
+      automationMayExecute: false,
+      receiptRequired: true,
+    },
+    {
+      operation: 'queue_codebase_fix_shakedown_batch',
+      lane: 'improvement_run_queue',
+      route: 'POST /api/improvement-runs',
+      reason: 'keep codebase-fix work moving only by creating a receipt-backed queue proposal',
+      permissionEnvelope: 'read_only_receipt_write',
+      automationMayExecute: false,
+      receiptRequired: true,
+    },
+    {
+      operation: 'check_desktop_bridge_readiness',
+      lane: 'fara_gui_grounding',
+      route: 'GET /api/desktop-control/bridge',
+      reason: 'desktop mutation remains guarded; bridge status is only a readiness signal',
+      permissionEnvelope: 'read_only',
+      automationMayExecute: false,
+      receiptRequired: true,
+    },
+  ];
+  return writeFaraPeerAutomationReceipt({
+    schemaVersion: 'hololand.holoshell.fara-peer-automation.v0.1.0',
+    source: 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus',
+    pulseId,
+    generatedAt,
+    status: 'pulse_recorded',
+    objective,
+    cadence,
+    participants: ['brittney', 'fara'],
+    lane: 'fara_peer_chat',
+    modelRoute: routing.faraPeerChat,
+    permissionEnvelope: 'read_only',
+    approvalRequired: false,
+    automationMode: 'receipt_and_proposals_only',
+    hiddenAutomationAllowed: false,
+    mayEmitNextSafeActions: true,
+    mayQueueReceiptsDirectly: false,
+    desktopMutationAllowed: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    route: {
+      pulseEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
+      historyEndpoint: 'GET /api/fara-peer-chat/automation-pulses',
+      liveStatusEndpoint: 'GET /api/live-status',
+      improvementRunEndpoint: 'POST /api/improvement-runs',
+      desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
+    },
+    summary: {
+      status: 'pulse_recorded',
+      capabilityCount: snapshot.capabilities.length,
+      laneCount: snapshot.lanes.length,
+      latestImprovementRunId: latestRun?.runId || null,
+      latestImprovementRunRemaining: latestRun?.remainingRunCount ?? null,
+      desktopBridgeStatus: desktopBridge.status || 'unknown',
+      nextSafeActionCount: nextSafeActions.length,
+    },
+    nextSafeActions,
+  });
 }
 
 function buildImprovementRunReceipt(payload = {}) {
@@ -2049,6 +2172,8 @@ function buildLiveStatusSnapshot() {
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
       laptopReasoningReportEndpoint: 'POST /api/laptop-reasoning/report',
       windowAwarenessReportEndpoint: 'POST /api/window-awareness/report',
+      faraPeerAutomationEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
+      faraPeerAutomationHistoryEndpoint: 'GET /api/fara-peer-chat/automation-pulses',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
       holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
@@ -2067,6 +2192,7 @@ function buildLiveStatusSnapshot() {
       'browser_terminal_coupling',
       'operator_terminal_session',
       'fara_brittney_peer_chat',
+      'fara_peer_automation_pulse',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -2171,12 +2297,13 @@ function buildGroundedStatusReply(snapshot, message) {
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
-      `3. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
-      `4. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
-      `5. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
-      `6. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
-      `7. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
-      `8. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
+      `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; it writes a read-only receipt and next-safe proposals only.`,
+      `4. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
+      `5. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
+      `6. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
+      `7. Use the native library before inventing routes: ${modelLibrarySummary(snapshot)}. ${nativeResourceSummary(snapshot)}.`,
+      `8. Run actual codebase fixes through the desktop app route with receipts on every pass; HoloTune trace emission stays deferred until fixes pass review. Current guardrails: ${baseGuardrails}.`,
+      `9. Cleanly separate local work by repo status: ${gitSummary(snapshot.gitStatus)}.`,
       '',
       'No cube/test object is needed here. The next move is real repo issue -> patch -> targeted validation -> receipt/commit evidence -> GPU/bridge measurement -> feed the verified fix back into Brittney. Tuning waits.',
     ].join('\n');
@@ -2188,6 +2315,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
+    `Fara/Brittney automation pulse: ${snapshot.route.faraPeerAutomationEndpoint}; read-only receipt and next-safe proposals only.`,
     `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, count codebase-fix shakedowns through ${snapshot.route.improvementRunExecuteEndpoint} only after patch and validation evidence; HoloTune is deferred.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
@@ -2224,6 +2352,13 @@ function liveStatusProposals(snapshot, message) {
     {
       operation: 'inspect_holoclaw_skill_shelf',
       lane: 'holoclaw_skills',
+      receiptRequired: true,
+    },
+    {
+      operation: 'record_fara_brittney_automation_pulse',
+      lane: 'fara_peer_chat',
+      endpoint: snapshot.route.faraPeerAutomationEndpoint,
+      permissionEnvelope: 'read_only',
       receiptRequired: true,
     },
     {
@@ -2700,6 +2835,50 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/live-status') {
     respond(res, liveStatusResponseEnvelope(buildLiveStatusSnapshot()));
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/fara-peer-chat/automation-pulses') {
+    respond(res, {
+      schemaVersion: 'hololand.holoshell.fara-peer-automation-history.v0.1.0',
+      items: faraPeerAutomationHistory(),
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      receiptRequired: true,
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/fara-peer-chat/automation-pulse') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const receipt = buildFaraPeerAutomationPulse(payload);
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.fara-peer-automation-response.v0.1.0',
+          status: receipt.status,
+          pulseId: receipt.pulseId,
+          objective: receipt.objective,
+          cadence: receipt.cadence,
+          participants: receipt.participants,
+          lane: receipt.lane,
+          permissionEnvelope: receipt.permissionEnvelope,
+          approvalRequired: receipt.approvalRequired,
+          automationMode: receipt.automationMode,
+          hiddenAutomationAllowed: receipt.hiddenAutomationAllowed,
+          desktopMutationAllowed: receipt.desktopMutationAllowed,
+          destructiveActionsTaken: receipt.destructiveActionsTaken,
+          desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+          nextSafeActions: receipt.nextSafeActions,
+          proposals: receipt.nextSafeActions,
+          receipt,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
     return;
   }
 

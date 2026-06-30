@@ -1,0 +1,99 @@
+// HoloShell Fara Peer Automation
+//
+// Source contract for the Fara/Brittney momentum pulse. The pulse is a
+// read-only peer-chat automation feature: it records coordination, surfaces
+// next-safe proposals, and keeps HoloShell work moving without executing
+// desktop actions, code changes, sends, purchases, deletes, or hidden browser
+// automation.
+
+composition "HoloShell Fara Peer Automation" {
+  config {
+    title: "HoloShell Fara Peer Automation"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    serverModule: "packages/holoshell/serve.mjs"
+    pulseEndpoint: "POST /api/fara-peer-chat/automation-pulse"
+    historyEndpoint: "GET /api/fara-peer-chat/automation-pulses"
+    liveStatusEndpoint: "GET /api/live-status"
+    improvementRunEndpoint: "POST /api/improvement-runs"
+    desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
+    peerChatLane: "fara_peer_chat"
+    participants: ["brittney", "fara"]
+    permissionEnvelope: "read_only"
+    automationDefault: "receipt_and_proposals_only"
+  }
+
+  state {
+    latestPulseId: ""
+    latestPulseStatus: "idle"
+    latestObjective: ""
+    latestCadence: "manual"
+    permissionEnvelope: "read_only"
+    hiddenAutomationAllowed: false
+    desktopAutomationExecuted: false
+    destructiveActionsTaken: false
+  }
+
+  channel "holoshell:fara:brittney-automation-pulse" {
+    type: "append_only"
+    priority: "high"
+    description: "Read-only Fara and Brittney automation pulse for momentum, proposals, and receipts"
+  }
+
+  template "FaraPeerAutomationPulse" {
+    type: "fara_peer_automation_pulse"
+    schemaVersion: "hololand.holoshell.fara-peer-automation.v0.1.0"
+    participants: ["brittney", "fara"]
+    lane: "fara_peer_chat"
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    automationMode: "receipt_and_proposals_only"
+    hiddenAutomationAllowed: false
+    mayEmitNextSafeActions: true
+    mayQueueReceiptsDirectly: false
+    mayExecuteDesktopActions: false
+    mayMutateCode: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "AutomationPulseKeepsMomentum" {
+    appliesTo: ["peer_chat_automation", "momentum_pulse", "next_safe_action", "receipt_review_nudge"]
+    lane: "fara_peer_chat"
+    participants: ["brittney", "fara"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    allowedOutputs: ["status_summary", "next_safe_action", "receipt_review_nudge", "improvement_run_proposal", "desktop_bridge_check"]
+    forbiddenOutputs: ["desktop_execution", "hidden_browser_automation", "code_mutation", "send_message", "purchase", "delete_data"]
+    desktopMutationRequires: ["desktop_action_preflight", "fresh_user_gesture", "consent_token", "execution_receipt"]
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  action record_fara_peer_automation_pulse(pulse) {
+    state.latestPulseId = pulse.pulseId
+    state.latestPulseStatus = pulse.status
+    state.latestObjective = pulse.objective
+    state.latestCadence = pulse.cadence
+    emit("holoshell:fara:brittney-automation-pulse", {
+      action: "fara_peer_automation_pulse_recorded",
+      pulse_id: state.latestPulseId,
+      status: state.latestPulseStatus,
+      objective: state.latestObjective,
+      cadence: state.latestCadence,
+      lane: "fara_peer_chat",
+      participants: ["brittney", "fara"],
+      permission_envelope: "read_only",
+      approval_required: false,
+      hidden_automation_allowed: false,
+      may_emit_next_safe_actions: true,
+      may_queue_receipts_directly: false,
+      may_execute_desktop_actions: false,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+}
