@@ -1,0 +1,147 @@
+// HoloLand Enterprise Package Gate: Universal Dashboard Room
+//
+// Converts the TS-only examples/13-universal-dashboard scaffold into a
+// source-first enterprise package gate. The old example remains archive/watch
+// material until its path can be moved with archive approval and receipts.
+
+composition "HoloLand Enterprise Package Gate: Universal Dashboard Room" {
+  config {
+    gateId: "universal-dashboard-room"
+    title: "Universal Dashboard Room"
+    packageClass: "enterprise_business_solution"
+    businessWorkflow: "universal_operations_dashboard_review"
+    humanUserSurface: "deployed_hololand_room"
+    developerPackageSurface: false
+    sourceLayer: "HoloScript"
+    sourcePath: "apps/holoshell/source/hololand-enterprise-universal-dashboard-gate.hsplus"
+    manifestPath: "apps/holoshell/enterprise-gates/universal-dashboard-room/package-gate.json"
+    runnerCommand: "node scripts/hololand-enterprise-package-gate.mjs --gate-dir apps/holoshell/enterprise-gates/universal-dashboard-room"
+    browserReceiptCommand: "node scripts/hololand-enterprise-package-gate-browser-receipt.mjs"
+    validationTool: "mcp__holoscript.validate_holoscript"
+    renderOutput: ".tmp/hololand/enterprise-gates/universal-dashboard-room/gate.html"
+    receiptOutput: ".tmp/hololand/enterprise-gates/universal-dashboard-room/receipt.json"
+    legacyExamplePath: "examples/13-universal-dashboard"
+    legacyExampleStatus: "archive_watch"
+  }
+
+  state {
+    sourceArtifactStatus: "inspectable"
+    validationStatus: "required"
+    runtimeStatus: "required"
+    renderStatus: "required"
+    interactionStatus: "required"
+    hardwareBrowserStatus: "required_for_promotion"
+    upstreamGapStatus: "recorded"
+    localRewriteStatus: "blocked"
+    legacyExampleStatus: "archive_watch"
+    packageGraphRestorationStatus: "not_required_for_gate"
+  }
+
+  channel "hololand:enterprise-package-gate:universal-dashboard-room" {
+    type: "append_only"
+    priority: "high"
+    description: "Universal dashboard enterprise package gate receipts for source-first HoloLand proof"
+  }
+
+  template "EnterprisePackageGateReceipt" {
+    type: "enterprise_package_gate_receipt"
+    receiptType: "hololand.enterprise-package-gate.universal-dashboard-room.v0.1.0"
+    benchmarkGate: "holoscript_enterprise_universal_dashboard_room"
+    requiredFields: [
+      "business_workflow",
+      "source_path",
+      "source_sha256",
+      "holoscript_packages",
+      "benchmark_gates",
+      "holoscript_validation",
+      "runtime_surface",
+      "render_output",
+      "interaction_receipt",
+      "hardware_browser_receipt",
+      "legacy_example_archive_watch",
+      "upstream_gaps"
+    ]
+    rawSecretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "EnterprisePackagesAreGates" {
+    appliesTo: ["enterprise_package", "business_solution", "benchmark_gate"]
+    humanUserPackageSurface: false
+    enterpriseDeploymentSurface: true
+    consumesHoloScriptPackages: true
+    actsAsHoloScriptBenchmarkGate: true
+    packageGraphRestorationRequired: false
+    legacyTypeScriptExampleCanonical: false
+    receiptRequired: true
+  }
+
+  policy "SourceReceiptsBlockPromotion" {
+    appliesTo: ["source", "validation", "runtime", "render", "interaction"]
+    parserSourceOfTruth: "HoloScript MCP validate_holoscript"
+    sourceRequiredBeforeProjection: true
+    validationFailureBlocksPromotion: true
+    runtimeReceiptRequired: true
+    renderReceiptRequired: true
+    interactionReceiptRequired: true
+    browserReceiptRequired: true
+  }
+
+  policy "UpstreamGapsDoNotBecomeLocalRewrites" {
+    appliesTo: ["missing_primitive", "runtime_gap", "validator_gap", "receipt_gap"]
+    missingReusablePrimitiveOwner: "HoloScript"
+    localTypeScriptRewriteAllowed: false
+    recordGapBeforePromotion: true
+    receiptRequired: true
+  }
+
+  action capture_universal_dashboard_intent(intent) {
+    state.sourceArtifactStatus = "inspectable"
+    state.legacyExampleStatus = "archive_watch"
+
+    emit("hololand:enterprise-package-gate:universal-dashboard-room", {
+      action: "enterprise_gate_intent_captured",
+      workflow: config.businessWorkflow,
+      source_path: config.sourcePath,
+      legacy_example_path: config.legacyExamplePath,
+      legacy_example_status: state.legacyExampleStatus,
+      benchmark_gate: "holoscript_enterprise_universal_dashboard_room",
+      receipt_required: true
+    })
+  }
+
+  action accept_enterprise_gate_receipt(receipt) {
+    state.validationStatus = receipt.validation.status
+    state.runtimeStatus = receipt.runtime.status
+    state.renderStatus = receipt.render.status
+    state.interactionStatus = receipt.interaction.status
+    state.hardwareBrowserStatus = receipt.hardwareBrowser.status
+    state.upstreamGapStatus = receipt.upstreamGaps.status
+
+    emit("hololand:enterprise-package-gate:universal-dashboard-room", {
+      action: "enterprise_gate_receipt_accepted",
+      status: receipt.status,
+      source_sha256: receipt.source.sha256,
+      validation_status: state.validationStatus,
+      runtime_surface: receipt.runtime.surface,
+      render_output: receipt.render.html,
+      interaction_status: state.interactionStatus,
+      upstream_gap_status: state.upstreamGapStatus,
+      legacy_example_status: state.legacyExampleStatus
+    })
+  }
+
+  action record_upstream_gap(gap) {
+    state.upstreamGapStatus = "recorded"
+    state.localRewriteStatus = "blocked"
+
+    emit("hololand:enterprise-package-gate:universal-dashboard-room", {
+      action: "upstream_gap_recorded",
+      owner: "HoloScript",
+      gap_id: gap.id,
+      primitive: gap.primitive,
+      local_rewrite_allowed: false,
+      receipt_required: true
+    })
+  }
+}

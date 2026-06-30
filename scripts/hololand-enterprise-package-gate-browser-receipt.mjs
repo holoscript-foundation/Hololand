@@ -312,17 +312,24 @@ const STATE_EXPRESSION = `(() => {
   const gate = window.HOLOLAND_ENTERPRISE_PACKAGE_GATE || {};
   const interaction = window.HOLOLAND_ENTERPRISE_PACKAGE_GATE_INTERACTION || {};
   const fullText = document.body.innerText || '';
+  const workflowSummary = gate.businessWorkflow?.summary || '';
+  const sourcePath = gate.source?.path || '';
+  const promotionStatus = gate.promotion?.status || '';
+  const benchmarkIds = (gate.benchmarkGates || []).map((item) => item.id).filter(Boolean);
+  const requiredReceipts = gate.requiredReceipts || [];
   const assertions = {
     rootVisible: visible('#enterprise-gate-root'),
-    workflowVisible: visible('#business-workflow') && /business team guides a customer/i.test(text('#business-workflow')),
-    sourceVisible: visible('#gate-source') && /hololand-enterprise-customer-success-room-gate\\.hsplus/i.test(text('#gate-source')),
+    workflowVisible: visible('#business-workflow') && text('#business-workflow').includes(workflowSummary),
+    sourceVisible: visible('#gate-source') && text('#gate-source').includes(sourcePath),
     sourceHashVisible: Boolean(document.querySelector('#enterprise-gate-root')?.dataset?.sourceSha256),
     validationVisible: visible('#gate-validation') && /pass/i.test(text('#gate-validation')),
     renderVisible: visible('#gate-render') && /gate\\.html/i.test(text('#gate-render')),
-    promotionVisible: visible('#gate-promotion') && /blocked_by_upstream_gaps/i.test(text('#gate-promotion')),
-    benchmarkVisible: visible('#benchmark-gates') && /holoscript_enterprise_customer_success_room/i.test(text('#benchmark-gates')),
+    promotionVisible: visible('#gate-promotion') && text('#gate-promotion').includes(promotionStatus),
+    benchmarkVisible: visible('#benchmark-gates') && benchmarkIds.length > 0 &&
+      benchmarkIds.every((id) => text('#benchmark-gates').includes(id)),
     packageListVisible: visible('#holoscript-packages') && /@holoscript\\/core/i.test(text('#holoscript-packages')),
-    requiredReceiptsVisible: visible('#required-receipts') && /hardware_browser/i.test(text('#required-receipts')),
+    requiredReceiptsVisible: visible('#required-receipts') && requiredReceipts.length > 0 &&
+      requiredReceipts.every((item) => text('#required-receipts').includes(item)),
     receiptVisible: visible('#enterprise-gate-receipt') && /upstreamGapStatus/i.test(text('#enterprise-gate-receipt')),
     interactionCaptured: document.querySelector('#enterprise-interaction-status')?.dataset?.interacted === 'true' &&
       /Interaction receipt captured/i.test(text('#enterprise-interaction-status')) &&

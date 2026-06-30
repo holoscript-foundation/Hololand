@@ -138,20 +138,48 @@ function requireArrayIncludes(errors, array, field, requiredValues) {
   }
 }
 
+function hasText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 function validateManifest(manifest, sourcePath) {
   const errors = [];
   if (manifest.schema !== 'hololand.enterprise-package-gate.v0.1.0') errors.push('manifest schema mismatch');
-  if (manifest.id !== 'customer-success-room') errors.push('manifest id must be customer-success-room');
+  if (!hasText(manifest.id)) errors.push('manifest id is required');
+  if (!hasText(manifest.title)) errors.push('manifest title is required');
+  if (!hasText(manifest.vertical)) errors.push('manifest vertical is required');
   if (manifest.packageClass !== 'enterprise_business_solution') errors.push('manifest packageClass must be enterprise_business_solution');
   if (manifest.developerPackageSurface !== false) errors.push('developerPackageSurface must be false');
   if (manifest.humanUserSurface !== 'deployed_hololand_room') errors.push('humanUserSurface must be deployed_hololand_room');
   if (manifest.sourcePath !== relativeToRepo(sourcePath)) errors.push(`manifest sourcePath mismatch: ${manifest.sourcePath}`);
   if (!manifest.businessWorkflow?.id) errors.push('businessWorkflow.id is required');
+  if (!Array.isArray(manifest.businessWorkflow?.actors) || manifest.businessWorkflow.actors.length < 1) {
+    errors.push('businessWorkflow.actors must name at least one actor');
+  }
+  if (!Array.isArray(manifest.businessWorkflow?.criticalPath) || manifest.businessWorkflow.criticalPath.length < 2) {
+    errors.push('businessWorkflow.criticalPath must name at least two steps');
+  }
   if (!Array.isArray(manifest.holoscriptPackages) || manifest.holoscriptPackages.length < 3) {
     errors.push('holoscriptPackages must name at least three consumed upstream packages');
+  } else {
+    for (const pkg of manifest.holoscriptPackages) {
+      if (!hasText(pkg.name) || !pkg.name.startsWith('@holoscript/')) {
+        errors.push(`holoscript package ${pkg.name || '<unknown>'} must use @holoscript/*`);
+      }
+      if (!Array.isArray(pkg.gates) || pkg.gates.length < 1) {
+        errors.push(`holoscript package ${pkg.name || '<unknown>'} must name at least one gate`);
+      }
+    }
   }
   if (!Array.isArray(manifest.benchmarkGates) || manifest.benchmarkGates.length < 1) {
     errors.push('benchmarkGates must contain at least one gate');
+  } else {
+    for (const gate of manifest.benchmarkGates) {
+      if (!hasText(gate.id)) errors.push('benchmarkGates.id is required');
+      if (!Array.isArray(gate.mustProve) || gate.mustProve.length < 1) {
+        errors.push(`benchmark gate ${gate.id || '<unknown>'} must name proof obligations`);
+      }
+    }
   }
   requireArrayIncludes(errors, manifest.requiredReceipts, 'requiredReceipts', [
     'source',
@@ -174,22 +202,27 @@ function validateManifest(manifest, sourcePath) {
   if (!manifest.promotion?.requires?.some((item) => String(item).includes('mcp__holoscript.validate_holoscript'))) {
     errors.push('promotion.requires must include mcp__holoscript.validate_holoscript');
   }
+  if (manifest.legacyExample) {
+    if (manifest.legacyExample.status !== 'archive_watch') {
+      errors.push('legacyExample.status must be archive_watch');
+    }
+    if (!hasText(manifest.legacyExample.path)) errors.push('legacyExample.path is required');
+    if (!hasText(manifest.legacyExample.replacementGate)) errors.push('legacyExample.replacementGate is required');
+  }
   return errors;
 }
 
-function validateSource(source, sourcePath) {
+function validateSource(source, sourcePath, manifest) {
   const requiredTokens = [
-    'composition "HoloLand Enterprise Package Gate: Customer Success Room"',
-    'gateId: "customer-success-room"',
-    'packageClass: "enterprise_business_solution"',
-    'businessWorkflow: "customer_success_onboarding"',
+    'composition "HoloLand Enterprise Package Gate:',
+    `gateId: "${manifest.id}"`,
+    `packageClass: "${manifest.packageClass}"`,
+    `businessWorkflow: "${manifest.businessWorkflow.id}"`,
     'developerPackageSurface: false',
     'template "EnterprisePackageGateReceipt"',
-    'benchmarkGate: "holoscript_enterprise_customer_success_room"',
     'policy "EnterprisePackagesAreGates"',
     'policy "SourceReceiptsBlockPromotion"',
     'policy "UpstreamGapsDoNotBecomeLocalRewrites"',
-    'action capture_customer_success_room_intent',
     'action accept_enterprise_gate_receipt',
     'action record_upstream_gap',
     'mcp__holoscript.validate_holoscript',
@@ -202,6 +235,19 @@ function validateSource(source, sourcePath) {
   for (const token of requiredTokens) {
     if (!source.includes(token)) errors.push(`missing token: ${token}`);
   }
+  if (!source.includes(manifest.title)) errors.push(`missing title token: ${manifest.title}`);
+  if (!source.includes(`sourcePath: "${manifest.sourcePath}"`)) {
+    errors.push(`missing sourcePath token: ${manifest.sourcePath}`);
+  }
+  for (const gate of manifest.benchmarkGates || []) {
+    if (!source.includes(`benchmarkGate: "${gate.id}"`)) {
+      errors.push(`missing benchmark gate token: ${gate.id}`);
+    }
+  }
+  const actions = Array.from(source.matchAll(/action\s+([A-Za-z0-9_]+)/g)).map((match) => match[1]);
+  if (!actions.some((action) => action.startsWith('capture_'))) {
+    errors.push('missing capture_* action for business intent intake');
+  }
   return {
     status: errors.length ? 'fail' : 'pass',
     tool: 'hololand-enterprise-package-gate.local-bridge-guard',
@@ -210,7 +256,7 @@ function validateSource(source, sourcePath) {
     warnings: [],
     policies: extractQuotedBlockNames(source, 'policy'),
     templates: extractQuotedBlockNames(source, 'template'),
-    actions: Array.from(source.matchAll(/action\s+([A-Za-z0-9_]+)/g)).map((match) => match[1]),
+    actions,
   };
 }
 
@@ -245,7 +291,7 @@ function createReceipt(args) {
   const sourcePath = args.source ? resolveRepoPath(args.source) : resolveRepoPath(manifest.sourcePath);
   if (!existsSync(sourcePath)) throw new Error(`Source file not found: ${sourcePath}`);
   const source = readFileSync(sourcePath, 'utf8');
-  const sourceValidation = validateSource(source, sourcePath);
+  const sourceValidation = validateSource(source, sourcePath, manifest);
   const manifestErrors = validateManifest(manifest, sourcePath);
   const localStatus = sourceValidation.status === 'pass' && manifestErrors.length === 0 ? 'pass' : 'fail';
   const mcpValidation = statusFromMcp(args);
@@ -327,6 +373,7 @@ function createReceipt(args) {
       count: upstreamGapCount,
       items: manifest.upstreamGaps,
     },
+    legacyExample: manifest.legacyExample || null,
     commands: {
       build: 'node scripts/hololand-enterprise-package-gate.mjs',
       browserReceipt: 'node scripts/hololand-enterprise-package-gate-browser-receipt.mjs',
@@ -501,6 +548,8 @@ function renderHtml(receipt) {
         sourceSha256: receipt.source.sha256,
         validation: receipt.validation.status,
         upstreamGapStatus: receipt.upstreamGaps.status,
+        legacyExampleStatus: receipt.legacyExample?.status || null,
+        legacyExamplePath: receipt.legacyExample?.path || null,
       }, null, 2))}</pre>
     </aside>
   </div>

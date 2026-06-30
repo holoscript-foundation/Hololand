@@ -170,7 +170,7 @@ them into source-first benchmark gates:
 | `examples/10-collaborative-building` | archive | Scaffold-like TS-only example; no HoloScript source. |
 | `examples/11-social-hub` | archive | Scaffold-like TS-only example; no HoloScript source. |
 | `examples/12-multi-user-ar` | archive/watch | AR proof belongs in Twin Universe or hardware receipts, not TS-only package demo. |
-| `examples/13-universal-dashboard` | archive | Dashboard proof should become an enterprise gate if still wanted. |
+| `examples/13-universal-dashboard` | archive/watch - promoted to gate | Replaced as source truth by `apps/holoshell/source/hololand-enterprise-universal-dashboard-gate.hsplus` and `apps/holoshell/enterprise-gates/universal-dashboard-room/package-gate.json`; keep the old TS example only as archive/watch until archive approval plus checksum receipts exist. |
 | `examples/compilation-demo` | archive/watch | Compilation proof belongs in HoloScript package gates and receipts. |
 | `examples/hololand-landing` | archive | Marketing/landing surface is not the builder-proof product. |
 | `examples/hololand-website` | archive | Website surface is not the active proof kernel unless tied to deployment. |

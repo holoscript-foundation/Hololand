@@ -13,6 +13,12 @@ const HTML_PATH = path.join(OUTPUT_DIR, 'gate.html');
 const JS_PATH = path.join(OUTPUT_DIR, 'gate-receipt.js');
 const BROWSER_RECEIPT_PATH = path.join(OUTPUT_DIR, 'browser-receipt.json');
 const BROWSER_JS_PATH = path.join(OUTPUT_DIR, 'browser-receipt.js');
+const UNIVERSAL_OUTPUT_DIR = path.join(REPO_ROOT, '.tmp', 'hololand', 'self-test', 'enterprise-gates', 'universal-dashboard-room');
+const UNIVERSAL_RECEIPT_PATH = path.join(UNIVERSAL_OUTPUT_DIR, 'receipt.json');
+const UNIVERSAL_HTML_PATH = path.join(UNIVERSAL_OUTPUT_DIR, 'gate.html');
+const UNIVERSAL_JS_PATH = path.join(UNIVERSAL_OUTPUT_DIR, 'gate-receipt.js');
+const UNIVERSAL_BROWSER_RECEIPT_PATH = path.join(UNIVERSAL_OUTPUT_DIR, 'browser-receipt.json');
+const UNIVERSAL_BROWSER_JS_PATH = path.join(UNIVERSAL_OUTPUT_DIR, 'browser-receipt.js');
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -32,6 +38,7 @@ function readJson(filePath) {
 }
 
 rmSync(OUTPUT_DIR, { recursive: true, force: true });
+rmSync(UNIVERSAL_OUTPUT_DIR, { recursive: true, force: true });
 
 run(process.execPath, [
   'scripts/hololand-enterprise-package-gate.mjs',
@@ -129,5 +136,101 @@ assert.match(browserReceipt.evidence.domSha256, /^[a-f0-9]{64}$/);
 assert.ok(existsSync(path.resolve(REPO_ROOT, browserReceipt.evidence.screenshot)), 'screenshot file missing');
 assert.ok(existsSync(path.resolve(REPO_ROOT, browserReceipt.evidence.dom)), 'DOM file missing');
 assert.ok(existsSync(BROWSER_JS_PATH), 'browser receipt bootstrap JS missing');
+
+run(process.execPath, [
+  'scripts/hololand-enterprise-package-gate.mjs',
+  '--gate-dir',
+  'apps/holoshell/enterprise-gates/universal-dashboard-room',
+  '--output-dir',
+  UNIVERSAL_OUTPUT_DIR,
+  '--receipt',
+  UNIVERSAL_RECEIPT_PATH,
+  '--html',
+  UNIVERSAL_HTML_PATH,
+  '--js',
+  UNIVERSAL_JS_PATH,
+  '--json',
+]);
+
+const universalReceipt = readJson(UNIVERSAL_RECEIPT_PATH);
+assert.equal(universalReceipt.schema, 'hololand.enterprise-package-gate.receipt.v0.1.0');
+assert.equal(universalReceipt.status, 'pass');
+assert.equal(universalReceipt.gate.id, 'universal-dashboard-room');
+assert.equal(universalReceipt.gate.packageClass, 'enterprise_business_solution');
+assert.equal(universalReceipt.gate.developerPackageSurface, false);
+assert.equal(
+  universalReceipt.source.path,
+  'apps/holoshell/source/hololand-enterprise-universal-dashboard-gate.hsplus',
+);
+assert.equal(universalReceipt.validation.status, 'pass');
+assert.equal(universalReceipt.validation.local.status, 'pass');
+assert.equal(universalReceipt.validation.local.source.status, 'pass');
+assert.equal(universalReceipt.validation.local.manifest.status, 'pass');
+assert.ok(universalReceipt.validation.local.source.policies.includes('EnterprisePackagesAreGates'));
+assert.ok(universalReceipt.validation.local.source.policies.includes('SourceReceiptsBlockPromotion'));
+assert.ok(universalReceipt.validation.local.source.policies.includes('UpstreamGapsDoNotBecomeLocalRewrites'));
+assert.ok(universalReceipt.validation.local.source.actions.includes('capture_universal_dashboard_intent'));
+assert.ok(universalReceipt.requiredReceipts.includes('legacy_archive_watch'));
+assert.equal(universalReceipt.legacyExample.path, 'examples/13-universal-dashboard');
+assert.equal(universalReceipt.legacyExample.status, 'archive_watch');
+assert.equal(
+  universalReceipt.legacyExample.replacementGate,
+  'apps/holoshell/enterprise-gates/universal-dashboard-room/package-gate.json',
+);
+assert.ok(universalReceipt.holoscriptPackages.some((pkg) => pkg.name === '@holoscript/framework'));
+assert.equal(universalReceipt.benchmarkGates[0].id, 'holoscript_enterprise_universal_dashboard_room');
+assert.equal(universalReceipt.runtime.status, 'ready');
+assert.equal(universalReceipt.render.status, 'ready');
+assert.equal(universalReceipt.interaction.status, 'pending_browser_receipt');
+assert.equal(universalReceipt.hardwareBrowser.status, 'required_for_promotion');
+assert.equal(universalReceipt.upstreamGaps.status, 'recorded');
+assert.equal(universalReceipt.upstreamGaps.items[0].owner, 'HoloScript');
+assert.equal(universalReceipt.upstreamGaps.items[0].localRewriteAllowed, false);
+assert.equal(universalReceipt.promotion.status, 'source_promoted_archive_watch');
+assert.ok(existsSync(UNIVERSAL_HTML_PATH), 'universal gate HTML missing');
+assert.ok(existsSync(UNIVERSAL_JS_PATH), 'universal gate receipt JS missing');
+
+const universalHtml = readFileSync(UNIVERSAL_HTML_PATH, 'utf8');
+assert.match(universalHtml, /Universal Dashboard Room/);
+assert.match(universalHtml, /enterprise-gate-verify/);
+assert.match(universalHtml, /source_promoted_archive_watch/);
+assert.match(universalHtml, /holoscript_enterprise_universal_dashboard_room/);
+
+run(process.execPath, [
+  'scripts/hololand-enterprise-package-gate-browser-receipt.mjs',
+  '--html',
+  UNIVERSAL_HTML_PATH,
+  '--output-dir',
+  UNIVERSAL_OUTPUT_DIR,
+  '--output',
+  UNIVERSAL_BROWSER_RECEIPT_PATH,
+  '--js-output',
+  UNIVERSAL_BROWSER_JS_PATH,
+  '--json',
+], {
+  timeout: 120_000,
+});
+
+const universalBrowserReceipt = readJson(UNIVERSAL_BROWSER_RECEIPT_PATH);
+assert.equal(universalBrowserReceipt.schema, 'hololand.enterprise-package-gate-browser-receipt.v0.1.0');
+assert.equal(universalBrowserReceipt.status, 'pass');
+assert.equal(universalBrowserReceipt.interaction.status, 'pass');
+assert.equal(universalBrowserReceipt.state.assertions.rootVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.workflowVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.sourceVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.validationVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.renderVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.promotionVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.benchmarkVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.packageListVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.requiredReceiptsVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.receiptVisible, true);
+assert.equal(universalBrowserReceipt.state.assertions.interactionCaptured, true);
+assert.equal(universalBrowserReceipt.state.assertions.embeddedReceiptPresent, true);
+assert.match(universalBrowserReceipt.evidence.screenshotSha256, /^[a-f0-9]{64}$/);
+assert.match(universalBrowserReceipt.evidence.domSha256, /^[a-f0-9]{64}$/);
+assert.ok(existsSync(path.resolve(REPO_ROOT, universalBrowserReceipt.evidence.screenshot)), 'universal screenshot file missing');
+assert.ok(existsSync(path.resolve(REPO_ROOT, universalBrowserReceipt.evidence.dom)), 'universal DOM file missing');
+assert.ok(existsSync(UNIVERSAL_BROWSER_JS_PATH), 'universal browser receipt bootstrap JS missing');
 
 console.log('hololand enterprise package gate test passed');

@@ -1,0 +1,118 @@
+{
+  "schema": "hololand.enterprise-package-gate.v0.1.0",
+  "id": "universal-dashboard-room",
+  "title": "Universal Dashboard Room",
+  "vertical": "operations_dashboard",
+  "packageClass": "enterprise_business_solution",
+  "humanUserSurface": "deployed_hololand_room",
+  "developerPackageSurface": false,
+  "sourcePath": "apps/holoshell/source/hololand-enterprise-universal-dashboard-gate.hsplus",
+  "businessWorkflow": {
+    "id": "universal_operations_dashboard_review",
+    "summary": "An operations lead reviews system scale, AI status, interaction mode, and dashboard health inside one source-authored HoloLand room instead of a TS-only canvas scaffold.",
+    "actors": [
+      "operations_lead",
+      "implementation_specialist",
+      "agent_copilot",
+      "browser_witness"
+    ],
+    "criticalPath": [
+      "load_dashboard_source",
+      "validate_holoscript_gate",
+      "project_status_hud",
+      "switch_operator_mode",
+      "capture_interaction_receipt",
+      "mark_legacy_ts_example_archive_watch"
+    ]
+  },
+  "holoscriptPackages": [
+    {
+      "name": "@holoscript/core",
+      "gates": [
+        "composition",
+        "state",
+        "policy",
+        "action",
+        "emit"
+      ]
+    },
+    {
+      "name": "@holoscript/framework",
+      "gates": [
+        "enterprise_package_gate",
+        "admission_receipt",
+        "workflow_admission"
+      ]
+    },
+    {
+      "name": "@holoscript/ui",
+      "gates": [
+        "semantic_dashboard_panel",
+        "operator_mode_control",
+        "receipt_panel_projection"
+      ]
+    },
+    {
+      "name": "@holoscript/agent-protocol",
+      "gates": [
+        "agent_intent",
+        "handoff_context",
+        "dashboard_interaction_receipt"
+      ]
+    }
+  ],
+  "benchmarkGates": [
+    {
+      "id": "holoscript_enterprise_universal_dashboard_room",
+      "description": "HoloScript can express the universal dashboard business workflow as source, validate it, project it into HoloLand, capture interaction, and retire the old TS-only example into archive/watch status.",
+      "mustProve": [
+        "source_drives_manifest",
+        "validation_blocks_promotion",
+        "runtime_surface_is_projection",
+        "interaction_receipt_is_required",
+        "legacy_ts_example_is_archive_watch",
+        "missing_reusable_primitives_go_upstream"
+      ]
+    }
+  ],
+  "requiredReceipts": [
+    "source",
+    "validation",
+    "runtime",
+    "render",
+    "interaction",
+    "hardware_browser",
+    "legacy_archive_watch"
+  ],
+  "promotion": {
+    "status": "source_promoted_archive_watch",
+    "requires": [
+      "mcp__holoscript.validate_holoscript pass",
+      "direct Node gate receipt pass",
+      "browser or hardware interaction receipt pass",
+      "archive approval and checksum receipt before moving examples/13-universal-dashboard"
+    ],
+    "blocksOn": [
+      "treating examples/13-universal-dashboard as canonical source",
+      "local TypeScript rewrite of enterprise dashboard semantics",
+      "missing source receipt",
+      "missing validation receipt",
+      "missing interaction receipt"
+    ]
+  },
+  "upstreamGaps": [
+    {
+      "id": "hs-enterprise-dashboard-mode-switcher",
+      "owner": "HoloScript",
+      "primitive": "enterprise_dashboard_mode_switcher",
+      "description": "HoloScript should own the reusable operator/simple mode switcher primitive that the old TS-only dashboard implemented locally.",
+      "localRewriteAllowed": false
+    }
+  ],
+  "legacyExample": {
+    "path": "examples/13-universal-dashboard",
+    "status": "archive_watch",
+    "replacementGate": "apps/holoshell/enterprise-gates/universal-dashboard-room/package-gate.json",
+    "reason": "The business dashboard workflow is now represented by HoloScript source and an enterprise package gate; moving or deleting the old TS-only example still requires archive approval and receipts."
+  }
+}
