@@ -2,6 +2,7 @@
 
 **Source:** `apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus`
 **Endpoint:** `GET /api/operator-terminal/session`
+**Session Snapshot:** `GET/POST /api/browser-session/state`
 **Launcher:** `scripts/brittney-studio-launch.ps1`
 
 ## Shipped
@@ -12,6 +13,7 @@
 - Updated the Brittney Studio launcher to open the browser cockpit plus a visible read-only operator terminal by default, with `-Headless` and `-NoTerminal` escape hatches.
 - Added browser-terminal symbiosis metadata, presentable terminal run cards, and refresh-recovery state to `/api/operator-terminal/session`.
 - Added a browser-side evidence ledger so Terminal lane proof rehydrates after refresh from local state plus `/api/cockpit/capsule` and `/api/operator-terminal/session`.
+- Added a bounded server-side browser session snapshot so localStorage state can rehydrate after reload/cold browser starts before the default welcome state is shown.
 - Kept optional orchestration lanes advisory in laptop receipt freshness so HoloClaw/Sovereign/Fara waiting states do not fail the endpoint freshness check.
 
 ## Boundary
@@ -19,6 +21,7 @@
 - Browser is the primary conversation, context, and approval surface.
 - Terminal is the execution/evidence projection.
 - The endpoint does not execute terminal commands.
+- The browser session snapshot endpoint only saves/restores bounded chat, draft, cockpit, runtime, and evidence state; it does not execute terminal or desktop actions.
 - Terminal mutations still require HoloGate identify -> scope -> preflight -> consent token -> execution receipt -> log.
 
 ## Validation

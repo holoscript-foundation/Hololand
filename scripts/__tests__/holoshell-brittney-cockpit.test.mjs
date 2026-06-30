@@ -116,11 +116,13 @@ try {
   assert.equal(liveStatus.route.cockpitCapsuleEndpoint, 'GET /api/cockpit/capsule');
   assert.equal(liveStatus.route.laptopReasoningReportEndpoint, 'POST /api/laptop-reasoning/report');
   assert.equal(liveStatus.route.windowAwarenessReportEndpoint, 'POST /api/window-awareness/report');
+  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(liveStatus.route.holoclawRuntimeBridgeWorkflowEndpoint, 'POST /workflow/holoclaw-runtime-bridge');
   assert.equal(liveStatus.route.sovereignRoomMarathonEndpoint, 'GET /api/sovereign-room/marathon');
   assert.equal(liveStatus.route.sovereignRoomMarathonWorkflowEndpoint, 'POST /workflow/sovereign-room-marathon');
   assert.ok(liveStatus.capabilities.includes('brittney_desktop_cockpit'));
+  assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
   assert.ok(liveStatus.capabilities.includes('sovereign_room_marathon_status'));
   assert.ok(liveStatus.capabilities.includes('sovereign_room_marathon_receipt_refresh'));
   assert.ok(liveStatus.capabilities.includes('holoclaw_runtime_bridge_status'));
@@ -265,6 +267,16 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'runtime_truth' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'route_health' && lane.sourceEndpoint === 'GET /api/cockpit/capsule'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'context_carry' && /goal, files, tests/.test(lane.detail)));
+  assert.ok(capsule.cockpitLanes.some((lane) =>
+    lane.id === 'source_owned_state' &&
+    lane.sourceEndpoint === 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus' &&
+    lane.permissionEnvelope === 'read_only_source_contract'
+  ));
+  assert.ok(capsule.cockpitLanes.some((lane) =>
+    lane.id === 'browser_session' &&
+    lane.sourceEndpoint === 'GET/POST /api/browser-session/state' &&
+    lane.permissionEnvelope === 'read_only_snapshot'
+  ));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'desktop_bridge' && lane.receiptRequired === true));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'laptop_reasoning' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'fara_peer_automation' && lane.permissionEnvelope === 'read_only'));
@@ -288,16 +300,36 @@ try {
   assert.equal(capsule.summary.sovereignRoomMatchedCandidateCount, 1);
   assert.equal(capsule.summary.sovereignRoomSelectedTaskId, 'task_local_fixture');
   assert.equal(capsule.summary.sovereignRoomSelectedTaskTitle, '[local] test sovereign room from cockpit');
+  assert.equal(capsule.summary.sourceOwnedStateStatus, 'ready');
+  assert.equal(capsule.summary.sourceOwnedDomainCount, 5);
+  assert.equal(capsule.summary.sourceOwnedSelectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.sourceOwnedState.schemaVersion, 'hololand.holoshell.source-owned-cockpit-state.v0.1.0');
+  assert.deepEqual(capsule.sourceOwnedState.domains, ['agents', 'files', 'worlds', 'receipts', 'board_tasks']);
+  assert.equal(capsule.sourceOwnedState.summary.sourceRequiredBeforeProjection, true);
+  assert.equal(capsule.sourceOwnedState.summary.sourceFormatGapNamedBeforeAdapterWork, true);
+  assert.equal(capsule.sourceOwnedState.files.legacyUiMayNotOwnBehavior, true);
+  assert.ok(capsule.sourceOwnedState.files.sourceAnchors.includes('packages/holoshell/scenes/operate-room.holo'));
+  assert.equal(capsule.sourceOwnedState.boardTasks.selectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.sourceOwnedState.boardTasks.browserMayClaimRoomTask, false);
+  assert.equal(capsule.sourceOwnedState.uiProjection.role, 'adapter_projection_only');
   assert.equal(capsule.sovereignRoomMarathon.statusEndpoint, 'GET /api/sovereign-room/marathon');
   assert.equal(capsule.sovereignRoomMarathon.selectedTaskId, 'task_local_fixture');
   assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, stagedHoloClawRuntime.status);
   assert.equal(capsule.holoclawRuntimeBridge.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
+  assert.equal(capsule.summary.browserSessionStateStatus, 'waiting');
+  assert.equal(capsule.summary.browserSessionSnapshotStatus, 'empty');
+  assert.equal(capsule.browserSessionState.snapshotStatus, 'empty');
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
   assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
   assert.equal(capsule.summary.laptopReasoningPingbackStatus, 'ready_for_brittney');
   assert.equal(capsule.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(capsule.actionCards.some((card) => card.id === 'desktop_control_plan' && card.permissionEnvelope === 'read_only_plan'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'source_owned_state' &&
+    card.permissionEnvelope === 'read_only_source_contract' &&
+    card.primaryAction === 'inspect_source_owned_state'
+  ));
   assert.ok(capsule.actionCards.some((card) =>
     card.id === 'sovereign_room_status' &&
     card.href === '/api/sovereign-room/marathon' &&
@@ -329,6 +361,11 @@ try {
     card.mayExecuteWithoutConsent === false
   ));
   assert.ok(capsule.actionCards.some((card) => card.id === 'context_capsule' && card.href === '/api/cockpit/capsule'));
+  assert.ok(capsule.actionCards.some((card) =>
+    card.id === 'browser_session_state' &&
+    card.href === '/api/browser-session/state' &&
+    card.permissionEnvelope === 'read_only_snapshot'
+  ));
   assert.equal(capsule.faraPeerAutomation.schedule.status, 'disabled');
   assert.ok(capsule.windowAwareness);
   assert.equal(capsule.windowAwareness.status, 'windows_visible');
@@ -364,6 +401,9 @@ try {
   assert.equal(capsule.safety.allOtherDesktopActionsRemainPlanOnly, true);
   assert.equal(capsule.safety.sovereignRoomBrowserClaimAllowed, false);
   assert.ok(capsule.safety.sovereignRoomClaimRequires.includes('terminal_or_control_daemon'));
+  assert.equal(capsule.safety.sourceRequiredBeforeProjection, true);
+  assert.equal(capsule.safety.sourceFormatGapNamedBeforeAdapterWork, true);
+  assert.equal(capsule.safety.legacyUiMayNotOwnBehavior, true);
   assert.equal(capsule.safety.rawWindowTitlesHidden, true);
   assert.equal(capsule.safety.destructiveActionsTaken, false);
   assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'ready_to_claim');
@@ -383,12 +423,18 @@ try {
   assert.match(hsplusSource, /HoloClawRuntimeVisibleBehindConsent/);
   assert.match(hsplusSource, /GET \/api\/holoclaw\/runtime-bridge/);
   assert.match(hsplusSource, /BrowserRefreshPreservesOperatorSession/);
+  assert.match(hsplusSource, /GET\/POST \/api\/browser-session\/state/);
+  assert.match(hsplusSource, /window\.localStorage \+ local HoloShell snapshot endpoint/);
   assert.match(hsplusSource, /ParallelChatWorkspacesStayIsolated/);
+  assert.match(hsplusSource, /SourceOwnedStateBeforeProjection/);
+  assert.match(hsplusSource, /sourceOwnedStateSchema: "hololand\.holoshell\.source-owned-cockpit-state\.v0\.1\.0"/);
+  assert.match(hsplusSource, /sourceOwnedDomains: \["agents", "files", "worlds", "receipts", "board_tasks"\]/);
   assert.match(hsplusSource, /browserChatWorkspaceIds: \["brittney", "sovereign", "holoclaw", "terminal", "improvement"\]/);
   assert.match(hsplusSource, /holoshell:brittney:browser-session:v1/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /brittney_cockpit_source/);
+  assert.match(operateRoomSource, /source_owned_state_schema: "hololand\.holoshell\.source-owned-cockpit-state\.v0\.1\.0"/);
   assert.match(operateRoomSource, /laptop_reasoning_lane: "laptop-hardware"/);
   assert.match(operateRoomSource, /GET \/api\/cockpit\/capsule/);
 
@@ -411,8 +457,12 @@ try {
   assert.match(compileSource, /_sendHoloClawChat/);
   assert.match(compileSource, /\/workflow\/holoclaw-runtime-bridge/);
   assert.match(compileSource, /_restoreBrowserSession/);
+  assert.match(compileSource, /_hydrateBrowserSessionFromServer/);
+  assert.match(compileSource, /\/api\/browser-session\/state/);
   assert.match(compileSource, /localStorage/);
   assert.match(compileSource, /cockpit-action-cards/);
+  assert.match(compileSource, /sourceOwnedState/);
+  assert.match(compileSource, /cockpit-source/);
   assert.match(compileSource, /\/api\/cockpit\/capsule/);
 } finally {
   if (server.exitCode === null) {

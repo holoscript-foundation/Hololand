@@ -52,6 +52,13 @@ const OPERATOR_TERMINAL_RECEIPT =
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
 const BROWSER_SESSION_STATE_KEY = 'holoshell:brittney:browser-session:v1';
+const BROWSER_SESSION_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
+const BROWSER_SESSION_STATE_SNAPSHOT =
+  process.env.HOLOSHELL_BROWSER_SESSION_STATE ||
+  join(HOLOSHELL_TMP_DIR, 'browser-session-state.json');
+const BROWSER_SESSION_TRANSCRIPT_LIMIT = 120;
+const BROWSER_SESSION_EVIDENCE_LIMIT = 80;
+const BROWSER_CHAT_WORKSPACE_IDS = ['brittney', 'sovereign', 'holoclaw', 'terminal', 'improvement'];
 const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
@@ -1755,6 +1762,204 @@ function unwrapSchemaPayload(payload = {}, schemaVersion, keys = []) {
   return payload;
 }
 
+function shortBrowserString(value, max = 1200) {
+  const text = String(value == null ? '' : value);
+  return text.length > max ? text.slice(0, max - 3) + '...' : text;
+}
+
+function normalizeBrowserChatId(chatId) {
+  const id = String(chatId || 'brittney').toLowerCase();
+  return BROWSER_CHAT_WORKSPACE_IDS.includes(id) ? id : 'brittney';
+}
+
+function normalizeBrowserTranscriptEntry(entry, fallbackChatId) {
+  if (!entry || typeof entry !== 'object') return null;
+  const type = shortBrowserString(entry.type || 'message', 48);
+  const chatId = normalizeBrowserChatId(entry.chatId || fallbackChatId);
+  const normalized = {
+    type,
+    chatId,
+    savedAt: shortBrowserString(entry.savedAt || entry.timestamp || new Date().toISOString(), 48),
+  };
+  if (type === 'message') {
+    normalized.who = shortBrowserString(entry.who || 'HoloShell', 80);
+    normalized.text = shortBrowserString(entry.text || '', 4000);
+    normalized.color = shortBrowserString(entry.color || '#c9d1d9', 40);
+  } else if (type === 'turn_card') {
+    normalized.title = shortBrowserString(entry.title || 'Receipt', 160);
+    normalized.tone = shortBrowserString(entry.tone || 'neutral', 40);
+    normalized.variant = shortBrowserString(entry.variant || '', 40);
+    normalized.lines = safeArray(entry.lines).map((line) => shortBrowserString(line, 700)).slice(0, 18);
+  } else if (type === 'card_grid') {
+    normalized.cards = safeArray(entry.cards).map((card) => ({
+      type: 'turn_card',
+      title: shortBrowserString(card?.title || 'Proposal', 160),
+      tone: shortBrowserString(card?.tone || 'neutral', 40),
+      variant: shortBrowserString(card?.variant || '', 40),
+      lines: safeArray(card?.lines).map((line) => shortBrowserString(line, 700)).slice(0, 12),
+    })).slice(0, 8);
+  } else {
+    normalized.title = shortBrowserString(entry.title || type, 160);
+    normalized.text = shortBrowserString(entry.text || entry.summary || '', 1600);
+  }
+  return normalized;
+}
+
+function normalizeBrowserEvidenceEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  return {
+    kind: shortBrowserString(entry.kind || 'evidence', 80),
+    chatId: normalizeBrowserChatId(entry.chatId || 'terminal'),
+    savedAt: shortBrowserString(entry.savedAt || entry.timestamp || new Date().toISOString(), 48),
+    title: shortBrowserString(entry.title || 'Evidence', 160),
+    summary: shortBrowserString(entry.summary || '', 1200),
+    status: shortBrowserString(entry.status || 'unknown', 80),
+    tone: shortBrowserString(entry.tone || 'neutral', 40),
+    receiptHash: shortBrowserString(entry.receiptHash || '', 160),
+    sourceEndpoint: shortBrowserString(entry.sourceEndpoint || '', 160),
+    evidenceLedgerStatus: shortBrowserString(entry.evidenceLedgerStatus || '', 80),
+    key: shortBrowserString(entry.key || '', 240),
+    receiptRequired: entry.receiptRequired !== false,
+    lines: safeArray(entry.lines).map((line) => shortBrowserString(line, 700)).slice(0, 18),
+  };
+}
+
+function normalizeBrowserRuntime(runtime = {}) {
+  if (!runtime || typeof runtime !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(runtime).slice(0, 24).map(([key, value]) => {
+      const safeKey = shortBrowserString(key, 80).replace(/[^A-Za-z0-9_.:-]/gu, '_');
+      if (typeof value === 'string') return [safeKey, shortBrowserString(value, 1200)];
+      if (typeof value === 'number' || typeof value === 'boolean' || value === null) return [safeKey, value];
+      return [safeKey, shortBrowserString(JSON.stringify(value ?? ''), 1200)];
+    })
+  );
+}
+
+function boundedBrowserCapsule(capsule) {
+  if (!capsule || typeof capsule !== 'object') return null;
+  try {
+    const raw = JSON.stringify(capsule);
+    if (raw.length <= 80_000) return JSON.parse(raw);
+    return {
+      generatedAt: capsule.generatedAt || null,
+      status: capsule.status || 'truncated',
+      summary: capsule.summary || {},
+      route: capsule.route || {},
+      receipts: capsule.receipts || {},
+      truncated: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function emptyBrowserSessionState() {
+  return {
+    schemaVersion: BROWSER_SESSION_STATE_SCHEMA,
+    source: 'browser_cockpit_snapshot',
+    sessionId: sharedHoloShellSessionId(),
+    storageKey: BROWSER_SESSION_STATE_KEY,
+    transcript: [],
+    transcriptByChat: Object.fromEntries(BROWSER_CHAT_WORKSPACE_IDS.map((chatId) => [chatId, []])),
+    drafts: {
+      chatInputs: Object.fromEntries(BROWSER_CHAT_WORKSPACE_IDS.map((chatId) => [chatId, ''])),
+      brittneyInput: '',
+      improvementObjective: '',
+      improvementCount: '',
+    },
+    evidenceLedger: [],
+    activeChatId: 'brittney',
+    expandedChatIds: ['sovereign', 'holoclaw'],
+    runtime: {},
+    latestCockpitCapsule: null,
+    updatedAt: null,
+    serverReceivedAt: null,
+    safety: {
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      rawSecretsIncluded: false,
+      hostMutationAllowed: false,
+    },
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+  };
+}
+
+function normalizeBrowserSessionState(payload = {}, { requireSchema = false } = {}) {
+  const incoming = unwrapSchemaPayload(payload, BROWSER_SESSION_STATE_SCHEMA, ['state', 'browserSessionState']);
+  if (requireSchema && incoming.schemaVersion !== BROWSER_SESSION_STATE_SCHEMA) {
+    throw new Error(`expected ${BROWSER_SESSION_STATE_SCHEMA}`);
+  }
+  const base = emptyBrowserSessionState();
+  const transcriptByChat = { ...base.transcriptByChat };
+  for (const chatId of BROWSER_CHAT_WORKSPACE_IDS) {
+    const rawEntries = safeArray(incoming.transcriptByChat?.[chatId] || (chatId === 'brittney' ? incoming.transcript : []));
+    transcriptByChat[chatId] = rawEntries
+      .map((entry) => normalizeBrowserTranscriptEntry(entry, chatId))
+      .filter(Boolean)
+      .slice(-BROWSER_SESSION_TRANSCRIPT_LIMIT);
+  }
+  const draftInputs = { ...base.drafts.chatInputs };
+  const incomingDrafts = incoming.drafts && typeof incoming.drafts === 'object' ? incoming.drafts : {};
+  for (const chatId of BROWSER_CHAT_WORKSPACE_IDS) {
+    draftInputs[chatId] = shortBrowserString(incomingDrafts.chatInputs?.[chatId] || '', 2000);
+  }
+  const expandedChatIds = safeArray(incoming.expandedChatIds)
+    .map(normalizeBrowserChatId)
+    .filter((chatId, index, all) => all.indexOf(chatId) === index);
+  return {
+    ...base,
+    source: shortBrowserString(incoming.source || base.source, 120),
+    sessionId: shortBrowserString(incoming.sessionId || sharedHoloShellSessionId(), 120),
+    transcript: transcriptByChat.brittney.slice(-BROWSER_SESSION_TRANSCRIPT_LIMIT),
+    transcriptByChat,
+    drafts: {
+      chatInputs: draftInputs,
+      brittneyInput: shortBrowserString(incomingDrafts.brittneyInput || draftInputs.brittney || '', 2000),
+      improvementObjective: shortBrowserString(incomingDrafts.improvementObjective || '', 3000),
+      improvementCount: shortBrowserString(incomingDrafts.improvementCount || '', 20),
+    },
+    evidenceLedger: safeArray(incoming.evidenceLedger)
+      .map(normalizeBrowserEvidenceEntry)
+      .filter(Boolean)
+      .slice(-BROWSER_SESSION_EVIDENCE_LIMIT),
+    activeChatId: normalizeBrowserChatId(incoming.activeChatId || 'brittney'),
+    expandedChatIds: expandedChatIds.length ? expandedChatIds : ['sovereign', 'holoclaw'],
+    runtime: normalizeBrowserRuntime(incoming.runtime),
+    latestCockpitCapsule: boundedBrowserCapsule(incoming.latestCockpitCapsule),
+    updatedAt: shortBrowserString(incoming.updatedAt || new Date().toISOString(), 48),
+    serverReceivedAt: new Date().toISOString(),
+  };
+}
+
+function readBrowserSessionStateSnapshot() {
+  const snapshot = readJsonFileIfPresent(BROWSER_SESSION_STATE_SNAPSHOT);
+  if (snapshot?.schemaVersion !== BROWSER_SESSION_STATE_SCHEMA) {
+    return {
+      ...emptyBrowserSessionState(),
+      snapshotStatus: 'empty',
+      output: null,
+    };
+  }
+  return {
+    ...normalizeBrowserSessionState(snapshot),
+    snapshotStatus: 'available',
+    output: BROWSER_SESSION_STATE_SNAPSHOT,
+  };
+}
+
+function writeBrowserSessionStateSnapshot(payload = {}) {
+  const state = normalizeBrowserSessionState(payload, { requireSchema: true });
+  const output = writeJsonFile(BROWSER_SESSION_STATE_SNAPSHOT, state);
+  return {
+    ...state,
+    snapshotStatus: 'saved',
+    output,
+  };
+}
+
 function normalizeLaptopReasoningResultReport(payload = {}) {
   const incoming = unwrapSchemaPayload(payload, LAPTOP_REASONING_RESULT_SCHEMA, ['receipt', 'laptopReasoningResult']);
   if (incoming.schemaVersion !== LAPTOP_REASONING_RESULT_SCHEMA) {
@@ -2595,6 +2800,8 @@ function buildOperatorTerminalSession() {
     terminalStatus,
     receiptHash: terminalReceiptHash,
   });
+  const browserSessionState = readBrowserSessionStateSnapshot();
+  const browserSessionSnapshotStatus = browserSessionState.snapshotStatus === 'available' ? 'available' : 'empty';
 
   return {
     schemaVersion: OPERATOR_TERMINAL_SESSION_SCHEMA,
@@ -2609,6 +2816,7 @@ function buildOperatorTerminalSession() {
       url: liveStatus.route.url,
       chatEndpoint: liveStatus.route.chatEndpoint,
       cockpitCapsuleEndpoint: liveStatus.route.cockpitCapsuleEndpoint,
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       permissionEnvelope: 'read_only',
       mayMutateWithoutConsent: false,
@@ -2643,6 +2851,7 @@ function buildOperatorTerminalSession() {
       terminalWrites: ['command_results', 'test_logs', 'agent_run_receipts'],
       receiptLedger: '.tmp/holoshell/',
       browserStateKey: BROWSER_SESSION_STATE_KEY,
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
       evidenceLedger: 'browser_local_storage_plus_terminal_receipts',
       sessionId: sharedHoloShellSessionId(),
     },
@@ -2659,8 +2868,11 @@ function buildOperatorTerminalSession() {
     refreshRecovery: {
       status: 'enabled',
       browserStateKey: BROWSER_SESSION_STATE_KEY,
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
+      browserSessionSnapshotStatus,
+      browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt || null,
       evidenceLedgerStatus: receiptObserved ? 'available' : 'needs_terminal_receipt',
-      rehydrateFrom: ['localStorage', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
+      rehydrateFrom: ['localStorage', 'GET /api/browser-session/state', 'GET /api/cockpit/capsule', 'GET /api/operator-terminal/session'],
       browserRefreshMayResetTruth: false,
       terminalReceiptsAreDurableTruth: true,
       transcriptLimit: 120,
@@ -2735,6 +2947,7 @@ function buildLiveStatusSnapshot() {
       port: PORT,
       chatEndpoint: 'POST /api/brittney/chat',
       cockpitCapsuleEndpoint: 'GET /api/cockpit/capsule',
+      browserSessionStateEndpoint: 'GET/POST /api/browser-session/state',
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       operatorTerminalReportEndpoint: 'POST /api/operator-terminal/report',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
@@ -2773,6 +2986,7 @@ function buildLiveStatusSnapshot() {
       'operator_terminal_session',
       'operator_terminal_run_cards',
       'browser_refresh_evidence_rehydration',
+      'browser_session_snapshot',
       'fara_brittney_peer_chat',
       'fara_peer_automation_pulse',
       'fara_peer_automation_schedule',
@@ -3134,12 +3348,97 @@ function liveStatusResponseEnvelope(snapshot) {
   };
 }
 
+function buildSourceOwnedCockpitState({
+  liveStatus,
+  sovereignRoomMarathon,
+  holoclawRuntimeBridge,
+  operatorTerminal,
+}) {
+  const domains = ['agents', 'files', 'worlds', 'receipts', 'board_tasks'];
+  const selectedTaskId = sovereignRoomMarathon?.selectedTaskId || '';
+  const selectedTaskTitle = sovereignRoomMarathon?.selectedTaskTitle || '';
+  return {
+    schemaVersion: 'hololand.holoshell.source-owned-cockpit-state.v0.1.0',
+    source: BRITTNEY_COCKPIT_SOURCE,
+    status: 'ready',
+    summary: {
+      domainCount: domains.length,
+      domainList: domains.join(', '),
+      sourceRequiredBeforeProjection: true,
+      sourceFormatGapNamedBeforeAdapterWork: true,
+      legacyUiMayNotOwnBehavior: true,
+      selectedTaskId,
+    },
+    domains,
+    agents: {
+      source: BRITTNEY_COCKPIT_SOURCE,
+      chatSource: 'apps/holoshell/source/holoshell-brittney-operator-chat.hsplus',
+      runtimeBridgeSource: HOLOCLAW_RUNTIME_BRIDGE_SOURCE,
+      operator: 'Brittney',
+      runtime: liveStatus?.avatar?.runtime || '@holoscript/aibrittney',
+      holoclawStatus: holoclawRuntimeBridge?.status || 'unknown',
+      desktopAutomationExecuted: false,
+    },
+    files: {
+      sourceAnchors: [
+        BRITTNEY_COCKPIT_SOURCE,
+        OPERATOR_TERMINAL_COUPLING_SOURCE,
+        SOVEREIGN_ROOM_MARATHON_SOURCE,
+        HOLOCLAW_RUNTIME_BRIDGE_SOURCE,
+        'packages/holoshell/scenes/operate-room.holo',
+      ],
+      adapterProjectionOnly: 'packages/holoshell/serve.mjs',
+      compilerProjectionOnly: 'packages/holoshell/compile.mjs',
+      legacyUiMayNotOwnBehavior: true,
+    },
+    worlds: {
+      operateRoomSource: 'packages/holoshell/scenes/operate-room.holo',
+      shellWorldSource: 'apps/holoshell/source/holoshell-shell-world.holo',
+      surface: liveStatus?.route?.surface || 'HoloShell Operate Room',
+      route: liveStatus?.route?.url || publicShellUrl(),
+    },
+    receipts: {
+      receiptsDir: liveStatus?.receiptsDir || RECEIPTS_DIR,
+      operatorTerminalReceipt: OPERATOR_TERMINAL_RECEIPT,
+      operatorTerminalReceiptStatus: operatorTerminal?.terminal?.receiptStatus || operatorTerminal?.terminal?.status || 'unknown',
+      sovereignRoomMarathonReceipt: sovereignRoomMarathon?.receiptPath || SOVEREIGN_ROOM_MARATHON_RECEIPT,
+      sovereignRoomMarathonStatus: sovereignRoomMarathon?.status || 'unknown',
+      holoclawRuntimeBridgeReceipt: holoclawRuntimeBridge?.receiptPath || HOLOCLAW_RUNTIME_BRIDGE_RECEIPT,
+      holoclawRuntimeBridgeStatus: holoclawRuntimeBridge?.status || 'unknown',
+      receiptRequired: true,
+    },
+    boardTasks: {
+      source: SOVEREIGN_ROOM_MARATHON_SOURCE,
+      statusEndpoint: 'GET /api/sovereign-room/marathon',
+      workflowEndpoint: 'POST /workflow/sovereign-room-marathon',
+      selectedTaskId,
+      selectedTaskTitle,
+      matchedCandidateCount: sovereignRoomMarathon?.matchedCandidateCount || 0,
+      queueOpenCount: sovereignRoomMarathon?.queueOpenCount || 0,
+      browserMayClaimRoomTask: false,
+      claimRequires: ['terminal_or_control_daemon', 'local_task_match', 'execution_receipt_before_done'],
+    },
+    uiProjection: {
+      role: 'adapter_projection_only',
+      endpoint: 'GET /api/cockpit/capsule',
+      route: 'GET /api/cockpit/capsule#sourceOwnedState',
+      sourceRequiredBeforeProjection: true,
+      legacyUiMayNotOwnBehavior: true,
+    },
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    nextSafeStep: 'Change HoloScript source first, then project through serve.mjs and compile.mjs adapter surfaces.',
+  };
+}
+
 function buildBrittneyCockpitCapsule() {
   const liveStatus = buildLiveStatusSnapshot();
   const desktopBridge = desktopBridgeStatusSnapshot();
   const sovereignRoomMarathon = liveStatus.sovereignRoomMarathon || sovereignRoomMarathonStatusSnapshot();
   const holoclawRuntimeBridge = liveStatus.holoclawRuntimeBridge || holoclawRuntimeBridgeStatusSnapshot();
   const operatorTerminal = buildOperatorTerminalSession();
+  const browserSessionState = readBrowserSessionStateSnapshot();
   const windowAwareness = buildWindowAwareness();
   const improvementRuns = improvementRunHistory();
   const latestRun = improvementRuns[0] || null;
@@ -3148,11 +3447,21 @@ function buildBrittneyCockpitCapsule() {
     schedule: faraPeerAutomationScheduleSnapshot(),
     latestPromotion: faraPeerAutomationPromotionHistory()[0] || null,
   };
+  const sourceOwnedState = buildSourceOwnedCockpitState({
+    liveStatus,
+    sovereignRoomMarathon,
+    holoclawRuntimeBridge,
+    operatorTerminal,
+  });
   const bridgeReady = desktopBridge.status === 'ready';
   const bridgeAttention = ['awaiting_laptop_daemon', 'stale_laptop_report'].includes(desktopBridge.status);
   const runtimeTruthStatus = liveStatus.status === 'online' ? 'ready' : 'attention';
   const routeStatus = liveStatus.route?.chatEndpoint && liveStatus.route?.desktopControlEndpoint ? 'ready' : 'attention';
   const contextCarryStatus = 'ready';
+  const sourceOwnedStateStatus = sourceOwnedState.status === 'ready' ? 'ready' : 'attention';
+  const browserSessionStateStatus = browserSessionState.snapshotStatus === 'available' ? 'ready' : 'waiting';
+  const browserTranscriptEntryCount = Object.values(browserSessionState.transcriptByChat || {})
+    .reduce((sum, entries) => sum + safeArray(entries).length, 0);
   const desktopBridgeStatus = bridgeReady ? 'ready' : (bridgeAttention ? 'attention' : desktopBridge.status || 'unknown');
   const operatorTerminalStatus = operatorTerminal.terminal.status === 'ready' ? 'ready' : 'attention';
   const windowAwarenessStatus = windowAwareness.status === 'windows_visible' ? 'ready' : 'attention';
@@ -3201,6 +3510,26 @@ function buildBrittneyCockpitCapsule() {
       detail: 'goal, files, tests, receipts, blockers, next command',
       sourceEndpoint: BRITTNEY_COCKPIT_SOURCE,
       permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'source_owned_state',
+      label: 'Source',
+      status: sourceOwnedStateStatus,
+      value: sourceOwnedState.summary.domainList,
+      detail: `${sourceOwnedState.summary.domainCount} domains; ${sourceOwnedState.uiProjection.role}`,
+      sourceEndpoint: BRITTNEY_COCKPIT_SOURCE,
+      permissionEnvelope: 'read_only_source_contract',
+      receiptRequired: true,
+    },
+    {
+      id: 'browser_session',
+      label: 'Session',
+      status: browserSessionStateStatus,
+      value: browserSessionState.snapshotStatus,
+      detail: `transcript ${browserTranscriptEntryCount}; evidence ${browserSessionState.evidenceLedger.length}; active ${browserSessionState.activeChatId}`,
+      sourceEndpoint: 'GET/POST /api/browser-session/state',
+      permissionEnvelope: 'read_only_snapshot',
       receiptRequired: true,
     },
     {
@@ -3438,6 +3767,27 @@ function buildBrittneyCockpitCapsule() {
       receiptRequired: true,
     },
     {
+      id: 'source_owned_state',
+      label: 'Source State',
+      method: 'GET',
+      href: '/api/cockpit/capsule',
+      lane: 'source_owned_state',
+      primaryAction: 'inspect_source_owned_state',
+      permissionEnvelope: 'read_only_source_contract',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'browser_session_state',
+      label: 'Browser Session',
+      method: 'GET',
+      href: '/api/browser-session/state',
+      lane: 'browser_session',
+      permissionEnvelope: 'read_only_snapshot',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
       id: 'operator_terminal_session',
       label: 'Terminal Session',
       method: 'GET',
@@ -3462,9 +3812,19 @@ function buildBrittneyCockpitCapsule() {
       runtimeTruthStatus,
       routeStatus,
       contextCarryStatus,
+      sourceOwnedStateStatus,
+      sourceOwnedDomainCount: sourceOwnedState.summary.domainCount,
+      sourceOwnedSelectedTaskId: sourceOwnedState.boardTasks.selectedTaskId,
       desktopBridgeStatus,
       laptopReasoningStatus,
       faraAutomationStatus,
+      browserSessionStateStatus,
+      browserSessionSnapshotStatus: browserSessionState.snapshotStatus,
+      browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt,
+      browserTranscriptEntryCount,
+      browserEvidenceLedgerCount: browserSessionState.evidenceLedger.length,
+      activeChatWorkspaceId: browserSessionState.activeChatId,
+      expandedChatWorkspaceCount: browserSessionState.expandedChatIds.length,
       operatorTerminalStatus,
       windowAwarenessStatus,
       toolActionStatus,
@@ -3505,6 +3865,7 @@ function buildBrittneyCockpitCapsule() {
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    sourceOwnedState,
     sovereignRoomMarathon,
     holoclawRuntimeBridge,
     faraPeerAutomation: faraAutomation,
@@ -3512,11 +3873,13 @@ function buildBrittneyCockpitCapsule() {
     windowAwareness,
     preflightPaths,
     operatorTerminal,
+    browserSessionState,
     contextCapsuleTemplate: {
       schemaVersion: 'hololand.holoshell.context-capsule.v0.1.0',
       requiredFields: ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command'],
       identityCarry: ['surface', 'agent_family', 'current_lane', 'room_task_id', 'handoff_source'],
       memoryInputs: ['knowledge_store', 'GOLD', 'repo_files', 'receipts', 'room_board'],
+      sourceOwnedStateRequires: ['agents', 'files', 'worlds', 'receipts', 'board_tasks'],
       graphRagPrompt: 'Ask the knowledge graph for prior decisions before guessing when runtime truth is unknown.',
     },
     safety: {
@@ -3529,6 +3892,9 @@ function buildBrittneyCockpitCapsule() {
       sovereignRoomBrowserClaimAllowed: false,
       holoclawRuntimeRequires: ['status_receipt', 'workflow_approval', 'runtime_env_flag', 'execution_receipt'],
       holoclawDirectExecutionAllowed: false,
+      sourceRequiredBeforeProjection: true,
+      sourceFormatGapNamedBeforeAdapterWork: true,
+      legacyUiMayNotOwnBehavior: true,
       secretsIncluded: false,
       rawWindowTitlesIncluded: windowAwareness.safety.rawWindowTitlesIncluded,
       rawWindowTitlesHidden: windowAwareness.safety.rawWindowTitlesHidden,
@@ -3553,12 +3919,17 @@ function buildBrittneyCockpitCapsule() {
       operatorTerminalReceiptStatus: operatorTerminal.terminal.receiptStatus,
       operatorTerminalRunCardCount: operatorTerminal.runCards.length,
       evidenceLedgerStatus: operatorTerminal.refreshRecovery.evidenceLedgerStatus,
+      browserSessionSnapshotStatus: browserSessionState.snapshotStatus,
+      browserSessionSnapshotReceipt: browserSessionState.output,
+      browserSessionSnapshotUpdatedAt: browserSessionState.updatedAt,
+      browserEvidenceLedgerCount: browserSessionState.evidenceLedger.length,
+      sourceOwnedStateStatus: sourceOwnedState.status,
       legacyWindowInventoryHash: windowAwareness.receipts.legacyWindowInventoryHash,
       operatorBriefHash: windowAwareness.receipts.operatorBriefHash,
     },
     destructiveActionsTaken: windowAwareness.safety.destructiveActionsTaken,
     desktopAutomationExecuted: false,
-    nextSafeStep: 'Carry this capsule into the next agent turn, inspect Sovereign Room status before claiming local work, claim only in the guarded terminal/control-daemon path, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
+    nextSafeStep: 'Preserve source-owned agents, files, worlds, receipts, and board tasks before projection; inspect Sovereign Room status before claiming local work, claim only in the guarded terminal/control-daemon path, inspect HoloClaw runtime status before staging agent work, refresh terminal evidence when stale, then request desktop execution only through preflight -> consent-token -> receipt.',
   };
 }
 
@@ -3873,6 +4244,33 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/cockpit/capsule') {
     respond(res, buildBrittneyCockpitCapsule());
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/browser-session/state') {
+    respond(res, readBrowserSessionStateSnapshot());
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/browser-session/state') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const snapshot = writeBrowserSessionStateSnapshot(payload);
+        respond(res, {
+          ...snapshot,
+          schemaVersion: BROWSER_SESSION_STATE_SCHEMA,
+          status: 'saved',
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+        });
+      } catch (err) {
+        respond(res, { error: String(err.message || err).slice(0, 300), destructiveActionsTaken: false }, 400);
+      }
+    });
     return;
   }
 

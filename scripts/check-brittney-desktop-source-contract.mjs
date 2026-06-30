@@ -45,9 +45,12 @@ requireIncludes('desktop cockpit source', source, [
   'browserSessionStateSchema: "hololand.holoshell.browser-session-state.v0.1.0"',
   'browserSessionStateStorageKey: "holoshell:brittney:browser-session:v1"',
   'browserChatWorkspaceIds: ["brittney", "sovereign", "holoclaw", "terminal", "improvement"]',
+  'sourceOwnedStateSchema: "hololand.holoshell.source-owned-cockpit-state.v0.1.0"',
+  'sourceOwnedStateEndpoint: "GET /api/cockpit/capsule#sourceOwnedState"',
   'ChatWorkspace',
   'ParallelChatWorkspacesStayIsolated',
   'BrowserRefreshPreservesOperatorSession',
+  'SourceOwnedStateBeforeProjection',
   'cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"',
   'desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"',
   'sovereignRoomMarathonSource: "apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus"',
@@ -58,6 +61,7 @@ requireIncludes('desktop cockpit source', source, [
   'HoloClawRuntimeVisibleBehindConsent',
   'legacyUiRole: "adapter_projection_only"',
   'sourceRequiredBeforeProjection: true',
+  'sourceFormatGapNamedBeforeAdapterWork: true',
   'legacyUiMayNotOwnBehavior: true',
   'routeProofCommand: "pnpm run check:brittney-desktop-source-contract"',
   'receiptRequired: true',
@@ -109,6 +113,9 @@ requireIncludes('operator terminal adapter', terminal, [
 requireIncludes('HoloShell server adapter', serve, [
   "const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus'",
   "const BRITTNEY_COCKPIT_CAPSULE_SCHEMA = 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0'",
+  'buildSourceOwnedCockpitState',
+  'sourceOwnedState',
+  'read_only_source_contract',
   "'/api/cockpit/capsule'",
   "'/api/brittney/chat'",
   "'/api/operator-terminal/session'",
@@ -135,7 +142,9 @@ requireIncludes('HoloShell compiler bridge', compiler, [
   '_restoreBrowserSession',
   '_rememberTranscript',
   '_persistCockpitCapsule',
-], failures);
+  'sourceOwnedState',
+  'cockpit-source',
+  ], failures);
 
 requireIncludes('package scripts', packageJson, [
   '"check:brittney-desktop-source-contract": "node scripts/check-brittney-desktop-source-contract.mjs"',

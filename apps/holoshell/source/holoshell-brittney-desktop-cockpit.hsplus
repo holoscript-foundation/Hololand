@@ -51,6 +51,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     browserChatWorkspaceIds: ["brittney", "sovereign", "holoclaw", "terminal", "improvement"]
     defaultChatWorkspaceId: "brittney"
     cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
+    sourceOwnedStateSchema: "hololand.holoshell.source-owned-cockpit-state.v0.1.0"
+    sourceOwnedStateEndpoint: "GET /api/cockpit/capsule#sourceOwnedState"
+    sourceOwnedDomains: ["agents", "files", "worlds", "receipts", "board_tasks"]
     desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"
     legacyUiRole: "adapter_projection_only"
     defaultMode: "read_only_operator_capsule"
@@ -61,6 +64,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     runtimeTruthStatus: "unknown"
     routeStatus: "unknown"
     contextCarryStatus: "unknown"
+    sourceOwnedStateStatus: "unknown"
+    sourceOwnedDomainCount: 0
     desktopBridgeStatus: "unknown"
     laptopReasoningStatus: "unknown"
     laptopReasoningLane: "laptop-hardware"
@@ -117,6 +122,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     actionCards: []
     sovereignRoomMarathon: {}
     holoclawRuntimeBridge: {}
+    sourceOwnedState: {}
     faraPeerAutomation: {}
     windowAwareness: {}
     preflightPaths: []
@@ -125,6 +131,22 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receipts: {}
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "SourceOwnedCockpitState" {
+    type: "source_owned_state_map"
+    schemaVersion: "hololand.holoshell.source-owned-cockpit-state.v0.1.0"
+    source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    domains: ["agents", "files", "worlds", "receipts", "board_tasks"]
+    agents: {}
+    files: {}
+    worlds: {}
+    receipts: {}
+    boardTasks: {}
+    sourceRequiredBeforeProjection: true
+    sourceFormatGapNamedBeforeAdapterWork: true
+    legacyUiMayNotOwnBehavior: true
     receiptRequired: true
   }
 
@@ -231,6 +253,16 @@ composition "HoloShell Brittney Desktop Cockpit" {
       status: $contextCarryStatus
     }
 
+    object "SourceOwnedState" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Source"
+      status: $sourceOwnedStateStatus
+      source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+      endpoint: "GET /api/cockpit/capsule#sourceOwnedState"
+      domains: ["agents", "files", "worlds", "receipts", "board_tasks"]
+    }
+
     object "DesktopBridge" {
       type: "ui"
       uiType: "cockpit_lane"
@@ -332,6 +364,26 @@ composition "HoloShell Brittney Desktop Cockpit" {
     requiredFields: ["goal", "files_read", "files_changed", "tests_run", "receipts", "blockers", "next_command"]
     preservesIdentityAcrossTurns: true
     graphRagQuestionRequiredWhenTruthIsUnknown: true
+    receiptRequired: true
+  }
+
+  policy "SourceOwnedStateBeforeProjection" {
+    appliesTo: ["agents", "files", "worlds", "receipts", "board_tasks", "cockpit_projection"]
+    canonicalBehaviorSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
+    endpoint: "GET /api/cockpit/capsule#sourceOwnedState"
+    domainSources: {
+      agents: ["apps/holoshell/source/holoshell-brittney-operator-chat.hsplus", "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"]
+      files: ["apps/holoshell/source/holoshell-brittney-context-packet.hsplus", "apps/holoshell/source/holoshell-operator-terminal.hsplus"]
+      worlds: ["packages/holoshell/scenes/operate-room.holo", "apps/holoshell/source/holoshell-shell-world.holo"]
+      receipts: [".tmp/holoshell/operator-terminal.json", ".tmp/holoshell/sovereign-room-marathon-latest.json"]
+      board_tasks: ["apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus"]
+    }
+    sourceRequiredBeforeProjection: true
+    sourceFormatGapNamedBeforeAdapterWork: true
+    legacyUiMayNotOwnBehavior: true
+    adapterMaySummarizeOnly: true
+    browserMayClaimRoomTask: false
+    cloudEscalationAllowed: false
     receiptRequired: true
   }
 
@@ -477,6 +529,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
     state.runtimeTruthStatus = capsule.summary.runtimeTruthStatus
     state.routeStatus = capsule.summary.routeStatus
     state.contextCarryStatus = capsule.summary.contextCarryStatus
+    state.sourceOwnedStateStatus = capsule.summary.sourceOwnedStateStatus
+    state.sourceOwnedDomainCount = capsule.summary.sourceOwnedDomainCount
     state.desktopBridgeStatus = capsule.summary.desktopBridgeStatus
     state.laptopReasoningStatus = capsule.summary.laptopReasoningStatus
     state.laptopReasoningLane = capsule.summary.laptopReasoningLane
@@ -515,6 +569,8 @@ composition "HoloShell Brittney Desktop Cockpit" {
       runtimeTruth: state.runtimeTruthStatus,
       routes: state.routeStatus,
       contextCarry: state.contextCarryStatus,
+      sourceOwnedState: state.sourceOwnedStateStatus,
+      sourceOwnedDomains: state.sourceOwnedDomainCount,
       desktopBridge: state.desktopBridgeStatus,
       laptopReasoning: state.laptopReasoningStatus,
       laptopReasoningLane: state.laptopReasoningLane,

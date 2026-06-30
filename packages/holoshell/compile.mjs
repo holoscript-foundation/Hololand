@@ -690,6 +690,8 @@ const runtimeScript = `  <script>
     var _activeChatId = HOLOSHELL_DEFAULT_CHAT_ID;
     var _expandedChatIds = ['sovereign', 'holoclaw'];
     var _browserStateRestoring = false;
+    var _browserSessionSnapshotTimer = null;
+    var _browserSessionSnapshotInFlight = false;
     function _emptyBrowserState() {
       return {
         schemaVersion: HOLOSHELL_BROWSER_STATE_SCHEMA,
@@ -756,12 +758,89 @@ const runtimeScript = `  <script>
         return _ensureBrowserStateShape(_emptyBrowserState());
       }
     }
-    function _writeBrowserState(state) {
+    function _writeBrowserState(state, options) {
+      options = options || {};
       try {
+        state = _ensureBrowserStateShape(state);
         state.schemaVersion = HOLOSHELL_BROWSER_STATE_SCHEMA;
-        state.updatedAt = new Date().toISOString();
+        if (!options.preserveUpdatedAt || !state.updatedAt) state.updatedAt = new Date().toISOString();
         window.localStorage.setItem(HOLOSHELL_BROWSER_STATE_KEY, JSON.stringify(state));
       } catch (error) {}
+      if (options.post !== false && !_browserStateRestoring) _scheduleBrowserSessionSnapshot();
+    }
+    function _browserStateEntryCount(state) {
+      state = _ensureBrowserStateShape(state);
+      var transcriptCount = Object.keys(state.transcriptByChat || {}).reduce(function(sum, chatId) {
+        return sum + ((state.transcriptByChat[chatId] || []).length);
+      }, 0);
+      var draftCount = Object.keys((state.drafts && state.drafts.chatInputs) || {}).filter(function(chatId) {
+        return !!state.drafts.chatInputs[chatId];
+      }).length;
+      return transcriptCount + (state.evidenceLedger || []).length + draftCount + (state.latestCockpitCapsule ? 1 : 0);
+    }
+    function _browserStateTimeValue(value) {
+      var time = Date.parse(value || '');
+      return Number.isFinite(time) ? time : 0;
+    }
+    function _shouldHydrateBrowserSession(serverState, localState) {
+      if (!serverState || serverState.schemaVersion !== HOLOSHELL_BROWSER_STATE_SCHEMA) return false;
+      if (serverState.snapshotStatus === 'empty') return false;
+      var serverCount = _browserStateEntryCount(serverState);
+      if (!serverCount) return false;
+      var localCount = _browserStateEntryCount(localState);
+      if (!localCount) return true;
+      return _browserStateTimeValue(serverState.updatedAt || serverState.serverReceivedAt) > _browserStateTimeValue(localState.updatedAt);
+    }
+    function _postBrowserSessionState() {
+      if (_browserSessionSnapshotInFlight) {
+        _scheduleBrowserSessionSnapshot();
+        return;
+      }
+      _browserSessionSnapshotInFlight = true;
+      var state = _readBrowserState();
+      state.source = 'browser_cockpit_snapshot';
+      fetch('/api/browser-session/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+        cache: 'no-store'
+      }).catch(function() {}).finally(function() {
+        _browserSessionSnapshotInFlight = false;
+      });
+    }
+    function _scheduleBrowserSessionSnapshot() {
+      window.clearTimeout(_browserSessionSnapshotTimer);
+      _browserSessionSnapshotTimer = window.setTimeout(_postBrowserSessionState, 450);
+    }
+    function _hydrateBrowserSessionFromServer() {
+      return fetch('/api/browser-session/state', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(serverState) {
+          var localState = _readBrowserState();
+          if (!_shouldHydrateBrowserSession(serverState, localState)) return false;
+          _browserStateRestoring = true;
+          try {
+            _writeBrowserState(serverState, { post: false, preserveUpdatedAt: true });
+            _restoreBrowserSession();
+          } finally {
+            _browserStateRestoring = false;
+          }
+          return true;
+        })
+        .catch(function() { return false; });
+    }
+    function _flushBrowserSessionStateWithBeacon() {
+      _persistDraftState();
+      var state = _readBrowserState();
+      state.source = 'browser_cockpit_snapshot';
+      if (navigator.sendBeacon) {
+        try {
+          var blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+          navigator.sendBeacon('/api/browser-session/state', blob);
+          return;
+        } catch (error) {}
+      }
+      _postBrowserSessionState();
     }
     function _patchBrowserState(mutator) {
       var state = _readBrowserState();
@@ -855,6 +934,8 @@ const runtimeScript = `  <script>
           avatar: capsule.avatar,
           cockpitLanes: capsule.cockpitLanes,
           actionCards: capsule.actionCards,
+          sourceOwnedState: capsule.sourceOwnedState,
+          sourceOwnedState: capsule.sourceOwnedState,
           contextCapsuleTemplate: capsule.contextCapsuleTemplate,
           receipts: capsule.receipts,
           sovereignRoomMarathon: capsule.sovereignRoomMarathon,
@@ -1225,6 +1306,18 @@ const runtimeScript = `  <script>
           tone: _toneForStatus(summary.routeStatus)
         },
         {
+          label: 'Source Owned',
+          value: summary.sourceOwnedStateStatus || 'unknown',
+          detail: (summary.sourceOwnedDomainCount || 0) + ' domains; task ' + (summary.sourceOwnedSelectedTaskId || 'none'),
+          tone: _toneForStatus(summary.sourceOwnedStateStatus)
+        },
+        {
+          label: 'Source Owned',
+          value: summary.sourceOwnedStateStatus || 'unknown',
+          detail: (summary.sourceOwnedDomainCount || 0) + ' domains; task ' + (summary.sourceOwnedSelectedTaskId || 'none'),
+          tone: _toneForStatus(summary.sourceOwnedStateStatus)
+        },
+        {
           label: 'Reasoning',
           value: summary.laptopReasoningLane || 'laptop-hardware',
           detail: (summary.laptopReasoningStatus || 'unknown') + '; ' + reasoningDetail,
@@ -1519,6 +1612,8 @@ const runtimeScript = `  <script>
       _setText('cockpit-runtime', _laneText(_lane(capsule, 'runtime_truth')));
       _setText('cockpit-routes', _laneText(_lane(capsule, 'route_health')));
       _setText('cockpit-context', _laneText(_lane(capsule, 'context_carry')));
+      _setText('cockpit-source', _laneText(_lane(capsule, 'source_owned_state')));
+      _setText('cockpit-source', _laneText(_lane(capsule, 'source_owned_state')));
       _setText('cockpit-desktop', _laneText(_lane(capsule, 'desktop_bridge')));
       _setText('cockpit-reasoning', _laneText(_lane(capsule, 'laptop_reasoning')));
       _setText('cockpit-sovereign', _laneText(_lane(capsule, 'sovereign_room')));
@@ -2017,6 +2112,8 @@ const runtimeScript = `  <script>
         '<div class="cockpit-card"><strong>Runtime</strong><span id="cockpit-runtime">checking</span></div>' +
         '<div class="cockpit-card"><strong>Routes</strong><span id="cockpit-routes">checking</span></div>' +
         '<div class="cockpit-card"><strong>Context</strong><span id="cockpit-context">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Source</strong><span id="cockpit-source">checking</span></div>' +
+        '<div class="cockpit-card"><strong>Source</strong><span id="cockpit-source">checking</span></div>' +
         '<div class="cockpit-card"><strong>Desktop</strong><span id="cockpit-desktop">checking</span></div>' +
         '<div class="cockpit-card"><strong>Reasoning</strong><span id="cockpit-reasoning">checking</span></div>' +
         '<div class="cockpit-card"><strong>Sovereign</strong><span id="cockpit-sovereign">checking</span></div>' +
@@ -2064,14 +2161,21 @@ const runtimeScript = `  <script>
         var el = document.getElementById(id);
         if (el) el.addEventListener('input', _persistDraftState);
       });
-      var restored = _restoreBrowserSession();
+      window.addEventListener('beforeunload', _flushBrowserSessionStateWithBeacon);
+      _restoreBrowserSession();
       document.getElementById('brittney-input').focus();
-      if (!restored.transcriptCount) {
-        _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
-      }
-      loadCockpitCapsule();
-      _rehydrateTerminalSessionFromServer();
-      loadImprovementRuns();
+      _hydrateBrowserSessionFromServer()
+        .then(function(hydrated) {
+          var state = _readBrowserState();
+          if (!hydrated && !(state.transcriptByChat[_activeChatId] || []).length) {
+            _bMsg('Brittney', 'Online - owned GPU routes are available ($0), and receipts show when the laptop GPU is actually used. Just talk to me; I manage the system and hand the data work to the agents. The Daimon\\u2019s remembered context rides along when it has emerged (D.053).', '#bc8cff');
+          }
+        })
+        .finally(function() {
+          loadCockpitCapsule();
+          _rehydrateTerminalSessionFromServer();
+          loadImprovementRuns();
+        });
     }
     document.addEventListener('DOMContentLoaded', initBrittneyChat);
   </script>`;

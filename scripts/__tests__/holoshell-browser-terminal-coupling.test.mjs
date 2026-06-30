@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 const tempDir = mkdtempSync(join(tmpdir(), 'holoshell-terminal-coupling-'));
 const terminalReceiptPath = join(tempDir, 'operator-terminal.json');
+const browserSessionStatePath = join(tempDir, 'browser-session-state.json');
 writeFileSync(terminalReceiptPath, `${JSON.stringify({
   schemaVersion: 'hololand.holoshell.operator-terminal.v0.1.0',
   generatedAt: new Date().toISOString(),
@@ -59,6 +60,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSHELL_SESSION_ID: 'test-browser-terminal-session',
     HOLOSHELL_OPERATOR_TERMINAL_RECEIPT: terminalReceiptPath,
+    HOLOSHELL_BROWSER_SESSION_STATE: browserSessionStatePath,
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
   },
@@ -114,8 +116,15 @@ try {
   const liveStatus = await getJson('/api/live-status');
   assert.equal(liveStatus.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
+  assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
+  assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
+
+  const emptyBrowserState = await getJson('/api/browser-session/state');
+  assert.equal(emptyBrowserState.schemaVersion, 'hololand.holoshell.browser-session-state.v0.1.0');
+  assert.equal(emptyBrowserState.snapshotStatus, 'empty');
+  assert.equal(emptyBrowserState.activeChatId, 'brittney');
 
   const session = await getJson('/api/operator-terminal/session');
   assert.equal(session.schemaVersion, 'hololand.holoshell.browser-terminal-coupling.v0.1.0');
@@ -138,6 +147,9 @@ try {
   assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
   assert.equal(session.refreshRecovery.status, 'enabled');
   assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
+  assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
+  assert.equal(session.refreshRecovery.browserSessionSnapshotStatus, 'empty');
+  assert.ok(session.refreshRecovery.rehydrateFrom.includes('GET /api/browser-session/state'));
   assert.equal(session.refreshRecovery.browserRefreshMayResetTruth, false);
   assert.deepEqual(session.sharedMemory.requiredFields, ['goal', 'files_read', 'files_changed', 'tests_run', 'receipts', 'blockers', 'next_command']);
   assert.equal(session.sharedMemory.browserStateKey, 'holoshell:brittney:browser-session:v1');
@@ -193,8 +205,71 @@ try {
   const reportedSession = await getJson('/api/operator-terminal/session');
   assert.equal(reportedSession.terminal.receiptHash, 'terminal-post-hash');
 
+  const browserState = await postJson('/api/browser-session/state', {
+    schemaVersion: 'hololand.holoshell.browser-session-state.v0.1.0',
+    source: 'browser_cockpit_snapshot',
+    activeChatId: 'terminal',
+    expandedChatIds: ['holoclaw', 'terminal'],
+    transcriptByChat: {
+      terminal: [
+        {
+          type: 'message',
+          who: 'You',
+          text: 'persist terminal proof',
+          color: '#58a6ff',
+        },
+      ],
+      holoclaw: [
+        {
+          type: 'turn_card',
+          title: 'HoloClaw runtime',
+          lines: ['guarded runtime bridge visible'],
+          tone: 'ready',
+        },
+      ],
+    },
+    evidenceLedger: [
+      {
+        kind: 'operator_terminal_session',
+        chatId: 'terminal',
+        status: 'coupled',
+        receiptHash: 'terminal-post-hash',
+        summary: 'server snapshot test',
+        sourceEndpoint: 'GET /api/operator-terminal/session',
+      },
+    ],
+    drafts: {
+      chatInputs: {
+        terminal: 'draft survives',
+      },
+    },
+    runtime: {
+      lastImprovementRunId: 'run_fixture',
+    },
+    updatedAt: new Date().toISOString(),
+  });
+  assert.equal(browserState.status, 'saved');
+  assert.equal(browserState.snapshotStatus, 'saved');
+  assert.equal(browserState.activeChatId, 'terminal');
+  assert.equal(browserState.transcriptByChat.terminal[0].text, 'persist terminal proof');
+  assert.equal(browserState.evidenceLedger[0].receiptHash, 'terminal-post-hash');
+  assert.equal(browserState.destructiveActionsTaken, false);
+  assert.equal(browserState.desktopAutomationExecuted, false);
+  assert.match(readFileSync(browserSessionStatePath, 'utf8'), /persist terminal proof/);
+
+  const savedBrowserState = await getJson('/api/browser-session/state');
+  assert.equal(savedBrowserState.snapshotStatus, 'available');
+  assert.equal(savedBrowserState.activeChatId, 'terminal');
+  assert.equal(savedBrowserState.drafts.chatInputs.terminal, 'draft survives');
+  assert.equal(savedBrowserState.runtime.lastImprovementRunId, 'run_fixture');
+  assert.equal(savedBrowserState.evidenceLedger[0].sourceEndpoint, 'GET /api/operator-terminal/session');
+
+  const snapshotSession = await getJson('/api/operator-terminal/session');
+  assert.equal(snapshotSession.refreshRecovery.browserSessionSnapshotStatus, 'available');
+
   const capsule = await getJson('/api/cockpit/capsule');
   assert.equal(capsule.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
+  assert.equal(capsule.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state');
   assert.ok(capsule.cockpitLanes.some((lane) =>
     lane.id === 'operator_terminal'
     && lane.status === 'ready'
@@ -206,7 +281,12 @@ try {
     && card.permissionEnvelope === 'read_only_projection'
   ));
   assert.equal(capsule.operatorTerminal.sessionId, 'test-browser-terminal-session');
+  assert.equal(capsule.browserSessionState.snapshotStatus, 'available');
   assert.equal(capsule.receipts.operatorTerminalReceiptHash, 'terminal-post-hash');
+  assert.equal(capsule.receipts.browserSessionSnapshotStatus, 'available');
+  assert.equal(capsule.summary.browserSessionStateStatus, 'ready');
+  assert.equal(capsule.summary.activeChatWorkspaceId, 'terminal');
+  assert.equal(capsule.summary.browserEvidenceLedgerCount, 1);
   assert.equal(capsule.summary.operatorTerminalRunCardCount >= 2, true);
   assert.equal(capsule.summary.browserRefreshRecoveryStatus, 'enabled');
   assert.equal(capsule.receipts.operatorTerminalRunCardCount >= 2, true);
@@ -218,6 +298,8 @@ try {
   assert.match(source, /TerminalCannotBypassHoloGate/);
   assert.match(source, /NativeTerminalBrowserSymbiosis/);
   assert.match(source, /BrowserRefreshRehydratesFromReceipts/);
+  assert.match(source, /BrowserSessionSnapshotMirrorsLocalStorage/);
+  assert.match(source, /GET\/POST \/api\/browser-session\/state/);
   assert.match(source, /TerminalRunCardsStayPresentable/);
 
   const launcher = readFileSync(resolve('scripts/brittney-studio-launch.ps1'), 'utf8');
@@ -230,6 +312,8 @@ try {
   assert.match(compileSource, /cockpit-terminal/);
   assert.match(compileSource, /operator_terminal/);
   assert.match(compileSource, /evidenceLedger/);
+  assert.match(compileSource, /_hydrateBrowserSessionFromServer/);
+  assert.match(compileSource, /\/api\/browser-session\/state/);
   assert.match(compileSource, /_rehydrateTerminalSessionFromServer/);
   assert.match(compileSource, /Evidence ledger/);
   assert.match(compileSource, /loadCockpitCapsule\(\)/);

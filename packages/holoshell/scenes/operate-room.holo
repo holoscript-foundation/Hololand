@@ -31,6 +31,8 @@ composition "OperateRoom" {
     improvement_run_execute_endpoint: "POST /api/improvement-runs/:runId/execute"
     brittney_cockpit_source: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     brittney_cockpit_endpoint: "GET /api/cockpit/capsule"
+    source_owned_state_schema: "hololand.holoshell.source-owned-cockpit-state.v0.1.0"
+    source_owned_state_endpoint: "GET /api/cockpit/capsule#sourceOwnedState"
     laptop_reasoning_source: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
     laptop_reasoning_lane: "laptop-hardware"
     laptop_reasoning_report_endpoint: "POST /api/laptop-reasoning/report"
@@ -61,6 +63,7 @@ composition "OperateRoom" {
     last_improvement_run_id: ""
     last_improvement_run_count: 0
     last_cockpit_capsule_status: ""
+    last_source_owned_state_status: ""
     last_laptop_reasoning_status: ""
     last_operator_terminal_status: ""
     last_operator_chat_receipt_type: ""
@@ -94,6 +97,8 @@ composition "OperateRoom" {
     // Daimon's remembered context (once emerged) rides along via rehydration.
     // The compact cockpit strip consumes GET /api/cockpit/capsule, whose source
     // contract is apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus.
+    // The source-owned state lane inside that capsule binds agents, files/worlds,
+    // receipts, and room board tasks before the browser projects them.
     // Its Terminal card consumes GET /api/operator-terminal/session, whose source
     // contract binds browser chat and terminal evidence to one HoloShell session.
     // When SSH receipt mirroring is unavailable, the laptop can POST terminal,
