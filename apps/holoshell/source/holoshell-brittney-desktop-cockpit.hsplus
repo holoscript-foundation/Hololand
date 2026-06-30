@@ -23,6 +23,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     browserTerminalCouplingSource: "apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus"
     laptopReasoningWorkerSource: "apps/holoshell/source/holoshell-laptop-reasoning-worker.hsplus"
     laptopReasoningBridgeSource: "apps/holoshell/source/holoshell-laptop-reasoning-bridge.hsplus"
+    faraPeerAutomationSource: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
     capsuleEndpoint: "GET /api/cockpit/capsule"
     liveStatusEndpoint: "GET /api/live-status"
     operatorTerminalSessionEndpoint: "GET /api/operator-terminal/session"
@@ -32,6 +33,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     chatEndpoint: "POST /api/brittney/chat"
     desktopPlanEndpoint: "POST /api/desktop-control/plan"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
+    faraPeerAutomationPulseEndpoint: "POST /api/fara-peer-chat/automation-pulse"
+    faraPeerAutomationScheduleEndpoint: "POST /api/fara-peer-chat/automation-schedule"
+    faraPeerAutomationPromotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
     improvementRunEndpoint: "POST /api/improvement-runs"
     operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"
     cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"
@@ -51,6 +55,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     laptopReasoningModelInvocationPerformed: false
     laptopReasoningGpuStatus: "unknown"
     laptopReasoningPingbackStatus: "unknown"
+    faraAutomationStatus: "unknown"
+    latestFaraPeerPulseId: ""
+    faraPeerAutomationScheduleStatus: "disabled"
+    latestFaraPeerPromotionId: ""
     operatorTerminalStatus: "unknown"
     windowAwarenessStatus: "unknown"
     toolActionStatus: "unknown"
@@ -80,6 +88,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     status: "ready"
     cockpitLanes: []
     actionCards: []
+    faraPeerAutomation: {}
     windowAwareness: {}
     preflightPaths: []
     contextCapsuleTemplate: {}
@@ -174,6 +183,14 @@ composition "HoloShell Brittney Desktop Cockpit" {
       label: "Reasoning"
       status: $laptopReasoningStatus
       lane: $laptopReasoningLane
+    }
+
+    object "FaraPeerAutomation" {
+      type: "ui"
+      uiType: "cockpit_lane"
+      label: "Fara Pulse"
+      status: $faraAutomationStatus
+      source: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
     }
 
     object "OperatorTerminal" {
@@ -271,6 +288,20 @@ composition "HoloShell Brittney Desktop Cockpit" {
     receiptRequired: true
   }
 
+  policy "FaraPeerAutomationIsVisibleButNonMutating" {
+    appliesTo: ["fara_peer_automation", "fara_peer_automation_pulse", "fara_peer_automation_schedule", "fara_peer_proposal_promotion"]
+    source: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
+    pulseEndpoint: "POST /api/fara-peer-chat/automation-pulse"
+    scheduleEndpoint: "POST /api/fara-peer-chat/automation-schedule"
+    promotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
+    permissionEnvelope: "read_only"
+    promotableOperation: "queue_codebase_fix_shakedown_batch"
+    promotionLane: "improvement_run_queue"
+    desktopAutomationAllowed: false
+    destructiveActionsAllowed: false
+    receiptRequired: true
+  }
+
   policy "LaptopReceiptsCanReturnOverHttpWhenSshIsUnavailable" {
     appliesTo: ["laptop_reasoning", "operator_terminal", "window_awareness", "brittney_cockpit"]
     terminalReportEndpoint: "POST /api/operator-terminal/report"
@@ -295,6 +326,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
     state.laptopReasoningModelInvocationPerformed = capsule.summary.laptopReasoningModelInvocationPerformed
     state.laptopReasoningGpuStatus = capsule.summary.laptopReasoningGpuStatus
     state.laptopReasoningPingbackStatus = capsule.summary.laptopReasoningPingbackStatus
+    state.faraAutomationStatus = capsule.summary.faraAutomationStatus
+    state.latestFaraPeerPulseId = capsule.summary.latestFaraPeerPulseId
+    state.faraPeerAutomationScheduleStatus = capsule.summary.faraPeerAutomationScheduleStatus
+    state.latestFaraPeerPromotionId = capsule.summary.latestFaraPeerPromotionId
     state.operatorTerminalStatus = capsule.summary.operatorTerminalStatus
     state.windowAwarenessStatus = capsule.summary.windowAwarenessStatus
     state.toolActionStatus = capsule.summary.toolActionStatus
@@ -320,6 +355,10 @@ composition "HoloShell Brittney Desktop Cockpit" {
       laptopReasoningModelInvocationPerformed: state.laptopReasoningModelInvocationPerformed,
       laptopReasoningGpuStatus: state.laptopReasoningGpuStatus,
       laptopReasoningPingbackStatus: state.laptopReasoningPingbackStatus,
+      faraAutomation: state.faraAutomationStatus,
+      latestFaraPeerPulse: state.latestFaraPeerPulseId,
+      faraPeerAutomationSchedule: state.faraPeerAutomationScheduleStatus,
+      latestFaraPeerPromotion: state.latestFaraPeerPromotionId,
       operatorTerminal: state.operatorTerminalStatus,
       windowAwareness: state.windowAwarenessStatus,
       toolActions: state.toolActionStatus,

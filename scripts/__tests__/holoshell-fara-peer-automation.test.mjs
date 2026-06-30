@@ -53,7 +53,12 @@ try {
   assert.equal(liveResponse.status, 200, JSON.stringify(live));
   assert.equal(live.route.faraPeerAutomationEndpoint, 'POST /api/fara-peer-chat/automation-pulse');
   assert.equal(live.route.faraPeerAutomationHistoryEndpoint, 'GET /api/fara-peer-chat/automation-pulses');
+  assert.equal(live.route.faraPeerAutomationScheduleEndpoint, 'POST /api/fara-peer-chat/automation-schedule');
+  assert.equal(live.route.faraPeerAutomationPromotionEndpoint, 'POST /api/fara-peer-chat/promote-proposal');
   assert.ok(live.capabilities.includes('fara_peer_automation_pulse'));
+  assert.ok(live.capabilities.includes('fara_peer_automation_schedule'));
+  assert.ok(live.capabilities.includes('fara_peer_proposal_promotion'));
+  assert.equal(live.faraPeerAutomation.schedule.status, 'disabled');
 
   const pulseResponse = await fetch(`${baseUrl}/api/fara-peer-chat/automation-pulse`, {
     method: 'POST',
@@ -93,6 +98,126 @@ try {
   assert.equal(history.items[0].pulseId, pulse.pulseId);
   assert.equal(history.items[0].permissionEnvelope, 'read_only');
   assert.equal(history.items[0].desktopAutomationExecuted, false);
+
+  const cockpitResponse = await fetch(`${baseUrl}/api/cockpit/capsule`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const cockpit = await cockpitResponse.json();
+  assert.equal(cockpitResponse.status, 200, JSON.stringify(cockpit));
+  assert.ok(cockpit.cockpitLanes.some((lane) =>
+    lane.id === 'fara_peer_automation' &&
+    lane.permissionEnvelope === 'read_only' &&
+    lane.status === 'ready'
+  ));
+  assert.ok(cockpit.actionCards.some((card) =>
+    card.id === 'fara_peer_automation_pulse' &&
+    card.href === '/api/fara-peer-chat/automation-pulse' &&
+    card.mayExecuteWithoutConsent === true
+  ));
+  assert.ok(cockpit.actionCards.some((card) =>
+    card.id === 'fara_peer_automation_schedule' &&
+    card.href === '/api/fara-peer-chat/automation-schedule' &&
+    card.permissionEnvelope === 'read_only_receipt_schedule'
+  ));
+  assert.equal(cockpit.faraPeerAutomation.latestPulse.pulseId, pulse.pulseId);
+  assert.equal(cockpit.destructiveActionsTaken, false);
+  assert.equal(cockpit.desktopAutomationExecuted, false);
+
+  const scheduleResponse = await fetch(`${baseUrl}/api/fara-peer-chat/automation-schedule`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      intervalMs: 60_000,
+      objective: 'Scheduled read-only Fara/Brittney pulse test',
+      cadence: 'scheduled-test',
+      runImmediately: true,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const schedule = await scheduleResponse.json();
+  assert.equal(scheduleResponse.status, 200, JSON.stringify(schedule));
+  assert.equal(schedule.status, 'enabled');
+  assert.equal(schedule.schedule.intervalMs, 60_000);
+  assert.equal(schedule.schedule.hiddenAutomationAllowed, false);
+  assert.equal(schedule.schedule.destructiveActionsTaken, false);
+  assert.equal(schedule.schedule.desktopAutomationExecuted, false);
+  assert.equal(schedule.immediatePulse.cadence, 'scheduled-test');
+  assert.equal(schedule.immediatePulse.hiddenAutomationAllowed, false);
+  assert.equal(schedule.immediatePulse.desktopAutomationExecuted, false);
+  assert.ok(existsSync(schedule.immediatePulse.receiptPath));
+
+  const scheduleStatusResponse = await fetch(`${baseUrl}/api/fara-peer-chat/automation-schedule`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const scheduleStatus = await scheduleStatusResponse.json();
+  assert.equal(scheduleStatusResponse.status, 200, JSON.stringify(scheduleStatus));
+  assert.equal(scheduleStatus.schedule.status, 'enabled');
+  assert.equal(scheduleStatus.schedule.lastPulseId, schedule.immediatePulse.pulseId);
+
+  const promotionResponse = await fetch(`${baseUrl}/api/fara-peer-chat/promote-proposal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pulseId: pulse.pulseId,
+      operation: 'queue_codebase_fix_shakedown_batch',
+      runCount: 3,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const promotion = await promotionResponse.json();
+  assert.equal(promotionResponse.status, 200, JSON.stringify(promotion));
+  assert.equal(promotion.status, 'promoted_to_improvement_run_queue');
+  assert.equal(promotion.permissionEnvelope, 'receipt_backed_queue');
+  assert.equal(promotion.approvalRequiredForDesktopAutomation, true);
+  assert.equal(promotion.hiddenAutomationAllowed, false);
+  assert.equal(promotion.destructiveActionsTaken, false);
+  assert.equal(promotion.desktopAutomationExecuted, false);
+  assert.equal(promotion.queuedRun.queuedRunCount, 3);
+  assert.ok(existsSync(promotion.receipt.receiptPath));
+  assert.ok(existsSync(promotion.queuedRun.receiptPath));
+
+  const promotionHistoryResponse = await fetch(`${baseUrl}/api/fara-peer-chat/promotions`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const promotionHistory = await promotionHistoryResponse.json();
+  assert.equal(promotionHistoryResponse.status, 200, JSON.stringify(promotionHistory));
+  assert.equal(promotionHistory.items[0].promotionId, promotion.promotionId);
+  assert.equal(promotionHistory.items[0].promotedRunId, promotion.promotedRunId);
+  assert.equal(promotionHistory.items[0].desktopAutomationExecuted, false);
+
+  const improvementHistoryResponse = await fetch(`${baseUrl}/api/improvement-runs`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  const improvementHistory = await improvementHistoryResponse.json();
+  assert.equal(improvementHistoryResponse.status, 200, JSON.stringify(improvementHistory));
+  assert.ok(improvementHistory.items.some((item) => item.runId === promotion.promotedRunId));
+
+  const blockedPromotionResponse = await fetch(`${baseUrl}/api/fara-peer-chat/promote-proposal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pulseId: pulse.pulseId,
+      operation: 'check_desktop_bridge_readiness',
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const blockedPromotion = await blockedPromotionResponse.json();
+  assert.equal(blockedPromotionResponse.status, 403, JSON.stringify(blockedPromotion));
+  assert.equal(blockedPromotion.error, 'proposal_is_read_only_and_not_promotable');
+  assert.equal(blockedPromotion.destructiveActionsTaken, false);
+  assert.equal(blockedPromotion.desktopAutomationExecuted, false);
+
+  const disableScheduleResponse = await fetch(`${baseUrl}/api/fara-peer-chat/automation-schedule`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intervalMs: 0 }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const disabledSchedule = await disableScheduleResponse.json();
+  assert.equal(disableScheduleResponse.status, 200, JSON.stringify(disabledSchedule));
+  assert.equal(disabledSchedule.schedule.status, 'disabled');
+  assert.equal(disabledSchedule.destructiveActionsTaken, false);
+  assert.equal(disabledSchedule.desktopAutomationExecuted, false);
 } finally {
   server.kill();
   rmSync(receiptsDir, { recursive: true, force: true });

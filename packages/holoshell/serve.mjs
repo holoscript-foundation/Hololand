@@ -25,6 +25,7 @@ const DIST_DIR = join(__dirname, 'dist');
 const HTML_PATH = join(DIST_DIR, 'operate-room.html');
 const BRITTNEY_COCKPIT_CAPSULE_SCHEMA = 'hololand.holoshell.brittney-cockpit-capsule.v0.1.0';
 const BRITTNEY_COCKPIT_SOURCE = 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus';
+const FARA_PEER_AUTOMATION_SOURCE = 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus';
 const REPO_ROOT = join(__dirname, '..', '..');
 const HOLOSHELL_TMP_DIR = process.env.HOLOSHELL_TMP_DIR || join(REPO_ROOT, '.tmp', 'holoshell');
 const LEGACY_WINDOW_INVENTORY_SOURCE = 'apps/holoshell/source/holoshell-legacy-window-inventory.hsplus';
@@ -46,6 +47,28 @@ const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
 // surface is hosted so the laptop/Quest are just screens (founder 2026-06-17) — set
 // HOLOSHELL_SERVE_HOST=0.0.0.0 so http://holojetson.local:8747 is LAN-reachable.
 const HOST = process.env.HOLOSHELL_SERVE_HOST ?? '127.0.0.1';
+const FARA_PEER_AUTOMATION_MIN_INTERVAL_MS = 60_000;
+const FARA_PEER_AUTOMATION_DEFAULT_INTERVAL_MS = Number(process.env.HOLOSHELL_FARA_PEER_AUTOMATION_INTERVAL_MS || 0);
+const FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE =
+  process.env.HOLOSHELL_FARA_PEER_AUTOMATION_OBJECTIVE ||
+  'Keep HoloShell moving through read-only Fara/Brittney peer coordination';
+let faraPeerAutomationTimer = null;
+let faraPeerAutomationScheduleState = {
+  schemaVersion: 'hololand.holoshell.fara-peer-automation-schedule.v0.1.0',
+  source: FARA_PEER_AUTOMATION_SOURCE,
+  status: 'disabled',
+  intervalMs: 0,
+  objective: FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE,
+  cadence: 'scheduled',
+  configuredAt: null,
+  nextPulseAt: null,
+  lastPulseAt: null,
+  lastPulseId: null,
+  hiddenAutomationAllowed: false,
+  destructiveActionsTaken: false,
+  desktopAutomationExecuted: false,
+  receiptRequired: true,
+};
 
 const RECEIPTS_DIR =
   process.env.HOLOSHELL_RECEIPTS_DIR ??
@@ -1128,6 +1151,14 @@ function faraPeerAutomationReceipts() {
   return readReceipts('.fara-peer-automation.json');
 }
 
+function faraPeerAutomationPromotionReceipts() {
+  return readReceipts('.fara-peer-promotion.json');
+}
+
+function findFaraPeerAutomationReceipt(pulseId) {
+  return faraPeerAutomationReceipts().find((receipt) => receipt.pulseId === pulseId);
+}
+
 function faraPeerAutomationHistory() {
   return faraPeerAutomationReceipts().slice(0, 20).map((receipt) => ({
     pulseId: receipt.pulseId,
@@ -1138,6 +1169,21 @@ function faraPeerAutomationHistory() {
     lane: receipt.lane,
     permissionEnvelope: receipt.permissionEnvelope,
     nextSafeActionCount: receipt.nextSafeActions?.length || 0,
+    destructiveActionsTaken: receipt.destructiveActionsTaken,
+    desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+    receiptPath: receipt.receiptPath,
+  }));
+}
+
+function faraPeerAutomationPromotionHistory() {
+  return faraPeerAutomationPromotionReceipts().slice(0, 20).map((receipt) => ({
+    promotionId: receipt.promotionId,
+    pulseId: receipt.pulseId,
+    status: receipt.status,
+    generatedAt: receipt.generatedAt,
+    operation: receipt.operation,
+    promotedRunId: receipt.promotedRunId,
+    permissionEnvelope: receipt.permissionEnvelope,
     destructiveActionsTaken: receipt.destructiveActionsTaken,
     desktopAutomationExecuted: receipt.desktopAutomationExecuted,
     receiptPath: receipt.receiptPath,
@@ -1188,6 +1234,15 @@ function writeImprovementExecutionReceipt(receipt) {
 function writeFaraPeerAutomationReceipt(receipt) {
   mkdirSync(RECEIPTS_DIR, { recursive: true });
   const fileName = `${receipt.pulseId}.fara-peer-automation.json`;
+  const receiptPath = join(RECEIPTS_DIR, fileName);
+  const withPath = { ...receipt, receiptPath };
+  writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
+  return withPath;
+}
+
+function writeFaraPeerAutomationPromotionReceipt(receipt) {
+  mkdirSync(RECEIPTS_DIR, { recursive: true });
+  const fileName = `${receipt.promotionId}.fara-peer-promotion.json`;
   const receiptPath = join(RECEIPTS_DIR, fileName);
   const withPath = { ...receipt, receiptPath };
   writeFileSync(receiptPath, `${JSON.stringify(withPath, null, 2)}\n`, 'utf8');
@@ -1570,6 +1625,93 @@ function codebaseFixEvidenceFromPayload(payload, limit) {
     .slice(0, limit);
 }
 
+function normalizeFaraPeerAutomationInterval(value) {
+  const parsed = Number.parseInt(String(value ?? 0), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.max(FARA_PEER_AUTOMATION_MIN_INTERVAL_MS, parsed);
+}
+
+function faraPeerAutomationScheduleSnapshot() {
+  return { ...faraPeerAutomationScheduleState };
+}
+
+function clearFaraPeerAutomationSchedule() {
+  if (faraPeerAutomationTimer) {
+    clearInterval(faraPeerAutomationTimer);
+    faraPeerAutomationTimer = null;
+  }
+}
+
+function configureFaraPeerAutomationSchedule(payload = {}) {
+  clearFaraPeerAutomationSchedule();
+  const intervalMs = normalizeFaraPeerAutomationInterval(payload.intervalMs ?? payload.interval ?? payload.everyMs);
+  const objective = String(payload.objective || FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE).trim().slice(0, 500);
+  const cadence = String(payload.cadence || 'scheduled').trim().slice(0, 80) || 'scheduled';
+  const configuredAt = new Date().toISOString();
+  let immediatePulse = null;
+  faraPeerAutomationScheduleState = {
+    schemaVersion: 'hololand.holoshell.fara-peer-automation-schedule.v0.1.0',
+    source: FARA_PEER_AUTOMATION_SOURCE,
+    status: intervalMs > 0 ? 'enabled' : 'disabled',
+    intervalMs,
+    objective,
+    cadence,
+    configuredAt,
+    nextPulseAt: intervalMs > 0 ? new Date(Date.now() + intervalMs).toISOString() : null,
+    lastPulseAt: faraPeerAutomationScheduleState.lastPulseAt || null,
+    lastPulseId: faraPeerAutomationScheduleState.lastPulseId || null,
+    hiddenAutomationAllowed: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+  };
+
+  const recordScheduledPulse = (trigger = 'interval') => {
+    const pulse = buildFaraPeerAutomationPulse({
+      objective,
+      cadence,
+      trigger: `schedule:${trigger}`,
+      scheduleIntervalMs: intervalMs,
+    });
+    faraPeerAutomationScheduleState = {
+      ...faraPeerAutomationScheduleState,
+      lastPulseAt: pulse.generatedAt,
+      lastPulseId: pulse.pulseId,
+      nextPulseAt: intervalMs > 0 ? new Date(Date.now() + intervalMs).toISOString() : null,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    };
+    return pulse;
+  };
+
+  if (intervalMs > 0) {
+    faraPeerAutomationTimer = setInterval(() => {
+      try {
+        recordScheduledPulse('interval');
+      } catch (err) {
+        faraPeerAutomationScheduleState = {
+          ...faraPeerAutomationScheduleState,
+          status: 'error',
+          lastError: String(err.message || err).slice(0, 300),
+          nextPulseAt: null,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+        };
+        clearFaraPeerAutomationSchedule();
+      }
+    }, intervalMs);
+    faraPeerAutomationTimer.unref?.();
+    if (payload.runImmediately === true) {
+      immediatePulse = recordScheduledPulse('immediate');
+    }
+  }
+
+  return {
+    schedule: faraPeerAutomationScheduleSnapshot(),
+    immediatePulse,
+  };
+}
+
 function buildFaraPeerAutomationPulse(payload = {}) {
   const snapshot = buildLiveStatusSnapshot();
   const routing = buildNativeRunRouting(snapshot, payload.objective || payload.message || '');
@@ -1578,7 +1720,7 @@ function buildFaraPeerAutomationPulse(payload = {}) {
   const objective = String(
     payload.objective
     || payload.message
-    || 'Keep HoloShell moving through read-only Fara/Brittney peer coordination'
+    || FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE
   ).trim().slice(0, 500);
   const cadence = String(payload.cadence || payload.trigger || 'manual').trim().slice(0, 80) || 'manual';
   const latestRun = improvementRunHistory()[0] || null;
@@ -1625,7 +1767,7 @@ function buildFaraPeerAutomationPulse(payload = {}) {
   ];
   return writeFaraPeerAutomationReceipt({
     schemaVersion: 'hololand.holoshell.fara-peer-automation.v0.1.0',
-    source: 'apps/holoshell/source/holoshell-fara-peer-automation.hsplus',
+    source: FARA_PEER_AUTOMATION_SOURCE,
     pulseId,
     generatedAt,
     status: 'pulse_recorded',
@@ -1647,6 +1789,10 @@ function buildFaraPeerAutomationPulse(payload = {}) {
     route: {
       pulseEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
       historyEndpoint: 'GET /api/fara-peer-chat/automation-pulses',
+      scheduleEndpoint: 'POST /api/fara-peer-chat/automation-schedule',
+      scheduleStatusEndpoint: 'GET /api/fara-peer-chat/automation-schedule',
+      promotionEndpoint: 'POST /api/fara-peer-chat/promote-proposal',
+      promotionHistoryEndpoint: 'GET /api/fara-peer-chat/promotions',
       liveStatusEndpoint: 'GET /api/live-status',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
@@ -1661,6 +1807,81 @@ function buildFaraPeerAutomationPulse(payload = {}) {
       nextSafeActionCount: nextSafeActions.length,
     },
     nextSafeActions,
+  });
+}
+
+function promoteFaraPeerAutomationProposal(payload = {}) {
+  const pulseId = String(payload.pulseId || '').trim();
+  const operation = String(payload.operation || '').trim();
+  if (!pulseId) {
+    const err = new Error('missing_pulseId');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!operation) {
+    const err = new Error('missing_operation');
+    err.statusCode = 400;
+    throw err;
+  }
+  const pulse = findFaraPeerAutomationReceipt(pulseId);
+  if (!pulse) {
+    const err = new Error('fara_peer_pulse_not_found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const proposedAction = Array.isArray(pulse.nextSafeActions)
+    ? pulse.nextSafeActions.find((action) => action.operation === operation)
+    : null;
+  if (!proposedAction) {
+    const err = new Error('proposal_not_found_on_pulse');
+    err.statusCode = 404;
+    throw err;
+  }
+  const allowedPromotion = operation === 'queue_codebase_fix_shakedown_batch';
+  if (!allowedPromotion) {
+    const err = new Error('proposal_is_read_only_and_not_promotable');
+    err.statusCode = 403;
+    err.proposal = proposedAction;
+    throw err;
+  }
+
+  const queuedRun = buildImprovementRunReceipt({
+    objective: payload.objective ||
+      `Fara/Brittney promoted shakedown: ${pulse.objective || FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE}`,
+    runCount: payload.runCount || payload.count || 10,
+    sourcePulseId: pulseId,
+  });
+  const promotionId = `fara_peer_promotion_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  return writeFaraPeerAutomationPromotionReceipt({
+    schemaVersion: 'hololand.holoshell.fara-peer-proposal-promotion.v0.1.0',
+    source: FARA_PEER_AUTOMATION_SOURCE,
+    promotionId,
+    pulseId,
+    generatedAt: new Date().toISOString(),
+    status: 'promoted_to_improvement_run_queue',
+    operation,
+    lane: 'improvement_run_queue',
+    permissionEnvelope: 'receipt_backed_queue',
+    promotedRunId: queuedRun.runId,
+    promotedRunReceiptPath: queuedRun.receiptPath,
+    sourcePulseReceiptPath: pulse.receiptPath,
+    approvalRequiredForDesktopAutomation: true,
+    hiddenAutomationAllowed: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    promotedAction: proposedAction,
+    queuedRun: {
+      runId: queuedRun.runId,
+      status: queuedRun.status,
+      objective: queuedRun.objective,
+      requestedRunCount: queuedRun.requestedRunCount,
+      queuedRunCount: queuedRun.queuedRunCount,
+      receiptPath: queuedRun.receiptPath,
+      destructiveActionsTaken: queuedRun.destructiveActionsTaken,
+      approvalRequiredForDesktopAutomation: queuedRun.approvalRequiredForDesktopAutomation,
+    },
+    nextSafeStep: 'Review the queued improvement run, then attach actual patch and validation evidence before counted execution.',
   });
 }
 
@@ -2154,6 +2375,11 @@ function buildLiveStatusSnapshot() {
   const modelLibrary = modelLibrarySnapshot();
   const nativeResources = nativeResourceSnapshot();
   const laptopReasoning = laptopReasoningStatusSnapshot();
+  const faraPeerAutomation = {
+    latestPulse: faraPeerAutomationHistory()[0] || null,
+    schedule: faraPeerAutomationScheduleSnapshot(),
+    latestPromotion: faraPeerAutomationPromotionHistory()[0] || null,
+  };
   return {
     schemaVersion: 'hololand.holoshell.live-status.v0.1.0',
     generatedAt: new Date().toISOString(),
@@ -2174,6 +2400,10 @@ function buildLiveStatusSnapshot() {
       windowAwarenessReportEndpoint: 'POST /api/window-awareness/report',
       faraPeerAutomationEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
       faraPeerAutomationHistoryEndpoint: 'GET /api/fara-peer-chat/automation-pulses',
+      faraPeerAutomationScheduleEndpoint: 'POST /api/fara-peer-chat/automation-schedule',
+      faraPeerAutomationScheduleStatusEndpoint: 'GET /api/fara-peer-chat/automation-schedule',
+      faraPeerAutomationPromotionEndpoint: 'POST /api/fara-peer-chat/promote-proposal',
+      faraPeerAutomationPromotionHistoryEndpoint: 'GET /api/fara-peer-chat/promotions',
       improvementRunEndpoint: 'POST /api/improvement-runs',
       improvementRunExecuteEndpoint: 'POST /api/improvement-runs/:runId/execute',
       holotuneTraceSource: 'deferred until codebase-fix shakedown validation',
@@ -2193,6 +2423,8 @@ function buildLiveStatusSnapshot() {
       'operator_terminal_session',
       'fara_brittney_peer_chat',
       'fara_peer_automation_pulse',
+      'fara_peer_automation_schedule',
+      'fara_peer_proposal_promotion',
       'fara_gui_grounding',
       'daimon_rehydration',
       'model_library',
@@ -2223,6 +2455,7 @@ function buildLiveStatusSnapshot() {
     ],
     modelLibrary,
     nativeResources,
+    faraPeerAutomation,
     gpu: gpuStatusSnapshot(),
     laptopReasoning,
     substratePressure: substratePressure(),
@@ -2269,6 +2502,9 @@ function nativeResourceSummary(snapshot) {
 }
 
 function formatLiveStatusBrief(snapshot) {
+  const latestPulse = snapshot.faraPeerAutomation?.latestPulse;
+  const schedule = snapshot.faraPeerAutomation?.schedule;
+  const latestPromotion = snapshot.faraPeerAutomation?.latestPromotion;
   return [
     '[Live HoloShell status context - answer from these fields; do not answer "unknown" when a field is present.]',
     `System status: ${snapshot.status}`,
@@ -2280,6 +2516,9 @@ function formatLiveStatusBrief(snapshot) {
     `Native resources: ${nativeResourceSummary(snapshot)}`,
     `GPU telemetry: ${snapshot.gpu.summary}`,
     `Laptop reasoning: ${snapshot.laptopReasoning.summary}`,
+    `Fara/Brittney pulse: ${latestPulse ? `${latestPulse.status} ${latestPulse.pulseId}; ${latestPulse.nextSafeActionCount} next-safe action(s)` : 'no pulse receipt yet'}`,
+    `Fara/Brittney scheduler: ${schedule?.status || 'unknown'}${schedule?.intervalMs ? ` every ${schedule.intervalMs}ms` : ''}`,
+    `Fara/Brittney promotion: ${latestPromotion ? `${latestPromotion.status} -> ${latestPromotion.promotedRunId}` : 'none'}`,
     `Substrate pressure: ${metricSummary(snapshot.substratePressure)}`,
     `Worktrees: ${gitSummary(snapshot.gitStatus)}`,
     `Pending consent receipts: ${snapshot.pendingConsentCount}`,
@@ -2292,12 +2531,16 @@ function formatLiveStatusBrief(snapshot) {
 function buildGroundedStatusReply(snapshot, message) {
   const wantsNextSteps = looksLikeNextStepsIntent(message);
   const baseGuardrails = `${snapshot.pendingConsentCount} pending consent(s), ${snapshot.staleProcessCount} stale git process(es), ${snapshot.recentExecutionCount} recent execution receipt(s) visible`;
+  const latestPulse = snapshot.faraPeerAutomation?.latestPulse;
+  const pulseSummary = latestPulse
+    ? `latest pulse ${latestPulse.pulseId} (${latestPulse.cadence}) exposed ${latestPulse.nextSafeActionCount} next-safe action(s)`
+    : 'no pulse receipt yet';
   if (wantsNextSteps) {
     return [
       'Next steps, grounded in live HoloShell state:',
       `1. Keep Brittney as the operator surface; chat is online at ${snapshot.route.url} and receipts are enabled at ${snapshot.receiptsDir}.`,
       `2. Keep model roles separated: vision models read screens/images through the vision_language lane; Fara peer chat is read-only/free, while Fara desktop plans remain guarded at ${snapshot.route.desktopControlEndpoint}.`,
-      `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; it writes a read-only receipt and next-safe proposals only.`,
+      `3. Let the Fara/Brittney automation pulse keep momentum through ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}. Schedule/status live at ${snapshot.route.faraPeerAutomationScheduleStatusEndpoint}.`,
       `4. Queue codebase-fix batches through ${snapshot.route.improvementRunEndpoint}, then count capped shakedowns only when patch and validation evidence is attached through ${snapshot.route.improvementRunExecuteEndpoint}.`,
       `5. Check laptop desktop bridge readiness through ${snapshot.route.desktopBridgeEndpoint}; Fara plans remain approval-gated and non-mutating until consent exists.`,
       `6. Balance processing across the owned-GPU lanes: ${laneSummary(snapshot)}. Current GPU telemetry: ${snapshot.gpu.summary}. Laptop reasoning: ${snapshot.laptopReasoning.summary}.`,
@@ -2315,7 +2558,7 @@ function buildGroundedStatusReply(snapshot, message) {
     `Avatar status: ${snapshot.avatar.status}; Daimon context rides along when D.053 has emerged.`,
     `Active capabilities: ${snapshot.capabilities.join(', ')}.`,
     `Active lanes: ${laneSummary(snapshot)}.`,
-    `Fara/Brittney automation pulse: ${snapshot.route.faraPeerAutomationEndpoint}; read-only receipt and next-safe proposals only.`,
+    `Fara/Brittney automation pulse: ${snapshot.route.faraPeerAutomationEndpoint}; ${pulseSummary}; promotion route ${snapshot.route.faraPeerAutomationPromotionEndpoint}.`,
     `Improvement runs: queue through ${snapshot.route.improvementRunEndpoint}, count codebase-fix shakedowns through ${snapshot.route.improvementRunExecuteEndpoint} only after patch and validation evidence; HoloTune is deferred.`,
     `Model library: ${modelLibrarySummary(snapshot)}.`,
     `Native resources: ${nativeResourceSummary(snapshot)}.`,
@@ -2359,6 +2602,20 @@ function liveStatusProposals(snapshot, message) {
       lane: 'fara_peer_chat',
       endpoint: snapshot.route.faraPeerAutomationEndpoint,
       permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      operation: 'review_fara_brittney_automation_schedule',
+      lane: 'fara_peer_chat',
+      endpoint: snapshot.route.faraPeerAutomationScheduleStatusEndpoint,
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      operation: 'promote_fara_brittney_safe_queue_proposal',
+      lane: 'improvement_run_queue',
+      endpoint: snapshot.route.faraPeerAutomationPromotionEndpoint,
+      permissionEnvelope: 'receipt_backed_queue',
       receiptRequired: true,
     },
     {
@@ -2475,6 +2732,7 @@ function liveStatusResponseEnvelope(snapshot) {
     laneCount: snapshot.lanes.length,
     modelLibrary: snapshot.modelLibrary,
     nativeResources: snapshot.nativeResources,
+    faraPeerAutomation: snapshot.faraPeerAutomation,
     gpu: snapshot.gpu,
     laptopReasoning: snapshot.laptopReasoning,
     pendingConsentCount: snapshot.pendingConsentCount,
@@ -2491,6 +2749,11 @@ function buildBrittneyCockpitCapsule() {
   const windowAwareness = buildWindowAwareness();
   const improvementRuns = improvementRunHistory();
   const latestRun = improvementRuns[0] || null;
+  const faraAutomation = {
+    latestPulse: faraPeerAutomationHistory()[0] || null,
+    schedule: faraPeerAutomationScheduleSnapshot(),
+    latestPromotion: faraPeerAutomationPromotionHistory()[0] || null,
+  };
   const bridgeReady = desktopBridge.status === 'ready';
   const bridgeAttention = ['awaiting_laptop_daemon', 'stale_laptop_report'].includes(desktopBridge.status);
   const runtimeTruthStatus = liveStatus.status === 'online' ? 'ready' : 'attention';
@@ -2499,6 +2762,9 @@ function buildBrittneyCockpitCapsule() {
   const desktopBridgeStatus = bridgeReady ? 'ready' : (bridgeAttention ? 'attention' : desktopBridge.status || 'unknown');
   const operatorTerminalStatus = operatorTerminal.terminal.status === 'ready' ? 'ready' : 'attention';
   const windowAwarenessStatus = windowAwareness.status === 'windows_visible' ? 'ready' : 'attention';
+  const faraAutomationStatus = faraAutomation.latestPulse
+    ? 'ready'
+    : (faraAutomation.schedule.status === 'enabled' ? 'waiting' : 'attention');
   const toolActionStatus = 'window_preflights_ready';
   const laptopReasoning = liveStatus.laptopReasoning || laptopReasoningStatusSnapshot();
   const laptopReasoningStatus = ['completed', 'partial'].includes(laptopReasoning.status)
@@ -2556,6 +2822,18 @@ function buildBrittneyCockpitCapsule() {
       value: laptopReasoning.status,
       detail: laptopReasoning.summary,
       sourceEndpoint: 'GET /api/live-status',
+      permissionEnvelope: 'read_only',
+      receiptRequired: true,
+    },
+    {
+      id: 'fara_peer_automation',
+      label: 'Fara Pulse',
+      status: faraAutomationStatus,
+      value: faraAutomation.latestPulse?.status || faraAutomation.schedule.status,
+      detail: faraAutomation.latestPulse
+        ? `${faraAutomation.latestPulse.cadence}; ${faraAutomation.latestPulse.nextSafeActionCount} next-safe action(s)`
+        : `schedule ${faraAutomation.schedule.status}`,
+      sourceEndpoint: 'POST /api/fara-peer-chat/automation-pulse',
       permissionEnvelope: 'read_only',
       receiptRequired: true,
     },
@@ -2644,6 +2922,26 @@ function buildBrittneyCockpitCapsule() {
       receiptRequired: true,
     },
     {
+      id: 'fara_peer_automation_pulse',
+      label: 'Fara Pulse',
+      method: 'POST',
+      href: '/api/fara-peer-chat/automation-pulse',
+      lane: 'fara_peer_chat',
+      permissionEnvelope: 'read_only',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
+      id: 'fara_peer_automation_schedule',
+      label: 'Pulse Schedule',
+      method: 'POST',
+      href: '/api/fara-peer-chat/automation-schedule',
+      lane: 'fara_peer_chat',
+      permissionEnvelope: 'read_only_receipt_schedule',
+      mayExecuteWithoutConsent: true,
+      receiptRequired: true,
+    },
+    {
       id: 'context_capsule',
       label: 'Context Capsule',
       method: 'GET',
@@ -2680,6 +2978,7 @@ function buildBrittneyCockpitCapsule() {
       contextCarryStatus,
       desktopBridgeStatus,
       laptopReasoningStatus,
+      faraAutomationStatus,
       operatorTerminalStatus,
       windowAwarenessStatus,
       toolActionStatus,
@@ -2692,6 +2991,9 @@ function buildBrittneyCockpitCapsule() {
       windowActionCardCount: windowActionCards.length,
       preflightPathCount: preflightPaths.length,
       latestImprovementRunId: latestRun?.runId || '',
+      latestFaraPeerPulseId: faraAutomation.latestPulse?.pulseId || '',
+      faraPeerAutomationScheduleStatus: faraAutomation.schedule.status,
+      latestFaraPeerPromotionId: faraAutomation.latestPromotion?.promotionId || '',
     },
     route: {
       ...liveStatus.route,
@@ -2701,6 +3003,7 @@ function buildBrittneyCockpitCapsule() {
     avatar: liveStatus.avatar,
     cockpitLanes,
     actionCards,
+    faraPeerAutomation: faraAutomation,
     laptopReasoning,
     windowAwareness,
     preflightPaths,
@@ -2730,6 +3033,10 @@ function buildBrittneyCockpitCapsule() {
       recentExecutionCount: liveStatus.recentExecutionCount,
       latestImprovementRunId: latestRun?.runId || '',
       latestImprovementRunReceipt: latestRun?.receiptPath || null,
+      latestFaraPeerPulseId: faraAutomation.latestPulse?.pulseId || '',
+      latestFaraPeerPulseReceipt: faraAutomation.latestPulse?.receiptPath || null,
+      latestFaraPeerPromotionId: faraAutomation.latestPromotion?.promotionId || '',
+      latestFaraPeerPromotionReceipt: faraAutomation.latestPromotion?.receiptPath || null,
       operatorTerminalReceiptHash: operatorTerminal.terminal.receiptHash,
       operatorTerminalReceiptStatus: operatorTerminal.terminal.receiptStatus,
       legacyWindowInventoryHash: windowAwareness.receipts.legacyWindowInventoryHash,
@@ -2845,6 +3152,91 @@ async function handleRequest(req, res) {
       destructiveActionsTaken: false,
       desktopAutomationExecuted: false,
       receiptRequired: true,
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/fara-peer-chat/automation-schedule') {
+    respond(res, {
+      schemaVersion: 'hololand.holoshell.fara-peer-automation-schedule-response.v0.1.0',
+      schedule: faraPeerAutomationScheduleSnapshot(),
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      receiptRequired: true,
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/fara-peer-chat/automation-schedule') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const result = configureFaraPeerAutomationSchedule(payload);
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.fara-peer-automation-schedule-response.v0.1.0',
+          status: result.schedule.status,
+          schedule: result.schedule,
+          immediatePulse: result.immediatePulse,
+          hiddenAutomationAllowed: false,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+        });
+      } catch (err) {
+        respond(res, {
+          error: String(err.message || err).slice(0, 300),
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+        }, 400);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && path === '/api/fara-peer-chat/promotions') {
+    respond(res, {
+      schemaVersion: 'hololand.holoshell.fara-peer-proposal-promotion-history.v0.1.0',
+      items: faraPeerAutomationPromotionHistory(),
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      receiptRequired: true,
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/fara-peer-chat/promote-proposal') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const receipt = promoteFaraPeerAutomationProposal(payload);
+        respond(res, {
+          schemaVersion: 'hololand.holoshell.fara-peer-proposal-promotion-response.v0.1.0',
+          status: receipt.status,
+          promotionId: receipt.promotionId,
+          pulseId: receipt.pulseId,
+          operation: receipt.operation,
+          promotedRunId: receipt.promotedRunId,
+          permissionEnvelope: receipt.permissionEnvelope,
+          approvalRequiredForDesktopAutomation: receipt.approvalRequiredForDesktopAutomation,
+          hiddenAutomationAllowed: receipt.hiddenAutomationAllowed,
+          destructiveActionsTaken: receipt.destructiveActionsTaken,
+          desktopAutomationExecuted: receipt.desktopAutomationExecuted,
+          queuedRun: receipt.queuedRun,
+          nextSafeStep: receipt.nextSafeStep,
+          receipt,
+        });
+      } catch (err) {
+        respond(res, {
+          error: String(err.message || err).slice(0, 300),
+          proposal: err.proposal || null,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+        }, err.statusCode || 500);
+      }
     });
     return;
   }
@@ -3332,6 +3724,15 @@ const server = createServer(handleRequest);
 server.listen(PORT, HOST, () => {
   console.log(`HoloShell Operate Room: http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}  (bound ${HOST})`);
   console.log(`  Receipts: ${RECEIPTS_DIR}`);
+  if (FARA_PEER_AUTOMATION_DEFAULT_INTERVAL_MS > 0) {
+    configureFaraPeerAutomationSchedule({
+      intervalMs: FARA_PEER_AUTOMATION_DEFAULT_INTERVAL_MS,
+      objective: FARA_PEER_AUTOMATION_DEFAULT_OBJECTIVE,
+      cadence: 'env-scheduled',
+      runImmediately: false,
+    });
+    console.log(`  Fara/Brittney pulse schedule: every ${faraPeerAutomationScheduleState.intervalMs}ms`);
+  }
   if (!existsSync(HTML_PATH)) {
     console.warn('  Warning: operate-room.html not found. Run compile.mjs first.');
   }

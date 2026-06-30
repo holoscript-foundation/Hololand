@@ -165,6 +165,7 @@ try {
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'context_carry' && /goal, files, tests/.test(lane.detail)));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'desktop_bridge' && lane.receiptRequired === true));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'laptop_reasoning' && lane.permissionEnvelope === 'read_only'));
+  assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'fara_peer_automation' && lane.permissionEnvelope === 'read_only'));
   assert.ok(capsule.cockpitLanes.some((lane) => lane.id === 'window_awareness' && lane.permissionEnvelope === 'read_only'));
   assert.equal(capsule.summary.laptopReasoningLane, 'laptop-hardware');
   assert.equal(capsule.summary.laptopReasoningModelInvocationPerformed, false);
@@ -172,7 +173,10 @@ try {
   assert.equal(capsule.laptopReasoning.lane, 'laptop-hardware');
   assert.ok(capsule.actionCards.some((card) => card.id === 'desktop_control_plan' && card.permissionEnvelope === 'read_only_plan'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'laptop_reasoning_status' && card.lane === 'laptop-hardware'));
+  assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_pulse' && card.href === '/api/fara-peer-chat/automation-pulse'));
+  assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_schedule' && card.permissionEnvelope === 'read_only_receipt_schedule'));
   assert.ok(capsule.actionCards.some((card) => card.id === 'context_capsule' && card.href === '/api/cockpit/capsule'));
+  assert.equal(capsule.faraPeerAutomation.schedule.status, 'disabled');
   assert.ok(capsule.windowAwareness);
   assert.equal(capsule.windowAwareness.status, 'windows_visible');
   assert.equal(capsule.windowAwareness.summary.rawWindowTitlesIncluded, false);
@@ -217,6 +221,7 @@ try {
   assert.match(hsplusSource, /ContextCapsuleCarriesIdentityAcrossCompaction/);
   assert.match(hsplusSource, /WindowAwarePreflightCards/);
   assert.match(hsplusSource, /LaptopReasoningPingbackIsVisible/);
+  assert.match(hsplusSource, /FaraPeerAutomationIsVisibleButNonMutating/);
 
   const operateRoomSource = readFileSync(resolve('packages/holoshell/scenes/operate-room.holo'), 'utf8');
   assert.match(operateRoomSource, /brittney_cockpit_source/);

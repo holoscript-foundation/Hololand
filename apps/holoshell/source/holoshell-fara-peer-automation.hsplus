@@ -14,6 +14,10 @@ composition "HoloShell Fara Peer Automation" {
     serverModule: "packages/holoshell/serve.mjs"
     pulseEndpoint: "POST /api/fara-peer-chat/automation-pulse"
     historyEndpoint: "GET /api/fara-peer-chat/automation-pulses"
+    scheduleEndpoint: "POST /api/fara-peer-chat/automation-schedule"
+    scheduleStatusEndpoint: "GET /api/fara-peer-chat/automation-schedule"
+    promotionEndpoint: "POST /api/fara-peer-chat/promote-proposal"
+    promotionHistoryEndpoint: "GET /api/fara-peer-chat/promotions"
     liveStatusEndpoint: "GET /api/live-status"
     improvementRunEndpoint: "POST /api/improvement-runs"
     desktopBridgeEndpoint: "GET /api/desktop-control/bridge"
@@ -28,6 +32,11 @@ composition "HoloShell Fara Peer Automation" {
     latestPulseStatus: "idle"
     latestObjective: ""
     latestCadence: "manual"
+    scheduleStatus: "disabled"
+    scheduleIntervalMs: 0
+    nextPulseAt: ""
+    latestPromotionId: ""
+    latestPromotedRunId: ""
     permissionEnvelope: "read_only"
     hiddenAutomationAllowed: false
     desktopAutomationExecuted: false
@@ -58,6 +67,36 @@ composition "HoloShell Fara Peer Automation" {
     receiptRequired: true
   }
 
+  template "FaraPeerAutomationSchedule" {
+    type: "fara_peer_automation_schedule"
+    schemaVersion: "hololand.holoshell.fara-peer-automation-schedule.v0.1.0"
+    source: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
+    status: "disabled"
+    intervalMs: 0
+    minimumIntervalMs: 60000
+    permissionEnvelope: "read_only_receipt_schedule"
+    runImmediatelyMayRecordPulse: true
+    mayExecuteDesktopActions: false
+    mayMutateCode: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  template "FaraPeerProposalPromotion" {
+    type: "fara_peer_proposal_promotion"
+    schemaVersion: "hololand.holoshell.fara-peer-proposal-promotion.v0.1.0"
+    source: "apps/holoshell/source/holoshell-fara-peer-automation.hsplus"
+    allowedOperation: "queue_codebase_fix_shakedown_batch"
+    promotedLane: "improvement_run_queue"
+    permissionEnvelope: "receipt_backed_queue"
+    approvalRequiredForDesktopAutomation: true
+    hiddenAutomationAllowed: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
   policy "AutomationPulseKeepsMomentum" {
     appliesTo: ["peer_chat_automation", "momentum_pulse", "next_safe_action", "receipt_review_nudge"]
     lane: "fara_peer_chat"
@@ -67,6 +106,31 @@ composition "HoloShell Fara Peer Automation" {
     allowedOutputs: ["status_summary", "next_safe_action", "receipt_review_nudge", "improvement_run_proposal", "desktop_bridge_check"]
     forbiddenOutputs: ["desktop_execution", "hidden_browser_automation", "code_mutation", "send_message", "purchase", "delete_data"]
     desktopMutationRequires: ["desktop_action_preflight", "fresh_user_gesture", "consent_token", "execution_receipt"]
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "ScheduledPulseIsReceiptOnly" {
+    appliesTo: ["automation_schedule", "scheduled_peer_pulse", "run_immediately_pulse"]
+    lane: "fara_peer_chat"
+    minimumIntervalMs: 60000
+    permissionEnvelope: "read_only_receipt_schedule"
+    allowedOutputs: ["pulse_receipt", "schedule_status", "next_safe_action"]
+    forbiddenOutputs: ["desktop_execution", "hidden_browser_automation", "code_mutation", "send_message", "purchase", "delete_data"]
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "PromotionCanOnlyQueueImprovementRunReceipt" {
+    appliesTo: ["proposal_promotion", "queue_codebase_fix_shakedown_batch"]
+    fromLane: "fara_peer_chat"
+    toLane: "improvement_run_queue"
+    allowedOperation: "queue_codebase_fix_shakedown_batch"
+    permissionEnvelope: "receipt_backed_queue"
+    approvalRequiredForDesktopAutomation: true
+    forbiddenPromotions: ["check_desktop_bridge_readiness", "desktop_control_plan", "desktop_execution", "code_mutation_without_patch_evidence"]
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
     receiptRequired: true
@@ -91,6 +155,42 @@ composition "HoloShell Fara Peer Automation" {
       may_emit_next_safe_actions: true,
       may_queue_receipts_directly: false,
       may_execute_desktop_actions: false,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action configure_fara_peer_automation_schedule(schedule) {
+    state.scheduleStatus = schedule.status
+    state.scheduleIntervalMs = schedule.intervalMs
+    state.nextPulseAt = schedule.nextPulseAt
+    emit("holoshell:fara:brittney-automation-pulse", {
+      action: "fara_peer_automation_schedule_configured",
+      status: state.scheduleStatus,
+      interval_ms: state.scheduleIntervalMs,
+      next_pulse_at: state.nextPulseAt,
+      permission_envelope: "read_only_receipt_schedule",
+      hidden_automation_allowed: false,
+      destructive_actions_taken: false,
+      desktop_automation_executed: false,
+      receipt_required: true
+    })
+  }
+
+  action promote_fara_peer_safe_proposal(promotion) {
+    state.latestPromotionId = promotion.promotionId
+    state.latestPromotedRunId = promotion.promotedRunId
+    emit("holoshell:fara:brittney-automation-pulse", {
+      action: "fara_peer_safe_proposal_promoted",
+      promotion_id: state.latestPromotionId,
+      pulse_id: promotion.pulseId,
+      operation: promotion.operation,
+      promoted_run_id: state.latestPromotedRunId,
+      lane: "improvement_run_queue",
+      permission_envelope: "receipt_backed_queue",
+      approval_required_for_desktop_automation: true,
+      hidden_automation_allowed: false,
       destructive_actions_taken: false,
       desktop_automation_executed: false,
       receipt_required: true
