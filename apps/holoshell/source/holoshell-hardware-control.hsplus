@@ -365,7 +365,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "GET /workflow/holoclaw-runtime-bridge/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/grok-build", "POST /workflow/holoclaw-runtime-bridge", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "GET /workflow/sovereign-room-marathon/latest", "GET /workflow/holoclaw-runtime-bridge/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/sovereign-room-marathon", "POST /workflow/grok-build", "POST /workflow/holoclaw-runtime-bridge", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -379,6 +379,9 @@ composition "HoloShell Hardware Program Control" {
     taskLane: "local"
     taskTag: "local"
     cloudEscalationAllowed: false
+    sovereignRoomMarathonSource: "apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus"
+    sovereignRoomMarathonScript: "scripts/holoshell-sovereign-room-marathon.mjs"
+    sovereignRoomMarathonLatestReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     steps: ["resolve_sovereign_room", "open_terminal", "stage_room_command", "submit_room_command", "open_browser", "play_lofi_youtube"]
     defaultExecutionPolicy: "stage_only"
     approvalRequired: true
@@ -773,7 +776,33 @@ composition "HoloShell Hardware Program Control" {
       steps: state.activeWorkflowStepCount,
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       model_route: state.activeWorkflowModelRoute,
+      task_lane: workflow.summary.taskLane,
+      task_tag: workflow.summary.taskTag,
+      cloud_escalation_allowed: workflow.summary.cloudEscalationAllowed,
+      sovereign_room_receipt: workflow.summary.sovereignRoomMarathonReceipt,
       mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_sovereign_room_marathon_receipt(receipt) {
+    state.activeWorkflowKind = "sovereign_room_marathon"
+    state.activeWorkflowStatus = receipt.summary.status
+    state.activeWorkflowTargetSurface = "HoloMesh Room + Local Sovereign Lane"
+    emit("holoshell:workflow:sovereign-room-marathon", {
+      action: "sovereign_room_marathon_receipt_applied",
+      receipt_id: receipt.receiptId,
+      status: receipt.summary.status,
+      task_lane: receipt.summary.taskLane,
+      task_tag: receipt.summary.taskTag,
+      queue_open_count: receipt.summary.queueOpenCount,
+      matched_candidate_count: receipt.summary.matchedCandidateCount,
+      selected_task_id: receipt.summary.selectedTaskId,
+      selected_task_title: receipt.summary.selectedTaskTitle,
+      claim_requested: receipt.summary.claimRequested,
+      claim_succeeded: receipt.summary.claimSucceeded,
+      completion_claim_allowed: receipt.summary.completionClaimAllowed,
+      next_action: receipt.summary.nextAction,
       receipt_required: true
     })
   }

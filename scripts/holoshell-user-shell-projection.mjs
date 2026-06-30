@@ -133,27 +133,27 @@ function capabilityPacks(founderBoot, workflow, shardWorkflow) {
     targetObjectId: 'room-marathon',
     permissionEnvelope: 'guarded_execute',
     executionDefault: 'staged_not_run',
-    steps: ['open_terminal_or_claude_surface', 'route_kimi_or_ollama_cloud', 'open_browser', 'play_lofi_after_user_gesture'],
+    steps: ['open_terminal', 'run_sovereign_room_marathon', 'open_browser', 'play_lofi_after_user_gesture'],
     receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'brain_intent_gate_receipt'],
     modeIds: ['user.daily', 'user.operator'],
-    userPhrase: 'Open Claude or terminal and start room marathon with Kimi plus lofi',
-    brittneyInterpretation: 'Stage the multi-app workflow as one approval packet instead of firing separate uncontrolled launches.',
+    userPhrase: 'Start a sovereign room marathon for local-tagged tasks',
+    brittneyInterpretation: 'Stage the terminal, local room queue, sovereign task claim, browser, and lofi as one approval packet.',
     currentReceiptStatus: workflow.summary?.status || 'unknown',
   });
   packs.push({
-    id: 'user-pack.open-claude-chat',
-    label: 'Open Claude Chat',
-    derivedFrom: 'founder.agent_peer_surface',
-    userSurface: 'agent_chat_bubble',
-    targetObjectId: 'agents',
-    permissionEnvelope: 'guarded_execute',
-    executionDefault: 'staged_not_run',
-    steps: ['resolve_claude_desktop_or_cli', 'open_or_focus_claude', 'start_new_chat', 'insert_prompt_after_user_approval'],
-    receiptTypes: ['hardware_action_receipt', 'approval_bundle', 'peer_surface_context_receipt'],
+    id: 'user-pack.sovereign-room-status',
+    label: 'Sovereign Room Status',
+    derivedFrom: 'founder.agent_room_orchestration',
+    userSurface: 'workflow_bubble',
+    targetObjectId: 'workflow.sovereign-room-marathon',
+    permissionEnvelope: 'read_only',
+    executionDefault: 'inspect_only',
+    steps: ['read_sovereign_room_receipt', 'show_task_lane', 'show_selected_task'],
+    receiptTypes: ['sovereign_room_marathon_receipt'],
     modeIds: ['user.daily', 'user.operator'],
-    userPhrase: 'Open Claude and start a chat',
-    brittneyInterpretation: 'Stage Claude as an AI peer surface, ask for the first message, and require approval before sending any prompt or shell context.',
-    currentReceiptStatus: workflow.summary?.claudeCliAvailable ? 'claude_cli_available' : 'needs_claude_surface_resolution',
+    userPhrase: 'Check the sovereign room queue',
+    brittneyInterpretation: 'Read the latest sovereign room receipt without claiming or marking any task done.',
+    currentReceiptStatus: workflow.summary?.sovereignRoomMarathonStatus || 'unknown',
   });
   packs.push({
     id: 'user-pack.asset-shard-preview',
@@ -364,7 +364,7 @@ function assertSelfTest(projection) {
   if (!projection.invariants.founderShellIsSuperset) failures.push('expected founder superset invariant');
   if (!projection.invariants.userShellHasNoRawCommands) failures.push('expected raw command guard');
   if (!projection.brittneyTranslationLayer.translations.some((item) => item.userPhrase.includes('Excel'))) failures.push('expected Excel translation');
-  if (!projection.brittneyTranslationLayer.translations.some((item) => item.targetPackId === 'user-pack.open-claude-chat')) failures.push('expected Claude chat translation');
+  if (!projection.brittneyTranslationLayer.translations.some((item) => item.targetPackId === 'user-pack.sovereign-room-status')) failures.push('expected sovereign room status translation');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 

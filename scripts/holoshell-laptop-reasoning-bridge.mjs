@@ -525,11 +525,11 @@ export function runSelfTest(options = {}) {
         targetHost: 'laptop_windows',
         lane: 'laptop-hardware',
         agentLane: 'local',
-        canonicalProviderId: 'laptop-ollama',
+        canonicalProviderId: 'laptop-sovereign',
         workload: 'heavy_reasoning',
         permissionEnvelope: 'read_only',
         reuseBeforeBuild: true,
-        duplicateWorkPolicy: 'consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds',
+        duplicateWorkPolicy: 'consume_gold_codebase_sovereign_peer_context_studio_and_fleet_surfaces_before_new_builds',
         prompt: 'Bridge self-test prompt.',
         promptHash: 'bridge-self-test-prompt',
         reasonCodes: ['explicit_laptop_reasoning_request'],
@@ -542,7 +542,7 @@ export function runSelfTest(options = {}) {
         canonicalSurfaces: {
           goldDrive: { root: normalizeReceiptPath(goldRoot), readOnly: true },
           codebaseBridge: { sourceAnchors: ['scripts/holoshell-holoscript-gold-codebase-bridge.mjs'] },
-          claudeInjection: { route: '/workflow/claude-chat' },
+          sovereignPeerContext: { route: '/workflow/sovereign-room-marathon' },
           studioBrittney: {
             serviceOrchestrator: 'packages/brittney/service/src/orchestrator.ts',
             modelRouter: 'packages/brittney/service/src/model-router.ts',

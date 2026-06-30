@@ -268,15 +268,10 @@ const layoutSlots = [
   { x: 22, y: 9, size: 86 },
 ];
 
-const ollamaCloudAgents = [
-  { slug: 'claude', label: 'Claude Code', command: 'ollama launch claude' },
-  { slug: 'openclaw', label: 'OpenClaw', command: 'ollama launch openclaw' },
-  { slug: 'hermes', label: 'Hermes Agent', command: 'ollama launch hermes' },
-  { slug: 'opencode', label: 'OpenCode', command: 'ollama launch opencode' },
-  { slug: 'codex', label: 'Codex', command: 'ollama launch codex' },
-  { slug: 'copilot', label: 'Copilot CLI', command: 'ollama launch copilot' },
-  { slug: 'droid', label: 'Droid', command: 'ollama launch droid' },
-  { slug: 'pi', label: 'Pi', command: 'ollama launch pi' },
+const sovereignRoomTargets = [
+  { slug: 'local', label: 'Local Tagged Tasks', taskLane: 'local', taskTag: 'local' },
+  { slug: 'sovereign', label: 'Sovereign Tagged Tasks', taskLane: 'local', taskTag: 'local' },
+  { slug: 'cloud', label: 'Cloud Tagged Tasks', taskLane: 'cloud', taskTag: 'cloud', requiresEscalation: true },
 ];
 
 function layout(index, fallbackSize = 92) {
@@ -289,7 +284,7 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, startupIntegration, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, photoBackupCustody }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, startupIntegration, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, sovereignRoomMarathon, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, photoBackupCustody }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
@@ -301,6 +296,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const grokBuildSummary = grokBuild?.summary || {};
   const dispatchSummary = agentDispatch?.summary || {};
   const workflowSummary = workflow?.summary || {};
+  const sovereignSummary = sovereignRoomMarathon?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
   const shardApprovalSummary = shardImportApproval?.summary || {};
   const shardImportSummary = shardImport?.summary || {};
@@ -311,8 +307,6 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const gateSummary = workflowIntentGate?.summary || {};
   const activeWorkflowKind = workflowSummary.workflowKind || workflow?.profile || '';
   const roomWorkflowSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowSummary : {};
-  const claudeWorkflowSummary = activeWorkflowKind === 'claude_chat' ? workflowSummary : {};
-  const ollamaWorkflowSummary = activeWorkflowKind === 'ollama_cloud_agent' ? workflowSummary : {};
   const grokWorkflowSummary = activeWorkflowKind === 'grok_build' ? workflowSummary : {};
   const grokObservation = activeWorkflowKind === 'grok_build' ? workflow?.grokObservation || null : null;
   const roomWorkflowApprovalSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowApprovalSummary : {};
@@ -653,8 +647,12 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       actorLaneId: 'brittney',
       receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'brain_intent_gate_receipt'],
       relationships: {
-        model: roomWorkflowSummary.model || 'kimi',
-        modelRoute: roomWorkflowSummary.modelRoute || 'ollama_cloud',
+        model: roomWorkflowSummary.model || 'sovereign-local',
+        modelRoute: roomWorkflowSummary.modelRoute || 'sovereign_local',
+        taskLane: roomWorkflowSummary.taskLane || 'local',
+        taskTag: roomWorkflowSummary.taskTag || 'local',
+        cloudEscalationAllowed: Boolean(roomWorkflowSummary.cloudEscalationAllowed),
+        sovereignRoomMarathonReceipt: roomWorkflowSummary.sovereignRoomMarathonReceipt || '.tmp/holoshell/sovereign-room-marathon-latest.json',
         approvalStatus: roomWorkflowApprovalSummary.status || 'unknown',
         brainGateStatus: roomGateSummary.status || 'unknown',
       },
@@ -667,62 +665,40 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       layout: { x: 77, y: 63, size: 118 },
     },
     {
-      id: 'workflow.claude-chat',
+      id: 'workflow.sovereign-room-marathon',
       objectKind: 'workflow',
-      displayName: 'Claude Chat',
-      sourceKind: 'workflow',
-      sourceRef: 'scripts/holoshell-claude-chat-workflow.mjs',
+      displayName: 'Sovereign Room',
+      sourceKind: 'holoscript_workflow',
+      sourceRef: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
       capabilityFamily: 'agent_workflow',
-      trustState: claudeWorkflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
+      trustState: sovereignSummary.status === 'ready_to_claim' || sovereignSummary.status === 'empty' ? 'verified' : sovereignSummary.status === 'claimed' ? 'partial' : 'unknown',
       permissionEnvelope: 'guarded_execute',
-      adapterPath: 'claude_chat_workflow_bridge',
+      adapterPath: 'scripts/holoshell-sovereign-room-marathon.mjs',
       visualForm: 'workflow_bubble',
-      status: claudeWorkflowSummary.status || 'available',
+      status: sovereignSummary.status || 'available',
       actorLaneId: 'brittney',
-      receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'brain_intent_gate_receipt'],
+      receiptTypes: ['sovereign_room_marathon_receipt', 'room_queue_receipt'],
       relationships: {
-        targetSurface: claudeWorkflowSummary.targetSurface || 'Claude',
-        promptPresent: Boolean(claudeWorkflowSummary.promptPresent),
-        shellContextAttachedByDefault: Boolean(claudeWorkflowSummary.shellContextAttachedByDefault),
-        approvalStatus: activeWorkflowKind === 'claude_chat' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
-        brainGateStatus: activeWorkflowKind === 'claude_chat' ? gateSummary.status || 'unknown' : 'unknown',
+        taskLane: sovereignSummary.taskLane || 'local',
+        taskTag: sovereignSummary.taskTag || 'local',
+        cloudEscalationAllowed: Boolean(sovereignSummary.cloudEscalationAllowed),
+        queueOpenCount: sovereignSummary.queueOpenCount || 0,
+        queueClaimableOpenCount: sovereignSummary.queueClaimableOpenCount || 0,
+        matchedCandidateCount: sovereignSummary.matchedCandidateCount || 0,
+        selectedTaskId: sovereignSummary.selectedTaskId || '',
+        selectedTaskTitle: sovereignSummary.selectedTaskTitle || '',
+        claimRequested: Boolean(sovereignSummary.claimRequested),
+        claimAttempted: Boolean(sovereignSummary.claimAttempted),
+        claimSucceeded: Boolean(sovereignSummary.claimSucceeded),
+        completionClaimAllowed: Boolean(sovereignSummary.completionClaimAllowed),
+        nextAction: sovereignSummary.nextAction || 'run_sovereign_room_marathon_receipt',
+        targets: sovereignRoomTargets,
       },
       privacyClass: 'local_private',
-      replacementPath: 'assistant_peer_chat_object',
-      launch: { action: 'stage_claude_chat_workflow', route: '/workflow/claude-chat' },
-      glyph: 'CC',
-      detail: `${claudeWorkflowSummary.stepCount || 0} staged steps; prompt ${claudeWorkflowSummary.promptPresent ? 'ready' : 'empty'}; approval ${activeWorkflowKind === 'claude_chat' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
-      firstScreen: true,
-      layout: { x: 64, y: 23, size: 108 },
-    },
-    {
-      id: 'workflow.ollama-cloud-agent',
-      objectKind: 'workflow',
-      displayName: 'Ollama Agents',
-      sourceKind: 'workflow',
-      sourceRef: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
-      capabilityFamily: 'agent_workflow',
-      trustState: ollamaWorkflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
-      permissionEnvelope: 'guarded_execute',
-      adapterPath: 'ollama_cloud_agent_launcher',
-      visualForm: 'workflow_bubble',
-      status: ollamaWorkflowSummary.status || 'available',
-      actorLaneId: 'brittney',
-      receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'local_approval_gate_receipt'],
-      relationships: {
-        commandPrefix: 'ollama launch',
-        activeAgent: ollamaWorkflowSummary.agentSlug || '',
-        activeCommand: ollamaWorkflowSummary.command || '',
-        agentCount: ollamaCloudAgents.length,
-        agents: ollamaCloudAgents,
-        approvalStatus: activeWorkflowKind === 'ollama_cloud_agent' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
-        localGateStatus: activeWorkflowKind === 'ollama_cloud_agent' ? gateSummary.status || 'unknown' : 'unknown',
-      },
-      privacyClass: 'local_private',
-      replacementPath: 'cloud_agent_runtime_launcher',
-      launch: { action: 'stage_ollama_cloud_agent_workflow', route: '/workflow/ollama-cloud-agent' },
-      glyph: 'OA',
-      detail: `${ollamaCloudAgents.length} Ollama Cloud launch targets; active ${ollamaWorkflowSummary.agentLabel || 'none'}; approval ${activeWorkflowKind === 'ollama_cloud_agent' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
+      replacementPath: 'sovereign_room_queue_receipt',
+      launch: { action: 'stage_sovereign_room_marathon', route: '/workflow/sovereign-room-marathon' },
+      glyph: 'SR',
+      detail: `${sovereignSummary.matchedCandidateCount || 0} ${sovereignSummary.taskTag || 'local'} candidate(s); selected ${sovereignSummary.selectedTaskTitle || 'none'}; claim ${sovereignSummary.claimSucceeded ? 'succeeded' : sovereignSummary.claimAttempted ? 'attempted' : 'not attempted'}.`,
       firstScreen: true,
       layout: { x: 83, y: 28, size: 106 },
     },
@@ -2554,6 +2530,15 @@ function summarize(objects, feeds) {
     agentDispatchKind: feeds.agentDispatch?.summary?.dispatchKind || '',
     agentDispatchRoute: feeds.agentDispatch?.summary?.route || '',
     agentDispatchConfidence: feeds.agentDispatch?.summary?.confidence || 0,
+    sovereignRoomMarathonStatus: feeds.sovereignRoomMarathon?.summary?.status || 'unknown',
+    sovereignRoomTaskLane: feeds.sovereignRoomMarathon?.summary?.taskLane || 'local',
+    sovereignRoomTaskTag: feeds.sovereignRoomMarathon?.summary?.taskTag || 'local',
+    sovereignRoomQueueOpenCount: feeds.sovereignRoomMarathon?.summary?.queueOpenCount || 0,
+    sovereignRoomMatchedCandidateCount: feeds.sovereignRoomMarathon?.summary?.matchedCandidateCount || 0,
+    sovereignRoomSelectedTaskId: feeds.sovereignRoomMarathon?.summary?.selectedTaskId || '',
+    sovereignRoomSelectedTaskTitle: feeds.sovereignRoomMarathon?.summary?.selectedTaskTitle || '',
+    sovereignRoomClaimSucceeded: Boolean(feeds.sovereignRoomMarathon?.summary?.claimSucceeded),
+    sovereignRoomCompletionClaimAllowed: Boolean(feeds.sovereignRoomMarathon?.summary?.completionClaimAllowed),
     grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
     grokBuildCliStatus: feeds.grokBuild?.summary?.cliStatus || 'unknown',
     grokBuildCliVersion: feeds.grokBuild?.summary?.cliVersion || 'unknown',
@@ -2661,6 +2646,7 @@ function summarize(objects, feeds) {
       userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
       developmentalEnvironmentStatus: feeds.developmentalEnvironment?.summary?.status || 'unknown',
       agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
+      sovereignRoomMarathonStatus: feeds.sovereignRoomMarathon?.summary?.status || 'unknown',
       grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
       grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
@@ -2710,6 +2696,7 @@ function loadFeeds(tmpDir) {
     founderEvidenceDemo: readJson(path.join(dir, 'founder-evidence-demo-latest.json'), {}),
     receiptControl: readJson(path.join(dir, 'receipt-control-latest.json'), {}),
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
+    sovereignRoomMarathon: readJson(path.join(dir, 'sovereign-room-marathon-latest.json'), {}),
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
     shardWorkflow: readJson(path.join(dir, 'shard-workflow-latest.json'), {}),
@@ -2768,8 +2755,8 @@ function buildGraph(args, fixtures = null) {
       startupIntegration: 'scripts/holoshell-startup-integration.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
-      claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
-      ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
+      sovereignRoomMarathon: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
+      sovereignRoomMarathonAdapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
@@ -3139,7 +3126,7 @@ function fixtureFeeds() {
         visibleBubbleCount: 13,
       },
       modes: [
-        { id: 'user.daily', label: 'Daily Shell', audience: 'regular_user', visibleBubbleIds: ['user-pack.browser-lofi', 'user-pack.open-claude-chat'], hiddenFounderPowers: ['raw_shell_commands'], safetyPosture: 'plain_intent_then_approval' },
+        { id: 'user.daily', label: 'Daily Shell', audience: 'regular_user', visibleBubbleIds: ['user-pack.browser-lofi', 'user-pack.room-marathon'], hiddenFounderPowers: ['raw_shell_commands'], safetyPosture: 'plain_intent_then_approval' },
         { id: 'user.creator', label: 'Creator Shell', audience: 'hololand_creator', visibleBubbleIds: ['user-pack.asset-shard-preview'], hiddenFounderPowers: [], safetyPosture: 'preview_first_import_after_approval' },
         { id: 'user.operator', label: 'Operator Shell', audience: 'trusted_power_user', visibleBubbleIds: ['user-pack.room-marathon'], hiddenFounderPowers: [], safetyPosture: 'receipt_visible_guarded_execute' },
         { id: 'founder.full', label: 'Founder Shell', audience: 'founder', visibleBubbleIds: ['surface.founder-boot-preview'], hiddenFounderPowers: [], safetyPosture: 'full_surface_with_receipts' },
@@ -3148,7 +3135,7 @@ function fixtureFeeds() {
         { id: 'user-pack.browser-lofi', label: 'Play Lofi', userPhrase: 'Play lofi music', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.daily'], steps: ['open_browser'] },
         { id: 'user-pack.open-excel', label: 'Open Excel', userPhrase: 'Open Excel', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.daily'], steps: ['locate_program'] },
         { id: 'user-pack.room-marathon', label: 'Start Room Marathon', userPhrase: 'Start room marathon', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.operator'], steps: ['open_terminal'] },
-        { id: 'user-pack.open-claude-chat', label: 'Open Claude Chat', userPhrase: 'Open Claude and start a chat', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.daily', 'user.operator'], steps: ['resolve_claude_desktop_or_cli', 'open_or_focus_claude', 'start_new_chat'] },
+        { id: 'user-pack.sovereign-room-status', label: 'Sovereign Room Status', userPhrase: 'Check the sovereign room queue', permissionEnvelope: 'read_only', executionDefault: 'inspect_only', modeIds: ['user.daily', 'user.operator'], steps: ['read_sovereign_room_receipt'] },
         { id: 'user-pack.asset-shard-preview', label: 'Make Playable Shard', userPhrase: 'Turn this folder into a playable shard', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.creator'], steps: ['choose_folder'] },
         { id: 'user-pack.format-learning', label: 'Learn Source Formats', userPhrase: 'Explain the formats', permissionEnvelope: 'read_only', executionDefault: 'inspect_only', modeIds: ['user.creator'], steps: ['show_formats'] },
       ],
@@ -3159,7 +3146,7 @@ function fixtureFeeds() {
         translations: [
           { userPhrase: 'Open Excel', targetPackId: 'user-pack.open-excel', permissionEnvelope: 'guarded_execute' },
           { userPhrase: 'Play lofi music', targetPackId: 'user-pack.browser-lofi', permissionEnvelope: 'guarded_execute' },
-          { userPhrase: 'Open Claude and start a chat', targetPackId: 'user-pack.open-claude-chat', permissionEnvelope: 'guarded_execute' },
+          { userPhrase: 'Check the sovereign room queue', targetPackId: 'user-pack.sovereign-room-status', permissionEnvelope: 'read_only' },
         ],
       },
       shellDerivation: { founderSurface: 'surface.founder-boot-preview', rule: 'user_shell_is_subset_plus_plain_language_translation', hiddenMeansRequiresFounderModeOrApproval: true },
@@ -3245,10 +3232,10 @@ function fixtureFeeds() {
       dispatchId: 'agent-dispatch-fixture',
       summary: {
         status: 'ready_to_stage',
-        capabilityId: 'ollama_cloud_agent',
-        capabilityLabel: 'Ollama Cloud Agent',
+        capabilityId: 'sovereign_agent_session',
+        capabilityLabel: 'Sovereign Agent Session',
         dispatchKind: 'workflow',
-        route: '/workflow/ollama-cloud-agent',
+        route: '/workflow/sovereign-room-marathon',
         confidence: 95,
         permissionEnvelope: 'guarded_execute',
         approvalRequired: true,
@@ -3457,7 +3444,27 @@ function fixtureFeeds() {
         promotionThreshold: 3,
       },
     },
-    workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'kimi', modelRoute: 'ollama_cloud' } },
+    workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'sovereign-local', modelRoute: 'sovereign_local', taskLane: 'local', taskTag: 'local', sovereignRoomMarathonReceipt: '.tmp/holoshell/sovereign-room-marathon-latest.json' } },
+    sovereignRoomMarathon: {
+      receiptId: 'sovereign-room-fixture',
+      generatedAt: new Date().toISOString(),
+      schemaVersion: 'hololand.holoshell.sovereign-room-marathon.v0.1.0',
+      summary: {
+        status: 'ready_to_claim',
+        taskLane: 'local',
+        taskTag: 'local',
+        queueOpenCount: 2,
+        queueClaimableOpenCount: 2,
+        matchedCandidateCount: 1,
+        selectedTaskId: 'task_local_fixture',
+        selectedTaskTitle: '[local] wire HoloShell sovereign runner',
+        claimRequested: false,
+        claimAttempted: false,
+        claimSucceeded: false,
+        completionClaimAllowed: false,
+        nextAction: 'rerun_with_claim_after_guarded_workflow_approval',
+      },
+    },
     workflowApproval: { approvalId: 'workflow-approval-1', summary: { status: 'pending_user_approval', pendingApprovalCount: 1, executionAllowed: true } },
     workflowIntentGate: { gateId: 'gate-1', summary: { status: 'passed', executionAllowed: true, failedCheckCount: 0 } },
     shardWorkflow: {
@@ -3598,8 +3605,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'host.founder-holoshell')) failures.push('expected founder host shell object');
   if (!graph.objects.some((object) => object.id === 'host.native-wrapper')) failures.push('expected native wrapper shell object');
   if (!graph.objects.some((object) => object.id === 'host.startup-integration')) failures.push('expected startup integration shell object');
-  if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
-  if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
+  if (!graph.objects.some((object) => object.id === 'workflow.sovereign-room-marathon')) failures.push('expected sovereign room marathon workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
   if (!graph.objects.some((object) => object.id === 'agent.grok-build' && object.relationships?.heartbeatStatus === 'observing')) failures.push('expected Grok heartbeat agent object');
   if (!graph.objects.some((object) => object.id === 'policy.trusted-autonomy')) failures.push('expected trusted autonomy policy object');

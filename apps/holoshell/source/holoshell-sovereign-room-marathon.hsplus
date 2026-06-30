@@ -1,0 +1,165 @@
+// HoloShell Sovereign Room Marathon
+//
+// Source contract for consuming HoloMesh room tasks through local/sovereign
+// receipts. Direct checks are receipt-only; claims happen only through an
+// explicitly approved workflow or explicit CLI claim.
+
+composition "HoloShell Sovereign Room Marathon" {
+  config {
+    title: "HoloShell Sovereign Room Marathon"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-sovereign-room-marathon.mjs"
+    roomRoot: "C:/Users/josep/.ai-ecosystem"
+    roomQueueCommand: "C:/Users/josep/.ai-ecosystem/hooks/team-connect.mjs --queue"
+    roomHeartbeatCommand: "C:/Users/josep/.ai-ecosystem/scripts/codex-team-daemon.mjs join"
+    roomClaimCommand: "C:/Users/josep/.ai-ecosystem/scripts/room-patch-task.mjs claim <task-id>"
+    latestReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
+    browserBootstrap: ".tmp/holoshell/sovereign-room-marathon-latest.js"
+    receiptDir: ".tmp/holoshell/sovereign-room-marathons"
+    controlDaemonRoute: "POST /workflow/sovereign-room-marathon"
+    sovereignConsumptionDefault: true
+  }
+
+  state {
+    status: "unknown"
+    taskLane: "local"
+    taskTag: "local"
+    cloudEscalationAllowed: false
+    queueStatus: "unknown"
+    queueOpenCount: 0
+    queueClaimableOpenCount: 0
+    matchedCandidateCount: 0
+    selectedTaskId: ""
+    selectedTaskTitle: ""
+    selectedTaskTag: "unknown"
+    claimRequested: false
+    claimAttempted: false
+    claimSucceeded: false
+    completionClaimAllowed: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+  }
+
+  channel "holoshell:sovereign-room:queue" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipt-only view of local, sovereign, cloud, and unknown room tasks"
+  }
+
+  channel "holoshell:sovereign-room:claim" {
+    type: "request_response"
+    priority: "critical"
+    description: "Explicit claim route for selected local/sovereign room tasks after approval"
+  }
+
+  channel "holoshell:sovereign-room:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Latest sovereign room marathon receipt consumed by Brittney and live feed"
+  }
+
+  template "RoomQueueTaskCandidate" {
+    type: "room_queue_task_candidate"
+    id: ""
+    title: ""
+    status: "open"
+    classification: "unknown"
+    claimable: false
+    priority: 0
+    tags: []
+    receiptRequired: true
+  }
+
+  template "SovereignRoomMarathonReceipt" {
+    type: "sovereign_room_marathon_receipt"
+    receiptType: "hololand.holoshell.sovereign-room-marathon.v0.1.0"
+    status: "ready_to_claim"
+    taskLane: "local"
+    taskTag: "local"
+    cloudEscalationAllowed: false
+    queueStatus: "ready"
+    queueOpenCount: 0
+    queueClaimableOpenCount: 0
+    matchedCandidateCount: 0
+    selectedTaskId: ""
+    selectedTaskTitle: ""
+    selectedTaskTag: "unknown"
+    claimRequested: false
+    claimAttempted: false
+    claimSucceeded: false
+    completionClaimAllowed: false
+    sovereignConsumptionDefault: true
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    nextAction: "rerun_with_claim_after_guarded_workflow_approval"
+    candidates: []
+    selectedTask: {}
+    receiptRequired: true
+  }
+
+  policy "ReceiptOnlyByDefault" {
+    appliesTo: ["read_room_queue", "stage_sovereign_room_marathon"]
+    claimRequested: false
+    mutationExecuted: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "ClaimRequiresGuardedWorkflowApproval" {
+    appliesTo: ["claim_sovereign_room_task"]
+    requiresSignedHeartbeat: true
+    requiresGuardedWorkflowApprovalOrExplicitCliClaim: true
+    requiresTaskClassificationMatch: true
+    completionClaimAllowed: false
+    receiptRequired: true
+  }
+
+  policy "CloudTagRequiresExplicitReceipt" {
+    appliesTo: ["select_cloud_tagged_task"]
+    cloudEscalationAllowed: false
+    blockedStatus: "blocked_cloud_escalation_receipt_required"
+    receiptRequired: true
+  }
+
+  policy "NoDoneWithoutDownstreamEvidence" {
+    appliesTo: ["mark_room_task_done"]
+    completionClaimAllowed: false
+    requiresExecutionReceipt: true
+    requiresValidationOrArtifactEvidence: true
+    requiresRoomDoneReceipt: true
+  }
+
+  action apply_sovereign_room_marathon_receipt(receipt) {
+    state.status = receipt.summary.status
+    state.taskLane = receipt.summary.taskLane
+    state.taskTag = receipt.summary.taskTag
+    state.cloudEscalationAllowed = receipt.summary.cloudEscalationAllowed
+    state.queueStatus = receipt.summary.queueStatus
+    state.queueOpenCount = receipt.summary.queueOpenCount
+    state.queueClaimableOpenCount = receipt.summary.queueClaimableOpenCount
+    state.matchedCandidateCount = receipt.summary.matchedCandidateCount
+    state.selectedTaskId = receipt.summary.selectedTaskId
+    state.selectedTaskTitle = receipt.summary.selectedTaskTitle
+    state.selectedTaskTag = receipt.summary.selectedTaskTag
+    state.claimRequested = receipt.summary.claimRequested
+    state.claimAttempted = receipt.summary.claimAttempted
+    state.claimSucceeded = receipt.summary.claimSucceeded
+    state.completionClaimAllowed = receipt.summary.completionClaimAllowed
+    emit("holoshell:sovereign-room:receipt", {
+      action: "sovereign_room_marathon_receipt_applied",
+      status: state.status,
+      task_lane: state.taskLane,
+      task_tag: state.taskTag,
+      queue_open_count: state.queueOpenCount,
+      matched_candidate_count: state.matchedCandidateCount,
+      selected_task_id: state.selectedTaskId,
+      selected_task_title: state.selectedTaskTitle,
+      claim_requested: state.claimRequested,
+      claim_succeeded: state.claimSucceeded,
+      completion_claim_allowed: state.completionClaimAllowed,
+      receipt_required: true
+    })
+  }
+}

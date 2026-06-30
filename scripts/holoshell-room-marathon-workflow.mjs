@@ -178,9 +178,10 @@ function shortHash(value, length = 10) {
 function defaultRoomCommand(args) {
   const tag = normalizeTaskLane(args.taskTag || args.taskLane);
   const escalation = args.cloudEscalationAllowed ? '1' : '0';
+  const escalationFlag = args.cloudEscalationAllowed ? ' --cloud-escalation-allowed' : '';
   const guidance = `Sovereign HoloShell room marathon: claim ${tag}-tagged tasks first; keep local tasks on owned hardware; cloud-tagged work requires an explicit receipt.`;
   const escapedGuidance = guidance.replace(/"/g, '\\"');
-  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Write-Host "${escapedGuidance}"`;
+  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Set-Location "C:\\Users\\josep\\Documents\\GitHub\\HoloLand"; node scripts\\holoshell-sovereign-room-marathon.mjs --task-lane "${tag}" --task-tag "${tag}" --claim${escalationFlag} --json; Write-Host "${escapedGuidance}"`;
 }
 
 function findCommand(command) {
@@ -396,6 +397,8 @@ function buildWorkflow(args) {
       source: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       home: 'apps/holoshell/source/holoshell-home.hsplus',
       adapter: 'scripts/holoshell-room-marathon-workflow.mjs',
+      sovereignRoomMarathon: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
+      sovereignRoomMarathonAdapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
       actionExecutor: 'scripts/holoshell-action-executor.mjs',
       roomSkill: 'C:/Users/josep/.agents/skills/room/SKILL.md',
     },
@@ -443,6 +446,7 @@ function buildWorkflow(args) {
       taskLane: args.taskLane,
       taskTag: args.taskTag,
       cloudEscalationAllowed: args.cloudEscalationAllowed,
+      sovereignRoomMarathonReceipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
       musicTarget: 'youtube_lofi',
       roomCommandStaged: steps.some((item) => item.id === 'stage-room-command' && item.status !== 'stage_error'),
       mutationExecuted: steps.some((item) => item.mutationExecuted),
@@ -457,6 +461,9 @@ function assertSelfTest(workflow) {
   if (workflow.summary.guardedStepCount !== 5) failures.push('expected five guarded hardware steps');
   if (!workflow.steps.some((item) => item.id === 'play-lofi-youtube')) failures.push('missing lofi step');
   if (!workflow.steps.some((item) => item.id === 'stage-room-command')) failures.push('missing room command step');
+  const roomCommand = workflow.steps.find((item) => item.id === 'stage-room-command')?.action?.text || '';
+  if (!roomCommand.includes('holoshell-sovereign-room-marathon.mjs')) failures.push('room command does not run sovereign room marathon adapter');
+  if (!roomCommand.includes('--claim')) failures.push('guarded room command should claim the selected task');
   if (workflow.executionPolicy.mutationExecuted) failures.push('self-test should not execute mutations');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }

@@ -373,8 +373,8 @@ The first compound operator workflow is the room marathon:
 node scripts\holoshell-room-marathon-workflow.mjs
 ```
 
-It resolves Claude CLI, stages Terminal, types the room-marathon prompt with
-the Ollama/Kimi route, opens Chrome, and opens YouTube lofi as one receipt. The
+It stages Terminal, types the sovereign room-marathon prompt for local-tagged
+tasks, opens Chrome, and opens YouTube lofi as one receipt. The
 daemon exposes the same staging path at `POST /workflow/room-marathon`, mints
 `workflow-approval-latest.json`, and keeps execution behind `POST
 /workflow/execute`.

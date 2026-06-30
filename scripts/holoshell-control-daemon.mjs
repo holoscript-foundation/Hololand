@@ -102,12 +102,14 @@ Routes:
   GET  /dispatch/latest
   GET  /workflow/laptop-reasoning/latest
   GET  /workflow/conversation-plan-dispatch/latest
+  GET  /workflow/sovereign-room-marathon/latest
   POST /action
   POST /approval/execute
   POST /workflow/agent-dispatch
   POST /workflow/laptop-reasoning-job
   POST /workflow/conversation-plan-dispatch
   POST /workflow/room-marathon
+  POST /workflow/sovereign-room-marathon
   POST /workflow/grok-build
   POST /workflow/holoclaw-runtime-bridge
   POST /workflow/founder-command
@@ -249,6 +251,27 @@ function roomMarathonWorkflow(body = {}) {
   add('--lofi-url', body.lofiUrl);
   add('--room-command', body.roomCommand);
   return runChecked(cli);
+}
+
+function sovereignRoomMarathon(body = {}) {
+  const cli = ['scripts/holoshell-sovereign-room-marathon.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--task-lane', body.taskLane);
+  add('--task-tag', body.taskTag);
+  add('--max-candidates', body.maxCandidates);
+  add('--output', body.output);
+  add('--js-output', body.jsOutput);
+  add('--receipt-dir', body.receiptDir);
+  if (body.cloudEscalationAllowed === true) cli.push('--cloud-escalation-allowed');
+  if (body.claim === true) cli.push('--claim');
+  cli.push('--json');
+  const result = runChecked(cli);
+  return {
+    result,
+    receipt: parseJsonFromStdout(result.stdout, 'sovereign room marathon'),
+  };
 }
 
 function grokBuildWorkflow(body = {}) {
@@ -434,6 +457,7 @@ function latestSnapshot(args) {
     grokHeartbeat: readJson(tmpPath(args, 'grok-heartbeat.json'), {}),
     serviceSupervisor: readJson(tmpPath(args, 'service-supervisor.json'), {}),
     founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
+    sovereignRoomMarathon: readJson(tmpPath(args, 'sovereign-room-marathon-latest.json'), {}),
     holoclawRuntimeBridge: readJson(tmpPath(args, 'holoclaw-runtime-bridge-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
     laptopReasoningBridge: readJson(tmpPath(args, 'laptop-reasoning-bridge-latest.json'), {}),
@@ -593,6 +617,20 @@ function stageRoomMarathon(args, body = {}) {
   };
 }
 
+function stageSovereignRoomMarathon(args, body = {}) {
+  const room = sovereignRoomMarathon(body);
+  refreshLiveFeed();
+  return {
+    ok: room.receipt?.summary?.status !== 'blocked_queue_unavailable'
+      && room.receipt?.summary?.status !== 'claim_failed',
+    sovereignRoomMarathon: readJson(tmpPath(args, 'sovereign-room-marathon-latest.json'), room.receipt || {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      sovereignRoomMarathon: room.result.stdout.trim(),
+    },
+  };
+}
+
 function stageGrokBuild(args, body = {}) {
   refreshRegistry(args);
   const workflowResult = grokBuildWorkflow(body);
@@ -704,6 +742,7 @@ function stageAgentDispatch(args, body = {}) {
   else if (route === '/workflow/holoclaw-runtime-bridge') downstream = stageHoloClawRuntimeBridge(args, routedBody);
   else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
+  else if (route === '/workflow/sovereign-room-marathon') downstream = stageSovereignRoomMarathon(args, routedBody);
   else if (route === '/workflow/laptop-reasoning-job') downstream = stageLaptopReasoningJob(args, routedBody);
   else if (route === '/workflow/conversation-plan-dispatch') downstream = stageConversationPlanDispatch(args, routedBody);
   else if (route === '/action') downstream = stageAction(args, routedBody);
@@ -728,6 +767,7 @@ function stageAgentDispatch(args, body = {}) {
     laptopReasoningBridge: downstream.laptopReasoningBridge,
     laptopReasoningResult: downstream.laptopReasoningResult,
     conversationPlanDispatch: downstream.conversationPlanDispatch,
+    sovereignRoomMarathon: downstream.sovereignRoomMarathon,
     dispatchReceipt: downstream.dispatchReceipt,
     downstreamReceiptsRequired: downstream.downstreamReceiptsRequired,
     completionClaimAllowed: downstream.completionClaimAllowed,
@@ -771,6 +811,7 @@ function routeGet(args, pathname) {
   if (pathname === '/agents/grok-heartbeat') return readJson(tmpPath(args, 'grok-heartbeat.json'), {});
   if (pathname === '/services/supervisor') return readJson(tmpPath(args, 'service-supervisor.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
+  if (pathname === '/workflow/sovereign-room-marathon/latest') return readJson(tmpPath(args, 'sovereign-room-marathon-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
   if (pathname === '/workflow/conversation-plan-dispatch/latest') {
     return readJson(tmpPath(args, 'conversation-plan-dispatch-latest.json'), {});
@@ -793,6 +834,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/workflow/laptop-reasoning-job') return stageLaptopReasoningJob(args, body);
   if (pathname === '/workflow/conversation-plan-dispatch') return stageConversationPlanDispatch(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
+  if (pathname === '/workflow/sovereign-room-marathon') return stageSovereignRoomMarathon(args, body);
   if (pathname === '/workflow/grok-build') return stageGrokBuild(args, body);
   if (pathname === '/workflow/holoclaw-runtime-bridge') return stageHoloClawRuntimeBridge(args, body);
   if (pathname === '/workflow/founder-command') return stageFounderCommand(args, body);
@@ -898,6 +940,7 @@ function runSelfTest(args) {
   if (health.status !== 'online') failures.push('health route did not report online');
   if (!staged.action?.summary) failures.push('stage action did not write an action receipt');
   if (!trust?.summary) failures.push('trust ledger route did not return a summary');
+  if (!routeGet(args, '/workflow/sovereign-room-marathon/latest')) failures.push('sovereign room marathon route did not return a payload');
   if (!staged.feed?.summary) failures.push('stage action did not refresh the live feed');
   if (!executeBlocked) failures.push('execution should be blocked without --enable-execute');
   if (!workflowExecuteBlocked) failures.push('workflow execution should be blocked without --enable-execute');

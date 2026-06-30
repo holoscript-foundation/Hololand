@@ -1,0 +1,457 @@
+#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, '..');
+const AI_ECOSYSTEM_ROOT = process.env.AI_ECOSYSTEM_ROOT || 'C:/Users/josep/.ai-ecosystem';
+const SCHEMA_VERSION = 'hololand.holoshell.sovereign-room-marathon.v0.1.0';
+const DEFAULT_OUTPUT = '.tmp/holoshell/sovereign-room-marathon-latest.json';
+const DEFAULT_JS_OUTPUT = '.tmp/holoshell/sovereign-room-marathon-latest.js';
+const DEFAULT_RECEIPT_DIR = '.tmp/holoshell/sovereign-room-marathons';
+
+function usage() {
+  return `Usage: node scripts/holoshell-sovereign-room-marathon.mjs [options]
+
+Options:
+  --task-lane <local|cloud>        Room lane to consume. Default: local
+  --task-tag <tag>                 Task tag to match. Default: local
+  --cloud-escalation-allowed       Permit cloud-tagged task selection.
+  --claim                          Claim the selected task after queue receipt.
+  --max-candidates <n>             Candidate count to keep. Default: 8
+  --queue-fixture <path>           Read queue JSON from a fixture.
+  --output <path>                  Latest JSON receipt path.
+  --js-output <path>               Browser bootstrap path.
+  --receipt-dir <path>             Receipt archive directory.
+  --json                           Print receipt JSON.
+  --self-test                      Run adapter self-test.
+  -h, --help                       Show this help.
+`;
+}
+
+function parseArgs(argv = process.argv.slice(2)) {
+  const args = {
+    taskLane: 'local',
+    taskTag: 'local',
+    cloudEscalationAllowed: false,
+    claim: false,
+    maxCandidates: 8,
+    queueFixture: '',
+    output: DEFAULT_OUTPUT,
+    jsOutput: DEFAULT_JS_OUTPUT,
+    receiptDir: DEFAULT_RECEIPT_DIR,
+    json: false,
+    selfTest: false,
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--') continue;
+    if (arg === '--task-lane') args.taskLane = argv[++index] || args.taskLane;
+    else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
+    else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
+    else if (arg === '--claim') args.claim = true;
+    else if (arg === '--max-candidates') args.maxCandidates = Number(argv[++index] || args.maxCandidates);
+    else if (arg === '--queue-fixture') args.queueFixture = argv[++index] || '';
+    else if (arg === '--output') args.output = argv[++index] || args.output;
+    else if (arg === '--js-output') args.jsOutput = argv[++index] || args.jsOutput;
+    else if (arg === '--receipt-dir') args.receiptDir = argv[++index] || args.receiptDir;
+    else if (arg === '--json') args.json = true;
+    else if (arg === '--self-test') args.selfTest = true;
+    else if (arg === '--help' || arg === '-h') {
+      console.log(usage());
+      process.exit(0);
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+  if (!Number.isFinite(args.maxCandidates) || args.maxCandidates < 1) {
+    throw new Error('--max-candidates must be >= 1');
+  }
+  args.taskLane = normalizeTag(args.taskLane);
+  args.taskTag = normalizeTag(args.taskTag || args.taskLane);
+  return args;
+}
+
+function resolveRepoPath(filePath) {
+  if (!filePath) return filePath;
+  return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(resolveRepoPath(filePath), 'utf8'));
+}
+
+function writeJson(filePath, payload) {
+  const resolved = resolveRepoPath(filePath);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  writeFileSync(resolved, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  return resolved;
+}
+
+function writeJs(filePath, payload) {
+  const resolved = resolveRepoPath(filePath);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  writeFileSync(resolved, `window.HOLOSHELL_SOVEREIGN_ROOM_MARATHON = ${JSON.stringify(payload, null, 2)};\n`, 'utf8');
+  return resolved;
+}
+
+function normalizeTag(value) {
+  const text = String(value || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!text) return 'unknown';
+  if (['sovereign', 'local', 'owned_metal', 'owned_hardware', 'on_device', 'offline'].includes(text)) return text === 'sovereign' ? 'local' : text;
+  if (['cloud', 'managed_cloud', 'provider_cloud', 'external_provider'].includes(text)) return 'cloud';
+  return text;
+}
+
+function textOfTask(task) {
+  return [
+    task?.title,
+    task?.name,
+    task?.description,
+    task?.body,
+    task?.task,
+    task?.summary,
+    Array.isArray(task?.tags) ? task.tags.join(' ') : '',
+    Array.isArray(task?.labels) ? task.labels.join(' ') : '',
+    task?.taskTag,
+    task?.taskLane,
+    task?.lane,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function tagsOfTask(task) {
+  const tags = [
+    ...(Array.isArray(task?.tags) ? task.tags : []),
+    ...(Array.isArray(task?.labels) ? task.labels : []),
+    task?.taskTag,
+    task?.taskLane,
+    task?.lane,
+  ].filter(Boolean).map(normalizeTag);
+  return [...new Set(tags)];
+}
+
+function classifyTask(task) {
+  const tags = tagsOfTask(task);
+  const text = textOfTask(task);
+  if (tags.includes('cloud') || /\[(cloud)\]|\bcloud[-_ ]tagged\b|\bcloud lane\b|\bprovider cloud\b/.test(text)) return 'cloud';
+  if (
+    tags.includes('local')
+    || tags.includes('owned_metal')
+    || tags.includes('owned_hardware')
+    || tags.includes('on_device')
+    || /\[(local|sovereign)\]|\blocal[-_ ]tagged\b|\bsovereign\b|\bowned[-_ ](metal|hardware)\b|\bon[-_ ]device\b/.test(text)
+  ) return 'local';
+  return 'unknown';
+}
+
+function isClaimable(task) {
+  const status = String(task?.status || '').toLowerCase();
+  if (task?.claimable === false) return false;
+  if (['claimed', 'done', 'complete', 'completed', 'blocked', 'cancelled'].includes(status)) return false;
+  return true;
+}
+
+function priorityOf(task) {
+  const priority = Number(task?.priority ?? task?.score ?? 0);
+  return Number.isFinite(priority) ? priority : 0;
+}
+
+function normalizeTask(task) {
+  const classification = classifyTask(task);
+  return {
+    id: String(task?.id || task?.taskId || task?.key || '').trim(),
+    title: String(task?.title || task?.name || task?.task || task?.summary || 'Untitled room task').trim(),
+    status: String(task?.status || 'open'),
+    classification,
+    claimable: isClaimable(task),
+    priority: priorityOf(task),
+    tags: tagsOfTask(task),
+    raw: task,
+  };
+}
+
+function queueTasks(queue) {
+  if (Array.isArray(queue?.tasks)) return queue.tasks;
+  if (Array.isArray(queue?.openTasks)) return queue.openTasks;
+  if (Array.isArray(queue?.queue?.tasks)) return queue.queue.tasks;
+  if (Array.isArray(queue?.board?.tasks)) return queue.board.tasks;
+  return [];
+}
+
+function readQueue(args) {
+  if (args.queueFixture) {
+    return {
+      status: 'fixture',
+      queue: readJson(args.queueFixture),
+      command: 'fixture',
+      stdout: '',
+      stderr: '',
+    };
+  }
+  const command = path.join(AI_ECOSYSTEM_ROOT, 'hooks', 'team-connect.mjs');
+  const result = spawnSync(process.execPath, [command, '--queue'], {
+    cwd: AI_ECOSYSTEM_ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    maxBuffer: 1024 * 1024 * 8,
+    windowsHide: true,
+  });
+  const stdout = String(result.stdout || '');
+  const stderr = String(result.stderr || '');
+  if (result.error || result.status !== 0) {
+    return {
+      status: 'error',
+      queue: {},
+      command: `node ${command} --queue`,
+      stdout,
+      stderr: result.error?.message || stderr,
+    };
+  }
+  try {
+    return {
+      status: 'ready',
+      queue: JSON.parse(stdout),
+      command: `node ${command} --queue`,
+      stdout,
+      stderr,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      queue: {},
+      command: `node ${command} --queue`,
+      stdout,
+      stderr: error.message,
+    };
+  }
+}
+
+function selectCandidates(queue, args) {
+  const requestedLane = normalizeTag(args.taskLane || args.taskTag);
+  const tasks = queueTasks(queue)
+    .map(normalizeTask)
+    .filter((task) => task.id && task.claimable);
+  const candidates = tasks
+    .filter((task) => task.classification === requestedLane || (requestedLane === 'local' && task.tags.includes('sovereign')))
+    .sort((left, right) => priorityOf(right) - priorityOf(left) || left.title.localeCompare(right.title));
+  return candidates.slice(0, args.maxCandidates);
+}
+
+function claimSelectedTask(task) {
+  const joinScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'codex-team-daemon.mjs');
+  const patchScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'room-patch-task.mjs');
+  const join = spawnSync(process.execPath, [joinScript, 'join'], {
+    cwd: AI_ECOSYSTEM_ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    maxBuffer: 1024 * 1024 * 4,
+    windowsHide: true,
+  });
+  if (join.error || join.status !== 0) {
+    return {
+      status: 'failed',
+      attempted: true,
+      succeeded: false,
+      command: `node ${joinScript} join`,
+      stdout: String(join.stdout || ''),
+      stderr: join.error?.message || String(join.stderr || ''),
+    };
+  }
+  const claim = spawnSync(process.execPath, [patchScript, 'claim', task.id], {
+    cwd: AI_ECOSYSTEM_ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    maxBuffer: 1024 * 1024 * 4,
+    windowsHide: true,
+  });
+  return {
+    status: claim.error || claim.status !== 0 ? 'failed' : 'claimed',
+    attempted: true,
+    succeeded: !(claim.error || claim.status !== 0),
+    command: `node ${patchScript} claim ${task.id}`,
+    stdout: String(claim.stdout || ''),
+    stderr: claim.error?.message || String(claim.stderr || ''),
+  };
+}
+
+function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSelectedTask) {
+  const generatedAt = new Date().toISOString();
+  const requestedLane = normalizeTag(args.taskLane || 'local');
+  const requestedTag = normalizeTag(args.taskTag || requestedLane);
+  const cloudRequested = requestedLane === 'cloud' || requestedTag === 'cloud';
+  const candidates = cloudRequested && !args.cloudEscalationAllowed
+    ? []
+    : selectCandidates(queueResult.queue, args);
+  const selectedTask = candidates[0] || null;
+  let claimReceipt = {
+    status: 'not_requested',
+    attempted: false,
+    succeeded: false,
+    stdout: '',
+    stderr: '',
+  };
+  if (args.claim && selectedTask) {
+    claimReceipt = claimRunner(selectedTask, args);
+  }
+  const queue = queueResult.queue || {};
+  const queueOpenCount = Number(queue.openCount ?? queue.summary?.openCount ?? queueTasks(queue).filter((task) => String(task.status || '').toLowerCase() === 'open').length ?? 0);
+  const queueClaimableOpenCount = Number(queue.claimableOpenCount ?? queue.summary?.claimableOpenCount ?? queue.claimableOpenTaskCount ?? 0);
+  let status = 'empty';
+  let nextAction = 'room_empty_scavenge_or_wait';
+  if (queueResult.status === 'error') {
+    status = 'blocked_queue_unavailable';
+    nextAction = 'repair_room_queue_access';
+  } else if (cloudRequested && !args.cloudEscalationAllowed) {
+    status = 'blocked_cloud_escalation_receipt_required';
+    nextAction = 'emit_cloud_escalation_receipt_before_cloud_task_selection';
+  } else if (selectedTask && args.claim && claimReceipt.succeeded) {
+    status = 'claimed';
+    nextAction = 'execute_claimed_task_locally_and_mark_done_only_with_downstream_evidence';
+  } else if (selectedTask && args.claim) {
+    status = 'claim_failed';
+    nextAction = 'inspect_room_claim_receipt_and_retry_after_repair';
+  } else if (selectedTask) {
+    status = 'ready_to_claim';
+    nextAction = 'rerun_with_claim_after_guarded_workflow_approval';
+  }
+  const receiptId = `hsrm-${Date.now().toString(36)}`;
+  const receipt = {
+    schemaVersion: SCHEMA_VERSION,
+    receiptId,
+    generatedAt,
+    sourceAnchors: {
+      source: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
+      adapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
+      roomQueue: 'C:/Users/josep/.ai-ecosystem/hooks/team-connect.mjs --queue',
+    },
+    summary: {
+      status,
+      taskLane: requestedLane,
+      taskTag: requestedTag,
+      cloudEscalationAllowed: Boolean(args.cloudEscalationAllowed),
+      queueStatus: queueResult.status,
+      queueOpenCount,
+      queueClaimableOpenCount,
+      matchedCandidateCount: candidates.length,
+      selectedTaskId: selectedTask?.id || '',
+      selectedTaskTitle: selectedTask?.title || '',
+      selectedTaskTag: selectedTask?.classification || 'unknown',
+      claimRequested: Boolean(args.claim),
+      claimAttempted: Boolean(claimReceipt.attempted),
+      claimSucceeded: Boolean(claimReceipt.succeeded),
+      completionClaimAllowed: false,
+      sovereignConsumptionDefault: requestedLane === 'local',
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      nextAction,
+    },
+    candidates: candidates.map(({ raw, ...task }) => task),
+    selectedTask: selectedTask ? (({ raw, ...task }) => task)(selectedTask) : null,
+    queue: {
+      command: queueResult.command,
+      stdoutHashPresent: Boolean(queueResult.stdout),
+      stderr: queueResult.stderr ? String(queueResult.stderr).slice(0, 1200) : '',
+    },
+    claim: claimReceipt,
+    output: {
+      latestPath: args.output,
+      jsPath: args.jsOutput,
+      receiptDir: args.receiptDir,
+      receiptPath: path.join(args.receiptDir, `${receiptId}.json`).replace(/\\/g, '/'),
+    },
+  };
+  return receipt;
+}
+
+function persistReceipt(args, receipt) {
+  const latestPath = writeJson(args.output, receipt);
+  const receiptPath = writeJson(receipt.output.receiptPath, receipt);
+  const jsPath = writeJs(args.jsOutput, receipt);
+  receipt.output = {
+    ...receipt.output,
+    latestResolvedPath: latestPath,
+    receiptResolvedPath: receiptPath,
+    jsResolvedPath: jsPath,
+  };
+  writeJson(args.output, receipt);
+  writeJson(receipt.output.receiptPath, receipt);
+  writeJs(args.jsOutput, receipt);
+  return receipt;
+}
+
+function fixtureQueue() {
+  return {
+    openCount: 3,
+    claimableOpenCount: 3,
+    tasks: [
+      { id: 'task_cloud_high', title: '[cloud] provider deploy receipt', status: 'open', priority: 90, tags: ['cloud'], claimable: true },
+      { id: 'task_local_mid', title: '[local] wire HoloShell sovereign runner', status: 'open', priority: 70, tags: ['local', 'sovereign'], claimable: true },
+      { id: 'task_unknown', title: 'untagged housekeeping', status: 'open', priority: 20, tags: [], claimable: true },
+      { id: 'task_claimed', title: '[local] already claimed work', status: 'claimed', priority: 80, tags: ['local'], claimable: false },
+    ],
+  };
+}
+
+function assertSelfTest() {
+  const failures = [];
+  const local = buildReceipt(
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: false },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+  );
+  if (local.summary.status !== 'ready_to_claim') failures.push('expected local lane ready_to_claim');
+  if (local.summary.selectedTaskId !== 'task_local_mid') failures.push('expected local task selection');
+  if (local.summary.claimAttempted) failures.push('receipt-only default attempted claim');
+  const cloudBlocked = buildReceipt(
+    { ...parseArgs([]), taskLane: 'cloud', taskTag: 'cloud', claim: false },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+  );
+  if (cloudBlocked.summary.status !== 'blocked_cloud_escalation_receipt_required') failures.push('expected cloud escalation block');
+  const cloudAllowed = buildReceipt(
+    { ...parseArgs([]), taskLane: 'cloud', taskTag: 'cloud', cloudEscalationAllowed: true, claim: false },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+  );
+  if (cloudAllowed.summary.selectedTaskId !== 'task_cloud_high') failures.push('expected cloud task only after escalation flag');
+  const claimed = buildReceipt(
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+    () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+  );
+  if (claimed.summary.status !== 'claimed') failures.push('expected claimed status');
+  if (claimed.summary.completionClaimAllowed) failures.push('done should require downstream evidence');
+  return { ok: failures.length === 0, failures, local, cloudBlocked, cloudAllowed, claimed };
+}
+
+async function main() {
+  const args = parseArgs();
+  if (args.selfTest) {
+    const result = assertSelfTest();
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else console.log(result.ok ? 'Sovereign room marathon self-test passed.' : result.failures.join('\n'));
+    process.exit(result.ok ? 0 : 1);
+  }
+  const receipt = persistReceipt(args, buildReceipt(args));
+  if (args.json) console.log(JSON.stringify(receipt, null, 2));
+  else console.log(`Sovereign room marathon ${receipt.summary.status}: ${receipt.summary.nextAction}`);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch((error) => {
+    console.error(error.stack || error.message);
+    process.exit(1);
+  });
+}
+
+export {
+  buildReceipt,
+  classifyTask,
+  fixtureQueue,
+  normalizeTag,
+  parseArgs,
+  selectCandidates,
+};

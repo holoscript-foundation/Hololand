@@ -5,7 +5,7 @@
  * Stages Grok Build as a guarded local coding-agent lane. The bridge records
  * local install/auth/model/project-trust readiness before any launch and keeps
  * execution behind the same nonce-bound HoloShell workflow approval envelope as
- * Claude Chat and Ollama Cloud agents.
+ * the sovereign room-marathon workflows.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';

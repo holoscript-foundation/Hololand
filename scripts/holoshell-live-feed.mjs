@@ -242,7 +242,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, desktopBridgeStatus, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, laptopReasoningBridge, laptopReasoningResult, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, desktopBridgeStatus, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, fleetReadiness, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, laptopReasoningBridge, laptopReasoningResult, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, sovereignRoomMarathon, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -909,13 +909,9 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
 
   if (workflow?.summary) {
     const workflowKind = workflow.summary.workflowKind || workflow.profile || 'workflow';
-    const workflowDetail = workflowKind === 'claude_chat'
-      ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), target ${workflow.summary.targetSurface || 'Claude'}, prompt ${workflow.summary.promptPresent ? 'staged' : 'empty'}.`
-      : workflowKind === 'ollama_cloud_agent'
-        ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), agent ${workflow.summary.agentLabel || workflow.summary.agentSlug || 'unknown'}, command ${workflow.summary.command || 'ollama launch'}.`
-        : workflowKind === 'grok_build'
-          ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), mode ${workflow.summary.mode || 'interactive'}, model ${workflow.summary.model || 'grok-build'}, project ${workflow.summary.projectTrustStatus || 'unknown'}.`
-      : `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), model ${workflow.summary.modelRoute || 'unknown'}/${workflow.summary.model || 'unknown'}.`;
+    const workflowDetail = workflowKind === 'grok_build'
+      ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), mode ${workflow.summary.mode || 'interactive'}, model ${workflow.summary.model || 'grok-build'}, project ${workflow.summary.projectTrustStatus || 'unknown'}.`
+      : `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), lane ${workflow.summary.taskLane || 'local'}, tag ${workflow.summary.taskTag || 'local'}, route ${workflow.summary.modelRoute || 'sovereign_local'}/${workflow.summary.model || 'sovereign-local'}.`;
     timeline.push({
       id: workflow.workflowId || 'holoshell-workflow',
       kind: 'workflow',
@@ -940,6 +936,24 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
         source: observation.sourceAnchors?.adapter || workflow.sourceAnchors?.adapter || 'scripts/holoshell-grok-build-workflow.mjs',
       });
     }
+  }
+
+  if (sovereignRoomMarathon?.summary) {
+    const summary = sovereignRoomMarathon.summary;
+    timeline.push({
+      id: sovereignRoomMarathon.receiptId || 'sovereign-room-marathon',
+      kind: 'sovereign_room_marathon',
+      title: `Sovereign room marathon ${summary.status || 'unknown'}`,
+      detail: `${summary.queueOpenCount || 0} open task(s), ${summary.matchedCandidateCount || 0} ${summary.taskTag || summary.taskLane || 'local'} candidate(s); selected ${summary.selectedTaskTitle || 'none'}; claim ${summary.claimSucceeded ? 'succeeded' : summary.claimAttempted ? 'attempted' : 'not attempted'}; next ${summary.nextAction || 'unknown'}.`,
+      trustState: summary.claimSucceeded
+        ? 'partial'
+        : summary.status === 'ready_to_claim' || summary.status === 'empty'
+          ? 'verified'
+          : 'unknown',
+      generatedAt: sovereignRoomMarathon.generatedAt || now,
+      receiptType: sovereignRoomMarathon.schemaVersion,
+      source: sovereignRoomMarathon.sourceAnchors?.adapter || 'scripts/holoshell-sovereign-room-marathon.mjs',
+    });
   }
 
   if (workflowApproval?.summary) {
@@ -1096,6 +1110,7 @@ function createFeed(args) {
   const packageCustody = readJson(path.join(tmpDir, 'package-custody-latest.json'), {});
   const trustLedger = readJson(path.join(tmpDir, 'trust-ledger.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
+  const sovereignRoomMarathon = readJson(path.join(tmpDir, 'sovereign-room-marathon-latest.json'), {});
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
   const workflowIntentGate = readJson(path.join(tmpDir, 'brain-intent-gate-latest.json'), {});
   const shardWorkflow = readJson(path.join(tmpDir, 'shard-workflow-latest.json'), {});
@@ -1161,6 +1176,7 @@ function createFeed(args) {
     packageCustody,
     trustLedger,
     workflow,
+    sovereignRoomMarathon,
     workflowApproval,
     workflowIntentGate,
     shardWorkflow,
@@ -1265,6 +1281,8 @@ function createFeed(args) {
       founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
       receiptControl: 'scripts/holoshell-receipt-control.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
+      sovereignRoomMarathon: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
+      sovereignRoomMarathonAdapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
       laptopReasoningBridge: 'scripts/holoshell-laptop-reasoning-bridge.mjs',
       laptopReasoningResult: 'scripts/holoshell-laptop-reasoning-worker.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
@@ -1615,6 +1633,19 @@ function createFeed(args) {
       agentDispatchActionKind: agentDispatch?.summary?.actionKind || '',
       agentDispatchTargetApp: agentDispatch?.summary?.targetApp || '',
       agentDispatchTargetUrlHost: agentDispatch?.summary?.targetUrlHost || '',
+      sovereignRoomMarathonStatus: sovereignRoomMarathon?.summary?.status || 'unknown',
+      sovereignRoomTaskLane: sovereignRoomMarathon?.summary?.taskLane || 'local',
+      sovereignRoomTaskTag: sovereignRoomMarathon?.summary?.taskTag || 'local',
+      sovereignRoomQueueOpenCount: sovereignRoomMarathon?.summary?.queueOpenCount || 0,
+      sovereignRoomQueueClaimableOpenCount: sovereignRoomMarathon?.summary?.queueClaimableOpenCount || 0,
+      sovereignRoomMatchedCandidateCount: sovereignRoomMarathon?.summary?.matchedCandidateCount || 0,
+      sovereignRoomSelectedTaskId: sovereignRoomMarathon?.summary?.selectedTaskId || '',
+      sovereignRoomSelectedTaskTitle: sovereignRoomMarathon?.summary?.selectedTaskTitle || '',
+      sovereignRoomClaimRequested: Boolean(sovereignRoomMarathon?.summary?.claimRequested),
+      sovereignRoomClaimAttempted: Boolean(sovereignRoomMarathon?.summary?.claimAttempted),
+      sovereignRoomClaimSucceeded: Boolean(sovereignRoomMarathon?.summary?.claimSucceeded),
+      sovereignRoomCompletionClaimAllowed: Boolean(sovereignRoomMarathon?.summary?.completionClaimAllowed),
+      sovereignRoomNextAction: sovereignRoomMarathon?.summary?.nextAction || '',
       laptopReasoningBridgeStatus: laptopReasoningBridge?.summary?.status || 'unknown',
       laptopReasoningBridgeProcessedCount: laptopReasoningBridge?.summary?.processedCount || 0,
       laptopReasoningBridgePulledCount: laptopReasoningBridge?.summary?.pulledCount || 0,
@@ -1732,6 +1763,8 @@ function createFeed(args) {
       activeWorkflowPendingApprovalCount: workflow?.summary?.pendingApprovalCount || 0,
       activeWorkflowModel: workflow?.summary?.model || '',
       activeWorkflowModelRoute: workflow?.summary?.modelRoute || '',
+      activeWorkflowTaskLane: workflow?.summary?.taskLane || '',
+      activeWorkflowTaskTag: workflow?.summary?.taskTag || '',
       activeWorkflowMusicTarget: workflow?.summary?.musicTarget || '',
       activeWorkflowPromptPresent: Boolean(workflow?.summary?.promptPresent),
       activeWorkflowProjectTrusted: Boolean(workflow?.summary?.projectTrusted),
@@ -1832,6 +1865,7 @@ function createFeed(args) {
       packageCustody,
       trustLedger,
       workflow,
+      sovereignRoomMarathon,
       workflowApproval,
       workflowIntentGate,
       shardWorkflow,
