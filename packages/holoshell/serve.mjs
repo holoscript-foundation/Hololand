@@ -16,7 +16,7 @@
 
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync } from 'node:child_process';
 import { buildTerminalEventStream } from '../../scripts/holoshell-terminal-event-stream.mjs';
@@ -63,8 +63,39 @@ const OPERATOR_TERMINAL_GUARDED_EXECUTE_RECEIPT =
 const OPERATOR_TERMINAL_GUARDED_EXECUTE_DIR =
   process.env.HOLOSHELL_OPERATOR_TERMINAL_GUARDED_EXECUTE_DIR ||
   join(HOLOSHELL_TMP_DIR, 'operator-terminal-guarded-execute');
+const OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA = 'hololand.holoshell.operator-terminal-approved-adapter-execution.v0.1.0';
+const OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT ||
+  join(HOLOSHELL_TMP_DIR, 'operator-terminal-approved-execution-latest.json');
+const OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR ||
+  join(HOLOSHELL_TMP_DIR, 'operator-terminal-approved-execution');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
+const OPERATOR_TERMINAL_APPROVED_ADAPTER_STDIO_LIMIT = 4000;
+const OPERATOR_TERMINAL_APPROVED_ADAPTERS = {
+  build_world: {
+    label: 'Build World',
+    adapter: 'scripts/holoshell-build-custody.mjs',
+    args: ['--json'],
+    permissionEnvelope: 'guarded_execute',
+    receipt: '.tmp/holoshell/build-custody.json',
+    output: join(HOLOSHELL_TMP_DIR, 'build-custody.json'),
+    jsOutput: join(HOLOSHELL_TMP_DIR, 'build-custody.js'),
+    timeoutMs: 120_000,
+  },
+  review_approvals: {
+    label: 'Review Approvals',
+    adapter: 'scripts/holoshell-workflow-approval-bundle.mjs',
+    args: ['--json'],
+    permissionEnvelope: 'guarded_execute',
+    receipt: '.tmp/holoshell/workflow-approval-latest.json',
+    output: join(HOLOSHELL_TMP_DIR, 'workflow-approval-latest.json'),
+    jsOutput: join(HOLOSHELL_TMP_DIR, 'workflow-approval-latest.js'),
+    bundleDir: join(HOLOSHELL_TMP_DIR, 'workflow-approval-bundles'),
+    timeoutMs: 60_000,
+  },
+};
 const BROWSER_SESSION_STATE_KEY = 'holoshell:brittney:browser-session:v1';
 const BROWSER_SESSION_STATE_SCHEMA = 'hololand.holoshell.browser-session-state.v0.1.0';
 const BROWSER_SESSION_STATE_SNAPSHOT =
@@ -2498,6 +2529,272 @@ function writeOperatorTerminalGuardedExecuteReceipt(receipt) {
   return withOutput;
 }
 
+function operatorTerminalApprovedAdapterForCommand(commandId) {
+  const id = safeOperatorTerminalId(commandId, '');
+  if (!Object.prototype.hasOwnProperty.call(OPERATOR_TERMINAL_APPROVED_ADAPTERS, id)) return null;
+  return {
+    id,
+    ...OPERATOR_TERMINAL_APPROVED_ADAPTERS[id],
+  };
+}
+
+function operatorTerminalApprovedAdapterCatalog() {
+  return Object.keys(OPERATOR_TERMINAL_APPROVED_ADAPTERS).map((commandId) => {
+    const adapter = operatorTerminalApprovedAdapterForCommand(commandId);
+    return {
+      commandId,
+      label: adapter.label,
+      adapter: adapter.adapter,
+      permissionEnvelope: adapter.permissionEnvelope,
+      receipt: adapter.receipt,
+      timeoutMs: adapter.timeoutMs,
+    };
+  });
+}
+
+function resolveRepoFilePath(filePath) {
+  const text = String(filePath || '').trim();
+  if (!text) return '';
+  return isAbsolute(text) ? text : resolve(REPO_ROOT, text);
+}
+
+function truncateOperatorTerminalText(value, limit = OPERATOR_TERMINAL_APPROVED_ADAPTER_STDIO_LIMIT) {
+  return String(value || '').slice(0, limit);
+}
+
+function buildApprovedAdapterCliArgs(adapter) {
+  const args = [adapter.adapter, ...safeArray(adapter.args)];
+  if (adapter.output) args.push('--output', adapter.output);
+  if (adapter.jsOutput) args.push('--js-output', adapter.jsOutput);
+  if (adapter.bundleDir) args.push('--bundle-dir', adapter.bundleDir);
+  return args;
+}
+
+function operatorTerminalApprovedExecutionError(statusCode, reason, extra = {}) {
+  const error = new Error(reason);
+  error.statusCode = statusCode;
+  error.response = {
+    schemaVersion: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
+    status: statusCode === 403 ? 'approval_required' : 'rejected',
+    reason,
+    executionAllowed: false,
+    endpointExecutesCommand: false,
+    endpointExecutesApprovedAdapter: false,
+    endpointExecutesRawCommand: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    ...extra,
+  };
+  return error;
+}
+
+function readOperatorTerminalGuardedExecuteReceiptForPayload(payload = {}) {
+  const executionId = safeOperatorTerminalId(payload.executionId || payload.guardedExecutionId, '');
+  if (!executionId) {
+    throw operatorTerminalApprovedExecutionError(400, 'guarded_execution_id_required', {
+      required: ['executionId'],
+    });
+  }
+
+  const candidates = [
+    join(OPERATOR_TERMINAL_GUARDED_EXECUTE_DIR, `${executionId}.json`),
+    OPERATOR_TERMINAL_GUARDED_EXECUTE_RECEIPT,
+  ];
+
+  for (const receiptPath of candidates) {
+    const receipt = readJsonFileIfPresent(receiptPath);
+    if (!receipt) continue;
+    if (safeOperatorTerminalId(receipt.executionId, '') !== executionId) continue;
+    if (receipt.schemaVersion !== OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA) continue;
+    return { receipt, receiptPath };
+  }
+
+  throw operatorTerminalApprovedExecutionError(404, 'guarded_execution_receipt_not_found', {
+    executionId,
+  });
+}
+
+function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
+  const { receipt: stagedReceipt, receiptPath: stagedReceiptPath } =
+    readOperatorTerminalGuardedExecuteReceiptForPayload(payload);
+  const stagedCommandId = stagedReceipt.command?.id || '';
+  const requestedCommandId = safeOperatorTerminalId(payload.commandId || stagedCommandId, '');
+  if (requestedCommandId && safeOperatorTerminalId(stagedCommandId, '') !== requestedCommandId) {
+    throw operatorTerminalApprovedExecutionError(409, 'command_id_does_not_match_guarded_receipt', {
+      executionId: stagedReceipt.executionId,
+      commandId: requestedCommandId,
+      guardedCommandId: stagedCommandId,
+    });
+  }
+
+  if (stagedReceipt.status !== 'receipt_staged' || stagedReceipt.execution?.executionAllowed !== true) {
+    throw operatorTerminalApprovedExecutionError(409, 'guarded_execution_receipt_not_runnable', {
+      executionId: stagedReceipt.executionId,
+      guardedStatus: stagedReceipt.status,
+    });
+  }
+
+  const adapter = operatorTerminalApprovedAdapterForCommand(stagedCommandId);
+  if (!adapter) {
+    throw operatorTerminalApprovedExecutionError(403, 'operator_terminal_command_not_approved_for_adapter_execution', {
+      executionId: stagedReceipt.executionId,
+      commandId: stagedCommandId,
+      allowlistedCommandIds: Object.keys(OPERATOR_TERMINAL_APPROVED_ADAPTERS),
+    });
+  }
+
+  const approvalEvidence = approvalEvidenceFromPayload(payload);
+  if (payload.confirmApprovedAdapterExecution !== true || !approvalEvidence) {
+    throw operatorTerminalApprovedExecutionError(
+      403,
+      'approved_operator_terminal_adapter_execution_requires_confirmation_and_approval_evidence',
+      {
+        executionId: stagedReceipt.executionId,
+        commandId: stagedCommandId,
+        required: ['confirmApprovedAdapterExecution:true', 'approvalReceipt|approvalId|approvalHash'],
+      }
+    );
+  }
+
+  const generatedAt = new Date().toISOString();
+  const approvedExecutionId = `otax_${Date.now().toString(36)}_${safeOperatorTerminalId(stagedCommandId, 'command')}`;
+  const childArgs = buildApprovedAdapterCliArgs(adapter);
+  const startedAt = new Date().toISOString();
+  let stdout = '';
+  let stderr = '';
+  let exitCode = 0;
+  let adapterOk = true;
+
+  try {
+    stdout = execFileSync(process.execPath, childArgs, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: adapter.timeoutMs,
+      maxBuffer: 5 * 1024 * 1024,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        HOLOSHELL_OPERATOR_TERMINAL_APPROVED_EXECUTION: '1',
+        HOLOSHELL_OPERATOR_TERMINAL_APPROVED_EXECUTION_ID: approvedExecutionId,
+        HOLOSHELL_OPERATOR_TERMINAL_GUARDED_EXECUTION_ID: stagedReceipt.executionId,
+      },
+    });
+  } catch (error) {
+    adapterOk = false;
+    exitCode = Number.isInteger(error.status) ? error.status : 1;
+    stdout = String(error.stdout || '');
+    stderr = String(error.stderr || error.message || '');
+  }
+
+  const completedAt = new Date().toISOString();
+  const adapterReceiptPath = resolveRepoFilePath(adapter.output || adapter.receipt || stagedReceipt.command?.receipt);
+  const adapterReceipt = readJsonFileIfPresent(adapterReceiptPath);
+  return {
+    schemaVersion: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
+    source: OPERATOR_TERMINAL_COUPLING_SOURCE,
+    generatedAt,
+    approvedExecutionId,
+    executionId: stagedReceipt.executionId,
+    sessionId: stagedReceipt.sessionId || sharedHoloShellSessionId(),
+    status: adapterOk ? 'approved_adapter_executed' : 'approved_adapter_failed',
+    command: {
+      id: stagedCommandId,
+      label: stagedReceipt.command?.label || adapter.label,
+      flow: stagedReceipt.command?.flow || 'operator_terminal',
+      target: stagedReceipt.command?.target || '',
+      permissionEnvelope: stagedReceipt.command?.permissionEnvelope || adapter.permissionEnvelope,
+      approvalRequired: stagedReceipt.command?.approvalRequired ?? true,
+      adapter: adapter.adapter,
+      receipt: adapter.receipt,
+    },
+    guardedExecution: {
+      executionId: stagedReceipt.executionId,
+      receiptPath: stagedReceiptPath,
+      approvalEvidence: stagedReceipt.approval?.evidence || '',
+      stagedAt: stagedReceipt.generatedAt || null,
+    },
+    approval: {
+      evidence: approvalEvidence.slice(0, 500),
+      confirmedAt: generatedAt,
+      confirmApprovedAdapterExecution: true,
+    },
+    adapter: {
+      id: adapter.id,
+      label: adapter.label,
+      script: adapter.adapter,
+      allowedByServerAllowlist: true,
+      startedAt,
+      completedAt,
+      ok: adapterOk,
+      exitCode,
+      timeoutMs: adapter.timeoutMs,
+      stdoutPreview: truncateOperatorTerminalText(stdout),
+      stderrPreview: truncateOperatorTerminalText(stderr),
+      receiptPath: adapterReceiptPath,
+      receiptObserved: Boolean(adapterReceipt),
+      receiptSchemaVersion: adapterReceipt?.schemaVersion || null,
+    },
+    execution: {
+      lane: 'operator_terminal_approved_adapter_execution',
+      executionAllowed: true,
+      endpointExecutesCommand: false,
+      endpointExecutesApprovedAdapter: true,
+      endpointExecutesRawCommand: false,
+      adapterSpawned: true,
+      browserMayExecuteTerminalCommand: false,
+      rawCommandHiddenFromHuman: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+    safety: {
+      directTerminalMutationAllowed: false,
+      terminalSpawnedByEndpoint: false,
+      adapterProcessSpawnedByEndpoint: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      rawSecretsIncluded: false,
+      rawCommandsIncludedForHuman: false,
+      receiptRequired: true,
+    },
+  };
+}
+
+function writeOperatorTerminalApprovedAdapterExecutionReceipt(receipt) {
+  mkdirSync(OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR, { recursive: true });
+  const archivePath = join(OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR, `${receipt.approvedExecutionId}.json`);
+  const withOutput = {
+    ...receipt,
+    output: {
+      latestPath: writeJsonFile(OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT, receipt),
+      archivePath: writeJsonFile(archivePath, receipt),
+    },
+  };
+  writeJsonFile(OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT, withOutput);
+  writeJsonFile(archivePath, withOutput);
+  mkdirSync(dirname(OPERATOR_TERMINAL_EVENT_LOG), { recursive: true });
+  appendFileSync(OPERATOR_TERMINAL_EVENT_LOG, `${JSON.stringify({
+    schemaVersion: 'hololand.holoshell.terminal-event.v0.1.0',
+    eventId: `ote_${receipt.approvedExecutionId}`,
+    sessionId: receipt.sessionId,
+    receiptHash: receipt.approvedExecutionId,
+    sourceReceipt: OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT,
+    source: OPERATOR_TERMINAL_COUPLING_SOURCE,
+    generatedAt: receipt.generatedAt,
+    type: 'approved_adapter_execution',
+    lifecycle: receipt.status,
+    severity: receipt.status === 'approved_adapter_executed' ? 'info' : 'error',
+    summary: `Approved operator-terminal adapter ${receipt.command.label} ${receipt.status}.`,
+    commandId: receipt.command.id,
+    approvedExecutionId: receipt.approvedExecutionId,
+    endpointExecutesApprovedAdapter: true,
+    endpointExecutesRawCommand: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  })}\n`, 'utf8');
+  return withOutput;
+}
+
 function normalizeWindowAwarenessReport(payload = {}) {
   const incoming = unwrapSchemaPayload(payload, LEGACY_WINDOW_INVENTORY_SCHEMA, ['receipt', 'windowInventory']);
   if (incoming.schemaVersion !== LEGACY_WINDOW_INVENTORY_SCHEMA) {
@@ -3226,6 +3523,7 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
     const endpointStagesGuardedExecutionReceipt = operatorTerminalCommandCanStageGuardedExecution(command, {
       intentClass: 'guarded_execute',
     });
+    const approvedAdapter = operatorTerminalApprovedAdapterForCommand(command.id);
     return {
       id: `terminal_run_card:${command.id || command.label}`,
       label: command.label || command.id || 'Terminal evidence',
@@ -3240,6 +3538,10 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
       endpointExecutesCommand: false,
       endpointStagesGuardedExecutionReceipt,
       guardedExecuteEndpoint: endpointStagesGuardedExecutionReceipt ? 'POST /api/operator-terminal/execute' : null,
+      approvedAdapterAvailable: Boolean(approvedAdapter),
+      approvedAdapterExecuteEndpoint: approvedAdapter ? 'POST /api/operator-terminal/run-approved' : null,
+      endpointExecutesApprovedAdapter: false,
+      endpointExecutesRawCommand: false,
       receiptRequired: true,
       receiptHash: receiptHash || null,
     };
@@ -3314,6 +3616,7 @@ function buildOperatorTerminalSession() {
       operatorTerminalSessionEndpoint: 'GET /api/operator-terminal/session',
       operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       operatorTerminalGuardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
+      operatorTerminalApprovedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
       permissionEnvelope: 'read_only',
       mayMutateWithoutConsent: false,
     },
@@ -3335,6 +3638,10 @@ function buildOperatorTerminalSession() {
       guardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
       guardedExecuteReceipt: OPERATOR_TERMINAL_GUARDED_EXECUTE_RECEIPT,
       guardedExecuteSchema: OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA,
+      approvedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
+      approvedAdapterExecutionReceipt: OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT,
+      approvedAdapterExecutionSchema: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
+      approvedAdapterAllowlist: operatorTerminalApprovedAdapterCatalog(),
       eventStreamStatus: terminalEventStream.status,
       eventStreamEventCount: terminalEventStream.eventCount,
       eventLog: terminalEventStream.eventLog,
@@ -3370,6 +3677,7 @@ function buildOperatorTerminalSession() {
       browserMayExecuteTerminalCommand: false,
       endpointMayExecuteTerminalCommand: false,
       endpointMayStageGuardedExecutionReceipt: true,
+      endpointMayExecuteApprovedAdapter: true,
     },
     refreshRecovery: {
       status: 'enabled',
@@ -3416,6 +3724,20 @@ function buildOperatorTerminalSession() {
         required: ['commandId', 'confirmGuardedExecute:true', 'approvalReceipt|approvalId|approvalHash'],
       },
       {
+        id: 'run_approved_operator_terminal_adapter',
+        label: 'Run Approved Adapter',
+        method: 'POST',
+        href: '/api/operator-terminal/run-approved',
+        lane: 'operator_terminal_approved_adapter_execution',
+        permissionEnvelope: 'guarded_execute',
+        mayExecuteWithoutConsent: false,
+        endpointExecutesCommand: false,
+        endpointExecutesApprovedAdapter: true,
+        endpointExecutesRawCommand: false,
+        receiptRequired: true,
+        required: ['executionId', 'commandId', 'confirmApprovedAdapterExecution:true', 'approvalReceipt|approvalId|approvalHash'],
+      },
+      {
         id: 'open_browser_cockpit',
         label: 'Open Browser Cockpit',
         method: 'GET',
@@ -3433,7 +3755,9 @@ function buildOperatorTerminalSession() {
       directTerminalMutationAllowed: false,
       endpointMayExecuteTerminalCommand: false,
       endpointMayStageGuardedExecutionReceipt: true,
+      endpointMayExecuteApprovedAdapter: true,
       terminalSpawnedByEndpoint: false,
+      adapterProcessMaySpawnFromEndpoint: true,
       terminalMutationRequires: ['identify', 'scope', 'preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt', 'log'],
       rawSecretsIncluded: false,
       rawCommandsIncludedForHuman: false,
@@ -3443,7 +3767,7 @@ function buildOperatorTerminalSession() {
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     nextSafeStep: terminalStatus === 'ready'
-      ? 'Use the browser for Brittney chat and approvals; stage guarded operator-terminal execution only with explicit confirmation and approval evidence.'
+      ? 'Use the browser for Brittney chat and approvals; stage guarded operator-terminal execution, then run only approved local adapters with a second confirmation.'
       : `Refresh the read-only terminal receipt with ${OPERATOR_TERMINAL_REFRESH_COMMAND}, then keep mutations behind preflight -> consent-token -> receipt.`,
   };
 }
@@ -3478,6 +3802,7 @@ function buildLiveStatusSnapshot() {
       operatorTerminalReportEndpoint: 'POST /api/operator-terminal/report',
       operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       operatorTerminalGuardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
+      operatorTerminalApprovedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
@@ -3516,6 +3841,7 @@ function buildLiveStatusSnapshot() {
       'operator_terminal_event_stream',
       'operator_terminal_run_cards',
       'operator_terminal_guarded_execute_receipts',
+      'operator_terminal_approved_adapter_execution',
       'browser_refresh_evidence_rehydration',
       'browser_session_snapshot',
       'fara_brittney_peer_chat',
@@ -3552,6 +3878,7 @@ function buildLiveStatusSnapshot() {
       { id: 'laptop_hardware', model: 'laptop sovereign receipt route', role: 'laptop reasoning dispatch/result receipts with GPU telemetry truth' },
       { id: 'sovereign_room_marathon', model: 'local sovereign room queue', role: 'local tagged HoloMesh room receipt and claim boundary' },
       { id: 'operator_terminal_guarded_execute', model: 'local HoloShell receipts', role: 'confirmation-bound operator terminal capability staging' },
+      { id: 'operator_terminal_approved_adapter_execution', model: 'local HoloShell allowlisted adapters', role: 'receipt-bound approved adapter execution' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'holoclaw_runtime', model: 'HoloClaw AgentRunner', role: 'consent-gated HoloScript agent runtime bridge' },
       { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
@@ -4925,6 +5252,50 @@ async function handleRequest(req, res) {
           error: String(err.message || err).slice(0, 300),
           executionAllowed: false,
           endpointExecutesCommand: false,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+        }, err.statusCode || 400);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/operator-terminal/run-approved') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const receipt = writeOperatorTerminalApprovedAdapterExecutionReceipt(
+          buildOperatorTerminalApprovedAdapterExecutionReceipt(payload)
+        );
+        respond(res, {
+          schemaVersion: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
+          status: receipt.status,
+          approvedExecutionId: receipt.approvedExecutionId,
+          executionId: receipt.executionId,
+          commandId: receipt.command.id,
+          permissionEnvelope: receipt.command.permissionEnvelope,
+          executionAllowed: receipt.execution.executionAllowed,
+          endpointExecutesCommand: false,
+          endpointExecutesApprovedAdapter: true,
+          endpointExecutesRawCommand: false,
+          adapterSpawned: receipt.execution.adapterSpawned,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+          receipt,
+        }, receipt.adapter.ok ? 200 : 500);
+      } catch (err) {
+        respond(res, err.response || {
+          schemaVersion: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
+          status: 'error',
+          error: String(err.message || err).slice(0, 300),
+          executionAllowed: false,
+          endpointExecutesCommand: false,
+          endpointExecutesApprovedAdapter: false,
+          endpointExecutesRawCommand: false,
           destructiveActionsTaken: false,
           desktopAutomationExecuted: false,
           receiptRequired: true,

@@ -284,6 +284,30 @@ function Test-JetsonChatWrapperParity {
       RelativePath = 'scripts/holoshell-terminal-event-stream.mjs'
       LocalPath = Join-Path $Hololand 'scripts\holoshell-terminal-event-stream.mjs'
       RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-terminal-event-stream.mjs'
+    },
+    @{
+      Name = 'build-custody'
+      RelativePath = 'scripts/holoshell-build-custody.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-build-custody.mjs'
+    },
+    @{
+      Name = 'workflow-approval-bundle'
+      RelativePath = 'scripts/holoshell-workflow-approval-bundle.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-workflow-approval-bundle.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-workflow-approval-bundle.mjs'
+    },
+    @{
+      Name = 'browser-terminal-coupling-source'
+      RelativePath = 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'
+      LocalPath = Join-Path $Hololand 'apps\holoshell\source\holoshell-browser-terminal-coupling.hsplus'
+      RemotePath = Join-RemotePath $RemoteSurface 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'
+    },
+    @{
+      Name = 'operator-terminal-source'
+      RelativePath = 'apps/holoshell/source/holoshell-operator-terminal.hsplus'
+      LocalPath = Join-Path $Hololand 'apps\holoshell\source\holoshell-operator-terminal.hsplus'
+      RemotePath = Join-RemotePath $RemoteSurface 'apps/holoshell/source/holoshell-operator-terminal.hsplus'
     }
   )
 
@@ -387,6 +411,8 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'scripts\holoshell-sovereign-room-marathon.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-holoclaw-runtime-bridge.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-terminal-event-stream.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-workflow-approval-bundle.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-operator-terminal.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-desktop-control-plan.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-agent-dispatch.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
@@ -397,6 +423,8 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-founder-prompt-fixtures.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-agent-dispatch.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-brittney-operator-chat.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-browser-terminal-coupling.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'apps\holoshell\source\holoshell-operator-terminal.hsplus'; Destination = Join-RemotePath $RemoteSurface 'apps/holoshell/source/'; Recursive = $false; Required = $true },
   @{ Source = $FounderFixture; Destination = Join-RemotePath $RemoteSurface '.tmp/holoshell/founder-prompt-fixtures.json'; Recursive = $false; Required = $true },
   @{ Source = $ModelLibraryPath; Destination = Join-RemotePath $RemoteSurface 'model-library/library.json'; Recursive = $false; Required = $false }
 )

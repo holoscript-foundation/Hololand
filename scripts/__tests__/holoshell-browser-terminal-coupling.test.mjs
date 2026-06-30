@@ -140,10 +140,12 @@ try {
   assert.equal(liveStatus.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
   assert.equal(liveStatus.route.operatorTerminalGuardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
+  assert.equal(liveStatus.route.operatorTerminalApprovedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
   assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_guarded_execute_receipts'));
+  assert.ok(liveStatus.capabilities.includes('operator_terminal_approved_adapter_execution'));
   assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
 
   const emptyBrowserState = await getJson('/api/browser-session/state');
@@ -158,11 +160,15 @@ try {
   assert.equal(session.status, 'coupled');
   assert.equal(session.browser.status, 'ready');
   assert.equal(session.browser.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
+  assert.equal(session.browser.operatorTerminalApprovedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
   assert.equal(session.terminal.status, 'ready');
   assert.equal(session.terminal.receiptStatus, 'fresh');
   assert.equal(session.terminal.receiptHash, 'terminal-test-hash');
   assert.equal(session.terminal.refreshCommand, 'node scripts/holoshell-operator-terminal.mjs --agent --json');
   assert.equal(session.terminal.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
+  assert.equal(session.terminal.approvedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(session.terminal.approvedAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-approved-adapter-execution.v0.1.0');
+  assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'build_world'));
   assert.equal(session.terminal.runCards.length, 4);
   assert.equal(session.runCards.length, 4);
   assert.equal(session.runCards[0].label, 'Refresh Terminal Receipt');
@@ -172,10 +178,15 @@ try {
   assert.equal(buildWorldCard.endpointExecutesCommand, false);
   assert.equal(buildWorldCard.endpointStagesGuardedExecutionReceipt, true);
   assert.equal(buildWorldCard.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
+  assert.equal(buildWorldCard.approvedAdapterAvailable, true);
+  assert.equal(buildWorldCard.approvedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(buildWorldCard.endpointExecutesApprovedAdapter, false);
+  assert.equal(buildWorldCard.endpointExecutesRawCommand, false);
   assert.equal(session.symbiosis.mode, 'always_on_native_terminal_plus_browser');
   assert.equal(session.symbiosis.browserMayExecuteTerminalCommand, false);
   assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
   assert.equal(session.symbiosis.endpointMayStageGuardedExecutionReceipt, true);
+  assert.equal(session.symbiosis.endpointMayExecuteApprovedAdapter, true);
   assert.equal(session.refreshRecovery.status, 'enabled');
   assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
   assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
@@ -191,7 +202,9 @@ try {
   assert.equal(session.safety.directTerminalMutationAllowed, false);
   assert.equal(session.safety.endpointMayExecuteTerminalCommand, false);
   assert.equal(session.safety.endpointMayStageGuardedExecutionReceipt, true);
+  assert.equal(session.safety.endpointMayExecuteApprovedAdapter, true);
   assert.equal(session.safety.terminalSpawnedByEndpoint, false);
+  assert.equal(session.safety.adapterProcessMaySpawnFromEndpoint, true);
   assert.equal(session.destructiveActionsTaken, false);
   assert.equal(session.desktopAutomationExecuted, false);
   assert.match(session.nextSafeStep, /browser for Brittney chat and approvals/);
@@ -272,6 +285,68 @@ try {
   assert.equal(stagedExecution.destructiveActionsTaken, false);
   assert.equal(stagedExecution.receipt.execution.adapterSpawned, false);
   assert.match(readFileSync(join(tempDir, 'operator-terminal-guarded-execute-latest.json'), 'utf8'), /approval-test-receipt-123/);
+
+  const rejectedApprovedExecution = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
+    executionId: stagedExecution.executionId,
+    commandId: 'build_world',
+    approvalReceipt: 'adapter-approval-test-456',
+    reason: 'missing second confirmation',
+  }, 403);
+  assert.equal(rejectedApprovedExecution.status, 'approval_required');
+  assert.equal(rejectedApprovedExecution.executionAllowed, false);
+  assert.equal(rejectedApprovedExecution.endpointExecutesApprovedAdapter, false);
+  assert.equal(rejectedApprovedExecution.endpointExecutesRawCommand, false);
+  assert.equal(rejectedApprovedExecution.destructiveActionsTaken, false);
+
+  const stagedAskBrittney = await postJson('/api/operator-terminal/execute', {
+    commandId: 'ask_brittney',
+    intentClass: 'guarded_execute',
+    confirmGuardedExecute: true,
+    approvalReceipt: 'approval-test-ask-brittney',
+    reason: 'stage non-allowlisted guarded intent',
+    requestedBy: 'browser-test',
+  });
+  assert.equal(stagedAskBrittney.status, 'receipt_staged');
+  assert.equal(stagedAskBrittney.commandId, 'ask_brittney');
+
+  const rejectedNonAllowlistedAdapter = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
+    executionId: stagedAskBrittney.executionId,
+    commandId: 'ask_brittney',
+    confirmApprovedAdapterExecution: true,
+    approvalReceipt: 'adapter-approval-test-ask-brittney',
+    reason: 'try to run non-allowlisted adapter',
+  }, 403);
+  assert.equal(rejectedNonAllowlistedAdapter.reason, 'operator_terminal_command_not_approved_for_adapter_execution');
+  assert.equal(rejectedNonAllowlistedAdapter.executionAllowed, false);
+  assert.equal(rejectedNonAllowlistedAdapter.endpointExecutesApprovedAdapter, false);
+  assert.equal(rejectedNonAllowlistedAdapter.endpointExecutesRawCommand, false);
+  assert.equal(rejectedNonAllowlistedAdapter.destructiveActionsTaken, false);
+
+  const approvedAdapterExecution = await postJson('/api/operator-terminal/run-approved', {
+    executionId: stagedExecution.executionId,
+    commandId: 'build_world',
+    confirmApprovedAdapterExecution: true,
+    approvalReceipt: 'adapter-approval-test-456',
+    reason: 'run allowlisted build custody adapter from staged receipt',
+  });
+  assert.equal(approvedAdapterExecution.schemaVersion, 'hololand.holoshell.operator-terminal-approved-adapter-execution.v0.1.0');
+  assert.equal(approvedAdapterExecution.status, 'approved_adapter_executed');
+  assert.equal(approvedAdapterExecution.commandId, 'build_world');
+  assert.equal(approvedAdapterExecution.executionAllowed, true);
+  assert.equal(approvedAdapterExecution.endpointExecutesCommand, false);
+  assert.equal(approvedAdapterExecution.endpointExecutesApprovedAdapter, true);
+  assert.equal(approvedAdapterExecution.endpointExecutesRawCommand, false);
+  assert.equal(approvedAdapterExecution.adapterSpawned, true);
+  assert.equal(approvedAdapterExecution.destructiveActionsTaken, false);
+  assert.equal(approvedAdapterExecution.desktopAutomationExecuted, false);
+  assert.equal(approvedAdapterExecution.receipt.adapter.ok, true);
+  assert.equal(approvedAdapterExecution.receipt.adapter.allowedByServerAllowlist, true);
+  assert.equal(approvedAdapterExecution.receipt.adapter.receiptObserved, true);
+  assert.equal(approvedAdapterExecution.receipt.execution.browserMayExecuteTerminalCommand, false);
+  assert.equal(approvedAdapterExecution.receipt.execution.endpointExecutesApprovedAdapter, true);
+  assert.equal(approvedAdapterExecution.receipt.execution.endpointExecutesRawCommand, false);
+  assert.match(readFileSync(join(tempDir, 'operator-terminal-approved-execution-latest.json'), 'utf8'), /adapter-approval-test-456/);
+  assert.match(readFileSync(join(tempDir, 'build-custody.json'), 'utf8'), /hololand.holoshell.build-custody.v0.1.0/);
 
   const browserState = await postJson('/api/browser-session/state', {
     schemaVersion: 'hololand.holoshell.browser-session-state.v0.1.0',

@@ -23,10 +23,13 @@ composition "HoloShell Browser Terminal Coupling" {
     sessionEndpoint: "GET /api/operator-terminal/session"
     terminalReportEndpoint: "POST /api/operator-terminal/report"
     guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+    approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     cockpitEndpoint: "GET /api/cockpit/capsule"
     browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
     chatEndpoint: "POST /api/brittney/chat"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
+    approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
     terminalRefreshCommand: "pnpm run holoshell:operator-terminal -- --agent --json"
     laptopReceiptFreshnessCommand: "pnpm run holoshell:laptop-receipt-freshness -- --watch --interval-ms 60000 --timeout-ms 60000 --json"
     receiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
@@ -51,6 +54,7 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalIsExecutionEvidenceSurface: true
     directTerminalMutationAllowed: false
     endpointMayStageGuardedExecutionReceipt: true
+    endpointMayExecuteApprovedAdapter: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
   }
@@ -118,6 +122,10 @@ composition "HoloShell Browser Terminal Coupling" {
     endpointExecutesCommand: false
     endpointStagesGuardedExecutionReceipt: false
     guardedExecuteEndpoint: ""
+    approvedAdapterAvailable: false
+    approvedAdapterExecuteEndpoint: ""
+    endpointExecutesApprovedAdapter: false
+    endpointExecutesRawCommand: false
     receiptRequired: true
   }
 
@@ -165,6 +173,7 @@ composition "HoloShell Browser Terminal Coupling" {
     launcherMayOpenTerminalProjection: true
     endpointMayExecuteTerminalCommand: false
     endpointMayStageGuardedExecutionReceipt: true
+    endpointMayExecuteApprovedAdapter: true
     receiptRequired: true
   }
 
@@ -177,6 +186,25 @@ composition "HoloShell Browser Terminal Coupling" {
     endpointMayStageGuardedExecutionReceipt: true
     adapterSpawnedByEndpoint: false
     browserMayExecuteTerminalCommand: false
+    receiptRequired: true
+  }
+
+  policy "ApprovedTerminalAdapterExecutionConsumesReceipts" {
+    appliesTo: ["operator_terminal_approved_adapter_execution", "build_world", "review_approvals"]
+    approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
+    guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
+    approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
+    requiredBeforeAdapter: ["executionId", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
+    allowlistedAdaptersOnly: true
+    browserPayloadMayNotNameRawCommand: true
+    developerCommandMayNotBeExecutedFromReceipt: true
+    endpointMayExecuteTerminalCommand: false
+    endpointMayExecuteApprovedAdapter: true
+    endpointMayExecuteRawCommand: false
+    adapterSpawnedByEndpoint: true
+    browserMayExecuteTerminalCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
     receiptRequired: true
   }
 
@@ -217,6 +245,7 @@ composition "HoloShell Browser Terminal Coupling" {
     ledgerDeduplicationRequired: true
     browserMayExecuteTerminalCommand: false
     endpointMayExecuteTerminalCommand: false
+    endpointMayExecuteApprovedAdapter: true
     receiptRequired: true
   }
 
@@ -252,6 +281,7 @@ composition "HoloShell Browser Terminal Coupling" {
     browserMayShowRunCards: true
     browserMayExecuteRunCardsDirectly: false
     endpointMayExecuteTerminalCommand: false
+    endpointMayExecuteApprovedAdapter: true
     receiptRequired: true
   }
 
@@ -272,6 +302,7 @@ composition "HoloShell Browser Terminal Coupling" {
     state.browserIsPrimaryConversationSurface = session.safety.browserIsPrimaryConversationSurface
     state.terminalIsExecutionEvidenceSurface = session.safety.terminalIsExecutionEvidenceSurface
     state.directTerminalMutationAllowed = session.safety.directTerminalMutationAllowed
+    state.endpointMayExecuteApprovedAdapter = session.safety.endpointMayExecuteApprovedAdapter
     state.destructiveActionsTaken = session.destructiveActionsTaken
     state.desktopAutomationExecuted = session.desktopAutomationExecuted
 
@@ -293,6 +324,7 @@ composition "HoloShell Browser Terminal Coupling" {
       browser_primary_conversation_surface: state.browserIsPrimaryConversationSurface,
       terminal_execution_evidence_surface: state.terminalIsExecutionEvidenceSurface,
       direct_terminal_mutation_allowed: state.directTerminalMutationAllowed,
+      endpoint_may_execute_approved_adapter: state.endpointMayExecuteApprovedAdapter,
       destructive_actions_taken: state.destructiveActionsTaken,
       desktop_automation_executed: state.desktopAutomationExecuted,
       receipt_required: true

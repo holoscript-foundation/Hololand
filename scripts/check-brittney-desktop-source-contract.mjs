@@ -78,8 +78,11 @@ requireIncludes('desktop cockpit source', source, [
 
 requireIncludes('browser-terminal source', browserTerminalSource, [
   'guardedExecuteEndpoint: "POST /api/operator-terminal/execute"',
+  'approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"',
   'endpointMayStageGuardedExecutionReceipt: true',
+  'endpointMayExecuteApprovedAdapter: true',
   'GuardedTerminalExecutionStagesReceipts',
+  'ApprovedTerminalAdapterExecutionConsumesReceipts',
 ], failures);
 
 requireIncludes('operator chat source', chatSource, [
@@ -142,8 +145,11 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/brittney/chat'",
   "'/api/operator-terminal/session'",
   "'/api/operator-terminal/execute'",
+  "'/api/operator-terminal/run-approved'",
   'OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA',
+  'OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA',
   'buildOperatorTerminalGuardedExecuteReceipt',
+  'buildOperatorTerminalApprovedAdapterExecutionReceipt',
   "'/api/sovereign-room/marathon'",
   "'/workflow/sovereign-room-marathon'",
   'stageSovereignRoomMarathonForChat',
