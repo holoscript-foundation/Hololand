@@ -6,6 +6,7 @@ const root = process.cwd();
 
 const files = {
   source: 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus',
+  browserTerminalSource: 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus',
   chatSource: 'apps/holoshell/source/holoshell-brittney-operator-chat.hsplus',
   launch: 'scripts/brittney-studio-launch.ps1',
   gateway: 'scripts/start-brittney.ts',
@@ -28,6 +29,7 @@ function requireIncludes(label, text, snippets, failures) {
 }
 
 const source = read(files.source);
+const browserTerminalSource = read(files.browserTerminalSource);
 const chatSource = read(files.chatSource);
 const launch = read(files.launch);
 const gateway = read(files.gateway);
@@ -72,6 +74,12 @@ requireIncludes('desktop cockpit source', source, [
   'legacyUiMayNotOwnBehavior: true',
   'routeProofCommand: "pnpm run check:brittney-desktop-source-contract"',
   'receiptRequired: true',
+], failures);
+
+requireIncludes('browser-terminal source', browserTerminalSource, [
+  'guardedExecuteEndpoint: "POST /api/operator-terminal/execute"',
+  'endpointMayStageGuardedExecutionReceipt: true',
+  'GuardedTerminalExecutionStagesReceipts',
 ], failures);
 
 requireIncludes('operator chat source', chatSource, [
@@ -133,6 +141,9 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/cockpit/capsule'",
   "'/api/brittney/chat'",
   "'/api/operator-terminal/session'",
+  "'/api/operator-terminal/execute'",
+  'OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA',
+  'buildOperatorTerminalGuardedExecuteReceipt',
   "'/api/sovereign-room/marathon'",
   "'/workflow/sovereign-room-marathon'",
   'stageSovereignRoomMarathonForChat',

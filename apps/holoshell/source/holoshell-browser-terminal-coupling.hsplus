@@ -22,6 +22,7 @@ composition "HoloShell Browser Terminal Coupling" {
     visibleTerminalLaunchFlag: "-OperatorTerminal"
     sessionEndpoint: "GET /api/operator-terminal/session"
     terminalReportEndpoint: "POST /api/operator-terminal/report"
+    guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
     cockpitEndpoint: "GET /api/cockpit/capsule"
     browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
     chatEndpoint: "POST /api/brittney/chat"
@@ -49,6 +50,7 @@ composition "HoloShell Browser Terminal Coupling" {
     browserIsPrimaryConversationSurface: true
     terminalIsExecutionEvidenceSurface: true
     directTerminalMutationAllowed: false
+    endpointMayStageGuardedExecutionReceipt: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
   }
@@ -114,6 +116,8 @@ composition "HoloShell Browser Terminal Coupling" {
     browserMayRequest: true
     browserMayExecuteCommand: false
     endpointExecutesCommand: false
+    endpointStagesGuardedExecutionReceipt: false
+    guardedExecuteEndpoint: ""
     receiptRequired: true
   }
 
@@ -160,6 +164,19 @@ composition "HoloShell Browser Terminal Coupling" {
     browserLoadMaySpawnTerminal: false
     launcherMayOpenTerminalProjection: true
     endpointMayExecuteTerminalCommand: false
+    endpointMayStageGuardedExecutionReceipt: true
+    receiptRequired: true
+  }
+
+  policy "GuardedTerminalExecutionStagesReceipts" {
+    appliesTo: ["operator_terminal_guarded_execute", "build_world", "ask_brittney_guarded_intent"]
+    guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+    allowedMutation: "write_guarded_execution_receipt"
+    requiredBeforeReceipt: ["known_terminal_route", "confirmGuardedExecute", "approvalReceipt"]
+    endpointMayExecuteTerminalCommand: false
+    endpointMayStageGuardedExecutionReceipt: true
+    adapterSpawnedByEndpoint: false
+    browserMayExecuteTerminalCommand: false
     receiptRequired: true
   }
 

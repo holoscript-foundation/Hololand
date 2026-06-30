@@ -30,6 +30,8 @@ composition "HoloShell Operator Terminal" {
     workflowApprovalReceipt: ".tmp/holoshell/workflow-approval-latest.json"
     receiptControlReceipt: ".tmp/holoshell/receipt-control-latest.json"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+    guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     receiptRequired: true
   }
 
@@ -57,6 +59,7 @@ composition "HoloShell Operator Terminal" {
     nextActionCount: 0
     missingReceiptCount: 0
     terminalReceiptHash: ""
+    guardedExecuteReceiptStatus: "unknown"
   }
 
   channel "holoshell:terminal:intent" {
@@ -91,6 +94,8 @@ composition "HoloShell Operator Terminal" {
     permissionEnvelope: "read_only"
     receiptRequired: true
     exposesRawCommandByDefault: false
+    guardedExecuteEndpoint: ""
+    endpointStagesGuardedExecutionReceipt: false
     flow: "unknown"
     adapter: "unknown"
     receipt: "unknown"
@@ -152,6 +157,8 @@ composition "HoloShell Operator Terminal" {
       approvalReceipt: ".tmp/holoshell/workflow-approval-latest.json"
       target: "HoloScript/HoloLand build custody lane"
       approvalRequired: true
+      guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+      endpointStagesGuardedExecutionReceipt: true
     }
 
     object "ShowAgents" using "TerminalCommand" {
@@ -245,6 +252,19 @@ composition "HoloShell Operator Terminal" {
     sovereignConsumptionDefault: true
     providerCloudDependencyAllowed: false
     paidComputeAtLaunch: false
+    receiptRequired: true
+  }
+
+  policy "GuardedExecuteStagesReceiptsOnly" {
+    appliesTo: ["build_world", "ask_brittney", "review_approvals"]
+    guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+    guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
+    allowedMutation: "write_guarded_execution_receipt"
+    directStateMutationAllowed: false
+    endpointMayExecuteTerminalCommand: false
+    endpointMayStageGuardedExecutionReceipt: true
+    adapterSpawnedByEndpoint: false
+    requiredBeforeReceipt: ["known_terminal_route", "confirmGuardedExecute", "approvalReceipt"]
     receiptRequired: true
   }
 

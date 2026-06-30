@@ -31,6 +31,14 @@ writeFileSync(terminalReceiptPath, `${JSON.stringify({
         receipt: '.tmp/holoshell/brittney-turn-latest.json',
       },
       {
+        id: 'build_world',
+        label: 'Build World',
+        flow: 'world_build_custody',
+        permissionEnvelope: 'guarded_execute',
+        approvalRequired: true,
+        receipt: '.tmp/holoshell/build-custody.json',
+      },
+      {
         id: 'show_receipts',
         label: 'Show Receipts',
         flow: 'receipt_control',
@@ -60,6 +68,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_HOST: '127.0.0.1',
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSHELL_SESSION_ID: 'test-browser-terminal-session',
+    HOLOSHELL_TMP_DIR: tempDir,
     HOLOSHELL_OPERATOR_TERMINAL_RECEIPT: terminalReceiptPath,
     HOLOSHELL_BROWSER_SESSION_STATE: browserSessionStatePath,
     HOLOSHELL_BROWSER_SESSION_STATE_DIR: browserSessionStateDir,
@@ -112,15 +121,29 @@ async function postJson(path, payload) {
   return body;
 }
 
+async function postJsonExpectStatus(path, payload, status) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = await response.json();
+  assert.equal(response.status, status, JSON.stringify(body));
+  return body;
+}
+
 try {
   await waitForServer();
 
   const liveStatus = await getJson('/api/live-status');
   assert.equal(liveStatus.route.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
+  assert.equal(liveStatus.route.operatorTerminalGuardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
   assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
+  assert.ok(liveStatus.capabilities.includes('operator_terminal_guarded_execute_receipts'));
   assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
 
   const emptyBrowserState = await getJson('/api/browser-session/state');
@@ -139,14 +162,20 @@ try {
   assert.equal(session.terminal.receiptStatus, 'fresh');
   assert.equal(session.terminal.receiptHash, 'terminal-test-hash');
   assert.equal(session.terminal.refreshCommand, 'node scripts/holoshell-operator-terminal.mjs --agent --json');
-  assert.equal(session.terminal.runCards.length, 3);
-  assert.equal(session.runCards.length, 3);
+  assert.equal(session.terminal.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
+  assert.equal(session.terminal.runCards.length, 4);
+  assert.equal(session.runCards.length, 4);
   assert.equal(session.runCards[0].label, 'Refresh Terminal Receipt');
   assert.equal(session.runCards[0].browserMayExecuteCommand, false);
   assert.equal(session.runCards[0].endpointExecutesCommand, false);
+  const buildWorldCard = session.runCards.find((card) => card.id === 'terminal_run_card:build_world');
+  assert.equal(buildWorldCard.endpointExecutesCommand, false);
+  assert.equal(buildWorldCard.endpointStagesGuardedExecutionReceipt, true);
+  assert.equal(buildWorldCard.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
   assert.equal(session.symbiosis.mode, 'always_on_native_terminal_plus_browser');
   assert.equal(session.symbiosis.browserMayExecuteTerminalCommand, false);
   assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
+  assert.equal(session.symbiosis.endpointMayStageGuardedExecutionReceipt, true);
   assert.equal(session.refreshRecovery.status, 'enabled');
   assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
   assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
@@ -161,6 +190,7 @@ try {
   assert.equal(session.safety.terminalIsExecutionEvidenceSurface, true);
   assert.equal(session.safety.directTerminalMutationAllowed, false);
   assert.equal(session.safety.endpointMayExecuteTerminalCommand, false);
+  assert.equal(session.safety.endpointMayStageGuardedExecutionReceipt, true);
   assert.equal(session.safety.terminalSpawnedByEndpoint, false);
   assert.equal(session.destructiveActionsTaken, false);
   assert.equal(session.desktopAutomationExecuted, false);
@@ -187,6 +217,14 @@ try {
           approvalRequired: 'classified_by_intent',
           receipt: '.tmp/holoshell/brittney-turn-latest.json',
         },
+        {
+          id: 'build_world',
+          label: 'Build World',
+          flow: 'world_build_custody',
+          permissionEnvelope: 'guarded_execute',
+          approvalRequired: true,
+          receipt: '.tmp/holoshell/build-custody.json',
+        },
       ],
     },
     humanContract: {
@@ -208,6 +246,32 @@ try {
 
   const reportedSession = await getJson('/api/operator-terminal/session');
   assert.equal(reportedSession.terminal.receiptHash, 'terminal-post-hash');
+
+  const rejectedExecution = await postJsonExpectStatus('/api/operator-terminal/execute', {
+    commandId: 'build_world',
+    reason: 'test missing confirmation',
+  }, 403);
+  assert.equal(rejectedExecution.status, 'approval_required');
+  assert.equal(rejectedExecution.executionAllowed, false);
+  assert.equal(rejectedExecution.endpointExecutesCommand, false);
+  assert.equal(rejectedExecution.destructiveActionsTaken, false);
+
+  const stagedExecution = await postJson('/api/operator-terminal/execute', {
+    commandId: 'build_world',
+    confirmGuardedExecute: true,
+    approvalReceipt: 'approval-test-receipt-123',
+    reason: 'stage build custody from browser approval',
+    requestedBy: 'browser-test',
+  });
+  assert.equal(stagedExecution.schemaVersion, 'hololand.holoshell.operator-terminal-guarded-execute.v0.1.0');
+  assert.equal(stagedExecution.status, 'receipt_staged');
+  assert.equal(stagedExecution.commandId, 'build_world');
+  assert.equal(stagedExecution.executionAllowed, true);
+  assert.equal(stagedExecution.endpointExecutesCommand, false);
+  assert.equal(stagedExecution.endpointStagesGuardedExecutionReceipt, true);
+  assert.equal(stagedExecution.destructiveActionsTaken, false);
+  assert.equal(stagedExecution.receipt.execution.adapterSpawned, false);
+  assert.match(readFileSync(join(tempDir, 'operator-terminal-guarded-execute-latest.json'), 'utf8'), /approval-test-receipt-123/);
 
   const browserState = await postJson('/api/browser-session/state', {
     schemaVersion: 'hololand.holoshell.browser-session-state.v0.1.0',
