@@ -16,7 +16,7 @@ composition "HoloShell Operator Terminal" {
     defaultAgentMode: "json_receipt_terminal"
     brittneyStudioLauncher: "scripts/brittney-studio-launch.ps1"
     jetsonSurfaceUrl: "http://holojetson.local:8747"
-    jetsonOllamaUrl: "http://holojetson.local:11434"
+    jetsonLocalModelUrl: "http://holojetson.local:11434"
     laptopDesktopBridgePrimary: "http://127.0.0.1:8751"
     laptopDesktopBridgeReceipt: ".tmp/holoshell/desktop-control-bridge/latest-status.json"
     laptopDesktopBridgeFreshnessMs: 120000
@@ -41,6 +41,8 @@ composition "HoloShell Operator Terminal" {
     laptopBridgeStatus: "unknown"
     laptopBridgeFreshness: "unknown"
     laptopBridgeReceiptAgeMs: 0
+    sovereignConsumptionDefault: true
+    providerCloudDependencyAllowed: false
     brittneyStatus: "unknown"
     serviceStatus: "unknown"
     serviceCount: 0
@@ -254,6 +256,8 @@ composition "HoloShell Operator Terminal" {
     state.laptopBridgeStatus = snapshot.route.laptopBridgeStatus
     state.laptopBridgeFreshness = snapshot.route.laptopBridgeFreshness || "unknown"
     state.laptopBridgeReceiptAgeMs = snapshot.route.laptopBridgeReceiptAgeMs || 0
+    state.sovereignConsumptionDefault = snapshot.route.sovereignConsumptionDefault != false
+    state.providerCloudDependencyAllowed = snapshot.route.providerCloudDependencyAllowed == true
     state.brittneyStatus = snapshot.summary.brittneyStatus
     state.serviceStatus = snapshot.summary.serviceStatus
     state.serviceCount = snapshot.summary.serviceCount
@@ -278,6 +282,8 @@ composition "HoloShell Operator Terminal" {
       laptop_bridge_status: state.laptopBridgeStatus,
       laptop_bridge_freshness: state.laptopBridgeFreshness,
       laptop_bridge_receipt_age_ms: state.laptopBridgeReceiptAgeMs,
+      sovereign_consumption_default: state.sovereignConsumptionDefault,
+      provider_cloud_dependency_allowed: state.providerCloudDependencyAllowed,
       brittney_status: state.brittneyStatus,
       service_status: state.serviceStatus,
       services: state.serviceCount,

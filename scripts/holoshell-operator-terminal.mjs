@@ -545,12 +545,14 @@ function createTerminalReceipt(args, feeds) {
   const route = {
     primarySurface: 'jetson_holoshell_surface',
     primarySurfaceUrl: 'http://holojetson.local:8747',
-    primaryBrain: 'Jetson Ollama qwen3:4b route when reachable',
+    primaryBrain: 'Jetson sovereign local qwen3:4b route when reachable',
     primarySurfaceStatus: feeds.liveFeed ? 'receipt_observed' : 'not_observed',
     laptopRole: 'reasoning_validation_desktop_bridge',
     laptopBridgeStatus: live.desktopBridgeStatus || live.laptopDesktopBridgeStatus || 'check_required',
     laptopBridgeFreshness: live.desktopBridgeFreshness || 'unknown',
     laptopBridgeReceiptAgeMs: live.desktopBridgeReceiptAgeMs ?? null,
+    sovereignConsumptionDefault: true,
+    providerCloudDependencyAllowed: false,
     vastFleetRole: 'scale_to_zero_on_real_inference_demand',
     paidComputeAtTerminalLaunch: false,
   };
@@ -691,6 +693,10 @@ function assertSelfTest(receipt) {
   if (receipt.safety.rawSecretsIncluded !== false) failures.push('raw secrets flag must be false');
   if (receipt.safety.rawCommandsIncludedForHuman !== false) failures.push('human raw command flag must be false');
   if (receipt.route.paidComputeAtTerminalLaunch !== false) failures.push('terminal launch must not imply paid compute');
+  if (receipt.route.sovereignConsumptionDefault !== true) failures.push('terminal must default to sovereign consumption');
+  if (receipt.route.providerCloudDependencyAllowed !== false) failures.push('terminal must not depend on provider cloud');
+  if (/ollama cloud|managed-ollama-cloud/i.test(JSON.stringify(receipt))) failures.push('terminal receipt leaked cloud Ollama dependency');
+  if (/Jetson Ollama/i.test(JSON.stringify(receipt))) failures.push('terminal receipt should use sovereign local Jetson wording');
   if (!receipt.nextActions.length) failures.push('expected next actions');
   if (!receipt.receipt.terminalHash) failures.push('missing terminal hash');
   const human = renderHuman(receipt);
