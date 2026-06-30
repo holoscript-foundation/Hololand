@@ -1,0 +1,148 @@
+// HoloLand Hybrid Dimension Portal
+//
+// Promotes the historical "uaa2-service Hybrid Architecture" seed without
+// reviving the retired direct TypeScript extension. The current source of
+// truth is a HoloScript-native contract: agents, Brittney, HoloShell, and
+// HoloLand move through 2D UI, 3D world, and code dimensions only when receipt
+// gates prove custody, source validation, and workspace visibility.
+
+composition "HoloLand Hybrid Dimension Portal" {
+  config {
+    seed: "Hololand uaa2-service Hybrid Architecture"
+    sourceArchive: "docs/archive/HYBRID_ARCHITECTURE.md"
+    promotedFromSeed: "idea-seeds/archive-farm/2026-05-12_archive_hololand-uaa2-service-hybrid-architecture.md"
+    productLayer: "HoloLand"
+    shellLayer: "HoloShell"
+    sourceLayer: "HoloScript"
+    legacyPackageRevivalAllowed: false
+    defaultBridgeMode: "receipt_gated_dimension_bridge"
+    auditReceipt: "docs/audits/HOLOLAND_UAA2_HYBRID_SEED_PROMOTION_2026-06-30.md"
+  }
+
+  state {
+    activeDimension: "none"
+    activeAgentId: ""
+    twoDimensionalSurface: "holoshell_operator_terminal"
+    threeDimensionalSurface: "hololand_agent_workspace"
+    codeSurface: "holoscript_source_contract"
+    worldId: ""
+    workspaceReceipt: ""
+    sourceReceipt: ""
+    visualReceipt: ""
+    brittneyPresence: "not_attached"
+    bridgeStatus: "needs_receipts"
+    currentBlocker: ""
+  }
+
+  channel "hololand:hybrid:dimension-request" {
+    type: "request_response"
+    priority: "high"
+    description: "Agents request a transition among 2D UI, 3D world, and code dimensions."
+  }
+
+  channel "hololand:hybrid:workspace-receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Workspace, source, visual, and human-service receipts required before promotion."
+  }
+
+  channel "hololand:hybrid:brittney-presence" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Brittney or another service agent attaches to a HoloLand room only through receipt-backed presence."
+  }
+
+  policy "HoloScriptNativeBridge" {
+    resurrect_retired_uaa2_service_package: false
+    write_new_typescript_extension_first: false
+    model_bridge_as_holoscript_source: true
+    require_holoscript_cli_or_mcp_validation: true
+    require_room_or_browser_receipt: true
+  }
+
+  policy "DimensionCustodyReceipts" {
+    two_dimensional_ui: "operator_terminal_receipt"
+    three_dimensional_world: "hololand_workspace_receipt"
+    code_dimension: "holoscript_source_receipt"
+    human_service_agent: "brittney_presence_receipt"
+    deletion_or_publish: "separate_approval"
+  }
+
+  policy "HumanUtilityBoundary" {
+    allowedServices: ["customer_help", "world_building", "data_visualization", "agent_collaboration", "code_review"]
+    requireHumanReadableState: true
+    requireUndoOrRestorePath: true
+    rawSecretProjectionToWorld: false
+    localComputerMutation: "guarded_execute"
+  }
+
+  action request_dimension_workspace(request) {
+    state.activeAgentId = request.agentId
+    state.activeDimension = request.dimension
+    state.worldId = request.worldId
+    state.bridgeStatus = "requested"
+    state.currentBlocker = ""
+    emit("hololand:hybrid:dimension-request", {
+      action: "dimension_workspace_requested",
+      agent_id: state.activeAgentId,
+      dimension: state.activeDimension,
+      world_id: state.worldId,
+      receipt_required: true,
+      legacy_package_revival_allowed: false
+    })
+  }
+
+  action accept_workspace_receipt(receipt) {
+    state.workspaceReceipt = receipt.path
+    state.worldId = receipt.worldId
+    state.visualReceipt = receipt.visualReceipt
+    state.bridgeStatus = receipt.status == "pass" ? "workspace_visible" : "workspace_blocked"
+    state.currentBlocker = receipt.status == "pass" ? "" : "workspace_receipt_failed"
+    emit("hololand:hybrid:workspace-receipt", {
+      action: "hybrid_workspace_receipt_accepted",
+      status: receipt.status,
+      world_id: state.worldId,
+      workspace_receipt: state.workspaceReceipt,
+      visual_receipt: state.visualReceipt,
+      receipt_required: true
+    })
+  }
+
+  action accept_source_receipt(receipt) {
+    state.sourceReceipt = receipt.path
+    state.codeSurface = receipt.sourcePath
+    state.bridgeStatus = receipt.status == "pass" ? "source_validated" : "source_blocked"
+    state.currentBlocker = receipt.status == "pass" ? "" : "source_validation_failed"
+    emit("hololand:hybrid:workspace-receipt", {
+      action: "hybrid_source_receipt_accepted",
+      status: receipt.status,
+      source_path: state.codeSurface,
+      source_receipt: state.sourceReceipt,
+      receipt_required: true
+    })
+  }
+
+  action attach_brittney_presence(receipt) {
+    state.brittneyPresence = receipt.status == "pass" ? "attached" : "blocked"
+    state.bridgeStatus = receipt.status == "pass" ? "human_service_ready" : "human_service_blocked"
+    state.currentBlocker = receipt.status == "pass" ? "" : "brittney_presence_receipt_failed"
+    emit("hololand:hybrid:brittney-presence", {
+      action: "brittney_hybrid_presence_attached",
+      status: receipt.status,
+      service_role: receipt.serviceRole,
+      human_utility: receipt.humanUtility,
+      receipt_required: true
+    })
+  }
+
+  action reject_legacy_portal_revival(reason) {
+    state.bridgeStatus = "legacy_revival_rejected"
+    state.currentBlocker = reason
+    emit("hololand:hybrid:workspace-receipt", {
+      action: "legacy_uaa2_service_revival_rejected",
+      reason: reason,
+      replacement: "HoloScript-native dimension bridge contract",
+      seed_preserved: true
+    })
+  }
+}

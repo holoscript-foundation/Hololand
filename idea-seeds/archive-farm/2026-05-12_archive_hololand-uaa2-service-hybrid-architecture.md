@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-12
 **Class:** security-instinct
-**Status:** seed
+**Status:** promoted
 **Repository:** Hololand
 **Source context:** docs/archive/HYBRID_ARCHITECTURE.md
 **Archive score:** 54
@@ -18,7 +18,16 @@ This came from an archive. Treat it as historical, incomplete, or superseded unt
 
 ## Smallest Next Experiment
 
-Open the source archive, extract one current claim or feature idea, and decide whether it should become a build task, research artifact, paper row, or remain dormant.
+Promoted on 2026-06-30 as the HoloScript-native hybrid dimension portal
+contract:
+`apps/holoshell/source/hololand-hybrid-dimension-portal.hsplus`.
+
+Receipt:
+`docs/audits/HOLOLAND_UAA2_HYBRID_SEED_PROMOTION_2026-06-30.md`.
+
+The seed's preserved claim is the receipt-backed bridge across 2D UI, 3D
+HoloLand world, and HoloScript code surfaces. Do not revive the archived
+`uaa2-service` TypeScript extension wholesale.
 
 ## Reopen Trigger
 
