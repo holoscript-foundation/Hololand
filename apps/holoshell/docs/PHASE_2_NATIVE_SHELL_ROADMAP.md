@@ -155,14 +155,14 @@ Acceptance:
 Deliverables:
 
 - Terminal Machine object.
-- Claude CLI resolution.
+- Sovereign room script resolution.
 - Room marathon workflow source.
-- Ollama/Kimi route fields.
+- Local/cloud task-lane fields.
 - Run receipt linked to agent lane.
 
 Acceptance:
 
-- "Start room marathon with Kimi" stages as a workflow.
+- "Start sovereign room marathon for local-tagged tasks" stages as a workflow.
 - Approval packet controls all mutating steps.
 - Terminal output is summarized behind receipt, not shown first.
 
@@ -247,7 +247,7 @@ without falling back to raw terminal thinking.
 Phase 2 is complete when a user can say:
 
 ```text
-Brittney, open the browser and play lofi, start a room marathon with Kimi, and show me the receipt.
+Brittney, open the browser and play lofi, start a sovereign room marathon for local-tagged tasks, and show me the receipt.
 ```
 
 And HoloShell can:

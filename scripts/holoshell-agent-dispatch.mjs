@@ -25,7 +25,7 @@ const HARDWARE_SOURCE_REF = 'apps/holoshell/source/holoshell-hardware-control.hs
 const SCRIPT_REF = 'scripts/holoshell-agent-dispatch.mjs';
 const GOLD_CODEBASE_SOURCE_REF = 'apps/holoshell/source/holoshell-holoscript-gold-codebase-bridge.hsplus';
 const GOLD_CODEBASE_SCRIPT_REF = 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs';
-const CLAUDE_CHAT_WORKFLOW_REF = 'scripts/holoshell-claude-chat-workflow.mjs';
+const SOVEREIGN_PEER_CONTEXT_REF = 'scripts/holoshell-laptop-reasoning-worker.mjs';
 const USER_SHELL_PROJECTION_REF = 'apps/holoshell/source/holoshell-user-shell-projection.hsplus';
 const STUDIO_ORCHESTRATOR_REF = 'packages/brittney/service/src/orchestrator.ts';
 const STUDIO_MODEL_ROUTER_REF = 'packages/brittney/service/src/model-router.ts';
@@ -41,15 +41,13 @@ const HOLOTUNE_TRAIN_REF = 'C:/Users/josep/.ai-ecosystem/compositions/holotune-t
 const LAPTOP_REASONING_LANE = 'laptop-hardware';
 const MIN_DISPATCH_CONFIDENCE = 50;
 
-const OLLAMA_AGENTS = [
-  { slug: 'claude', label: 'Claude Code', aliases: ['claude code', 'anthropic'] },
-  { slug: 'openclaw', label: 'OpenClaw', aliases: ['openclaw', 'open claw'] },
-  { slug: 'hermes', label: 'Hermes Agent', aliases: ['hermes', 'hermes agent'] },
-  { slug: 'opencode', label: 'OpenCode', aliases: ['opencode', 'open code'] },
-  { slug: 'codex', label: 'Codex', aliases: ['codex'] },
-  { slug: 'copilot', label: 'Copilot CLI', aliases: ['copilot', 'copilot cli'] },
-  { slug: 'droid', label: 'Droid', aliases: ['droid'] },
-  { slug: 'pi', label: 'Pi', aliases: ['pi', 'pi agent'] },
+const SOVEREIGN_AGENT_TARGETS = [
+  { slug: 'codex', label: 'Codex Local Hardware', aliases: ['codex', 'openai local', 'codex hardware'] },
+  { slug: 'holomesh', label: 'HoloMesh Room', aliases: ['holomesh', 'room', 'team room'] },
+  { slug: 'brittney', label: 'Brittney Local Runtime', aliases: ['brittney', 'brittney desktop'] },
+  { slug: 'jetson', label: 'Jetson Local Node', aliases: ['jetson', 'holojetson', 'edge node'] },
+  { slug: 'laptop', label: 'Laptop Local Node', aliases: ['laptop', 'windows laptop'] },
+  { slug: 'local-shell', label: 'Local Shell', aliases: ['local shell', 'terminal', 'powershell'] },
 ];
 
 const CAPABILITIES = [
@@ -70,23 +68,7 @@ const CAPABILITIES = [
     route: '/workflow/founder-command',
     dispatchKind: 'workflow',
     permissionEnvelope: 'guarded_execute',
-    examples: ['Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube'],
-  },
-  {
-    id: 'claude_chat',
-    label: 'Claude Chat',
-    route: '/workflow/claude-chat',
-    dispatchKind: 'workflow',
-    permissionEnvelope: 'guarded_execute',
-    examples: ['open Claude and start a chat', 'ask Claude to review this'],
-  },
-  {
-    id: 'ollama_cloud_agent',
-    label: 'Ollama Cloud Agent',
-    route: '/workflow/ollama-cloud-agent',
-    dispatchKind: 'workflow',
-    permissionEnvelope: 'guarded_execute',
-    examples: ['launch Codex through Ollama', 'ollama launch hermes'],
+    examples: ['Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube'],
   },
   {
     id: 'grok_build',
@@ -102,7 +84,15 @@ const CAPABILITIES = [
     route: '/workflow/room-marathon',
     dispatchKind: 'workflow',
     permissionEnvelope: 'guarded_execute',
-    examples: ['start room marathon using Ollama Kimi Cloud'],
+    examples: ['start a sovereign room marathon for local-tagged tasks'],
+  },
+  {
+    id: 'sovereign_agent_session',
+    label: 'Sovereign Agent Session',
+    route: '/workflow/room-marathon',
+    dispatchKind: 'workflow',
+    permissionEnvelope: 'guarded_execute',
+    examples: ['launch Codex locally', 'start a local sovereign agent session'],
   },
   {
     id: 'browser_lofi',
@@ -187,8 +177,8 @@ function printHelp() {
   console.log(`HoloShell agent dispatch
 
 Usage:
-  node scripts/holoshell-agent-dispatch.mjs --intent "open Claude and start a chat"
-  node scripts/holoshell-agent-dispatch.mjs --intent "launch Codex through Ollama" --json
+  node scripts/holoshell-agent-dispatch.mjs --intent "start a sovereign room marathon for local-tagged tasks"
+  node scripts/holoshell-agent-dispatch.mjs --intent "launch Codex locally" --json
 
 Options:
   --intent <text>          Plain-language request from Brittney/user.
@@ -256,22 +246,22 @@ function buildLaptopReasoningResourcePlan() {
   const goldRoot = defaultGoldRoot();
   return {
     reuseBeforeBuild: true,
-    duplicateWorkPolicy: 'consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds',
+    duplicateWorkPolicy: 'consume_gold_codebase_studio_holomesh_and_fleet_surfaces_before_new_builds',
     agentLane: 'local',
-    canonicalProviderId: 'laptop-ollama',
+    canonicalProviderId: 'laptop-sovereign',
     workload: 'heavy_reasoning',
     workloadFocus: {
       local: [
         {
           id: 'jetson-orchestrator',
-          canonicalProviderId: 'jetson-ollama',
+          canonicalProviderId: 'jetson-sovereign',
           focus: 'always_on_holoshell_operator_and_autonomous_router',
           sourceAnchors: [FLEET_MAP_REF, HARDWARE_NORTH_STAR_REF, PROVIDER_ROUTING_REGISTRY_REF],
         },
         {
           id: 'laptop-reasoning',
-          canonicalProviderId: 'laptop-ollama',
-          focus: 'repo_bearing_reasoning_gold_context_claude_injection_studio_production',
+          canonicalProviderId: 'laptop-sovereign',
+          focus: 'repo_bearing_reasoning_gold_context_sovereign_peer_context_studio_production',
           sourceAnchors: [FLEET_MAP_REF, HARDWARE_NORTH_STAR_REF, PROVIDER_ROUTING_REGISTRY_REF],
         },
         {
@@ -283,9 +273,9 @@ function buildLaptopReasoningResourcePlan() {
       ],
       cloud: [
         {
-          id: 'managed-provider-or-family-seat',
-          canonicalProviderIds: ['managed-anthropic', 'managed-fireworks', 'managed-together', 'managed-ollama-cloud'],
-          focus: 'coordination_review_or_branch_pr_when_local_custody_cannot_execute',
+          id: 'cloud-tagged-room-tasks',
+          canonicalProviderIds: [],
+          focus: 'explicitly_cloud_tagged_coordination_only_after_local_sovereign_receipt',
           sourceAnchors: [PROVIDER_ROUTING_REGISTRY_REF],
         },
       ],
@@ -298,7 +288,7 @@ function buildLaptopReasoningResourcePlan() {
         use: 'founder_memory_override_and_duplicate_build_prevention',
         readOnly: true,
         conflictPolicy: 'diamond_over_platinum_over_gold_over_knowledge_store',
-        sourceAnchors: ['CLAUDE.md', 'NORTH_STAR.md', GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
+        sourceAnchors: ['AGENTS.md', 'NORTH_STAR.md', GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
       },
       codebaseBridge: {
         id: 'holoshell.holoscript_gold_codebase_bridge',
@@ -306,13 +296,13 @@ function buildLaptopReasoningResourcePlan() {
         readOnlyFirst: true,
         sourceAnchors: [GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
       },
-      claudeInjection: {
-        id: 'workflow.claude-chat',
-        route: '/workflow/claude-chat',
-        use: 'reuse_existing_guarded_claude_chat_staging_when_claude_peer_context_is_needed',
+      sovereignPeerContext: {
+        id: 'workflow.laptop-reasoning-job',
+        route: '/workflow/laptop-reasoning-job',
+        use: 'reuse_sovereign_peer_context_and_laptop_reasoning_receipts_before_new_builds',
         executionDefault: 'staged_not_run',
         shellContextAttachedByDefault: false,
-        sourceAnchors: [USER_SHELL_PROJECTION_REF, CLAUDE_CHAT_WORKFLOW_REF],
+        sourceAnchors: [USER_SHELL_PROJECTION_REF, SOVEREIGN_PEER_CONTEXT_REF],
       },
       studioBrittney: {
         id: 'studio.brittney.chat_and_fleet',
@@ -323,7 +313,7 @@ function buildLaptopReasoningResourcePlan() {
       },
       providerRouting: {
         id: 'provider-routing-registry',
-        use: 'preserve_raw_provider_and_canonical_provider_id_for_jetson_laptop_vast_and_managed_cloud',
+        use: 'preserve_local_cloud_task_tags_and_canonical_owned_fleet_ids_before_any_cloud_escalation',
         sourceAnchors: [PROVIDER_ROUTING_REGISTRY_REF],
       },
       vastFleet: {
@@ -367,17 +357,39 @@ function redactedIntent(intent) {
     .slice(0, 240);
 }
 
-function detectOllamaAgent(text) {
+function detectSovereignAgent(text) {
   const normalized = normalize(text);
-  const launchMatch = normalized.match(/\bollama launch ([a-z0-9]+)/);
+  const launchMatch = normalized.match(/\b(?:launch|start)\s+(?:local\s+)?([a-z0-9-]+)\b/);
   if (launchMatch) {
-    const direct = OLLAMA_AGENTS.find((agent) => agent.slug === launchMatch[1]);
+    const direct = SOVEREIGN_AGENT_TARGETS.find((agent) => agent.slug === launchMatch[1]);
     if (direct) return direct;
   }
-  return OLLAMA_AGENTS.find((agent) => (
+  return SOVEREIGN_AGENT_TARGETS.find((agent) => (
     agent.aliases.some((alias) => normalized.includes(normalize(alias)))
     || normalized.includes(`launch ${agent.slug}`)
   )) || null;
+}
+
+function taskLaneFromIntent(intent) {
+  const text = normalize(intent);
+  if (/\bcloud(?: tagged| tag| lane| tasks?| work)?\b/u.test(text) && !/\bno cloud\b/u.test(text)) return 'cloud';
+  return 'local';
+}
+
+function sovereignRoomBody(args, intentText = args.intent) {
+  const taskLane = taskLaneFromIntent(intentText);
+  const taskTag = taskLane === 'cloud' ? 'cloud' : 'local';
+  return {
+    actor: args.actor,
+    intent: args.intent,
+    model: 'sovereign-local',
+    modelRoute: 'sovereign_local',
+    taskLane,
+    taskTag,
+    sovereignConsumptionDefault: taskLane === 'local',
+    cloudEscalationAllowed: taskLane === 'cloud',
+    lofiUrl: DEFAULT_LOFI_URL,
+  };
 }
 
 function laptopReasoningSignals(intent) {
@@ -433,7 +445,7 @@ function laptopReasoningSignals(intent) {
 function promptFromIntent(args) {
   if (args.prompt) return args.prompt;
   const raw = String(args.intent || '');
-  const match = raw.match(/\b(?:with prompt|prompt|say|ask claude to|ask grok to|tell grok to)\b\s*[:,-]?\s*(.+)$/i);
+  const match = raw.match(/\b(?:with prompt|prompt|say|ask local agent to|ask grok to|tell grok to)\b\s*[:,-]?\s*(.+)$/i);
   return match ? match[1].trim() : '';
 }
 
@@ -442,20 +454,21 @@ function programNameFromIntent(intent) {
   const match = raw.match(/\b(?:open|launch|start)\s+(?:the\s+)?(.+?)(?:\s+(?:app|program|application))?\s*$/i);
   if (!match) return '';
   return match[1]
-    .replace(/\b(on youtube|in browser|through ollama|using ollama|with grok|with claude)\b.*$/i, '')
+    .replace(/\b(on youtube|in browser|through local|using local|with grok|with local agent)\b.*$/i, '')
     .trim();
 }
 
 function isFounderFlagshipIntent(intent) {
   const text = normalize(intent);
-  const mentionsClaude = text.includes('claude');
+  const mentionsTerminal = text.includes('terminal') || text.includes('powershell') || text.includes('command line');
   const mentionsRoomMarathon = text.includes('room marathon') || (text.includes('room') && text.includes('marathon'));
-  const mentionsOllamaKimi = text.includes('kimi') && (text.includes('ollama') || text.includes('cloud'));
+  const mentionsSovereign = text.includes('sovereign') || text.includes('local') || text.includes('owned');
   const mentionsBrowserMedia = text.includes('lofi') || (text.includes('youtube') && text.includes('music'));
   const mentionsOpenBrowser = text.includes('browser') || text.includes('youtube');
   const namesBrittney = text.startsWith('brittney') || text.includes(' brittney ');
-  return mentionsClaude
-    && (mentionsRoomMarathon || mentionsOllamaKimi)
+  return mentionsTerminal
+    && mentionsRoomMarathon
+    && mentionsSovereign
     && mentionsBrowserMedia
     && mentionsOpenBrowser
     && (namesBrittney || /\b(open|start|launch|play)\b/.test(text));
@@ -473,18 +486,18 @@ function scoreIntent(intent) {
   }
   if (isFounderFlagshipIntent(intent)) scores.set('founder_command', 99);
   if (text.includes('room marathon') || (text.includes('marathon') && text.includes('room'))) scores.set('room_marathon', 98);
-  if (text.includes('kimi') && (text.includes('ollama') || text.includes('cloud'))) {
+  if ((text.includes('local tagged') || text.includes('cloud tagged') || text.includes('sovereign')) && text.includes('room')) {
     scores.set('room_marathon', Math.max(scores.get('room_marathon'), 86));
   }
-  const agent = detectOllamaAgent(text);
-  if (text.includes('ollama') || text.includes('ollama launch') || (agent && text.includes('launch'))) {
-    scores.set('ollama_cloud_agent', 95);
+  const agent = detectSovereignAgent(text);
+  if (agent && /\b(local|sovereign|owned|launch|start)\b/u.test(text)) {
+    scores.set('sovereign_agent_session', 94);
+  }
+  if (/\b(local sovereign agent|sovereign agent|agent session|sovereign session)\b/u.test(text)) {
+    scores.set('sovereign_agent_session', 94);
   }
   if (text.includes('grok') || text.includes('grok build') || text.includes('supergrok') || text.includes('xai')) {
     scores.set('grok_build', 96);
-  }
-  if (text.includes('claude') && (text.includes('chat') || text.includes('start') || text.includes('open'))) {
-    scores.set('claude_chat', Math.max(scores.get('claude_chat'), 92));
   }
   if (text.includes('lofi') || (text.includes('music') && text.includes('youtube'))) {
     scores.set('browser_lofi', 90);
@@ -550,28 +563,7 @@ function buildRouteBody(capability, args, agent) {
     };
   }
   if (capability.id === 'founder_command') {
-    return {
-      actor: args.actor,
-      intent: args.intent,
-      model: text.includes('kimi') ? 'kimi-cloud' : 'kimi-cloud',
-      modelRoute: 'ollama_cloud',
-      claudeApp: 'Claude',
-      lofiUrl: DEFAULT_LOFI_URL,
-    };
-  }
-  if (capability.id === 'claude_chat') {
-    return {
-      actor: args.actor,
-      claudeApp: 'Claude',
-      prompt: promptFromIntent(args),
-      startNewChat: true,
-    };
-  }
-  if (capability.id === 'ollama_cloud_agent') {
-    return {
-      actor: args.actor,
-      agent: agent?.slug || 'claude',
-    };
+    return sovereignRoomBody(args, text);
   }
   if (capability.id === 'grok_build') {
     const prompt = promptFromIntent(args);
@@ -584,12 +576,14 @@ function buildRouteBody(capability, args, agent) {
     };
   }
   if (capability.id === 'room_marathon') {
-    const model = text.includes('kimi') ? 'kimi-cloud' : 'kimi-cloud';
+    return sovereignRoomBody(args, text);
+  }
+  if (capability.id === 'sovereign_agent_session') {
     return {
-      actor: args.actor,
-      model,
-      modelRoute: 'ollama_cloud',
-      lofiUrl: DEFAULT_LOFI_URL,
+      ...sovereignRoomBody(args, text),
+      agent: agent?.slug || 'local-shell',
+      selectedAgentLabel: agent?.label || 'Local Shell',
+      roomCommand: '',
     };
   }
   if (capability.id === 'browser_lofi') {
@@ -634,7 +628,7 @@ function buildReceipt(args) {
   const generatedAt = new Date().toISOString();
   const intent = String(args.intent || '').trim();
   const { capability, confidence, ranked } = bestCapability(intent);
-  const agent = detectOllamaAgent(intent);
+  const agent = detectSovereignAgent(intent);
   const blocked = !capability || confidence < MIN_DISPATCH_CONFIDENCE;
   const routeBody = buildRouteBody(capability, args, agent);
   const dispatchId = `hsdispatch-${Date.now().toString(36)}-${shortHash({ intent, actor: args.actor }, 10)}`;
@@ -655,7 +649,7 @@ function buildReceipt(args) {
       adapter: SCRIPT_REF,
       goldCodebaseBridge: GOLD_CODEBASE_SOURCE_REF,
       goldCodebaseAdapter: GOLD_CODEBASE_SCRIPT_REF,
-      claudeChatWorkflow: CLAUDE_CHAT_WORKFLOW_REF,
+      sovereignPeerContext: SOVEREIGN_PEER_CONTEXT_REF,
       userShellProjection: USER_SHELL_PROJECTION_REF,
       studioOrchestrator: STUDIO_ORCHESTRATOR_REF,
       studioModelRouter: STUDIO_MODEL_ROUTER_REF,
@@ -694,7 +688,7 @@ function buildReceipt(args) {
       capabilityLabel: capability?.label || '',
       confidence,
       evidence: matchEvidence,
-      selectedOllamaAgent: agent ? { slug: agent.slug, label: agent.label } : null,
+      selectedSovereignAgent: agent ? { slug: agent.slug, label: agent.label } : null,
     },
     dispatch: {
       status: blocked ? 'blocked' : 'ready_to_stage',
@@ -729,6 +723,10 @@ function buildReceipt(args) {
       targetApp: routeBody.app || '',
       targetUrlHost: routeBody.url ? new URL(routeBody.url).host : '',
       promptPresent: Boolean(routeBody.prompt),
+      taskLane: routeBody.taskLane || '',
+      taskTag: routeBody.taskTag || '',
+      sovereignConsumptionDefault: Boolean(routeBody.sovereignConsumptionDefault),
+      cloudEscalationAllowed: Boolean(routeBody.cloudEscalationAllowed),
       targetHost: routeBody.targetHost || '',
       reasoningLane: routeBody.lane || '',
       agentLane: routeBody.agentLane || '',
@@ -740,7 +738,7 @@ function buildReceipt(args) {
       duplicateWorkPolicy: routeBody.duplicateWorkPolicy || '',
       goldRoot: routeBody.canonicalSurfaces?.goldDrive?.root || '',
       goldRuntimeStatus: routeBody.canonicalSurfaces?.goldDrive?.runtimeStatus || '',
-      claudeInjectionRoute: routeBody.canonicalSurfaces?.claudeInjection?.route || '',
+      sovereignPeerContextRoute: routeBody.canonicalSurfaces?.sovereignPeerContext?.route || '',
       studioOrchestrator: routeBody.canonicalSurfaces?.studioBrittney?.serviceOrchestrator || '',
       vastSpendRail: routeBody.canonicalSurfaces?.vastFleet?.spendRail || '',
       vastEscalationGate: routeBody.canonicalSurfaces?.vastFleet?.sourceAnchors?.includes(VAST_ESCALATION_GATE_REF)
@@ -768,15 +766,14 @@ function persist(args, receipt) {
 
 function assertSelfTest() {
   const cases = [
-    ['open Claude and start a chat', 'claude_chat', 'workflow'],
     ['send this large prompt to the laptop for Codex reasoning', 'laptop_reasoning_job', 'reasoning_job'],
     ['have the laptop inspect the repo and reason through the plan', 'laptop_reasoning_job', 'reasoning_job'],
-    ['launch Codex through Ollama', 'ollama_cloud_agent', 'workflow'],
-    ['ollama launch hermes', 'ollama_cloud_agent', 'workflow'],
+    ['launch Codex locally', 'sovereign_agent_session', 'workflow'],
+    ['start a local sovereign agent session', 'sovereign_agent_session', 'workflow'],
     ['open Grok Build', 'grok_build', 'workflow'],
     ['ask Grok to inspect this repo', 'grok_build', 'workflow'],
-    ['Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube', 'founder_command', 'workflow'],
-    ['open terminal start room marathon using ollama kimi cloud', 'room_marathon', 'workflow'],
+    ['Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube', 'founder_command', 'workflow'],
+    ['open terminal and start a sovereign room marathon for local-tagged tasks', 'room_marathon', 'workflow'],
     ['open browser and play lofi music on youtube', 'browser_lofi', 'hardware_action'],
     ['open Excel', 'open_excel', 'hardware_action'],
     ['launch Calculator', 'launch_program', 'hardware_action'],

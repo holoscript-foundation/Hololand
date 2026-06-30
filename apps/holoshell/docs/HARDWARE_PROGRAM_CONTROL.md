@@ -218,8 +218,6 @@ POST /action
 POST /approval/execute
 POST /workflow/agent-dispatch
 POST /workflow/room-marathon
-POST /workflow/claude-chat
-POST /workflow/ollama-cloud-agent
 POST /workflow/founder-command
 POST /workflow/approval
 POST /workflow/execute
@@ -268,7 +266,7 @@ node scripts\holoshell-room-marathon-workflow.mjs
 Stage a plain-language Brittney dispatch:
 
 ```powershell
-node scripts\holoshell-agent-dispatch.mjs --intent "launch Codex through Ollama"
+node scripts\holoshell-agent-dispatch.mjs --intent "launch Codex locally"
 ```
 
 Or ask the daemon to translate and stage the matching guarded adapter:
@@ -279,7 +277,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/agent-dispatc
 
 Dispatch does not execute anything directly. It writes
 `.tmp/holoshell/agent-dispatch-latest.json`, chooses a route such as
-`/workflow/claude-chat`, `/workflow/ollama-cloud-agent`, `/workflow/room-marathon`,
+`/workflow/room-marathon`, `/workflow/laptop-reasoning-job`, `/workflow/founder-command`,
 or `/action`, and then the selected adapter writes the normal approval bundle.
 
 Stage the full Founder command receipt:
@@ -291,19 +289,19 @@ node scripts\holoshell-founder-command.mjs
 Or stage it through the daemon:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/founder-command -ContentType application/json -Body (@{ intent = "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube" } | ConvertTo-Json)
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/founder-command -ContentType application/json -Body (@{ intent = "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube" } | ConvertTo-Json)
 ```
 
 The Founder command bridge is the demo-level receipt: it joins
 `intent -> plan -> approval -> trust_gate -> launcher -> receipt` across agent
-dispatch, Claude staging, the room marathon workflow, approval bundle, brain
+dispatch, the sovereign room marathon workflow, approval bundle, brain
 intent gate, and live feed.
 
 That stages:
 
-- Resolve Claude CLI.
+- Resolve the sovereign room scripts.
 - Open Windows Terminal.
-- Type a Claude `/room marathon` prompt with `ollama_cloud/kimi-cloud`.
+- Type a local HoloMesh room starter for the selected `local` or `cloud` task tag.
 - Submit the terminal command.
 - Open Chrome.
 - Open a YouTube lofi stream.
@@ -311,63 +309,16 @@ That stages:
 The same workflow is available through the daemon:
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/room-marathon" -Method Post -ContentType "application/json" -Body '{"model":"kimi-cloud","modelRoute":"ollama_cloud"}'
+Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/room-marathon" -Method Post -ContentType "application/json" -Body '{"taskLane":"local","taskTag":"local"}'
 ```
 
-Stage a Claude peer-chat workflow:
+Stage cloud-tagged room work only when the room task is already tagged for it:
 
 ```powershell
-node scripts\holoshell-claude-chat-workflow.mjs --prompt "Plan the next HoloShell pass"
+Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/room-marathon" -Method Post -ContentType "application/json" -Body '{"taskLane":"cloud","taskTag":"cloud","cloudEscalationAllowed":true}'
 ```
 
-That stages:
-
-- Resolve the local Claude surface.
-- Open or focus Claude.
-- Start a new chat.
-- Place the prompt in the chat box.
-
-It does not attach HoloShell context by default and does not submit the prompt
-unless the caller explicitly asks for `--submit`. The same workflow is available
-through the daemon:
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/claude-chat" -Method Post -ContentType "application/json" -Body '{"prompt":"Plan the next HoloShell pass"}'
-```
-
-Claude chat writes a local approval-gate receipt with
-`caseId: holoshell-claude-chat-local-approval.v0`; it does not reuse the
-room-marathon brain-intent eval case.
-
-Stage an Ollama Cloud agent launch:
-
-```powershell
-node scripts\holoshell-ollama-cloud-agent-workflow.mjs --agent codex
-```
-
-Supported launch targets:
-
-| Agent | Command |
-| --- | --- |
-| Claude Code | `ollama launch claude` |
-| OpenClaw | `ollama launch openclaw` |
-| Hermes Agent | `ollama launch hermes` |
-| OpenCode | `ollama launch opencode` |
-| Codex | `ollama launch codex` |
-| Copilot CLI | `ollama launch copilot` |
-| Droid | `ollama launch droid` |
-| Pi | `ollama launch pi` |
-
-The same launcher is available through the daemon:
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/ollama-cloud-agent" -Method Post -ContentType "application/json" -Body '{"agent":"codex"}'
-```
-
-Ollama Cloud agent launches write `workflow-latest.json`,
-`workflow-approval-latest.json`, `brain-intent-gate-latest.json`, and an
-`ollama-cloud-agent-catalog.json` receipt. The local gate case is
-`holoshell-ollama-cloud-agent-local-approval.v0`.
+Cloud-tagged work remains a room classification, not a default provider route.
 
 Create a nonce-bound approval packet for the staged workflow:
 
@@ -391,11 +342,11 @@ node scripts\holoshell-program-registry.mjs --self-test
 node scripts\holoshell-shell-objects.mjs --self-test
 node scripts\holoshell-approval-bundle.mjs --self-test
 node scripts\holoshell-control-daemon.mjs --self-test
+node scripts\holoshell-agent-dispatch.mjs --self-test
 node scripts\holoshell-founder-command.mjs --self-test
 node scripts\holoshell-room-marathon-workflow.mjs --self-test
-node scripts\holoshell-claude-chat-workflow.mjs --self-test
-node scripts\holoshell-ollama-cloud-agent-workflow.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs --self-test
+node scripts\holoshell-laptop-reasoning-worker.mjs --self-test
 ```
 
 ## Next Build Gaps

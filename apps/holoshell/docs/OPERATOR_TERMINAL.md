@@ -22,12 +22,13 @@ HoloShell receipts
 -> operator terminal receipt
 ```
 
-The default route is the current hybrid:
+The default route is now sovereign-first:
 
 ```text
 Jetson hosts Brittney + HoloShell surface
-Laptop supplies reasoning, validation, and desktop bridge actions
-Vast fleet stays scale-to-zero until real inference demand exists
+Laptop supplies validation and desktop bridge actions
+Owned local/LAN inference routes serve agent work when receipts prove readiness
+External provider-specific lanes are not terminal product dependencies
 ```
 
 ## Human Mode

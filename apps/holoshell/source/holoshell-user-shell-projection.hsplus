@@ -23,8 +23,8 @@ composition "HoloShell User Shell Projection" {
     selectedMode: "user.daily"
     selectedCapabilityPack: "user-pack.browser-lofi"
     selectedUserIntent: "Play lofi music"
-    claudeChatPackId: "user-pack.open-claude-chat"
-    claudeChatExecutionDefault: "staged_not_run"
+    sovereignRoomPackId: "user-pack.sovereign-room-marathon"
+    sovereignRoomExecutionDefault: "staged_not_run"
     accountExportPackId: "user-pack.account-export"
     modeCount: 0
     capabilityPackCount: 0
@@ -136,18 +136,18 @@ composition "HoloShell User Shell Projection" {
     })
   }
 
-  action stage_claude_chat(chatPrompt) {
-    state.selectedCapabilityPack = state.claudeChatPackId
-    state.selectedUserIntent = "Open Claude and start a chat"
+  action stage_sovereign_room_marathon(taskTag) {
+    state.selectedCapabilityPack = state.sovereignRoomPackId
+    state.selectedUserIntent = "Start a sovereign room marathon"
     emit("holoshell:brittney-translation", {
-      action: "claude_chat_intent_staged",
+      action: "sovereign_room_marathon_intent_staged",
       intent: state.selectedUserIntent,
       pack_id: state.selectedCapabilityPack,
-      target_surface: "claude_peer_surface",
-      prompt_present: chatPrompt != "",
-      execution_default: state.claudeChatExecutionDefault,
-      approval_required_before_prompt_submit: true,
-      shell_context_attached_by_default: false,
+      target_surface: "holomesh_room_surface",
+      task_tag: taskTag,
+      execution_default: state.sovereignRoomExecutionDefault,
+      approval_required_before_terminal_submit: true,
+      cloud_tag_requires_explicit_receipt: taskTag == "cloud",
       receipt_required: true
     })
   }

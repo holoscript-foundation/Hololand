@@ -32,8 +32,8 @@ What exists today is enough to prove the OS-layer direction:
   object.
 - Brittney has avatar, context, operator, trust, and workflow contracts.
 - Hardware actions are staged through approval and daemon boundaries.
-- Grok Build, Claude chat, Ollama Cloud launch, room marathon, browser/media,
-  and founder-command lanes are represented as workflows.
+- Grok Build, sovereign room marathon, local model/agent launch,
+  browser/media, and founder-command lanes are represented as workflows.
 - GOLD, HoloScript codebase context, and wild HoloScript from `uaa2-service`
   are visible as shell substrate, not isolated docs.
 
@@ -68,7 +68,7 @@ receipt, and the HoloShell surface visibly changes.
 | Receipts, capability inventory, shell object model | 70% | Latest shell-object receipt reports 95 shell objects. Capability inventory reports 8 capabilities: 2 verified, 5 partial, 1 unknown, plus 40 classified legacy programs. |
 | Native wrapper / startup bridge | 60% | Startup adapter status is `registration_adapter_present`; per-user startup registration is not enabled by default and still requires explicit approval. |
 | Brittney operator loop | 40% | Context, plan, approval, and receipt flow exist; full autonomous app operation is staged. |
-| Real app control: browser, terminal, Excel, Claude, Ollama | 30% | Machines and workflows are represented; polished end-user operation is not complete. |
+| Real app control: browser, terminal, documents, local models, and owned agent lanes | 30% | Machines and workflows are represented; polished end-user operation is not complete. |
 | Legacy app geometric reconstruction | 30% | Capture is real, with controls and geometry nodes; dense inspected app replacement is still early. |
 | Realistic simulation skins | 20% | Design/spec/substrate exists; water/fire/aura simulation systems are not yet real. |
 | Trusted autonomous system | 20% | Trust ledger exists; latest level remains `read_only`. |
@@ -187,8 +187,8 @@ concrete gaps to close before calling the flagship demo fully proven.
 
 5. Harden Brittney's operator loop.
    Wire context -> plan -> approval -> execute -> observe -> receipt across
-   browser/media, terminal/agent marathon, Claude chat, Ollama Cloud launch, and
-   one document or spreadsheet app.
+   browser/media, terminal/agent marathon, sovereign local model launch, and one
+   document or spreadsheet app.
 
 6. Promote trusted autonomy by evidence.
    Use the trust ledger to graduate repeated low-risk actions from read-only to

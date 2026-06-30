@@ -20,7 +20,7 @@ const env = {
 const prompt = [
   `Laptop result ingestion fixture ${process.pid}-${Date.now()}.`,
   'Have the Jetson send this large reasoning ask to the laptop hardware lane.',
-  'Use GOLD, Studio, Claude injection, local/cloud focus, and Vast spend guardrails.',
+  'Use GOLD, Studio, sovereign peer context, local/cloud focus, and Vast spend guardrails.',
 ].join(' ');
 
 function parseReceipt(result, label) {

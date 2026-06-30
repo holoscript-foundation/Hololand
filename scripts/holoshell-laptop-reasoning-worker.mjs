@@ -36,7 +36,7 @@ const SCRIPT_REF = 'scripts/holoshell-laptop-reasoning-worker.mjs';
 const DISPATCH_SCRIPT_REF = 'scripts/holoshell-agent-dispatch.mjs';
 const GOLD_CODEBASE_SOURCE_REF = 'apps/holoshell/source/holoshell-holoscript-gold-codebase-bridge.hsplus';
 const GOLD_CODEBASE_SCRIPT_REF = 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs';
-const CLAUDE_CHAT_WORKFLOW_REF = 'scripts/holoshell-claude-chat-workflow.mjs';
+const SOVEREIGN_PEER_CONTEXT_REF = 'scripts/holoshell-laptop-reasoning-worker.mjs';
 const STUDIO_ORCHESTRATOR_REF = 'packages/brittney/service/src/orchestrator.ts';
 const STUDIO_MODEL_ROUTER_REF = 'packages/brittney/service/src/model-router.ts';
 const STUDIO_FLEET_BRIDGE_REF = 'packages/shared/inference/src/integrations/spatial-fleet-bridge.ts';
@@ -336,12 +336,12 @@ function requiredSurfaceChecks(dispatch = {}) {
     ['source_host', ACCEPTED_SOURCE_HOSTS.has(body.sourceHost)],
     ['lane', body.lane === LAPTOP_REASONING_LANE],
     ['agent_lane', body.agentLane === 'local'],
-    ['canonical_provider_id', body.canonicalProviderId === 'laptop-ollama'],
+    ['canonical_provider_id', body.canonicalProviderId === 'laptop-sovereign'],
     ['reuse_before_build', body.reuseBeforeBuild === true],
     ['gold_drive_root', Boolean(surfaces.goldDrive?.root)],
     ['gold_drive_read_only', surfaces.goldDrive?.readOnly === true],
     ['codebase_bridge', Boolean(surfaces.codebaseBridge?.sourceAnchors?.includes(GOLD_CODEBASE_SCRIPT_REF))],
-    ['claude_injection_route', surfaces.claudeInjection?.route === '/workflow/claude-chat'],
+    ['sovereign_peer_context_route', surfaces.sovereignPeerContext?.route === '/workflow/laptop-reasoning-job'],
     ['studio_orchestrator', surfaces.studioBrittney?.serviceOrchestrator === STUDIO_ORCHESTRATOR_REF],
     ['studio_model_router', surfaces.studioBrittney?.modelRouter === STUDIO_MODEL_ROUTER_REF],
     ['studio_fleet_bridge', surfaces.studioBrittney?.fleetBridge === STUDIO_FLEET_BRIDGE_REF],
@@ -360,7 +360,7 @@ function defaultReasonedSummary(dispatch = {}, checks = {}) {
   const reasonText = reasonCodes.length ? reasonCodes.join(', ') : 'router_threshold';
   return [
     `Laptop consumed the Jetson reasoning dispatch ${dispatch.dispatchId || 'unknown_dispatch'} (${reasonText}).`,
-    'Route the answer locally first with repo, GOLD, codebase bridge, Studio/Brittney, and Claude-injection context available for reuse.',
+    'Route the answer locally first with repo, GOLD, codebase bridge, Studio/Brittney, and sovereign peer-context receipts available for reuse.',
     'Keep the Jetson as the always-on HoloShell router and use Vast only after the spend, manifest, output, and teardown gates are receipted.',
     checks.gold?.usable ? 'GOLD is mounted on the laptop for read-only context.' : 'GOLD was not usable on this host, so the receipt marks the job partial.',
   ].join(' ');
@@ -400,7 +400,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       dispatchScript: DISPATCH_SCRIPT_REF,
       goldCodebaseBridge: GOLD_CODEBASE_SOURCE_REF,
       goldCodebaseAdapter: GOLD_CODEBASE_SCRIPT_REF,
-      claudeChatWorkflow: CLAUDE_CHAT_WORKFLOW_REF,
+      sovereignPeerContext: SOVEREIGN_PEER_CONTEXT_REF,
       studioOrchestrator: STUDIO_ORCHESTRATOR_REF,
       studioModelRouter: STUDIO_MODEL_ROUTER_REF,
       studioFleetBridge: STUDIO_FLEET_BRIDGE_REF,
@@ -450,7 +450,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
           topLevelEntryCount: gold.topLevelEntryCount,
         },
         codebaseBridge: surfaces.codebaseBridge || null,
-        claudeInjection: surfaces.claudeInjection || null,
+        sovereignPeerContext: surfaces.sovereignPeerContext || null,
         studioBrittney: surfaces.studioBrittney || null,
         providerRouting: surfaces.providerRouting || null,
         vastFleet: surfaces.vastFleet || null,
@@ -469,7 +469,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       useLocalLaptopFirst: validDispatch,
       goldUsable: gold.usable,
       goldUsage: gold.usable ? 'read_only_context_before_new_builds' : 'blocked_until_gold_mount_verified',
-      useClaudeInjectionWhenPeerContextNeeded: validDispatch && surfaces.claudeInjection?.route === '/workflow/claude-chat',
+      useSovereignPeerContextWhenNeeded: validDispatch && surfaces.sovereignPeerContext?.route === '/workflow/laptop-reasoning-job',
       reuseStudioBrittneyRouter: validDispatch && surfaces.studioBrittney?.serviceOrchestrator === STUDIO_ORCHESTRATOR_REF,
       managedCloudReservedForCoordination: cloudFocus.length > 0,
       useVastOnlyWithSpendGuard: validDispatch && surfaces.vastFleet?.requires?.includes('daily_current_job_budget_fields'),
@@ -532,7 +532,7 @@ export function buildResultReceipt(dispatchReceipt, options = {}) {
       goldRoot: normalizeReceiptPath(surfaces.goldDrive?.root || 'D:/GOLD'),
       goldRootStatus: gold.status,
       goldUsable: gold.usable,
-      claudeInjectionRoute: surfaces.claudeInjection?.route || '',
+      sovereignPeerContextRoute: surfaces.sovereignPeerContext?.route || '',
       studioOrchestrator: surfaces.studioBrittney?.serviceOrchestrator || '',
       vastSpendRail: surfaces.vastFleet?.spendRail || '',
       vastSpendGuardAttached: Boolean(surfaces.vastFleet?.requires?.includes('daily_current_job_budget_fields')),
@@ -594,11 +594,11 @@ export function runSelfTest(options = {}) {
         targetHost: 'laptop_windows',
         lane: LAPTOP_REASONING_LANE,
         agentLane: 'local',
-        canonicalProviderId: 'laptop-ollama',
+        canonicalProviderId: 'laptop-sovereign',
         workload: 'heavy_reasoning',
         permissionEnvelope: 'read_only',
         reuseBeforeBuild: true,
-        duplicateWorkPolicy: 'consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds',
+        duplicateWorkPolicy: 'consume_gold_codebase_studio_holomesh_and_fleet_surfaces_before_new_builds',
         prompt: 'Have the laptop reason through the Jetson autonomy seams.',
         promptHash: hashValue('self-test-prompt'),
         reasonCodes: ['explicit_laptop_reasoning_request'],
@@ -610,23 +610,23 @@ export function runSelfTest(options = {}) {
             { id: 'laptop-reasoning' },
             { id: 'vast-local-overflow' },
           ],
-          cloud: [{ id: 'managed-provider-or-family-seat' }],
+          cloud: [{ id: 'cloud-tagged-room-tasks' }],
         },
         canonicalSurfaces: {
           goldDrive: {
             id: 'gold.drive.read',
             root: normalizedGold,
             readOnly: true,
-            sourceAnchors: ['CLAUDE.md', GOLD_CODEBASE_SOURCE_REF],
+            sourceAnchors: ['AGENTS.md', GOLD_CODEBASE_SOURCE_REF],
           },
           codebaseBridge: {
             id: 'holoshell.holoscript_gold_codebase_bridge',
             sourceAnchors: [GOLD_CODEBASE_SOURCE_REF, GOLD_CODEBASE_SCRIPT_REF],
           },
-          claudeInjection: {
-            id: 'workflow.claude-chat',
-            route: '/workflow/claude-chat',
-            sourceAnchors: [CLAUDE_CHAT_WORKFLOW_REF],
+          sovereignPeerContext: {
+            id: 'workflow.laptop-reasoning-job',
+            route: '/workflow/laptop-reasoning-job',
+            sourceAnchors: [SOVEREIGN_PEER_CONTEXT_REF],
           },
           studioBrittney: {
             id: 'studio.brittney.chat_and_fleet',

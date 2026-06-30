@@ -25,7 +25,7 @@ const previousGoldRoot = process.env.GOLD_ROOT;
 process.env.GOLD_ROOT = goldRoot.replace(/\\/g, '/');
 const dispatch = buildDispatchReceipt({
   actor: 'brittney',
-  intent: 'Have the laptop use Codex reasoning to inspect Jetson autonomy, local/cloud focus, GOLD, Claude injection, Studio, and Vast guardrails.',
+  intent: 'Have the laptop use Codex reasoning to inspect Jetson autonomy, local/cloud focus, GOLD, sovereign peer context, Studio, and Vast guardrails.',
   prompt: 'Hydrate cloud and local tasks, reuse GOLD and Studio surfaces, and do not double-build the backend.',
   output: path.join(tmp, 'agent-dispatch-latest.json'),
   jsOutput: path.join(tmp, 'agent-dispatch-latest.js'),
@@ -54,13 +54,13 @@ assert.equal(receipt.inputDispatch.permissionEnvelope, 'read_only');
 assert.equal(receipt.inputDispatch.targetHost, 'laptop_windows');
 assert.equal(receipt.inputDispatch.lane, 'laptop-hardware');
 assert.equal(receipt.inputDispatch.agentLane, 'local');
-assert.equal(receipt.inputDispatch.canonicalProviderId, 'laptop-ollama');
+assert.equal(receipt.inputDispatch.canonicalProviderId, 'laptop-sovereign');
 assert.equal(receipt.consumedResourcePlan.reuseBeforeBuild, true);
 assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.goldDrive.laptopRuntimeStatus, 'mounted_on_laptop');
 assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.goldDrive.usableOnLaptop, true);
 assert.ok(receipt.consumedResourcePlan.canonicalSurfaces.goldDrive.sampledTopLevelEntries.some((entry) => entry.redacted === true));
 assert.ok(!receipt.consumedResourcePlan.canonicalSurfaces.goldDrive.sampledTopLevelEntries.some((entry) => entry.name === 'credential-registry.json'));
-assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.claudeInjection.route, '/workflow/claude-chat');
+assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.sovereignPeerContext.route, '/workflow/laptop-reasoning-job');
 assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.studioBrittney.serviceOrchestrator, 'packages/brittney/service/src/orchestrator.ts');
 assert.equal(receipt.consumedResourcePlan.canonicalSurfaces.vastFleet.spendRail, 'purchased_compute');
 assert.ok(receipt.consumedResourcePlan.canonicalSurfaces.vastFleet.requires.includes('daily_current_job_budget_fields'));
@@ -68,7 +68,7 @@ assert.equal(receipt.validation.status, 'passed');
 assert.equal(receipt.validation.failedChecks.length, 0);
 assert.equal(receipt.routingVerdict.useLocalLaptopFirst, true);
 assert.equal(receipt.routingVerdict.goldUsable, true);
-assert.equal(receipt.routingVerdict.useClaudeInjectionWhenPeerContextNeeded, true);
+assert.equal(receipt.routingVerdict.useSovereignPeerContextWhenNeeded, true);
 assert.equal(receipt.routingVerdict.reuseStudioBrittneyRouter, true);
 assert.equal(receipt.routingVerdict.useVastOnlyWithSpendGuard, true);
 assert.equal(receipt.routingVerdict.managedCloudReservedForCoordination, true);

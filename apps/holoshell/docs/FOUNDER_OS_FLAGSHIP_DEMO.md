@@ -10,7 +10,7 @@
 ## Command
 
 ```text
-Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube.
+Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube.
 ```
 
 ## Loop
@@ -98,15 +98,15 @@ Stage the full flagship receipt:
 node scripts\holoshell-founder-command.mjs
 ```
 
-The bridge writes `.tmp/holoshell/founder-command-latest.json` and a browser bootstrap at `.tmp/holoshell/founder-command-latest.js`. It merges the dispatch, Claude surface staging, room marathon workflow, nonce approval bundle, brain intent gate, and live-feed receipt into one six-step command record.
+The bridge writes `.tmp/holoshell/founder-command-latest.json` and a browser bootstrap at `.tmp/holoshell/founder-command-latest.js`. It merges the dispatch, sovereign room marathon workflow, nonce approval bundle, brain intent gate, and live-feed receipt into one six-step command record.
 
 ## Demo Targets
 
 - Excel: guarded app launch through agent dispatch.
 - Terminal: workflow launcher surface.
-- Claude: guarded peer app/chat surface.
+- HoloMesh room: local/sovereign task marathon surface.
 - Browser: guarded URL/app surface.
 - YouTube lofi: browser media target.
-- Ollama Kimi Cloud: model route for the room marathon workflow.
+- Local sovereign agent lane: default model route for the room marathon workflow.
 
 Execution remains staged by default. Any real mutation still requires a nonce-bound approval bundle and a local daemon started with execution enabled.

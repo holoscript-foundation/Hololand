@@ -18,8 +18,6 @@ composition "HoloShell Hardware Program Control" {
     brainIntentGateScript: "scripts/holoshell-brain-intent-gate.mjs"
     controlDaemonScript: "scripts/holoshell-control-daemon.mjs"
     roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
-    claudeChatWorkflowScript: "scripts/holoshell-claude-chat-workflow.mjs"
-    ollamaCloudAgentWorkflowScript: "scripts/holoshell-ollama-cloud-agent-workflow.mjs"
     grokBuildWorkflowScript: "scripts/holoshell-grok-build-workflow.mjs"
     grokHeartbeatScript: "scripts/holoshell-grok-heartbeat.mjs"
     agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
@@ -148,7 +146,7 @@ composition "HoloShell Hardware Program Control" {
     activeWorkflowIntentGateRuntimeBlocking: false
     activeWorkflowIntentGateCaseId: ""
     activeWorkflowIntentGateFailedCheckCount: 0
-    founderCommandIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    founderCommandIntent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
     founderCommandPipelineShape: "intent_plan_approval_trust_launcher_receipt"
     founderCommandConfidence: 0
     founderCommandTrustLevel: "guarded"
@@ -195,19 +193,7 @@ composition "HoloShell Hardware Program Control" {
   channel "holoshell:workflow:room-marathon" {
     type: "request_response"
     priority: "critical"
-    description: "Compound Brittney workflow for Claude, terminal, room marathon, Kimi route, browser, and YouTube lofi"
-  }
-
-  channel "holoshell:workflow:claude-chat" {
-    type: "request_response"
-    priority: "critical"
-    description: "Guarded Brittney workflow for opening Claude, starting a chat, and staging a prompt without shell context by default"
-  }
-
-  channel "holoshell:workflow:ollama-cloud-agent" {
-    type: "request_response"
-    priority: "critical"
-    description: "Guarded Brittney workflow for launching Ollama Cloud agent runtimes from HoloShell"
+    description: "Compound Brittney workflow for terminal, sovereign room marathon, local/cloud task tags, browser, and YouTube lofi"
   }
 
   channel "holoshell:workflow:grok-build" {
@@ -370,7 +356,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -379,39 +365,13 @@ composition "HoloShell Hardware Program Control" {
     type: "room_marathon_workflow"
     receiptType: "hololand.holoshell.workflow.v0.1.0"
     title: "Room Marathon with Lofi"
-    modelRoute: "ollama_cloud"
-    model: "kimi-cloud"
-    steps: ["resolve_claude_cli", "open_terminal", "stage_room_command", "submit_room_command", "open_browser", "play_lofi_youtube"]
+    modelRoute: "sovereign_local"
+    model: "sovereign-local"
+    taskLane: "local"
+    taskTag: "local"
+    cloudEscalationAllowed: false
+    steps: ["resolve_sovereign_room", "open_terminal", "stage_room_command", "submit_room_command", "open_browser", "play_lofi_youtube"]
     defaultExecutionPolicy: "stage_only"
-    approvalRequired: true
-    mutationExecuted: false
-    receiptRequired: true
-  }
-
-  template "ClaudeChatWorkflow" {
-    type: "claude_chat_workflow"
-    receiptType: "hololand.holoshell.workflow.v0.1.0"
-    title: "Claude Chat"
-    targetSurface: "Claude"
-    steps: ["resolve_claude_surface", "open_claude", "start_new_chat", "stage_chat_prompt"]
-    defaultExecutionPolicy: "staged_until_user_approval"
-    shellContextAttachedByDefault: false
-    submitRequiresApproval: true
-    approvalRequired: true
-    mutationExecuted: false
-    receiptRequired: true
-  }
-
-  template "OllamaCloudAgentWorkflow" {
-    type: "ollama_cloud_agent_workflow"
-    receiptType: "hololand.holoshell.workflow.v0.1.0"
-    title: "Ollama Cloud Agent"
-    commandPrefix: "ollama launch"
-    supportedAgents: ["claude", "openclaw", "hermes", "opencode", "codex", "copilot", "droid", "pi"]
-    steps: ["resolve_ollama_cloud_cli", "resolve_agent_target", "launch_ollama_cloud_agent"]
-    defaultExecutionPolicy: "staged_until_user_approval"
-    shellContextAttachedByDefault: false
-    terminalLaunchRequiresApproval: true
     approvalRequired: true
     mutationExecuted: false
     receiptRequired: true
@@ -460,7 +420,7 @@ composition "HoloShell Hardware Program Control" {
     receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
     title: "Agent Dispatch"
     route: "POST /workflow/agent-dispatch"
-    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser", "launch_program"]
+    supportedCapabilities: ["sovereign_agent_session", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser", "launch_program"]
     steps: ["parse_intent", "rank_capabilities", "select_guarded_route", "handoff_to_existing_adapter"]
     defaultExecutionPolicy: "dispatch_only"
     directExecutionAllowed: false
@@ -501,9 +461,9 @@ composition "HoloShell Hardware Program Control" {
     type: "founder_command_receipt"
     receiptType: "hololand.holoshell.founder-command.v0.1.0"
     commandId: ""
-    intent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    intent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
     pipeline: ["intent", "plan", "approval", "trust_gate", "launcher", "receipt"]
-    targetSurfaces: ["Claude", "Windows Terminal", "Ollama Kimi Cloud", "browser", "YouTube lofi"]
+    targetSurfaces: ["Windows Terminal", "HoloMesh room", "local sovereign agent lane", "browser", "YouTube lofi"]
     confidence: 0.86
     trustLevel: "guarded"
     executionDefault: "staged_not_run"
@@ -775,7 +735,7 @@ composition "HoloShell Hardware Program Control" {
     state.activeWorkflowKind = workflow.summary.workflowKind || "room_marathon"
     state.activeWorkflowStatus = workflow.summary.status
     state.activeWorkflowTitle = workflow.title
-    state.activeWorkflowTargetSurface = workflow.summary.targetSurface || "Claude + Terminal + Browser"
+    state.activeWorkflowTargetSurface = workflow.summary.targetSurface || "Terminal + HoloMesh Room + Browser"
     state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
     state.activeWorkflowStepCount = workflow.summary.stepCount
     state.activeWorkflowModelRoute = workflow.summary.modelRoute
@@ -788,55 +748,6 @@ composition "HoloShell Hardware Program Control" {
       steps: state.activeWorkflowStepCount,
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       model_route: state.activeWorkflowModelRoute,
-      mutation_executed: state.activeWorkflowMutationExecuted,
-      receipt_required: true
-    })
-  }
-
-  action apply_claude_chat_workflow(workflow) {
-    state.activeWorkflowId = workflow.workflowId
-    state.activeWorkflowKind = workflow.summary.workflowKind || "claude_chat"
-    state.activeWorkflowStatus = workflow.summary.status
-    state.activeWorkflowTitle = workflow.title
-    state.activeWorkflowTargetSurface = workflow.summary.targetSurface
-    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
-    state.activeWorkflowStepCount = workflow.summary.stepCount
-    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
-    emit("holoshell:workflow:claude-chat", {
-      action: "claude_chat_workflow_applied",
-      workflow_id: state.activeWorkflowId,
-      status: state.activeWorkflowStatus,
-      title: state.activeWorkflowTitle,
-      target_surface: state.activeWorkflowTargetSurface,
-      steps: state.activeWorkflowStepCount,
-      pending_approvals: state.activeWorkflowPendingApprovalCount,
-      shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,
-      mutation_executed: state.activeWorkflowMutationExecuted,
-      receipt_required: true
-    })
-  }
-
-  action apply_ollama_cloud_agent_workflow(workflow) {
-    state.activeWorkflowId = workflow.workflowId
-    state.activeWorkflowKind = workflow.summary.workflowKind || "ollama_cloud_agent"
-    state.activeWorkflowStatus = workflow.summary.status
-    state.activeWorkflowTitle = workflow.title
-    state.activeWorkflowTargetSurface = "Ollama Cloud"
-    state.activeWorkflowAgent = workflow.summary.agentSlug
-    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
-    state.activeWorkflowStepCount = workflow.summary.stepCount
-    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
-    emit("holoshell:workflow:ollama-cloud-agent", {
-      action: "ollama_cloud_agent_workflow_applied",
-      workflow_id: state.activeWorkflowId,
-      status: state.activeWorkflowStatus,
-      title: state.activeWorkflowTitle,
-      target_surface: state.activeWorkflowTargetSurface,
-      agent: state.activeWorkflowAgent,
-      command: workflow.summary.command,
-      steps: state.activeWorkflowStepCount,
-      pending_approvals: state.activeWorkflowPendingApprovalCount,
-      shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,
       mutation_executed: state.activeWorkflowMutationExecuted,
       receipt_required: true
     })

@@ -14,19 +14,24 @@ function receiptFor(intent) {
 }
 
 const flagship = receiptFor(
-  'Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube'
+  'Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube'
 );
 
 assert.equal(flagship.summary.status, 'ready_to_stage');
 assert.equal(flagship.summary.capabilityId, 'founder_command');
 assert.equal(flagship.summary.route, '/workflow/founder-command');
-assert.equal(flagship.dispatch.body.model, 'kimi-cloud');
-assert.equal(flagship.dispatch.body.modelRoute, 'ollama_cloud');
+assert.equal(flagship.dispatch.body.model, 'sovereign-local');
+assert.equal(flagship.dispatch.body.modelRoute, 'sovereign_local');
+assert.equal(flagship.dispatch.body.taskLane, 'local');
+assert.equal(flagship.dispatch.body.taskTag, 'local');
+assert.equal(flagship.dispatch.body.cloudEscalationAllowed, false);
 assert.equal(flagship.request.rawIntentStoredLocallyOnly, true);
 
-const roomOnly = receiptFor('start room marathon using Ollama Kimi Cloud');
+const roomOnly = receiptFor('start a sovereign room marathon for cloud-tagged tasks');
 assert.equal(roomOnly.summary.capabilityId, 'room_marathon');
 assert.equal(roomOnly.summary.route, '/workflow/room-marathon');
+assert.equal(roomOnly.summary.taskLane, 'cloud');
+assert.equal(roomOnly.summary.cloudEscalationAllowed, true);
 
 const laptopReasoning = receiptFor('Have the laptop use Codex reasoning to inspect this repo and return a receipt.');
 assert.equal(laptopReasoning.summary.status, 'ready_to_stage');
@@ -37,25 +42,26 @@ assert.equal(laptopReasoning.summary.approvalRequired, false);
 assert.equal(laptopReasoning.dispatch.body.targetHost, 'laptop_windows');
 assert.equal(laptopReasoning.dispatch.body.lane, 'laptop-hardware');
 assert.equal(laptopReasoning.dispatch.body.agentLane, 'local');
-assert.equal(laptopReasoning.dispatch.body.canonicalProviderId, 'laptop-ollama');
+assert.equal(laptopReasoning.dispatch.body.canonicalProviderId, 'laptop-sovereign');
 assert.equal(laptopReasoning.dispatch.body.workload, 'heavy_reasoning');
 assert.equal(laptopReasoning.dispatch.body.reuseBeforeBuild, true);
 assert.equal(laptopReasoning.dispatch.body.canonicalSurfaces.goldDrive.root, 'D:/GOLD');
-assert.equal(laptopReasoning.dispatch.body.canonicalSurfaces.claudeInjection.route, '/workflow/claude-chat');
+assert.equal(laptopReasoning.dispatch.body.canonicalSurfaces.sovereignPeerContext.route, '/workflow/laptop-reasoning-job');
 assert.equal(laptopReasoning.dispatch.body.canonicalSurfaces.studioBrittney.serviceOrchestrator, 'packages/brittney/service/src/orchestrator.ts');
 assert.equal(laptopReasoning.dispatch.body.canonicalSurfaces.vastFleet.spendRail, 'purchased_compute');
 assert.ok(laptopReasoning.dispatch.body.canonicalSurfaces.vastFleet.requires.includes('daily_current_job_budget_fields'));
 assert.equal(laptopReasoning.summary.agentLane, 'local');
-assert.equal(laptopReasoning.summary.canonicalProviderId, 'laptop-ollama');
+assert.equal(laptopReasoning.summary.canonicalProviderId, 'laptop-sovereign');
 assert.equal(laptopReasoning.summary.reuseBeforeBuild, true);
 assert.equal(laptopReasoning.summary.goldRoot, 'D:/GOLD');
-assert.equal(laptopReasoning.summary.claudeInjectionRoute, '/workflow/claude-chat');
+assert.equal(laptopReasoning.summary.sovereignPeerContextRoute, '/workflow/laptop-reasoning-job');
 assert.equal(laptopReasoning.summary.vastSpendRail, 'purchased_compute');
 assert.ok(laptopReasoning.dispatch.body.reasonCodes.includes('explicit_laptop_reasoning_request'));
 
-const codexLaunch = receiptFor('launch Codex through Ollama');
-assert.equal(codexLaunch.summary.capabilityId, 'ollama_cloud_agent');
-assert.equal(codexLaunch.summary.route, '/workflow/ollama-cloud-agent');
+const codexLaunch = receiptFor('launch Codex locally');
+assert.equal(codexLaunch.summary.capabilityId, 'sovereign_agent_session');
+assert.equal(codexLaunch.summary.route, '/workflow/room-marathon');
+assert.equal(codexLaunch.dispatch.body.agent, 'codex');
 
 const lofiOnly = receiptFor('open browser and play lofi music on YouTube');
 assert.equal(lofiOnly.summary.capabilityId, 'browser_lofi');

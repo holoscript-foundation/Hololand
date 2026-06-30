@@ -62,7 +62,7 @@ ShellObject
 | `program` | Installed or running app presented as a capability engine. | Excel, Chrome, terminal. |
 | `file` | File or folder represented as work material. | Project folder, spreadsheet, document. |
 | `browser_surface` | Tab, web app, or URL boundary. | YouTube, docs, dashboard. |
-| `terminal_surface` | Shell, command, REPL, build, or room marathon lane. | PowerShell, Claude CLI, pnpm build. |
+| `terminal_surface` | Shell, command, REPL, build, or room marathon lane. | PowerShell, local room lane, pnpm build. |
 | `agent` | Active or available AI actor. | Brittney, Codex, Claude, Gemini. |
 | `room` | Capability grouping or work context. | HoloScript Room, Project Room. |
 | `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi, Asset Folder to Playable Shard. |

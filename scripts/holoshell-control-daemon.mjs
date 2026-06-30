@@ -107,8 +107,6 @@ Routes:
   POST /workflow/laptop-reasoning-job
   POST /workflow/conversation-plan-dispatch
   POST /workflow/room-marathon
-  POST /workflow/claude-chat
-  POST /workflow/ollama-cloud-agent
   POST /workflow/grok-build
   POST /workflow/founder-command
   POST /workflow/approval
@@ -241,33 +239,13 @@ function roomMarathonWorkflow(body = {}) {
   };
   add('--model', body.model);
   add('--model-route', body.modelRoute);
-  add('--claude-app', body.claudeApp);
+  add('--task-lane', body.taskLane);
+  add('--task-tag', body.taskTag);
+  if (body.cloudEscalationAllowed === true) cli.push('--cloud-escalation-allowed');
   add('--terminal-app', body.terminalApp);
   add('--browser-app', body.browserApp);
   add('--lofi-url', body.lofiUrl);
   add('--room-command', body.roomCommand);
-  return runChecked(cli);
-}
-
-function claudeChatWorkflow(body = {}) {
-  const cli = ['scripts/holoshell-claude-chat-workflow.mjs'];
-  const add = (flag, value) => {
-    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
-  };
-  add('--actor', body.actor);
-  add('--claude-app', body.claudeApp);
-  add('--prompt', body.prompt || body.chatPrompt || body.text);
-  add('--new-chat-hotkey', body.newChatHotkey);
-  if (body.startNewChat === false) cli.push('--no-new-chat');
-  if (body.submit === true) cli.push('--submit');
-  return runChecked(cli);
-}
-
-function ollamaCloudAgentWorkflow(body = {}) {
-  const cli = ['scripts/holoshell-ollama-cloud-agent-workflow.mjs'];
-  const agent = body.agent || body.targetAgent || body.slug;
-  if (agent !== undefined && agent !== null && agent !== '') cli.push('--agent', String(agent));
-  if (body.actor !== undefined && body.actor !== null && body.actor !== '') cli.push('--actor', String(body.actor));
   return runChecked(cli);
 }
 
@@ -315,9 +293,10 @@ function founderCommand(body = {}) {
   add('--intent', body.intent || body.text || body.ask || body.request);
   add('--model', body.model);
   add('--model-route', body.modelRoute);
-  add('--claude-app', body.claudeApp);
+  add('--task-lane', body.taskLane);
+  add('--task-tag', body.taskTag);
+  if (body.cloudEscalationAllowed === true) cli.push('--cloud-escalation-allowed');
   add('--lofi-url', body.lofiUrl);
-  if (body.stageClaudeSurface === false) cli.push('--no-claude-surface');
   return runChecked(cli);
 }
 
@@ -499,8 +478,6 @@ function commandFromWorkflowApprovalBundle(bundle) {
   const script = String(command[1] || '').replaceAll('/', path.sep);
   const allowedWorkflowScripts = [
     `scripts${path.sep}holoshell-room-marathon-workflow.mjs`,
-    `scripts${path.sep}holoshell-claude-chat-workflow.mjs`,
-    `scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`,
     `scripts${path.sep}holoshell-grok-build-workflow.mjs`,
   ];
   if (first !== 'node' || !allowedWorkflowScripts.some((allowed) => script.endsWith(allowed))) {
@@ -529,8 +506,6 @@ function executeWorkflow(args, body = {}) {
   if (!body.nonce || body.nonce !== (bundle.nonce || bundle.execution?.nonce)) throw new Error('Workflow approval nonce mismatch.');
   const adapter = String(bundle.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
   const localApprovalGateCases = new Map([
-    [`scripts${path.sep}holoshell-claude-chat-workflow.mjs`, 'holoshell-claude-chat-local-approval.v0'],
-    [`scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`, 'holoshell-ollama-cloud-agent-local-approval.v0'],
     [`scripts${path.sep}holoshell-grok-build-workflow.mjs`, 'holoshell-grok-build-local-approval.v0'],
   ]);
   const localApprovalGateCase = [...localApprovalGateCases.entries()]
@@ -593,42 +568,6 @@ function stageRoomMarathon(args, body = {}) {
       workflow: workflowResult.stdout.trim(),
       workflowApproval: workflowApprovalResult.stdout.trim(),
       workflowIntentGate: workflowIntentGateResult.stdout.trim(),
-    },
-  };
-}
-
-function stageClaudeChat(args, body = {}) {
-  refreshRegistry(args);
-  const workflowResult = claudeChatWorkflow(body);
-  refreshLiveFeed();
-  return {
-    ok: true,
-    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
-    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
-    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
-    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
-    logs: {
-      workflow: workflowResult.stdout.trim(),
-      workflowApproval: 'Claude chat workflow wrote its nonce-bound approval bundle.',
-      workflowIntentGate: 'Claude chat workflow wrote a local approval gate; no room-marathon brain case was reused.',
-    },
-  };
-}
-
-function stageOllamaCloudAgent(args, body = {}) {
-  refreshRegistry(args);
-  const workflowResult = ollamaCloudAgentWorkflow(body);
-  refreshLiveFeed();
-  return {
-    ok: true,
-    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
-    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
-    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
-    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
-    logs: {
-      workflow: workflowResult.stdout.trim(),
-      workflowApproval: 'Ollama Cloud agent workflow wrote its nonce-bound approval bundle.',
-      workflowIntentGate: 'Ollama Cloud agent workflow wrote a local approval gate.',
     },
   };
 }
@@ -720,9 +659,7 @@ function stageAgentDispatch(args, body = {}) {
   const route = dispatch.dispatch?.route || '';
   const routedBody = dispatch.dispatch?.body || {};
   let downstream;
-  if (route === '/workflow/claude-chat') downstream = stageClaudeChat(args, routedBody);
-  else if (route === '/workflow/ollama-cloud-agent') downstream = stageOllamaCloudAgent(args, routedBody);
-  else if (route === '/workflow/grok-build') downstream = stageGrokBuild(args, routedBody);
+  if (route === '/workflow/grok-build') downstream = stageGrokBuild(args, routedBody);
   else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
   else if (route === '/workflow/laptop-reasoning-job') downstream = stageLaptopReasoningJob(args, routedBody);
@@ -810,17 +747,13 @@ function routePost(args, pathname, body) {
   if (pathname === '/workflow/laptop-reasoning-job') return stageLaptopReasoningJob(args, body);
   if (pathname === '/workflow/conversation-plan-dispatch') return stageConversationPlanDispatch(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
-  if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
-  if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);
   if (pathname === '/workflow/grok-build') return stageGrokBuild(args, body);
   if (pathname === '/workflow/founder-command') return stageFounderCommand(args, body);
   if (pathname === '/workflow/approval') {
     const activeWorkflow = readJson(tmpPath(args, 'workflow-latest.json'), {});
     const activeAdapter = String(activeWorkflow.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
     const workflowOwnsApproval =
-      activeAdapter.endsWith(`scripts${path.sep}holoshell-claude-chat-workflow.mjs`)
-      || activeAdapter.endsWith(`scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`)
-      || activeAdapter.endsWith(`scripts${path.sep}holoshell-grok-build-workflow.mjs`);
+      activeAdapter.endsWith(`scripts${path.sep}holoshell-grok-build-workflow.mjs`);
     if (!workflowOwnsApproval) workflowApprovalBundle();
     refreshLiveFeed();
     return {

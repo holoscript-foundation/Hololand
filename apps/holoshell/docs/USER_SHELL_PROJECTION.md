@@ -34,8 +34,8 @@ node scripts\holoshell-live-feed.mjs
 | --- | --- | --- |
 | `user-pack.browser-lofi` | Play lofi music | Staged approval |
 | `user-pack.open-excel` | Open Excel | Staged approval |
-| `user-pack.room-marathon` | Start room marathon with Kimi and lofi | Staged approval |
-| `user-pack.open-claude-chat` | Open Claude and start a chat | Staged approval |
+| `user-pack.room-marathon` | Start a sovereign room marathon with lofi | Staged approval |
+| `user-pack.sovereign-room-marathon` | Launch local/sovereign room work | Staged approval |
 | `user-pack.asset-shard-preview` | Turn this folder into a playable shard | Preview first |
 | `user-pack.format-learning` | Explain `.holo`, `.hs`, `.hsplus` | Read-only |
 | `user-pack.account-export` | Export my account data | Staged approval |

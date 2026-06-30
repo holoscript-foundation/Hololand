@@ -43,7 +43,7 @@ Narrate outcome
 | Program launch | Open a known app through the program registry. | `guarded_execute` |
 | Browser/media operation | Open browser surfaces and media links. | `guarded_execute` |
 | Terminal workflow | Stage and submit commands through workflow approval. | `guarded_execute` |
-| Agent launch | Start or route work to Codex, Claude, Gemini, Copilot, or HoloMesh lane. | `guarded_execute` |
+| Agent launch | Start or route work to a sovereign HoloMesh, local model, local shell, or owned hardware lane. | `guarded_execute` |
 | File/project inspection | Read files, summarize project state, propose next action. | `read_only` first |
 | File/document mutation | Edit, export, move, or transform local artifacts. | `guarded_execute` or `break_glass` |
 | System change | Change settings, services, registry, installs, secrets. | `break_glass` |
@@ -134,16 +134,16 @@ embodiment. HoloShell must keep Brittney local-first and sovereign:
 
 - Local model route is valid.
 - LAN/self-hosted route is valid.
-- BYOK cloud route is valid.
-- Managed route is optional.
-- No single cloud assistant endpoint should become the only Brittney.
+- Owned fleet route is valid when custody receipts prove budget, launch, and stop boundaries.
+- Provider-specific cloud assistants are not product dependencies.
+- No single cloud assistant endpoint should become Brittney.
 
 This follows `docs/BRITTNEY_OWNERSHIP_MODEL.md`.
 
 ## First Operator Workflows
 
 1. "Open browser and play lofi."
-2. "Open terminal and start room marathon with Kimi."
+2. "Open terminal and start a sovereign room marathon."
 3. "Open Excel and summarize this workbook."
 4. "Check this project and tell me if it is safe."
 5. "Show what apps can help with documents."

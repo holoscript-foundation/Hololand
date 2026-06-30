@@ -31,8 +31,8 @@ The safest adapter wins, not the flashiest one.
 | --- | --- | --- | --- | --- | --- |
 | Browser | Open page, play media, inspect status | Browser automation with named profile boundary | URL open plus screenshot witness | `guarded_execute` for opening, `break_glass` for forms/payments | URL, screenshot, DOM summary, profile boundary |
 | YouTube/media | Play lofi or requested media | Browser URL open with media intent | Manual witness if autoplay blocked | `guarded_execute` | URL, page title, playback witness if available |
-| Terminal | Start Claude or local command workflow | CLI/process spawn with cwd and timeout | UI Automation type/hotkey | `guarded_execute` | command hash, cwd, exit code or staged input receipt |
-| Claude CLI | Start room marathon or task lane | Direct CLI if available | Terminal typing workflow | `guarded_execute` | model route, prompt hash, lane id, run receipt |
+| Terminal | Start local command or sovereign room workflow | CLI/process spawn with cwd and timeout | UI Automation type/hotkey | `guarded_execute` | command hash, cwd, exit code or staged input receipt |
+| Local room lane | Start room marathon or task lane | HoloMesh room scripts if available | Terminal typing workflow | `guarded_execute` | task tag, prompt hash, lane id, run receipt |
 | Excel/spreadsheets | Open workbook, read/transform/export | File parser or Office automation | UI Automation plus screenshot witness | `guarded_execute` for mutation, `read_only` for parse | file snapshot, sheet summary, output hash |
 | Documents | Read, summarize, redline, export | Document parser/converter | App automation | `guarded_execute` for writes | file snapshot, diff, output artifact |
 | File Explorer | Open folder, reveal file, organize | Filesystem API | UI Automation | `read_only` inspect, `break_glass` delete/move outside workspace | path receipt, diff, rollback note |
@@ -101,7 +101,7 @@ HoloScript-native object.
 ## Build Order
 
 1. Browser media and page inspection.
-2. Terminal and Claude room workflows.
+2. Terminal and sovereign room workflows.
 3. Excel or spreadsheet file read/summary/export.
 4. File/project safe check flow.
 5. System settings inspect-only view.
@@ -109,4 +109,3 @@ HoloScript-native object.
 
 This order keeps the product useful while staying inside receipts and approval
 boundaries.
-

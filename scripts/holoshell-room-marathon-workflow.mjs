@@ -20,9 +20,11 @@ function parseArgs(argv) {
   const args = {
     profile: 'room_marathon_lofi',
     actor: 'brittney',
-    model: 'kimi-cloud',
-    modelRoute: 'ollama_cloud',
-    claudeApp: 'Claude',
+    model: 'sovereign-local',
+    modelRoute: 'sovereign_local',
+    taskLane: 'local',
+    taskTag: 'local',
+    cloudEscalationAllowed: false,
     terminalApp: 'wt',
     browserApp: 'Chrome',
     lofiUrl: DEFAULT_LOFI_URL,
@@ -46,7 +48,9 @@ function parseArgs(argv) {
     else if (arg === '--actor') args.actor = argv[++index] || args.actor;
     else if (arg === '--model') args.model = argv[++index] || args.model;
     else if (arg === '--model-route') args.modelRoute = argv[++index] || args.modelRoute;
-    else if (arg === '--claude-app') args.claudeApp = argv[++index] || args.claudeApp;
+    else if (arg === '--task-lane') args.taskLane = argv[++index] || args.taskLane;
+    else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
+    else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--terminal-app') args.terminalApp = argv[++index] || args.terminalApp;
     else if (arg === '--browser-app') args.browserApp = argv[++index] || args.browserApp;
     else if (arg === '--lofi-url') args.lofiUrl = argv[++index] || args.lofiUrl;
@@ -73,6 +77,9 @@ function parseArgs(argv) {
   if (!/^https:\/\/(www\.)?youtube\.com\//i.test(args.lofiUrl)) {
     throw new Error('--lofi-url must be an https://youtube.com URL.');
   }
+  args.taskLane = normalizeTaskLane(args.taskLane);
+  args.taskTag = normalizeTaskLane(args.taskTag || args.taskLane);
+  args.cloudEscalationAllowed = args.taskLane === 'cloud' || args.cloudEscalationAllowed === true;
   if (!Number.isFinite(args.stepDelayMs) || args.stepDelayMs < 0) args.stepDelayMs = 1200;
   return args;
 }
@@ -84,9 +91,12 @@ Usage:
   node scripts/holoshell-room-marathon-workflow.mjs [options]
 
 Options:
-  --model <name>            Model label. Defaults to kimi-cloud.
-  --model-route <route>     Route label. Defaults to ollama_cloud.
-  --claude-app <name>       App target for Claude. Defaults to Claude.
+  --model <name>            Model label. Defaults to sovereign-local.
+  --model-route <route>     Route label. Defaults to sovereign_local.
+  --task-lane <local|cloud> Room task lane. Defaults to local.
+  --task-tag <local|cloud>  Room task tag. Defaults to task lane.
+  --cloud-escalation-allowed
+                            Mark cloud-tagged work as explicitly allowed.
   --terminal-app <name>     App target for terminal. Defaults to wt.
   --browser-app <name>      App target for browser. Defaults to Chrome.
   --lofi-url <url>          YouTube lofi URL.
@@ -101,6 +111,10 @@ Options:
   --json                    Print the workflow JSON.
   -h, --help                Show this help.
 `);
+}
+
+function normalizeTaskLane(value) {
+  return String(value || 'local').toLowerCase().includes('cloud') ? 'cloud' : 'local';
 }
 
 function resolveRepoPath(filePath) {
@@ -126,7 +140,9 @@ function applyWorkflowApprovalBundle(args) {
   args.profile = request.profile || args.profile;
   args.model = request.model || args.model;
   args.modelRoute = request.modelRoute || args.modelRoute;
-  args.claudeApp = request.claudeApp || args.claudeApp;
+  args.taskLane = normalizeTaskLane(request.taskLane || args.taskLane);
+  args.taskTag = normalizeTaskLane(request.taskTag || args.taskTag || args.taskLane);
+  args.cloudEscalationAllowed = request.cloudEscalationAllowed === true || args.taskLane === 'cloud';
   args.terminalApp = request.terminalApp || args.terminalApp;
   args.browserApp = request.browserApp || args.browserApp;
   args.lofiUrl = request.lofiUrl || args.lofiUrl;
@@ -160,10 +176,11 @@ function shortHash(value, length = 10) {
 }
 
 function defaultRoomCommand(args) {
-  const escapedModel = String(args.model).replace(/"/g, '\\"');
-  const prompt = `Start /room marathon using Ollama route ${args.modelRoute} model ${args.model}. Join the team room, read the board, claim work, continue done-to-next-task cycles until blocked, and keep HoloShell lofi running.`;
-  const escapedPrompt = prompt.replace(/"/g, '\\"');
-  return `$env:OLLAMA_MODEL="${escapedModel}"; $env:HOLOSHELL_ROOM_MODE="marathon"; claude "${escapedPrompt}"`;
+  const tag = normalizeTaskLane(args.taskTag || args.taskLane);
+  const escalation = args.cloudEscalationAllowed ? '1' : '0';
+  const guidance = `Sovereign HoloShell room marathon: claim ${tag}-tagged tasks first; keep local tasks on owned hardware; cloud-tagged work requires an explicit receipt.`;
+  const escapedGuidance = guidance.replace(/"/g, '\\"');
+  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Write-Host "${escapedGuidance}"`;
 }
 
 function findCommand(command) {
@@ -195,17 +212,17 @@ function step(id, label, kind, detail, action = null) {
 
 function createSteps(args) {
   const command = args.roomCommand || defaultRoomCommand(args);
-  const claudePath = findCommand('claude');
-  const claudeStep = step(
-    'resolve-claude-cli',
-    'Resolve Claude CLI',
-    'agent_surface',
-    claudePath ? `Claude CLI is available at ${claudePath}.` : 'Claude CLI was not found on PATH.',
+  const nodePath = findCommand('node');
+  const roomStep = step(
+    'resolve-sovereign-room',
+    'Resolve Sovereign Room',
+    'room_surface',
+    nodePath ? `Node is available at ${nodePath}; room scripts can be staged locally.` : 'Node was not found on PATH for local room scripts.',
   );
-  claudeStep.status = claudePath ? 'resolved' : 'not_found';
-  claudeStep.targetResolved = Boolean(claudePath);
+  roomStep.status = nodePath ? 'resolved' : 'not_found';
+  roomStep.targetResolved = Boolean(nodePath);
   return [
-    claudeStep,
+    roomStep,
     step(
       'open-terminal',
       'Open Terminal',
@@ -217,7 +234,7 @@ function createSteps(args) {
       'stage-room-command',
       'Stage Room Marathon',
       'room_command',
-      `Type the room marathon command with ${args.modelRoute}/${args.model}.`,
+      `Type the sovereign room marathon command for ${args.taskTag}-tagged tasks.`,
       { action: 'type_text', processName: 'WindowsTerminal', text: command },
     ),
     step(
@@ -367,7 +384,7 @@ function buildWorkflow(args) {
   const pendingSteps = steps.filter((item) => item.approvalRequired && ['approval_required', 'planned'].includes(item.status));
   const targetResolvedSteps = steps.filter((item) => item.targetResolved);
   const stageErrors = steps.filter((item) => item.status === 'stage_error' || item.error);
-  const claudeStep = steps.find((item) => item.id === 'resolve-claude-cli');
+  const roomStep = steps.find((item) => item.id === 'resolve-sovereign-room');
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -389,14 +406,17 @@ function buildWorkflow(args) {
       hostname: os.hostname(),
     },
     modelRoute: {
-      provider: 'ollama',
+      provider: 'sovereign',
       route: args.modelRoute,
       model: args.model,
+      taskLane: args.taskLane,
+      taskTag: args.taskTag,
+      cloudEscalationAllowed: args.cloudEscalationAllowed,
       secretsCaptured: false,
     },
     tools: {
-      claudeCliAvailable: Boolean(claudeStep?.targetResolved),
-      claudeCliDetail: claudeStep?.detail || '',
+      sovereignRoomAvailable: Boolean(roomStep?.targetResolved),
+      sovereignRoomDetail: roomStep?.detail || '',
     },
     media: {
       provider: 'youtube',
@@ -420,6 +440,9 @@ function buildWorkflow(args) {
       stageErrorCount: stageErrors.length,
       model: args.model,
       modelRoute: args.modelRoute,
+      taskLane: args.taskLane,
+      taskTag: args.taskTag,
+      cloudEscalationAllowed: args.cloudEscalationAllowed,
       musicTarget: 'youtube_lofi',
       roomCommandStaged: steps.some((item) => item.id === 'stage-room-command' && item.status !== 'stage_error'),
       mutationExecuted: steps.some((item) => item.mutationExecuted),

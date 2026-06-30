@@ -27,14 +27,14 @@ composition "HoloShell Laptop Reasoning Worker" {
     targetHost: "laptop_windows"
     lane: "laptop-hardware"
     agentLane: "local"
-    canonicalProviderId: "laptop-ollama"
+    canonicalProviderId: "laptop-sovereign"
     workload: "heavy_reasoning"
     permissionEnvelope: "read_only"
     reuseBeforeBuild: true
     goldRoot: "D:/GOLD"
     goldRootStatus: "unknown"
     goldUsable: false
-    claudeInjectionRoute: "/workflow/claude-chat"
+    sovereignPeerContextRoute: "/workflow/laptop-reasoning-job"
     studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
     vastSpendRail: "purchased_compute"
     vastSpendGuardAttached: false
@@ -67,7 +67,7 @@ composition "HoloShell Laptop Reasoning Worker" {
   channel "holoshell:laptop-reasoning:resource-plan" {
     type: "read_only_context"
     priority: "critical"
-    description: "Canonical resource plan: GOLD, codebase bridge, Claude injection, Studio/Brittney, provider registry, Vast guardrail"
+    description: "Canonical resource plan: GOLD, codebase bridge, sovereign peer context, Studio/Brittney, local/cloud task tags, Vast guardrail"
   }
 
   template "LaptopReasoningDispatchInput" {
@@ -79,7 +79,7 @@ composition "HoloShell Laptop Reasoning Worker" {
     targetHost: "laptop_windows"
     lane: "laptop-hardware"
     agentLane: "local"
-    canonicalProviderId: "laptop-ollama"
+    canonicalProviderId: "laptop-sovereign"
     permissionEnvelope: "read_only"
     reuseBeforeBuild: true
     receiptRequired: true
@@ -90,7 +90,7 @@ composition "HoloShell Laptop Reasoning Worker" {
     goldDriveRoot: "D:/GOLD"
     goldDriveReadOnly: true
     codebaseBridge: "scripts/holoshell-holoscript-gold-codebase-bridge.mjs"
-    claudeInjectionRoute: "/workflow/claude-chat"
+    sovereignPeerContextRoute: "/workflow/laptop-reasoning-job"
     studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
     studioModelRouter: "packages/brittney/service/src/model-router.ts"
     studioFleetBridge: "packages/shared/inference/src/integrations/spatial-fleet-bridge.ts"
@@ -159,12 +159,12 @@ composition "HoloShell Laptop Reasoning Worker" {
     appliesTo: ["laptop_reasoning_job"]
     requireGoldDriveSurface: true
     requireCodebaseBridgeSurface: true
-    requireClaudeInjectionSurface: true
+    requireSovereignPeerContextSurface: true
     requireStudioBrittneySurface: true
     requireProviderRoutingRegistry: true
     requireVastSpendGuard: true
     reuseBeforeBuild: true
-    duplicateWorkPolicy: "consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds"
+    duplicateWorkPolicy: "consume_gold_codebase_studio_holomesh_and_fleet_surfaces_before_new_builds"
   }
 
   policy "VastFleetIsOverflowOnly" {
@@ -189,7 +189,7 @@ composition "HoloShell Laptop Reasoning Worker" {
     state.permissionEnvelope = dispatch.dispatch.body.permissionEnvelope
     state.reuseBeforeBuild = dispatch.dispatch.body.reuseBeforeBuild
     state.goldRoot = dispatch.dispatch.body.canonicalSurfaces.goldDrive.root
-    state.claudeInjectionRoute = dispatch.dispatch.body.canonicalSurfaces.claudeInjection.route
+    state.sovereignPeerContextRoute = dispatch.dispatch.body.canonicalSurfaces.sovereignPeerContext.route
     state.studioOrchestrator = dispatch.dispatch.body.canonicalSurfaces.studioBrittney.serviceOrchestrator
     state.vastSpendRail = dispatch.dispatch.body.canonicalSurfaces.vastFleet.spendRail
     emit("holoshell:laptop-reasoning:dispatch", {

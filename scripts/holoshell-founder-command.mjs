@@ -20,18 +20,19 @@ const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 const DEFAULT_OUTPUT = path.join(DEFAULT_TMP, 'founder-command-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'founder-command-latest.js');
 const DEFAULT_COMMAND_DIR = path.join(DEFAULT_TMP, 'founder-commands');
-const DEFAULT_INTENT = 'Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube';
+const DEFAULT_INTENT = 'Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube';
 const DEFAULT_LOFI_URL = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
 
 function parseArgs(argv) {
   const args = {
     actor: 'brittney',
     intent: DEFAULT_INTENT,
-    model: 'kimi-cloud',
-    modelRoute: 'ollama_cloud',
-    claudeApp: 'Claude',
+    model: 'sovereign-local',
+    modelRoute: 'sovereign_local',
+    taskLane: 'local',
+    taskTag: 'local',
+    cloudEscalationAllowed: false,
     lofiUrl: DEFAULT_LOFI_URL,
-    stageClaudeSurface: true,
     json: false,
     selfTest: false,
     output: DEFAULT_OUTPUT,
@@ -45,9 +46,10 @@ function parseArgs(argv) {
     else if (arg === '--intent') args.intent = argv[++index] || DEFAULT_INTENT;
     else if (arg === '--model') args.model = argv[++index] || args.model;
     else if (arg === '--model-route') args.modelRoute = argv[++index] || args.modelRoute;
-    else if (arg === '--claude-app') args.claudeApp = argv[++index] || args.claudeApp;
+    else if (arg === '--task-lane') args.taskLane = normalizeTaskLane(argv[++index] || args.taskLane);
+    else if (arg === '--task-tag') args.taskTag = normalizeTaskLane(argv[++index] || args.taskTag);
+    else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--lofi-url') args.lofiUrl = argv[++index] || args.lofiUrl;
-    else if (arg === '--no-claude-surface') args.stageClaudeSurface = false;
     else if (arg === '--output') args.output = argv[++index] || DEFAULT_OUTPUT;
     else if (arg === '--js-output') args.jsOutput = argv[++index] || DEFAULT_JS_OUTPUT;
     else if (arg === '--command-dir') args.commandDir = argv[++index] || DEFAULT_COMMAND_DIR;
@@ -74,15 +76,21 @@ Usage:
 Options:
   --intent <text>          Founder/Brittney natural command.
   --actor <name>           Actor label. Defaults to brittney.
-  --model <name>           Room marathon model. Defaults to kimi-cloud.
-  --model-route <route>    Room marathon route. Defaults to ollama_cloud.
-  --claude-app <name>      Claude surface label. Defaults to Claude.
+  --model <name>           Room marathon model. Defaults to sovereign-local.
+  --model-route <route>    Room marathon route. Defaults to sovereign_local.
+  --task-lane <local|cloud> Room task lane. Defaults to local.
+  --task-tag <local|cloud>  Room task tag. Defaults to task lane.
+  --cloud-escalation-allowed
+                            Mark cloud-tagged work as explicitly allowed.
   --lofi-url <url>         YouTube lofi URL.
-  --no-claude-surface      Skip the separate Claude surface staging step.
   --self-test              Run fixture assertions without touching hardware.
   --json                   Print JSON receipt.
   -h, --help               Show this help.
 `);
+}
+
+function normalizeTaskLane(value) {
+  return String(value || 'local').toLowerCase().includes('cloud') ? 'cloud' : 'local';
 }
 
 function resolveRepoPath(filePath) {
@@ -174,15 +182,6 @@ function fixtureReceipt(args) {
         confidence: 99,
       },
     },
-    claudeWorkflow: {
-      summary: {
-        status: 'pending_user_approval',
-        workflowKind: 'claude_chat',
-        stepCount: 3,
-        pendingApprovalCount: 2,
-        executionAllowed: true,
-      },
-    },
     roomWorkflow: {
       summary: {
         status: 'pending_user_approval',
@@ -224,12 +223,7 @@ function stageReceipts(args, commandId) {
   if (args.selfTest) return fixtureReceipt(args);
 
   const commandRoot = path.join(args.commandDir, commandId);
-  const claudeWorkflow = path.join(commandRoot, 'claude-workflow.json');
-  const claudeWorkflowJs = path.join(commandRoot, 'claude-workflow.js');
-  const claudeApproval = path.join(commandRoot, 'claude-approval.json');
-  const claudeApprovalJs = path.join(commandRoot, 'claude-approval.js');
-  const claudeGate = path.join(commandRoot, 'claude-gate.json');
-  const claudeGateJs = path.join(commandRoot, 'claude-gate.js');
+  mkdirSync(commandRoot, { recursive: true });
 
   const dispatchRun = runNode([
     'scripts/holoshell-agent-dispatch.mjs',
@@ -240,31 +234,6 @@ function stageReceipts(args, commandId) {
   ]);
   const dispatch = readJson(path.join(DEFAULT_TMP, 'agent-dispatch-latest.json'), {});
 
-  let claudeRun = { ok: true, status: 0, stdout: 'Claude surface staging skipped.', stderr: '', cli: [] };
-  let claudeWorkflowReceipt = {};
-  if (args.stageClaudeSurface) {
-    claudeRun = runNode([
-      'scripts/holoshell-claude-chat-workflow.mjs',
-      '--actor',
-      args.actor,
-      '--claude-app',
-      args.claudeApp,
-      '--output',
-      claudeWorkflow,
-      '--js-output',
-      claudeWorkflowJs,
-      '--approval-output',
-      claudeApproval,
-      '--approval-js-output',
-      claudeApprovalJs,
-      '--gate-output',
-      claudeGate,
-      '--gate-js-output',
-      claudeGateJs,
-    ]);
-    claudeWorkflowReceipt = readJson(claudeWorkflow, {});
-  }
-
   const roomRun = runNode([
     'scripts/holoshell-room-marathon-workflow.mjs',
     '--actor',
@@ -273,10 +242,13 @@ function stageReceipts(args, commandId) {
     args.model,
     '--model-route',
     args.modelRoute,
-    '--claude-app',
-    args.claudeApp,
+    '--task-lane',
+    args.taskLane,
+    '--task-tag',
+    args.taskTag,
     '--lofi-url',
     args.lofiUrl,
+    ...(args.cloudEscalationAllowed ? ['--cloud-escalation-allowed'] : []),
   ]);
   const roomWorkflow = readJson(path.join(DEFAULT_TMP, 'workflow-latest.json'), {});
 
@@ -291,14 +263,12 @@ function stageReceipts(args, commandId) {
 
   return {
     dispatch,
-    claudeWorkflow: claudeWorkflowReceipt,
     roomWorkflow,
     workflowApproval,
     workflowIntentGate,
     liveFeed,
     runs: [
       compactRun('intent_dispatch', dispatchRun, path.join(DEFAULT_TMP, 'agent-dispatch-latest.json')),
-      compactRun('claude_surface', claudeRun, args.stageClaudeSurface ? claudeWorkflow : ''),
       compactRun('room_marathon', roomRun, path.join(DEFAULT_TMP, 'workflow-latest.json')),
       compactRun('workflow_approval', approvalRun, path.join(DEFAULT_TMP, 'workflow-approval-latest.json')),
       compactRun('brain_intent_gate', gateRun, path.join(DEFAULT_TMP, 'brain-intent-gate-latest.json')),
@@ -312,7 +282,6 @@ function buildReceipt(args) {
   const commandId = `hsfc-${Date.now().toString(36)}-${shortHash({ intent: args.intent, actor: args.actor })}`;
   const staged = stageReceipts(args, commandId);
   const dispatchSummary = staged.dispatch?.summary || {};
-  const claudeSummary = staged.claudeWorkflow?.summary || {};
   const roomSummary = staged.roomWorkflow?.summary || {};
   const approvalSummary = staged.workflowApproval?.summary || {};
   const gateSummary = staged.workflowIntentGate?.summary || {};
@@ -324,8 +293,8 @@ function buildReceipt(args) {
     || Number(roomSummary.stageErrorCount || 0) > 0
     || (gateSummary.status && gateSummary.status !== 'unknown' && gateSummary.executionAllowed === false);
   const approvalCount = Number(approvalSummary.pendingApprovalCount || 0)
-    + Number(claudeSummary.pendingApprovalCount || 0);
-  const mutationExecuted = Boolean(roomSummary.mutationExecuted || claudeSummary.mutationExecuted);
+    + 0;
+  const mutationExecuted = Boolean(roomSummary.mutationExecuted);
   const executionAllowed = Boolean(approvalSummary.executionAllowed && gateSummary.executionAllowed);
   const status = runFailures.length || receiptNeedsAttention
     ? 'needs_attention'
@@ -348,7 +317,7 @@ function buildReceipt(args) {
       'plan',
       'Plan',
       roomSummary.status || 'unknown',
-      `${roomSummary.stepCount || 0} room steps, ${claudeSummary.stepCount || 0} Claude steps`,
+      `${roomSummary.stepCount || 0} sovereign room steps for ${roomSummary.taskTag || args.taskTag || 'local'}-tagged work`,
       0.88,
       path.join(DEFAULT_TMP, 'workflow-latest.json'),
     ),
@@ -424,16 +393,15 @@ function buildReceipt(args) {
       mutationExecuted,
     },
     targetSurfaces: [
-      'Claude',
       'Windows Terminal',
-      'Ollama Kimi Cloud',
+      'HoloMesh room',
+      'local sovereign agent lane',
       'browser',
       'YouTube lofi',
     ],
     pipeline,
     receipts: {
       dispatch: staged.dispatch || {},
-      claudeWorkflow: staged.claudeWorkflow || {},
       roomWorkflow: staged.roomWorkflow || {},
       workflowApproval: staged.workflowApproval || {},
       workflowIntentGate: staged.workflowIntentGate || {},
@@ -444,9 +412,8 @@ function buildReceipt(args) {
       confidence: normalizeConfidence(dispatchSummary.confidence),
       pipelineStepCount: pipeline.length,
       approvalCount,
-      workflowStepCount: Number(roomSummary.stepCount || 0) + Number(claudeSummary.stepCount || 0),
+      workflowStepCount: Number(roomSummary.stepCount || 0),
       roomWorkflowStepCount: Number(roomSummary.stepCount || 0),
-      claudeWorkflowStepCount: Number(claudeSummary.stepCount || 0),
       executionAllowed,
       mutationExecuted,
       dispatchStatus: dispatchSummary.status || 'unknown',

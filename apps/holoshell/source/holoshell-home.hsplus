@@ -55,7 +55,7 @@ composition "HoloShell Home" {
   state {
     compositeHealth: "unknown"
     activeIntent: ""
-    flagshipFounderIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    flagshipFounderIntent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
     founderCommandPipelineShape: "intent_plan_approval_trust_launcher_receipt"
     founderCommandExecutionDefault: "staged_not_run"
     founderCommandAutonomyLevel: "guarded"

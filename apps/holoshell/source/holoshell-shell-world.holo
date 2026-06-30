@@ -54,7 +54,7 @@ composition "HoloShell Shell World" {
     environmentParticleDensityScale: 1.0
     environmentLastEffectKind: "none"
     environmentFeedbackEventCount: 0
-    founderDemoIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    founderDemoIntent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
     founderDemoPipeline: "intent_plan_policy_launcher_receipt"
     founderAutonomyLevel: "guarded"
     founderAutonomyConfidence: 0.86
@@ -250,12 +250,12 @@ composition "HoloShell Shell World" {
       color: "#f4f7ff"
     }
 
-    object "ClaudeBubble" using "ShellBubble" {
-      label: "Claude"
+    object "SovereignRoomBubble" using "ShellBubble" {
+      label: "Room"
       shell_kind: "agent_program"
-      capability: "claude_chat"
+      capability: "sovereign_agent_session"
       position: [3.25, 1.35, -2.7]
-      color: "#d4a6ff"
+      color: "#7dd3fc"
       demo_target: true
     }
 

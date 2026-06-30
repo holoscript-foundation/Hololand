@@ -23,7 +23,7 @@ composition "HoloShell Founder Intent Policy" {
 
   state {
     founderMode: true
-    activeIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    activeIntent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
     pipelineShape: "intent_plan_approval_trust_launcher_receipt"
     autonomyLevel: "guarded"
     confidence: 0.86
@@ -81,7 +81,7 @@ composition "HoloShell Founder Intent Policy" {
   }
 
   policy "FounderCommandNeverRunsFromChatAlone" {
-    appliesTo: ["open_claude", "room_marathon", "ollama_kimi_cloud", "open_browser", "youtube_lofi", "open_excel"]
+    appliesTo: ["open_terminal", "room_marathon", "sovereign_local_agent_lane", "open_browser", "youtube_lofi", "open_excel"]
     chatIntentPermission: "intent_scoped"
     planRequired: true
     approvalRequired: true

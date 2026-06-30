@@ -23,13 +23,13 @@ object "FounderCommandPipelineManifest" {
 object "FlagshipRoomMarathonCommand" {
   type: "command_pipeline"
   commandId: "flagship_room_marathon"
-  naturalIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+  naturalIntent: "Brittney, open terminal, start a sovereign room marathon for local-tagged tasks, open a browser, and play lofi music on YouTube"
   actor: "brittney"
   autonomyLevel: "guarded"
   defaultExecution: "stage_not_run"
   receiptRequired: true
   policySource: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
-  targets: ["claude", "terminal", "room", "ollama_kimi_cloud", "browser", "youtube_lofi"]
+  targets: ["terminal", "room", "sovereign_local_agent_lane", "browser", "youtube_lofi"]
   pipeline: ["intent", "plan", "approval", "trust_gate", "launcher", "receipt"]
 }
 
@@ -51,9 +51,11 @@ object "FlagshipPlanStep" {
   order: 2
   adapter: "scripts/holoshell-room-marathon-workflow.mjs"
   action: "build_workflow"
-  targetModelRoute: "ollama_cloud"
-  targetModel: "kimi-cloud"
-  targets: ["claude", "terminal", "room", "ollama_kimi_cloud", "browser", "youtube_lofi"]
+  targetModelRoute: "sovereign_local"
+  targetModel: "sovereign-local"
+  targetTaskLane: "local"
+  targetTaskTag: "local"
+  targets: ["terminal", "room", "sovereign_local_agent_lane", "browser", "youtube_lofi"]
   output: ".tmp/holoshell/workflow-latest.json"
 }
 
@@ -89,8 +91,8 @@ object "FlagshipLauncherStep" {
   action: "execute_nonce_bundle"
   endpoint: "POST /workflow/execute"
   requiresExecuteFlag: true
-  targetApps: ["Claude", "Windows Terminal", "Chrome"]
-  targetCommands: ["ollama route kimi-cloud", "YouTube lofi"]
+  targetApps: ["Windows Terminal", "Chrome"]
+  targetCommands: ["sovereign room marathon local-tagged tasks", "YouTube lofi"]
 }
 
 object "FlagshipReceiptStep" {

@@ -240,6 +240,8 @@ composition "HoloShell Operator Terminal" {
     jetsonOwnsAlwaysOnBrittney: true
     laptopRole: "reasoning_validation_desktop_bridge"
     vastFleetRole: "scale_to_zero_on_real_demand"
+    sovereignConsumptionDefault: true
+    providerCloudDependencyAllowed: false
     paidComputeAtLaunch: false
     receiptRequired: true
   }

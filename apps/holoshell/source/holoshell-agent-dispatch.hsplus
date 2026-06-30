@@ -43,7 +43,11 @@ composition "HoloShell Agent Dispatch" {
     reuseBeforeBuild: false
     goldRoot: ""
     goldRuntimeStatus: ""
-    claudeInjectionRoute: ""
+    sovereignPeerContextRoute: ""
+    taskLane: ""
+    taskTag: ""
+    sovereignConsumptionDefault: true
+    cloudEscalationAllowed: false
     studioOrchestrator: ""
     vastSpendRail: ""
     rawIntentStoredLocallyOnly: true
@@ -109,17 +113,17 @@ composition "HoloShell Agent Dispatch" {
     targetHost: "laptop_windows"
     lane: "laptop-hardware"
     agentLane: "local"
-    canonicalProviderId: "laptop-ollama"
+    canonicalProviderId: "laptop-sovereign"
     workload: "heavy_reasoning"
     modelFamily: "openai_codex"
     delegationMode: "jetson_autonomous_large_prompt_router"
     permissionEnvelope: "read_only"
     reuseBeforeBuild: true
-    duplicateWorkPolicy: "consume_gold_codebase_claude_studio_and_fleet_surfaces_before_new_builds"
+    duplicateWorkPolicy: "consume_gold_codebase_studio_holomesh_and_fleet_surfaces_before_new_builds"
     promptHash: ""
     reasonCodes: []
     goldRoot: "D:/GOLD"
-    claudeInjectionRoute: "/workflow/claude-chat"
+    sovereignPeerContextRoute: "/workflow/laptop-reasoning-job"
     studioOrchestrator: "packages/brittney/service/src/orchestrator.ts"
     vastSpendRail: "purchased_compute"
     receiptRequired: true
@@ -132,12 +136,12 @@ composition "HoloShell Agent Dispatch" {
     reuseBeforeBuild: true
     askGoldFirst: true
     askCodebaseBridgeFirst: true
-    reuseClaudeInjection: true
+    reuseSovereignPeerContext: true
     reuseStudioBrittneyRouter: true
     useLaptopForRepoBearingReasoning: true
     useVastOnlyWithSpendGuard: true
     localWorkFocus: ["jetson_orchestration", "laptop_repo_reasoning", "vast_guarded_overflow"]
-    cloudWorkFocus: ["managed_provider_or_family_seat_coordination"]
+    cloudWorkFocus: ["explicit_cloud_tagged_coordination_after_sovereign_receipt"]
     receiptRequired: true
   }
 
@@ -157,7 +161,7 @@ composition "HoloShell Agent Dispatch" {
     targetHost: "laptop_windows"
     lane: "laptop-hardware"
     agentLane: "local"
-    canonicalProviderId: "laptop-ollama"
+    canonicalProviderId: "laptop-sovereign"
     workload: "heavy_reasoning"
     permissionEnvelope: "read_only"
     approvalRequired: false
@@ -167,14 +171,14 @@ composition "HoloShell Agent Dispatch" {
     reuseBeforeBuild: true
     askGoldFirst: true
     askCodebaseBridgeFirst: true
-    reuseClaudeInjection: true
+    reuseSovereignPeerContext: true
     reuseStudioBrittneyRouter: true
     vastRequiresSpendGuard: true
     receiptRequired: true
   }
 
   policy "DispatchToGuardedAdapter" {
-    appliesTo: ["founder_command", "claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    appliesTo: ["founder_command", "room_marathon", "sovereign_agent_session", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
     mutating: true
@@ -218,7 +222,11 @@ composition "HoloShell Agent Dispatch" {
     state.reuseBeforeBuild = receipt.summary.reuseBeforeBuild
     state.goldRoot = receipt.summary.goldRoot
     state.goldRuntimeStatus = receipt.summary.goldRuntimeStatus
-    state.claudeInjectionRoute = receipt.summary.claudeInjectionRoute
+    state.sovereignPeerContextRoute = receipt.summary.sovereignPeerContextRoute
+    state.taskLane = receipt.summary.taskLane
+    state.taskTag = receipt.summary.taskTag
+    state.sovereignConsumptionDefault = receipt.summary.sovereignConsumptionDefault
+    state.cloudEscalationAllowed = receipt.summary.cloudEscalationAllowed
     state.studioOrchestrator = receipt.summary.studioOrchestrator
     state.vastSpendRail = receipt.summary.vastSpendRail
     state.rawIntentStoredLocallyOnly = receipt.summary.rawIntentStoredLocallyOnly
@@ -244,7 +252,11 @@ composition "HoloShell Agent Dispatch" {
       reuse_before_build: state.reuseBeforeBuild,
       gold_root: state.goldRoot,
       gold_runtime_status: state.goldRuntimeStatus,
-      claude_injection_route: state.claudeInjectionRoute,
+      sovereign_peer_context_route: state.sovereignPeerContextRoute,
+      task_lane: state.taskLane,
+      task_tag: state.taskTag,
+      sovereign_consumption_default: state.sovereignConsumptionDefault,
+      cloud_escalation_allowed: state.cloudEscalationAllowed,
       studio_orchestrator: state.studioOrchestrator,
       vast_spend_rail: state.vastSpendRail,
       receipt_required: true
@@ -270,7 +282,7 @@ composition "HoloShell Agent Dispatch" {
         workload: receipt.summary.workload,
         reuse_before_build: receipt.summary.reuseBeforeBuild,
         gold_root: receipt.summary.goldRoot,
-        claude_injection_route: receipt.summary.claudeInjectionRoute,
+        sovereign_peer_context_route: receipt.summary.sovereignPeerContextRoute,
         studio_orchestrator: receipt.summary.studioOrchestrator,
         vast_spend_rail: receipt.summary.vastSpendRail,
         downstream_receipt: receipt.dispatch.downstreamReceipt,
