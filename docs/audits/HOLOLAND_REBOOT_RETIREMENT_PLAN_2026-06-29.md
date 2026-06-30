@@ -257,7 +257,8 @@ let UI/runtime bridges attach only where the proof loop requires them.
    `docs/audits/HOLOLAND_STALE_SURFACE_INVENTORY_2026-06-29.md`.
 3. Run `node scripts/hololand-experiment-intake.mjs --summary`, then triage
    every untracked `experiments/holoshell-human-os-frontier` trio into promote,
-   archive, or duplicate.
+   archive, or duplicate. Latest receipt:
+   `docs/audits/HOLOLAND_EXPERIMENT_INTAKE_2026-06-30.md`.
 4. Convert one TS-only business example into an enterprise package gate, then
    archive the old example path once the gate receipt exists.
 5. Move root-level historical status docs behind a docs router or archive plan
