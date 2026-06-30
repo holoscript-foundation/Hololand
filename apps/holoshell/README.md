@@ -270,6 +270,14 @@ Agent mode is canonical JSON for automation and HoloMesh peers:
 node scripts/holoshell-operator-terminal.mjs --agent --json
 ```
 
+Local contract checks:
+
+```powershell
+pnpm run holoshell:access-contract
+pnpm run holoshell:message-route
+pnpm run holoshell:first-run-doctor
+```
+
 The terminal does not store private state or bypass approvals. Mutating actions
 still route through HoloShell approval bundles, service managers, desktop
 bridge consent, and receipt control.
@@ -280,10 +288,12 @@ The browser and terminal are coupled through the read-only session endpoint:
 GET /api/operator-terminal/session
 ```
 
-`Brittney Studio.lnk` opens the browser cockpit and, unless launched with
-`-NoTerminal`, a visible operator terminal that refreshes the terminal receipt.
-The browser remains the chat and approval surface; the terminal remains the
-execution/evidence projection bound to the same session id and receipt ledger.
+`Brittney Studio.lnk` opens the browser cockpit and refreshes the operator
+terminal receipt hidden by default. Launch with `-OperatorTerminal` only when a
+visible persistent terminal projection is explicitly wanted; launch with
+`-NoTerminal` to skip the receipt refresh entirely. The browser remains the chat
+and approval surface; the terminal remains the execution/evidence projection
+bound to the same session id and receipt ledger.
 
 ## OS UI Capture Bridge
 

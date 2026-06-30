@@ -5,7 +5,7 @@
   stack (replaces the generic LiteLLM/.desktop draft, which targeted a different system).
 
   $0 BY DESIGN:
-    * Jetson (qwen3:4b @ holojetson.local:11434) is the local brain (model-policy LOCAL default).
+    * Jetson (sovereign local qwen3:4b @ holojetson.local:11434) is the local brain (model-policy LOCAL default).
     * Messages land on the Jetson-hosted Brittney/HoloShell surface first.
     * The laptop is the reasoning workstation: Codex/HoloMesh peers inspect, decide,
       validate, and act through HoloShell + HoloMesh while the Jetson keeps the live surface.
@@ -14,8 +14,9 @@
     * "Claude-level depth" is the model-policy CLOUD default (claude-opus-4-8) and is OPT-IN
       Anthropic-API SPEND — NOT wired here. Escalation is a model-policy config, not a launch flag.
 
-  SAFE BY DESIGN: idempotent (starts only what's offline, no EADDRINUSE), hidden (no windows
-  pop), delegates daemon management to the existing receipt-anchored supervisor (F.101).
+  SAFE BY DESIGN: idempotent (starts only what's offline, no EADDRINUSE), hidden by default
+  (no terminal pop), delegates daemon management to the existing receipt-anchored supervisor
+  (F.101).
 
   Run:  powershell -ExecutionPolicy Bypass -File scripts\brittney-studio-launch.ps1
   (Pin a desktop shortcut to that command — see the README block at the bottom.)
@@ -23,7 +24,8 @@
 
 param(
   [switch]$Headless,    # OPTIONAL: boot the stack but don't open the UI surfaces (APIs-only).
-  [switch]$NoTerminal   # OPTIONAL: open the browser only; skip the read-only operator terminal.
+  [switch]$NoTerminal,  # OPTIONAL: open the browser only; skip the operator receipt refresh.
+  [switch]$OperatorTerminal # OPTIONAL: also open the persistent read-only operator terminal.
 )
                           # NOTE: opening a browser to actually use a surface is FINE for anyone
                           # incl. agents (open -> use -> close). The real Desktop anti-pattern is
@@ -73,9 +75,9 @@ Write-Host '[Brittney Studio] the laptop is a SCREEN for the Jetson (founder 202
 # (Studio — the heavy Next.js build IDE — is a separate dev tool launched on its own,
 # not part of this screen; it cannot run on the 8GB Jetson alongside the model.)
 
-# 1) Jetson brain reachable?
-$jetson = 'Jetson Ollama OFF (LAN)'
-try { if (Invoke-RestMethod -Uri $JetsonTags -TimeoutSec 4) { $jetson = 'Jetson Ollama OK' } } catch {}
+# 1) Jetson sovereign local brain reachable?
+$jetson = 'Jetson sovereign local brain OFF (LAN)'
+try { if (Invoke-RestMethod -Uri $JetsonTags -TimeoutSec 4) { $jetson = 'Jetson sovereign local brain OK' } } catch {}
 
 # 2) Jetson-hosted Brittney surface reachable?
 $surfaceUp = $false
@@ -89,12 +91,20 @@ if (-not $surfaceUp) {
 # 3) Open the screen onto the Jetson (skip with -Headless / APIs-only).
 if (-not $Headless) { Start-Process $JetsonSurface }
 
-# 4) Open the paired read-only operator terminal. This is a visible interactive
-#    projection, not a service helper: it refreshes the operator-terminal receipt
-#    and stays bound to the same Brittney/HoloShell session the browser shows.
-if ((-not $Headless) -and (-not $NoTerminal)) {
+# 4) Refresh the paired read-only operator receipt. This stays hidden by default so desktop
+#    shortcuts and agent-triggered launches do not create surprise terminal windows. A visible,
+#    persistent operator terminal is still available with -OperatorTerminal.
+$RefreshOperatorReceipt = (-not $Headless) -and (-not $NoTerminal)
+$ShowOperatorTerminal = $RefreshOperatorReceipt -and $OperatorTerminal
+if ($OperatorTerminal -and $NoTerminal) {
+  Write-Host '[Brittney Studio] -NoTerminal supplied; skipping visible operator terminal.'
+}
+
+if ($RefreshOperatorReceipt) {
   $repo = Quote-PowerShellSingle $Hololand
-  $terminalCommand = @"
+
+  if ($ShowOperatorTerminal) {
+    $terminalCommand = @"
 Set-Location $repo
 Write-Host '[Brittney Studio] browser cockpit: $JetsonSurface'
 Write-Host '[Brittney Studio] refreshing read-only operator terminal receipt...'
@@ -109,14 +119,35 @@ if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-operator-terminal.mj
 Write-Host ''
 Write-Host '[Brittney Studio] receipt: .tmp/holoshell/operator-terminal.json'
 "@
-  Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Normal -ArgumentList @(
-    '-NoExit',
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-Command',
-    $terminalCommand
-  )
+    Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Normal -ArgumentList @(
+      '-NoExit',
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      $terminalCommand
+    )
+  } else {
+    $refreshCommand = @"
+Set-Location $repo
+New-Item -ItemType Directory -Force .tmp\holoshell | Out-Null
+if ((Test-Path (Join-Path (Get-Location) 'scripts\holoshell-operator-terminal.mjs')) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+  node scripts\holoshell-operator-terminal.mjs --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
+} elseif (Get-Command pnpm -ErrorAction SilentlyContinue) {
+  `$env:CI = 'true'
+  pnpm run holoshell:operator-terminal -- --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
+} else {
+  corepack pnpm run holoshell:operator-terminal -- --agent --json *> .tmp\holoshell\operator-terminal-refresh.log
+}
+"@
+    Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Hidden -ArgumentList @(
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      $refreshCommand
+    )
+  }
 }
 
 Write-Host "[Brittney Studio] surface: $(if($surfaceUp){'OK'}else{'DOWN'}) ($JetsonSurface) | $jetson | brain+agents+surface all on the Jetson (`$0)"
@@ -133,7 +164,9 @@ Write-Host "[Brittney Studio] surface: $(if($surfaceUp){'OK'}else{'DOWN'}) ($Jet
     $lnk.IconLocation = "$PWD\packages\holoshell\dist\brittney.ico"   # optional; any .ico
     $lnk.Save()
 
-  Double-click "Brittney Studio" -> the whole $0 hybrid comes up hidden and the HoloShell
-  canvas opens. (An F9 global hotkey needs AutoHotkey or the shortcut's "Shortcut key" field.)
+  Double-click "Brittney Studio" -> the whole $0 hybrid comes up hidden, opens the HoloShell
+  canvas, and refreshes the operator receipt without a visible terminal. Add -OperatorTerminal
+  to the shortcut arguments when you explicitly want the persistent terminal projection.
+  (An F9 global hotkey needs AutoHotkey or the shortcut's "Shortcut key" field.)
   -------------------------------------------------------------------------------------------
 #>

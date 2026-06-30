@@ -338,6 +338,8 @@ try {
 
   const source = readFileSync(resolve('apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'), 'utf8');
   assert.match(source, /composition "HoloShell Browser Terminal Coupling"/);
+  assert.match(source, /terminalVisibilityDefault: "hidden_receipt_refresh"/);
+  assert.match(source, /visibleTerminalLaunchFlag: "-OperatorTerminal"/);
   assert.match(source, /OneSessionTwoSurfaces/);
   assert.match(source, /TerminalCannotBypassHoloGate/);
   assert.match(source, /NativeTerminalBrowserSymbiosis/);
@@ -351,9 +353,14 @@ try {
 
   const launcher = readFileSync(resolve('scripts/brittney-studio-launch.ps1'), 'utf8');
   assert.match(launcher, /\[switch\]\$NoTerminal/);
+  assert.match(launcher, /\[switch\]\$OperatorTerminal/);
+  assert.match(launcher, /\$RefreshOperatorReceipt = \(-not \$Headless\) -and \(-not \$NoTerminal\)/);
+  assert.match(launcher, /\$ShowOperatorTerminal = \$RefreshOperatorReceipt -and \$OperatorTerminal/);
   assert.match(launcher, /node scripts\\holoshell-operator-terminal\.mjs/);
+  assert.match(launcher, /node scripts\\holoshell-operator-terminal\.mjs --agent --json/);
   assert.match(launcher, /pnpm run holoshell:operator-terminal/);
-  assert.match(launcher, /-WindowStyle Normal/);
+  assert.match(launcher, /-WindowStyle Hidden/);
+  assert.match(launcher, /\$ShowOperatorTerminal[\s\S]+-WindowStyle Normal/);
 
   const compileSource = readFileSync(resolve('packages/holoshell/compile.mjs'), 'utf8');
   assert.match(compileSource, /cockpit-terminal/);

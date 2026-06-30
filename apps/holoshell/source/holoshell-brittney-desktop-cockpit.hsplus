@@ -454,6 +454,9 @@ composition "HoloShell Brittney Desktop Cockpit" {
     legacyGatewayAdapter: "scripts/start-brittney.ts"
     adapterMayOpenBrowserSurface: true
     adapterMayRefreshOperatorTerminalReceipt: true
+    adapterMayOpenVisibleTerminalByDefault: false
+    visibleOperatorTerminalRequiresFlag: "-OperatorTerminal"
+    hiddenReceiptRefreshDefault: true
     legacyUiMayNotOwnBehavior: true
     legacyUiRole: "adapter_projection_only"
     canonicalBehaviorSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"

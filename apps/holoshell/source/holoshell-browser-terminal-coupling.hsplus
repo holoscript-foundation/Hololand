@@ -17,6 +17,8 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalAdapter: "scripts/holoshell-operator-terminal.mjs"
     cockpitSource: "apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus"
     terminalSource: "apps/holoshell/source/holoshell-operator-terminal.hsplus"
+    terminalVisibilityDefault: "hidden_receipt_refresh"
+    visibleTerminalLaunchFlag: "-OperatorTerminal"
     sessionEndpoint: "GET /api/operator-terminal/session"
     terminalReportEndpoint: "POST /api/operator-terminal/report"
     cockpitEndpoint: "GET /api/cockpit/capsule"

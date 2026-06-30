@@ -10,7 +10,7 @@
 - Added a HoloScript-owned browser/terminal coupling contract for one shared Brittney Studio session.
 - Exposed a read-only operator-terminal session endpoint that reports terminal receipt status, hash, age, browser URL, and shared context fields without spawning or executing terminal commands.
 - Added a Terminal lane to the Brittney cockpit capsule and browser UI.
-- Updated the Brittney Studio launcher to open the browser cockpit plus a visible read-only operator terminal by default, with `-Headless` and `-NoTerminal` escape hatches.
+- Updated the Brittney Studio launcher to open the browser cockpit and refresh the operator-terminal receipt hidden by default, with `-OperatorTerminal`, `-Headless`, and `-NoTerminal` escape hatches.
 - Added browser-terminal symbiosis metadata, presentable terminal run cards, and refresh-recovery state to `/api/operator-terminal/session`.
 - Added a browser-side evidence ledger so Terminal lane proof rehydrates after refresh from local state plus `/api/cockpit/capsule` and `/api/operator-terminal/session`.
 - Added a bounded server-side browser session snapshot so localStorage state can rehydrate after reload/cold browser starts before the default welcome state is shown.
