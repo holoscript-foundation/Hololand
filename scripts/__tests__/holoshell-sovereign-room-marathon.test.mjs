@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   buildReceipt,
@@ -10,6 +13,18 @@ import {
 } from '../holoshell-sovereign-room-marathon.mjs';
 
 const fixtureResult = { status: 'fixture', queue: fixtureQueue(), command: 'fixture' };
+const tmpDir = mkdtempSync(join(tmpdir(), 'holoshell-sovereign-room-'));
+const executionReceiptPath = join(tmpDir, 'execution-receipt.json');
+writeFileSync(executionReceiptPath, `${JSON.stringify({
+  schemaVersion: 'hololand.test.execution-receipt.v0.1.0',
+  status: 'completed',
+  verification: {
+    command: 'node scripts/__tests__/holoshell-sovereign-room-marathon.test.mjs',
+  },
+  summary: {
+    status: 'pass',
+  },
+}, null, 2)}\n`, 'utf8');
 
 assert.equal(classifyTask({ title: '[local] sovereign task', tags: [] }), 'local');
 assert.equal(classifyTask({ title: 'cloud-tagged receipt', tags: [] }), 'cloud');
@@ -36,6 +51,53 @@ const claimed = buildReceipt(
 assert.equal(claimed.summary.status, 'claimed');
 assert.equal(claimed.summary.claimSucceeded, true);
 assert.equal(claimed.summary.completionClaimAllowed, false);
+
+const blockedDone = buildReceipt(
+  {
+    ...parseArgs([]),
+    taskLane: 'local',
+    taskTag: 'local',
+    done: true,
+    doneTaskId: 'task_claimed',
+    doneCommit: 'abc1234',
+    doneEvidence: 'node scripts/__tests__/holoshell-sovereign-room-marathon.test.mjs',
+    doneSummary: 'Closed claimed local fixture task with test evidence.',
+    executionReceipt: executionReceiptPath,
+  },
+  fixtureResult,
+);
+assert.equal(blockedDone.summary.status, 'blocked_done_guard_required');
+assert.equal(blockedDone.summary.doneAttempted, false);
+assert.equal(blockedDone.summary.doneSucceeded, false);
+assert.equal(blockedDone.summary.completionClaimAllowed, false);
+assert.equal(blockedDone.summary.doneBlockedReason, 'local_room_done_requires_confirmDone_true');
+
+const done = buildReceipt(
+  {
+    ...parseArgs([]),
+    taskLane: 'local',
+    taskTag: 'local',
+    done: true,
+    doneTaskId: 'task_claimed',
+    doneCommit: 'abc1234',
+    doneEvidence: 'node scripts/__tests__/holoshell-sovereign-room-marathon.test.mjs',
+    doneSummary: 'Closed claimed local fixture task with test evidence.',
+    donePaths: 'scripts/holoshell-sovereign-room-marathon.mjs',
+    executionReceipt: executionReceiptPath,
+    confirmDone: true,
+  },
+  fixtureResult,
+  undefined,
+  () => ({ status: 'done', attempted: true, succeeded: true, stdout: 'done', stderr: '' }),
+);
+assert.equal(done.summary.status, 'done');
+assert.equal(done.summary.selectedTaskId, 'task_claimed');
+assert.equal(done.summary.doneRequested, true);
+assert.equal(done.summary.doneAttempted, true);
+assert.equal(done.summary.doneSucceeded, true);
+assert.equal(done.summary.executionReceiptObserved, true);
+assert.equal(done.summary.completionClaimAllowed, true);
+assert.equal(done.done.executionReceipt.parseStatus, 'json');
 
 execFileSync(process.execPath, ['scripts/holoshell-sovereign-room-marathon.mjs', '--self-test'], {
   cwd: fileURLToPath(new URL('../..', import.meta.url)),

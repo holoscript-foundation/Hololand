@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +22,14 @@ Options:
   --task-tag <tag>                 Task tag to match. Default: local
   --cloud-escalation-allowed       Permit cloud-tagged task selection.
   --claim                          Claim the selected task after queue receipt.
+  --done, --mark-done              Mark a claimed local task done after evidence gates.
+  --done-task-id <task-id>         Claimed local task id to close.
+  --done-commit <hash>             Commit hash for the done receipt.
+  --done-evidence <text>           Test or validation evidence for the done receipt.
+  --done-summary <text>            Completion summary for the done receipt.
+  --done-paths <paths>             Comma-separated touched paths for bullhorn radar.
+  --execution-receipt <path>       Existing local execution receipt JSON/path.
+  --confirm-done                   Explicit local confirmation for board close.
   --max-candidates <n>             Candidate count to keep. Default: 8
   --queue-fixture <path>           Read queue JSON from a fixture.
   --output <path>                  Latest JSON receipt path.
@@ -38,6 +47,14 @@ function parseArgs(argv = process.argv.slice(2)) {
     taskTag: 'local',
     cloudEscalationAllowed: false,
     claim: false,
+    done: false,
+    doneTaskId: '',
+    doneCommit: '',
+    doneEvidence: '',
+    doneSummary: '',
+    donePaths: '',
+    executionReceipt: '',
+    confirmDone: false,
     maxCandidates: 8,
     queueFixture: '',
     output: DEFAULT_OUTPUT,
@@ -53,6 +70,14 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
     else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--claim') args.claim = true;
+    else if (arg === '--done' || arg === '--mark-done') args.done = true;
+    else if (arg === '--done-task-id' || arg === '--task-id') args.doneTaskId = argv[++index] || '';
+    else if (arg === '--done-commit' || arg === '--commit') args.doneCommit = argv[++index] || '';
+    else if (arg === '--done-evidence' || arg === '--evidence' || arg === '--verify') args.doneEvidence = argv[++index] || '';
+    else if (arg === '--done-summary' || arg === '--summary') args.doneSummary = argv[++index] || '';
+    else if (arg === '--done-paths' || arg === '--paths') args.donePaths = argv[++index] || '';
+    else if (arg === '--execution-receipt') args.executionReceipt = argv[++index] || '';
+    else if (arg === '--confirm-done') args.confirmDone = true;
     else if (arg === '--max-candidates') args.maxCandidates = Number(argv[++index] || args.maxCandidates);
     else if (arg === '--queue-fixture') args.queueFixture = argv[++index] || '';
     else if (arg === '--output') args.output = argv[++index] || args.output;
@@ -69,6 +94,9 @@ function parseArgs(argv = process.argv.slice(2)) {
   }
   if (!Number.isFinite(args.maxCandidates) || args.maxCandidates < 1) {
     throw new Error('--max-candidates must be >= 1');
+  }
+  if (args.claim && args.done) {
+    throw new Error('claim_and_done_must_be_separate_guarded_steps');
   }
   args.taskLane = normalizeTag(args.taskLane);
   args.taskTag = normalizeTag(args.taskTag || args.taskLane);
@@ -252,6 +280,89 @@ function selectCandidates(queue, args) {
   return candidates.slice(0, args.maxCandidates);
 }
 
+function allQueueTasks(queue) {
+  return queueTasks(queue)
+    .map(normalizeTask)
+    .filter((task) => task.id);
+}
+
+function findTaskById(queue, taskId) {
+  const requestedId = String(taskId || '').trim();
+  if (!requestedId) return null;
+  return allQueueTasks(queue).find((task) => task.id === requestedId) || null;
+}
+
+function inspectExecutionReceipt(filePath) {
+  const requestedPath = String(filePath || '').trim();
+  if (!requestedPath) {
+    return {
+      path: '',
+      resolvedPath: '',
+      exists: false,
+      parseStatus: 'not_provided',
+      sha256: '',
+      byteLength: 0,
+      summaryStatus: '',
+      verificationCommand: '',
+    };
+  }
+  const resolvedPath = resolveRepoPath(requestedPath);
+  if (!existsSync(resolvedPath)) {
+    return {
+      path: requestedPath,
+      resolvedPath,
+      exists: false,
+      parseStatus: 'missing',
+      sha256: '',
+      byteLength: 0,
+      summaryStatus: '',
+      verificationCommand: '',
+    };
+  }
+  const text = readFileSync(resolvedPath, 'utf8');
+  let parsed = null;
+  let parseStatus = 'not_json';
+  try {
+    parsed = JSON.parse(text);
+    parseStatus = 'json';
+  } catch {
+    parsed = null;
+  }
+  return {
+    path: requestedPath,
+    resolvedPath,
+    exists: true,
+    parseStatus,
+    sha256: createHash('sha256').update(text).digest('hex'),
+    byteLength: Buffer.byteLength(text, 'utf8'),
+    summaryStatus: String(parsed?.summary?.status || parsed?.status || ''),
+    verificationCommand: String(parsed?.summary?.verificationCommand || parsed?.verification?.command || parsed?.verificationCommand || ''),
+  };
+}
+
+function validateDoneGate(args, task, executionReceipt) {
+  const blockers = [];
+  const requestedLane = normalizeTag(args.taskLane || 'local');
+  const requestedTag = normalizeTag(args.taskTag || requestedLane);
+  const taskStatus = String(task?.status || '').toLowerCase();
+  if (!args.confirmDone) blockers.push('local_room_done_requires_confirmDone_true');
+  if (!args.doneTaskId) blockers.push('local_room_done_requires_done_task_id');
+  if (!task) blockers.push('local_room_done_task_not_found');
+  if (task && task.classification !== 'local') blockers.push('local_room_done_only_supports_local_tasks');
+  if (task && taskStatus !== 'claimed') blockers.push('local_room_done_requires_claimed_task_status');
+  if (requestedLane !== 'local' || requestedTag === 'cloud') blockers.push('local_room_done_only_supports_local_lane');
+  if (args.cloudEscalationAllowed) blockers.push('local_room_done_cannot_use_cloud_escalation');
+  if (!executionReceipt.exists) blockers.push('local_room_done_requires_existing_execution_receipt');
+  if (!String(args.doneCommit || '').trim()) blockers.push('local_room_done_requires_commit');
+  if (!String(args.doneEvidence || '').trim()) blockers.push('local_room_done_requires_validation_evidence');
+  if (!String(args.doneSummary || '').trim()) blockers.push('local_room_done_requires_summary');
+  return {
+    allowed: blockers.length === 0,
+    blockers,
+    status: blockers.length === 0 ? 'ready_to_mark_done' : 'blocked_done_guard_required',
+  };
+}
+
 function claimSelectedTask(task) {
   const joinScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'codex-team-daemon.mjs');
   const patchScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'room-patch-task.mjs');
@@ -289,15 +400,70 @@ function claimSelectedTask(task) {
   };
 }
 
-function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSelectedTask) {
+function markSelectedTaskDone(task, args) {
+  const joinScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'codex-team-daemon.mjs');
+  const bullhornScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'bullhorn.mjs');
+  const join = spawnSync(process.execPath, [joinScript, 'join'], {
+    cwd: AI_ECOSYSTEM_ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    maxBuffer: 1024 * 1024 * 4,
+    windowsHide: true,
+  });
+  if (join.error || join.status !== 0) {
+    return {
+      status: 'failed',
+      attempted: true,
+      succeeded: false,
+      command: `node ${joinScript} join`,
+      stdout: String(join.stdout || ''),
+      stderr: join.error?.message || String(join.stderr || ''),
+    };
+  }
+  const bullhornArgs = [
+    bullhornScript,
+    'done',
+    task.id,
+    String(args.doneCommit || ''),
+    '--evidence',
+    String(args.doneEvidence || ''),
+    '--summary',
+    String(args.doneSummary || ''),
+  ];
+  const donePaths = String(args.donePaths || args.executionReceipt || '').trim();
+  if (donePaths) bullhornArgs.push('--paths', donePaths);
+  const done = spawnSync(process.execPath, bullhornArgs, {
+    cwd: AI_ECOSYSTEM_ROOT,
+    encoding: 'utf8',
+    timeout: 120000,
+    maxBuffer: 1024 * 1024 * 8,
+    windowsHide: true,
+  });
+  return {
+    status: done.error || done.status !== 0 ? 'failed' : 'done',
+    attempted: true,
+    succeeded: !(done.error || done.status !== 0),
+    command: `node ${bullhornScript} done ${task.id} ${args.doneCommit} --evidence <redacted> --summary <redacted>`,
+    stdout: String(done.stdout || ''),
+    stderr: done.error?.message || String(done.stderr || ''),
+  };
+}
+
+function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSelectedTask, doneRunner = markSelectedTaskDone) {
   const generatedAt = new Date().toISOString();
   const requestedLane = normalizeTag(args.taskLane || 'local');
   const requestedTag = normalizeTag(args.taskTag || requestedLane);
   const cloudRequested = requestedLane === 'cloud' || requestedTag === 'cloud';
+  const doneTask = args.done ? findTaskById(queueResult.queue, args.doneTaskId) : null;
+  const executionReceipt = inspectExecutionReceipt(args.executionReceipt);
+  const doneGate = args.done
+    ? validateDoneGate(args, doneTask, executionReceipt)
+    : { allowed: false, blockers: [], status: 'not_requested' };
   const candidates = cloudRequested && !args.cloudEscalationAllowed
     ? []
     : selectCandidates(queueResult.queue, args);
-  const selectedTask = candidates[0] || null;
+  const selectedTask = doneTask || candidates[0] || null;
+  const displayedCandidates = args.done && doneTask ? [doneTask] : candidates;
   let claimReceipt = {
     status: 'not_requested',
     attempted: false,
@@ -307,6 +473,20 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   };
   if (args.claim && selectedTask) {
     claimReceipt = claimRunner(selectedTask, args);
+  }
+  let doneReceipt = {
+    status: args.done ? doneGate.status : 'not_requested',
+    attempted: false,
+    succeeded: false,
+    blockers: doneGate.blockers,
+    stdout: '',
+    stderr: '',
+  };
+  if (args.done && doneGate.allowed && selectedTask) {
+    doneReceipt = {
+      ...doneRunner(selectedTask, args, executionReceipt),
+      blockers: [],
+    };
   }
   const queue = queueResult.queue || {};
   const queueOpenCount = Number(queue.openCount ?? queue.summary?.openCount ?? queueTasks(queue).filter((task) => String(task.status || '').toLowerCase() === 'open').length ?? 0);
@@ -325,6 +505,15 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   } else if (selectedTask && args.claim) {
     status = 'claim_failed';
     nextAction = 'inspect_room_claim_receipt_and_retry_after_repair';
+  } else if (args.done && doneReceipt.succeeded) {
+    status = 'done';
+    nextAction = 'room_task_closed_with_commit_and_execution_receipt';
+  } else if (args.done && doneGate.allowed) {
+    status = 'done_failed';
+    nextAction = 'inspect_room_done_receipt_and_retry_after_repair';
+  } else if (args.done) {
+    status = 'blocked_done_guard_required';
+    nextAction = doneGate.blockers[0] || 'provide_claimed_task_commit_evidence_and_execution_receipt';
   } else if (selectedTask) {
     status = 'ready_to_claim';
     nextAction = 'rerun_with_claim_after_guarded_workflow_approval';
@@ -347,20 +536,25 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
       queueStatus: queueResult.status,
       queueOpenCount,
       queueClaimableOpenCount,
-      matchedCandidateCount: candidates.length,
+      matchedCandidateCount: displayedCandidates.length,
       selectedTaskId: selectedTask?.id || '',
       selectedTaskTitle: selectedTask?.title || '',
       selectedTaskTag: selectedTask?.classification || 'unknown',
       claimRequested: Boolean(args.claim),
       claimAttempted: Boolean(claimReceipt.attempted),
       claimSucceeded: Boolean(claimReceipt.succeeded),
-      completionClaimAllowed: false,
+      doneRequested: Boolean(args.done),
+      doneAttempted: Boolean(doneReceipt.attempted),
+      doneSucceeded: Boolean(doneReceipt.succeeded),
+      doneBlockedReason: doneGate.blockers[0] || '',
+      executionReceiptObserved: Boolean(executionReceipt.exists),
+      completionClaimAllowed: Boolean(args.done && doneGate.allowed && doneReceipt.succeeded),
       sovereignConsumptionDefault: requestedLane === 'local',
       destructiveActionsTaken: false,
       desktopAutomationExecuted: false,
       nextAction,
     },
-    candidates: candidates.map(({ raw, ...task }) => task),
+    candidates: displayedCandidates.map(({ raw, ...task }) => task),
     selectedTask: selectedTask ? (({ raw, ...task }) => task)(selectedTask) : null,
     queue: {
       command: queueResult.command,
@@ -368,6 +562,14 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
       stderr: queueResult.stderr ? String(queueResult.stderr).slice(0, 1200) : '',
     },
     claim: claimReceipt,
+    done: {
+      ...doneReceipt,
+      gate: doneGate,
+      executionReceipt,
+      commit: args.done ? String(args.doneCommit || '') : '',
+      evidencePresent: Boolean(String(args.doneEvidence || '').trim()),
+      summaryPresent: Boolean(String(args.doneSummary || '').trim()),
+    },
     output: {
       latestPath: args.output,
       jsPath: args.jsOutput,
@@ -433,7 +635,42 @@ function assertSelfTest() {
   );
   if (claimed.summary.status !== 'claimed') failures.push('expected claimed status');
   if (claimed.summary.completionClaimAllowed) failures.push('done should require downstream evidence');
-  return { ok: failures.length === 0, failures, local, cloudBlocked, cloudAllowed, claimed };
+  const done = buildReceipt(
+    {
+      ...parseArgs([]),
+      taskLane: 'local',
+      taskTag: 'local',
+      done: true,
+      doneTaskId: 'task_claimed',
+      doneCommit: 'abc1234',
+      doneEvidence: 'node scripts/__tests__/holoshell-sovereign-room-marathon.test.mjs',
+      doneSummary: 'Closed claimed local fixture task with test evidence.',
+      executionReceipt: 'package.json',
+      confirmDone: true,
+    },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+    claimSelectedTask,
+    () => ({ status: 'done', attempted: true, succeeded: true, stdout: 'done', stderr: '' }),
+  );
+  if (done.summary.status !== 'done') failures.push('expected done status after guarded evidence path');
+  if (!done.summary.completionClaimAllowed) failures.push('done path should allow completion only after evidence gate succeeds');
+  const blockedDone = buildReceipt(
+    {
+      ...parseArgs([]),
+      taskLane: 'local',
+      taskTag: 'local',
+      done: true,
+      doneTaskId: 'task_claimed',
+      doneCommit: 'abc1234',
+      doneEvidence: 'node scripts/__tests__/holoshell-sovereign-room-marathon.test.mjs',
+      doneSummary: 'Closed claimed local fixture task with test evidence.',
+      executionReceipt: 'package.json',
+      confirmDone: false,
+    },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+  );
+  if (blockedDone.summary.status !== 'blocked_done_guard_required') failures.push('expected done guard block without confirmation');
+  return { ok: failures.length === 0, failures, local, cloudBlocked, cloudAllowed, claimed, done, blockedDone };
 }
 
 async function main() {
@@ -460,7 +697,9 @@ export {
   buildReceipt,
   classifyTask,
   fixtureQueue,
+  inspectExecutionReceipt,
   normalizeTag,
   parseArgs,
   selectCandidates,
+  validateDoneGate,
 };

@@ -1189,9 +1189,17 @@ function sovereignRoomMarathonStatusSnapshot() {
     claimRequested: summary.claimRequested === true,
     claimAttempted: summary.claimAttempted === true,
     claimSucceeded: summary.claimSucceeded === true,
+    doneRequested: summary.doneRequested === true,
+    doneAttempted: summary.doneAttempted === true,
+    doneSucceeded: summary.doneSucceeded === true,
+    doneBlockedReason: String(summary.doneBlockedReason || ''),
+    executionReceiptObserved: summary.executionReceiptObserved === true,
     boardMutationAllowed: true,
-    boardMutationScope: 'claim_local_room_task_only',
+    boardMutationScope: summary.doneRequested === true
+      ? 'mark_claimed_local_room_task_done_only_with_receipt_evidence'
+      : 'claim_local_room_task_only',
     claimRequiresExplicitLocalConfirmation: true,
+    doneRequiresExplicitLocalConfirmation: true,
     sovereignConsumptionDefault: summary.sovereignConsumptionDefault !== false,
     completionClaimAllowed: summary.completionClaimAllowed === true,
     directExecutionAllowed: false,
@@ -1204,7 +1212,7 @@ function sovereignRoomMarathonStatusSnapshot() {
     statusEndpoint: 'GET /api/sovereign-room/marathon',
     nextAction: String(summary.nextAction || (hasReceipt ? 'inspect_receipt_before_claim' : 'refresh_sovereign_room_receipt')),
     summary: hasReceipt
-      ? `${status}; ${matchedCandidateCount} local candidate(s); selected ${selectedTaskTitle || selectedTaskId || 'none'}; claim attempted ${summary.claimAttempted === true ? 'yes' : 'no'}`
+      ? `${status}; ${matchedCandidateCount} local candidate(s); selected ${selectedTaskTitle || selectedTaskId || 'none'}; claim attempted ${summary.claimAttempted === true ? 'yes' : 'no'}; done attempted ${summary.doneAttempted === true ? 'yes' : 'no'}`
       : 'No sovereign room marathon receipt staged yet',
   };
 }
@@ -1234,6 +1242,34 @@ function payloadConfirmsSovereignRoomClaim(payload = {}) {
     || payload.guard === 'local_room_task_claim';
 }
 
+function payloadRequestsSovereignRoomDone(payload = {}) {
+  return payload.done === true
+    || payload.markDone === true
+    || payload.markClaimedTaskDone === true
+    || payload.action === 'mark_claimed_local_room_task_done';
+}
+
+function payloadConfirmsSovereignRoomDone(payload = {}) {
+  return payload.confirmLocalDone === true
+    || payload.confirmDone === true
+    || payload.doneConfirmation === 'local_room_task_done'
+    || payload.guard === 'local_room_task_done';
+}
+
+function stringField(payload, fields) {
+  for (const field of fields) {
+    if (typeof payload[field] === 'string' && payload[field].trim()) return payload[field].trim();
+  }
+  return '';
+}
+
+function pathsField(payload) {
+  const value = payload.donePaths ?? payload.paths;
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join(',');
+  if (typeof value === 'string') return value.trim();
+  return '';
+}
+
 function stageSovereignRoomMarathonForChat(payload = {}) {
   const script = join(REPO_ROOT, SOVEREIGN_ROOM_MARATHON_SCRIPT);
   const marathonJsOutput = join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathon-latest.js');
@@ -1245,6 +1281,11 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
   const normalizedTaskTag = normalizeRoomLaneTag(taskTag);
   const claimRequested = payloadRequestsSovereignRoomClaim(payload);
   const claimConfirmed = payloadConfirmsSovereignRoomClaim(payload);
+  const doneRequested = payloadRequestsSovereignRoomDone(payload);
+  const doneConfirmed = payloadConfirmsSovereignRoomDone(payload);
+  if (claimRequested && doneRequested) {
+    throw new Error('local_room_claim_and_done_must_be_separate_steps');
+  }
   if (claimRequested) {
     if (!claimConfirmed) {
       throw new Error('local_room_claim_requires_confirmLocalClaim_true');
@@ -1254,6 +1295,26 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     }
     if (payload.cloudEscalationAllowed === true) {
       throw new Error('local_room_claim_cannot_use_cloud_escalation');
+    }
+  }
+  const doneTaskId = stringField(payload, ['doneTaskId', 'taskId', 'selectedTaskId']);
+  const doneCommit = stringField(payload, ['doneCommit', 'commit']);
+  const doneEvidence = stringField(payload, ['doneEvidence', 'evidence', 'verify']);
+  const doneSummary = stringField(payload, ['doneSummary', 'completionSummary', 'summaryText']);
+  const executionReceipt = stringField(payload, ['executionReceipt', 'executionReceiptPath', 'receiptPath']);
+  const donePaths = pathsField(payload);
+  if (doneRequested) {
+    if (!doneConfirmed) {
+      throw new Error('local_room_done_requires_confirmLocalDone_true');
+    }
+    if (normalizedTaskLane !== 'local' || normalizedTaskTag === 'cloud') {
+      throw new Error('local_room_done_only_supports_local_lane');
+    }
+    if (payload.cloudEscalationAllowed === true) {
+      throw new Error('local_room_done_cannot_use_cloud_escalation');
+    }
+    if (!doneTaskId || !doneCommit || !doneEvidence || !doneSummary || !executionReceipt) {
+      throw new Error('local_room_done_requires_task_commit_evidence_summary_and_execution_receipt');
     }
   }
   const args = [
@@ -1274,6 +1335,23 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
   ];
   if (payload.cloudEscalationAllowed === true) args.push('--cloud-escalation-allowed');
   if (claimRequested) args.push('--claim');
+  if (doneRequested) {
+    args.push(
+      '--done',
+      '--confirm-done',
+      '--done-task-id',
+      doneTaskId,
+      '--done-commit',
+      doneCommit,
+      '--done-evidence',
+      doneEvidence,
+      '--done-summary',
+      doneSummary,
+      '--execution-receipt',
+      executionReceipt,
+    );
+    if (donePaths) args.push('--done-paths', donePaths);
+  }
   if (payload.queueFixture && process.env.HOLOSHELL_ALLOW_QUEUE_FIXTURE === '1') {
     args.push('--queue-fixture', String(payload.queueFixture));
   }
@@ -1298,9 +1376,17 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     claimRequested: summary.claimRequested === true,
     claimAttempted: summary.claimAttempted === true,
     claimSucceeded: summary.claimSucceeded === true,
+    doneRequested: summary.doneRequested === true,
+    doneAttempted: summary.doneAttempted === true,
+    doneSucceeded: summary.doneSucceeded === true,
+    doneBlockedReason: String(summary.doneBlockedReason || ''),
+    executionReceiptObserved: summary.executionReceiptObserved === true,
     boardMutationAllowed: true,
-    boardMutationScope: 'claim_local_room_task_only',
+    boardMutationScope: summary.doneRequested === true
+      ? 'mark_claimed_local_room_task_done_only_with_receipt_evidence'
+      : 'claim_local_room_task_only',
     claimRequiresExplicitLocalConfirmation: true,
+    doneRequiresExplicitLocalConfirmation: true,
     completionClaimAllowed: summary.completionClaimAllowed === true,
     directExecutionAllowed: false,
     endpointExecutesRuntime: false,

@@ -2,7 +2,9 @@
 //
 // Source contract for consuming HoloMesh room tasks through local/sovereign
 // receipts. Direct checks are receipt-only; local claims happen only through an
-// explicitly confirmed guarded workflow or explicit CLI claim.
+// explicitly confirmed guarded workflow or explicit CLI claim. Local done
+// closes require a claimed task plus execution receipt, commit, test evidence,
+// summary, and explicit local confirmation.
 
 composition "HoloShell Sovereign Room Marathon" {
   config {
@@ -14,6 +16,7 @@ composition "HoloShell Sovereign Room Marathon" {
     roomQueueCommand: "C:/Users/josep/.ai-ecosystem/hooks/team-connect.mjs --queue"
     roomHeartbeatCommand: "C:/Users/josep/.ai-ecosystem/scripts/codex-team-daemon.mjs join"
     roomClaimCommand: "C:/Users/josep/.ai-ecosystem/scripts/room-patch-task.mjs claim <task-id>"
+    roomDoneCommand: "C:/Users/josep/.ai-ecosystem/scripts/bullhorn.mjs done <task-id> <commit> --evidence <evidence> --summary <summary>"
     latestReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     browserBootstrap: ".tmp/holoshell/sovereign-room-marathon-latest.js"
     receiptDir: ".tmp/holoshell/sovereign-room-marathons"
@@ -36,6 +39,11 @@ composition "HoloShell Sovereign Room Marathon" {
     claimRequested: false
     claimAttempted: false
     claimSucceeded: false
+    doneRequested: false
+    doneAttempted: false
+    doneSucceeded: false
+    doneBlockedReason: ""
+    executionReceiptObserved: false
     completionClaimAllowed: false
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
@@ -51,6 +59,12 @@ composition "HoloShell Sovereign Room Marathon" {
     type: "request_response"
     priority: "critical"
     description: "Explicit claim route for selected local/sovereign room tasks after approval"
+  }
+
+  channel "holoshell:sovereign-room:done" {
+    type: "request_response"
+    priority: "critical"
+    description: "Explicit board-close route for claimed local tasks after execution receipt evidence"
   }
 
   channel "holoshell:sovereign-room:receipt" {
@@ -88,6 +102,11 @@ composition "HoloShell Sovereign Room Marathon" {
     claimRequested: false
     claimAttempted: false
     claimSucceeded: false
+    doneRequested: false
+    doneAttempted: false
+    doneSucceeded: false
+    doneBlockedReason: ""
+    executionReceiptObserved: false
     completionClaimAllowed: false
     sovereignConsumptionDefault: true
     destructiveActionsTaken: false
@@ -127,10 +146,15 @@ composition "HoloShell Sovereign Room Marathon" {
 
   policy "NoDoneWithoutDownstreamEvidence" {
     appliesTo: ["mark_room_task_done"]
-    completionClaimAllowed: false
+    completionClaimAllowed: true
+    requiresExplicitLocalDoneConfirmation: true
+    requiresClaimedLocalTask: true
+    requiresCommitHash: true
     requiresExecutionReceipt: true
     requiresValidationOrArtifactEvidence: true
+    requiresCompletionSummary: true
     requiresRoomDoneReceipt: true
+    boardMutationScope: "mark_claimed_local_room_task_done_only_with_receipt_evidence"
   }
 
   action apply_sovereign_room_marathon_receipt(receipt) {
@@ -148,6 +172,11 @@ composition "HoloShell Sovereign Room Marathon" {
     state.claimRequested = receipt.summary.claimRequested
     state.claimAttempted = receipt.summary.claimAttempted
     state.claimSucceeded = receipt.summary.claimSucceeded
+    state.doneRequested = receipt.summary.doneRequested
+    state.doneAttempted = receipt.summary.doneAttempted
+    state.doneSucceeded = receipt.summary.doneSucceeded
+    state.doneBlockedReason = receipt.summary.doneBlockedReason
+    state.executionReceiptObserved = receipt.summary.executionReceiptObserved
     state.completionClaimAllowed = receipt.summary.completionClaimAllowed
     emit("holoshell:sovereign-room:receipt", {
       action: "sovereign_room_marathon_receipt_applied",
@@ -160,6 +189,9 @@ composition "HoloShell Sovereign Room Marathon" {
       selected_task_title: state.selectedTaskTitle,
       claim_requested: state.claimRequested,
       claim_succeeded: state.claimSucceeded,
+      done_requested: state.doneRequested,
+      done_succeeded: state.doneSucceeded,
+      execution_receipt_observed: state.executionReceiptObserved,
       completion_claim_allowed: state.completionClaimAllowed,
       receipt_required: true
     })

@@ -9,6 +9,7 @@ const port = 9070 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const tmpDir = mkdtempSync(join(tmpdir(), 'holoshell-cockpit-'));
 const sovereignQueueFixture = join(tmpDir, 'sovereign-room-queue.json');
+const sovereignExecutionReceipt = join(tmpDir, 'sovereign-room-execution-receipt.json');
 const fakeAiRoot = join(tmpDir, 'ai-ecosystem');
 
 mkdirSync(join(fakeAiRoot, 'hooks'), { recursive: true });
@@ -34,7 +35,26 @@ writeFileSync(sovereignQueueFixture, `${JSON.stringify({
       tags: ['cloud'],
       claimable: true,
     },
+    {
+      id: 'task_claimed_fixture',
+      title: '[local] claimed room task ready for done evidence',
+      status: 'claimed',
+      priority: 70,
+      tags: ['local', 'sovereign'],
+      claimable: false,
+    },
   ],
+}, null, 2)}\n`, 'utf8');
+
+writeFileSync(sovereignExecutionReceipt, `${JSON.stringify({
+  schemaVersion: 'hololand.test.execution-receipt.v0.1.0',
+  status: 'completed',
+  verification: {
+    command: 'node scripts/__tests__/holoshell-brittney-cockpit.test.mjs',
+  },
+  summary: {
+    status: 'pass',
+  },
 }, null, 2)}\n`, 'utf8');
 
 writeFileSync(join(fakeAiRoot, 'hooks', 'team-connect.mjs'), `#!/usr/bin/env node
@@ -57,6 +77,14 @@ console.log(JSON.stringify({
       priority: 80,
       tags: ['cloud'],
       claimable: true
+    },
+    {
+      id: 'task_claimed_fixture',
+      title: '[local] claimed room task ready for done evidence',
+      status: 'claimed',
+      priority: 70,
+      tags: ['local', 'sovereign'],
+      claimable: false
     }
   ]
 }, null, 2));
@@ -73,6 +101,15 @@ if (action !== 'claim' || taskId !== 'task_local_fixture') {
   process.exit(2);
 }
 console.log('claimed ' + taskId);
+`, 'utf8');
+
+writeFileSync(join(fakeAiRoot, 'scripts', 'bullhorn.mjs'), `#!/usr/bin/env node
+const [, , command, taskId, commit] = process.argv;
+if (command !== 'done' || taskId !== 'task_claimed_fixture' || commit !== 'abc1234') {
+  console.error('unexpected fake bullhorn done', command, taskId, commit);
+  process.exit(2);
+}
+console.log('done ' + taskId + ' @' + commit);
 `, 'utf8');
 
 execFileSync(process.execPath, [
@@ -233,16 +270,53 @@ try {
   assert.equal(claimedSovereignRoom.completionClaimAllowed, false);
   assert.equal(claimedSovereignRoom.boardMutationScope, 'claim_local_room_task_only');
 
+  const unconfirmedDone = await postJsonExpectStatus('/workflow/sovereign-room-marathon', {
+    intent: 'Mark the claimed local sovereign room task done.',
+    taskLane: 'local',
+    taskTag: 'local',
+    done: true,
+    doneTaskId: 'task_claimed_fixture',
+    doneCommit: 'abc1234',
+    doneEvidence: 'node scripts/__tests__/holoshell-brittney-cockpit.test.mjs',
+    doneSummary: 'Closed claimed local fixture task with test evidence.',
+    executionReceipt: sovereignExecutionReceipt,
+    queueFixture: sovereignQueueFixture,
+  }, 500);
+  assert.match(unconfirmedDone.error, /local_room_done_requires_confirmLocalDone_true/);
+
+  const doneSovereignRoom = await postJson('/workflow/sovereign-room-marathon', {
+    intent: 'Mark the claimed local sovereign room task done.',
+    taskLane: 'local',
+    taskTag: 'local',
+    done: true,
+    confirmLocalDone: true,
+    doneConfirmation: 'local_room_task_done',
+    doneTaskId: 'task_claimed_fixture',
+    doneCommit: 'abc1234',
+    doneEvidence: 'node scripts/__tests__/holoshell-brittney-cockpit.test.mjs',
+    doneSummary: 'Closed claimed local fixture task with test evidence.',
+    donePaths: ['scripts/holoshell-sovereign-room-marathon.mjs', 'packages/holoshell/serve.mjs'],
+    executionReceipt: sovereignExecutionReceipt,
+    queueFixture: sovereignQueueFixture,
+  });
+  assert.equal(doneSovereignRoom.summary.status, 'done');
+  assert.equal(doneSovereignRoom.summary.doneRequested, true);
+  assert.equal(doneSovereignRoom.summary.doneAttempted, true);
+  assert.equal(doneSovereignRoom.summary.doneSucceeded, true);
+  assert.equal(doneSovereignRoom.summary.executionReceiptObserved, true);
+  assert.equal(doneSovereignRoom.completionClaimAllowed, true);
+  assert.equal(doneSovereignRoom.boardMutationScope, 'mark_claimed_local_room_task_done_only_with_receipt_evidence');
+
   const latestSovereignRoom = await getJson('/workflow/sovereign-room-marathon/latest');
   assert.equal(latestSovereignRoom.schemaVersion, 'hololand.holoshell.sovereign-room-marathon.v0.1.0');
-  assert.equal(latestSovereignRoom.receiptId, claimedSovereignRoom.receiptId);
+  assert.equal(latestSovereignRoom.receiptId, doneSovereignRoom.receiptId);
 
   const stagedSovereignRoomStatus = await getJson('/api/sovereign-room/marathon');
   assert.equal(stagedSovereignRoomStatus.receiptObserved, true);
   assert.equal(stagedSovereignRoomStatus.matchedCandidateCount, 1);
-  assert.equal(stagedSovereignRoomStatus.selectedTaskId, 'task_local_fixture');
-  assert.equal(stagedSovereignRoomStatus.claimAttempted, true);
-  assert.equal(stagedSovereignRoomStatus.claimSucceeded, true);
+  assert.equal(stagedSovereignRoomStatus.selectedTaskId, 'task_claimed_fixture');
+  assert.equal(stagedSovereignRoomStatus.doneAttempted, true);
+  assert.equal(stagedSovereignRoomStatus.doneSucceeded, true);
 
   const holoclawRuntime = await getJson('/api/holoclaw/runtime-bridge');
   assert.equal(holoclawRuntime.schemaVersion, 'hololand.holoshell.holoclaw-runtime-bridge-status.v0.1.0');
@@ -377,24 +451,24 @@ try {
   assert.equal(capsule.summary.sovereignRoomStatus, 'ready');
   assert.equal(capsule.summary.sovereignRoomReceiptObserved, true);
   assert.equal(capsule.summary.sovereignRoomMatchedCandidateCount, 1);
-  assert.equal(capsule.summary.sovereignRoomSelectedTaskId, 'task_local_fixture');
-  assert.equal(capsule.summary.sovereignRoomSelectedTaskTitle, '[local] test sovereign room from cockpit');
+  assert.equal(capsule.summary.sovereignRoomSelectedTaskId, 'task_claimed_fixture');
+  assert.equal(capsule.summary.sovereignRoomSelectedTaskTitle, '[local] claimed room task ready for done evidence');
   assert.equal(capsule.summary.sourceOwnedStateStatus, 'ready');
   assert.equal(capsule.summary.sourceOwnedDomainCount, 5);
-  assert.equal(capsule.summary.sourceOwnedSelectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.summary.sourceOwnedSelectedTaskId, 'task_claimed_fixture');
   assert.equal(capsule.sourceOwnedState.schemaVersion, 'hololand.holoshell.source-owned-cockpit-state.v0.1.0');
   assert.deepEqual(capsule.sourceOwnedState.domains, ['agents', 'files', 'worlds', 'receipts', 'board_tasks']);
   assert.equal(capsule.sourceOwnedState.summary.sourceRequiredBeforeProjection, true);
   assert.equal(capsule.sourceOwnedState.summary.sourceFormatGapNamedBeforeAdapterWork, true);
   assert.equal(capsule.sourceOwnedState.files.legacyUiMayNotOwnBehavior, true);
   assert.ok(capsule.sourceOwnedState.files.sourceAnchors.includes('packages/holoshell/scenes/operate-room.holo'));
-  assert.equal(capsule.sourceOwnedState.boardTasks.selectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.sourceOwnedState.boardTasks.selectedTaskId, 'task_claimed_fixture');
   assert.equal(capsule.sourceOwnedState.boardTasks.browserMayClaimRoomTask, true);
   assert.equal(capsule.sourceOwnedState.boardTasks.browserClaimRequiresExplicitLocalConfirmation, true);
   assert.equal(capsule.sourceOwnedState.boardTasks.claimMutationScope, 'claim_local_room_task_only');
   assert.equal(capsule.sourceOwnedState.uiProjection.role, 'adapter_projection_only');
   assert.equal(capsule.sovereignRoomMarathon.statusEndpoint, 'GET /api/sovereign-room/marathon');
-  assert.equal(capsule.sovereignRoomMarathon.selectedTaskId, 'task_local_fixture');
+  assert.equal(capsule.sovereignRoomMarathon.selectedTaskId, 'task_claimed_fixture');
   assert.equal(capsule.summary.holoclawRuntimeBridgeStatus, stagedHoloClawRuntime.status);
   assert.equal(capsule.holoclawRuntimeBridge.statusEndpoint, 'GET /api/holoclaw/runtime-bridge');
   assert.equal(capsule.summary.browserSessionStateStatus, 'waiting');
@@ -497,7 +571,7 @@ try {
   assert.equal(capsule.safety.legacyUiMayNotOwnBehavior, true);
   assert.equal(capsule.safety.rawWindowTitlesHidden, true);
   assert.equal(capsule.safety.destructiveActionsTaken, false);
-  assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'claimed');
+  assert.equal(capsule.receipts.latestSovereignRoomMarathonStatus, 'done');
   assert.ok(capsule.contextCapsuleTemplate.requiredFields.includes('next_command'));
   assert.ok(capsule.contextCapsuleTemplate.memoryInputs.includes('knowledge_store'));
   assert.match(capsule.nextSafeStep, /preflight -> consent-token -> receipt/);
