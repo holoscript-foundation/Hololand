@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /* global console, process */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
+  readFileSync,
   readdirSync,
   statSync,
 } from 'node:fs';
@@ -124,6 +126,34 @@ function appSourcePath(appSourceRoot, workflow, type) {
   return normalizePath(join(appSourceRoot, `holoshell-${workflow}-${suffixByType[type]}`));
 }
 
+function sha256File(path) {
+  const hash = createHash('sha256');
+  hash.update(readFileSync(path));
+  return hash.digest('hex');
+}
+
+function promotedSourceChecks(root, appSourceRoot, workflow, filesByType) {
+  return CORE_TYPES
+    .filter((type) => filesByType.has(type))
+    .map((type) => {
+      const experimentPath = filesByType.get(type).path;
+      const promotedPath = appSourcePath(appSourceRoot, workflow, type);
+      if (!existsSync(join(root, promotedPath))) return null;
+
+      const experimentSha256 = sha256File(join(root, experimentPath));
+      const promotedSha256 = sha256File(join(root, promotedPath));
+      return {
+        type,
+        experimentPath,
+        promotedPath,
+        experimentSha256,
+        promotedSha256,
+        contentMatches: experimentSha256 === promotedSha256,
+      };
+    })
+    .filter(Boolean);
+}
+
 function relatedAppSourceFiles(root, appSourceRoot, workflow) {
   const absoluteRoot = join(root, appSourceRoot);
   if (!existsSync(absoluteRoot)) return [];
@@ -148,11 +178,14 @@ function countByStatus(groups) {
   }, {});
 }
 
-function classifyCoreGroup({ present, untrackedFileCount, exactPromotedSources }) {
+function classifyCoreGroup({ present, untrackedFileCount, exactPromotedSourceChecks }) {
   const presentCoreCount = CORE_TYPES.filter((type) => present[type]).length;
   const missing = CORE_TYPES.filter((type) => !present[type]);
+  const allPresentCorePromoted = exactPromotedSourceChecks.length >= presentCoreCount
+    && presentCoreCount > 0;
+  const hasPromotedDrift = exactPromotedSourceChecks.some((entry) => !entry.contentMatches);
 
-  if (exactPromotedSources.length >= presentCoreCount && presentCoreCount > 0) {
+  if (allPresentCorePromoted && !hasPromotedDrift) {
     return {
       status: 'duplicate-of-app-source',
       recommendedAction: 'archive_duplicate_after_checksum',
@@ -160,7 +193,15 @@ function classifyCoreGroup({ present, untrackedFileCount, exactPromotedSources }
     };
   }
 
-  if (exactPromotedSources.length > 0) {
+  if (hasPromotedDrift) {
+    return {
+      status: 'promoted-drift',
+      recommendedAction: 'diff_promoted_sources_then_merge_or_archive_superseded_variant',
+      missing,
+    };
+  }
+
+  if (exactPromotedSourceChecks.length > 0) {
     return {
       status: 'partially-promoted',
       recommendedAction: 'compare_promoted_sources_then_complete_or_archive',
@@ -194,16 +235,14 @@ function classifyCoreGroup({ present, untrackedFileCount, exactPromotedSources }
 function buildCoreGroup(root, appSourceRoot, workflow, files) {
   const filesByType = new Map(files.map((file) => [file.type, file]));
   const present = Object.fromEntries(CORE_TYPES.map((type) => [type, filesByType.has(type)]));
-  const exactPromotedSources = CORE_TYPES
-    .filter((type) => present[type])
-    .map((type) => appSourcePath(appSourceRoot, workflow, type))
-    .filter((file) => existsSync(join(root, file)));
+  const exactPromotedSourceChecks = promotedSourceChecks(root, appSourceRoot, workflow, filesByType);
+  const exactPromotedSources = exactPromotedSourceChecks.map((entry) => entry.promotedPath);
   const trackedFileCount = files.filter((file) => file.tracked).length;
   const untrackedFileCount = files.filter((file) => !file.tracked).length;
   const classification = classifyCoreGroup({
     present,
     untrackedFileCount,
-    exactPromotedSources,
+    exactPromotedSourceChecks,
   });
 
   return {
@@ -217,6 +256,7 @@ function buildCoreGroup(root, appSourceRoot, workflow, files) {
     trackedFileCount,
     untrackedFileCount,
     exactPromotedSources,
+    exactPromotedSourceChecks,
     relatedAppSourceFiles: relatedAppSourceFiles(root, appSourceRoot, workflow)
       .filter((file) => !exactPromotedSources.includes(file))
       .slice(0, 8),
@@ -238,6 +278,7 @@ function buildUtilityGroup(workflow, files) {
     trackedFileCount,
     untrackedFileCount,
     exactPromotedSources: [],
+    exactPromotedSourceChecks: [],
     relatedAppSourceFiles: [],
   };
 }
@@ -315,6 +356,7 @@ function printSummary(report) {
 
   const printableStatuses = [
     'duplicate-of-app-source',
+    'promoted-drift',
     'promote-or-archive',
     'partially-promoted',
     'tracked-intake',
@@ -333,6 +375,10 @@ function printSummary(report) {
       console.log(`  - ${group.workflow} (${files}) -> ${group.recommendedAction}`);
       if (group.exactPromotedSources.length > 0) {
         console.log(`    promoted: ${group.exactPromotedSources.join(', ')}`);
+      }
+      const drift = group.exactPromotedSourceChecks.filter((entry) => !entry.contentMatches);
+      if (drift.length > 0) {
+        console.log(`    drift: ${drift.map((entry) => `${entry.type}:${entry.experimentSha256.slice(0, 12)}!=${entry.promotedSha256.slice(0, 12)}`).join(', ')}`);
       }
       if (group.missing.length > 0) {
         console.log(`    missing: ${group.missing.join(', ')}`);

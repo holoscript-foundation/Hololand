@@ -16,7 +16,7 @@ and 36 HoloScript-family source files.
 
 | Status | Count | Meaning |
 | --- | ---: | --- |
-| `duplicate-of-app-source` | 4 | Exact promoted app source exists under `apps/holoshell/source/**`; archive only after checksum/receipt approval. |
+| `promoted-drift` | 4 | Exact promoted app source exists under `apps/holoshell/source/**`, but content hashes differ; diff/merge before archive. |
 | `promote-or-archive` | 4 | Full untracked trio with no exact promoted source; read and validate before promotion or Jetson archive. |
 | `tracked-intake` | 4 | Full tracked trio still visible in `experiments/**`; keep visible until it is promoted, boarded, or intentionally archived. |
 | `utility-watch` | 2 | Tracked helper scripts that should move or archive with their parent workflow receipt. |
@@ -25,10 +25,11 @@ Tracked source files: 14.
 
 Untracked source files: 22.
 
-## Duplicate Of App Source
+## Promoted Drift
 
-These workflows already have exact room/policy/pipeline promoted files in
-`apps/holoshell/source/**`:
+These workflows already have exact room/policy/pipeline promoted paths in
+`apps/holoshell/source/**`, but the experiment files are not byte-identical to
+the promoted app source:
 
 | Workflow | Experiment state | Promoted app source |
 | --- | --- | --- |
@@ -37,10 +38,18 @@ These workflows already have exact room/policy/pipeline promoted files in
 | `downloads-import-shelf` | full trio untracked | `holoshell-downloads-import-shelf-*` |
 | `family-photo-backup-custody` | full trio untracked | `holoshell-family-photo-backup-custody-*` |
 
-Recommended next action: compare checksums/content against promoted app source,
-then archive duplicate experiment files to the Jetson reboot archive with a
-manifest. Do not delete tracked experiment files until the archive receipt and
-source replacement are explicit.
+Hash drift observed by the gate:
+
+- `browser-account-export`: room, policy, and pipeline differ.
+- `cloud-drive-permission-cleanup`: room, policy, and pipeline differ.
+- `downloads-import-shelf`: room and pipeline differ; policy matches.
+- `family-photo-backup-custody`: room, policy, and pipeline differ.
+
+Recommended next action: diff these experiment variants against promoted app
+source, merge any useful HoloScript semantics into `apps/holoshell/source/**`,
+then archive only superseded experiment variants to the Jetson reboot archive
+with a manifest. Do not delete tracked experiment files until the archive
+receipt and source replacement are explicit.
 
 ## Promote Or Archive
 

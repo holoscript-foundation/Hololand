@@ -54,8 +54,10 @@ node scripts/hololand-experiment-intake.mjs --json
 The gate groups each Human OS room/policy/pipeline trio, checks tracked versus
 untracked files, compares exact promoted `apps/holoshell/source/**` sources, and
 labels each workflow as `duplicate-of-app-source`, `promote-or-archive`,
-`tracked-intake`, `incomplete-intake`, or `utility-watch`. It does not move,
-archive, delete, or ignore files.
+`promoted-drift`, `tracked-intake`, `incomplete-intake`, or `utility-watch`.
+`duplicate-of-app-source` requires matching content hashes; matching workflow
+names with different content are `promoted-drift` and need diff/merge review.
+It does not move, archive, delete, or ignore files.
 
 ## Package Boundary
 
