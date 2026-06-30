@@ -655,6 +655,9 @@ const runtimeScript = `  <script>
       var route = (capsule && capsule.route) || {};
       var avatar = (capsule && capsule.avatar) || {};
       var receipts = (capsule && capsule.receipts) || {};
+      var holoclaw = (capsule && capsule.holoclawRuntimeBridge) || {};
+      var holoclawApprovalCount = summary.holoclawRuntimeBridgePendingApprovalCount;
+      if (holoclawApprovalCount == null) holoclawApprovalCount = holoclaw.pendingApprovalCount || 0;
       var reasoningDetail = [
         'GPU ' + (summary.laptopReasoningGpuStatus || 'unknown'),
         summary.laptopReasoningModelInvocationPerformed ? 'model invoked' : 'receipt-only/model not invoked'
@@ -677,6 +680,12 @@ const runtimeScript = `  <script>
           value: summary.laptopReasoningLane || 'laptop-hardware',
           detail: (summary.laptopReasoningStatus || 'unknown') + '; ' + reasoningDetail,
           tone: _toneForStatus(summary.laptopReasoningStatus || summary.laptopReasoningGpuStatus)
+        },
+        {
+          label: 'HoloClaw',
+          value: summary.holoclawRuntimeStatus || holoclaw.status || 'unknown',
+          detail: 'runtime ' + (summary.holoclawRuntimeBridgeStatus || holoclaw.runtimeStatus || 'unknown') + '; approvals ' + holoclawApprovalCount,
+          tone: _toneForStatus(summary.holoclawRuntimeStatus || holoclaw.status)
         },
         {
           label: 'Receipts',
@@ -703,7 +712,8 @@ const runtimeScript = `  <script>
       var lanes = {
         desktop: _lane(capsule, 'desktop_bridge') || {},
         terminal: _lane(capsule, 'operator_terminal') || {},
-        reasoning: _lane(capsule, 'laptop_reasoning') || {}
+        reasoning: _lane(capsule, 'laptop_reasoning') || {},
+        holoclaw: _lane(capsule, 'holoclaw_runtime') || {}
       };
       var prompts = [];
       if (_toneForStatus(summary.desktopBridgeStatus || lanes.desktop.status) !== 'ready') {
@@ -731,6 +741,15 @@ const runtimeScript = `  <script>
           detail: 'Check the current live-status envelope before claiming GPU inference.',
           button: 'Inspect lane',
           action: _inspectLiveStatusForChat
+        });
+      }
+      if (_toneForStatus(summary.holoclawRuntimeStatus || lanes.holoclaw.status) !== 'ready') {
+        prompts.push({
+          label: 'HoloClaw runtime',
+          value: lanes.holoclaw.value || summary.holoclawRuntimeBridgeStatus || 'attention',
+          detail: 'Inspect the guarded runtime bridge before staging agent work.',
+          button: 'Inspect runtime',
+          action: _inspectHoloClawRuntimeBridge
         });
       }
       prompts.slice(0, 3).forEach(function(prompt) {
@@ -784,6 +803,19 @@ const runtimeScript = `  <script>
           ], _toneForStatus(reasoning.status || reasoning.gpuStatus), 'receipt');
         })
         .catch(function(e) { _bMsg('Laptop reasoning', 'network error: ' + e.message, '#f85149'); });
+    }
+    function _inspectHoloClawRuntimeBridge() {
+      fetch('/api/holoclaw/runtime-bridge', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          _appendTurnCard('HoloClaw runtime', [
+            'status: ' + (d.status || 'unknown'),
+            'runtime: ' + (d.runtimeStatus || 'unknown'),
+            'skills: ' + (d.selectedSkillCount || 0) + '; approvals: ' + (d.pendingApprovalCount || 0),
+            'executes from endpoint: ' + (d.endpointExecutesRuntime ? 'yes' : 'no')
+          ], _toneForStatus(d.runtimeReady ? 'ready' : d.status), 'receipt');
+        })
+        .catch(function(e) { _bMsg('HoloClaw runtime', 'network error: ' + e.message, '#f85149'); });
     }
     function _cardText(card) {
       var action = card.primaryAction || card.lane || card.method || 'action';

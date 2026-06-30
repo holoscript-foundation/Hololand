@@ -41,6 +41,9 @@ requireIncludes('desktop cockpit source', source, [
   'operatorTerminalReceipt: ".tmp/holoshell/operator-terminal.json"',
   'cockpitCapsuleReceiptSchema: "hololand.holoshell.brittney-cockpit-capsule.v0.1.0"',
   'desktopSurfaceRouteReceiptSchema: "hololand.holoshell.brittney-desktop-surface-route.v0.1.0"',
+  'holoclawRuntimeBridgeSource: "apps/holoshell/source/holoshell-holoclaw-runtime-bridge.hsplus"',
+  'holoclawRuntimeBridgeStatusEndpoint: "GET /api/holoclaw/runtime-bridge"',
+  'HoloClawRuntimeVisibleBehindConsent',
   'legacyUiRole: "adapter_projection_only"',
   'sourceRequiredBeforeProjection: true',
   'legacyUiMayNotOwnBehavior: true',
@@ -97,6 +100,8 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/cockpit/capsule'",
   "'/api/brittney/chat'",
   "'/api/operator-terminal/session'",
+  "'/api/holoclaw/runtime-bridge'",
+  'holoclawRuntimeBridgeStatusSnapshot()',
 ], failures);
 
 requireIncludes('package scripts', packageJson, [
@@ -113,4 +118,4 @@ if (failures.length > 0) {
 
 console.log('[brittney-desktop-source-contract] ok');
 console.log(`source: ${files.source}`);
-console.log('route: desktop shortcut -> Jetson HoloShell surface -> operator terminal receipt -> HoloShell server receipts');
+console.log('route: desktop shortcut -> Jetson HoloShell surface -> operator terminal receipt -> HoloClaw status -> HoloShell server receipts');
