@@ -12,9 +12,19 @@
   },
   "deletionAllowed": false,
   "transferExecuted": false,
+  "witnessReceipts": [
+    {
+      "id": "asset-shard-2-visual-witness",
+      "status": "pass",
+      "path": "docs/audits/hololand-asset-shard-2-visual-witness-receipt-2026-06-30.json",
+      "markdownPath": "docs/audits/HOLOLAND_ASSET_SHARD_2_VISUAL_WITNESS_RECEIPT_2026-06-30.md",
+      "clears": "asset-folder-playable-shard can advance to Jetson archive candidate status only",
+      "deletionAllowed": false,
+      "transferExecuted": false
+    }
+  ],
   "removalConditions": [
     "HoloLand app-source replacement exists for each promoted workflow.",
-    "Asset-shard-2 visual witness receipt exists before archiving asset-folder-playable-shard v1.",
     "Jetson tarball upload is verified by remote byte count and sha256sum.",
     "Tracked experiment files are removed only in a separate explicit commit after archive receipt."
   ],

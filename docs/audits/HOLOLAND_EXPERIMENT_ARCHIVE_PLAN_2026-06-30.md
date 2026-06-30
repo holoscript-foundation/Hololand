@@ -12,6 +12,9 @@ Proposed Jetson root:
 
 Machine manifest: [hololand-experiment-archive-plan-2026-06-30.json](hololand-experiment-archive-plan-2026-06-30.json)
 
+Visual witness receipt:
+[HOLOLAND_ASSET_SHARD_2_VISUAL_WITNESS_RECEIPT_2026-06-30.md](HOLOLAND_ASSET_SHARD_2_VISUAL_WITNESS_RECEIPT_2026-06-30.md)
+
 ## Summary
 
 | Metric | Value |
@@ -34,10 +37,15 @@ Machine manifest: [hololand-experiment-archive-plan-2026-06-30.json](hololand-ex
 
 ## Removal Conditions
 
+Satisfied prerequisite:
+
+- asset-shard-2 visual witness receipt exists. This clears
+  `asset-folder-playable-shard` for Jetson archive candidate status only; no
+  move, delete, hide, transfer, or removal approval happened in that receipt.
+
 Removal is still blocked until:
 
 - app-source replacement exists for each promoted workflow,
-- asset-shard-2 has a visual witness receipt before archiving asset-folder-playable-shard v1,
 - the Jetson tarball upload is verified by remote byte count and `sha256sum`,
 - tracked experiment files are removed only in a separate explicit commit after archive receipt.
 

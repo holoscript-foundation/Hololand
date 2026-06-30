@@ -1,0 +1,266 @@
+{
+  "schema": "hololand.human-os.asset-shard-visual-witness-receipt.v0.1.0",
+  "generatedAt": "2026-06-30T07:23:46.855Z",
+  "status": "pass",
+  "taskId": "task_1782803168047_x79q",
+  "purpose": "Refresh the Human OS asset-shard-2 visual witness and decide whether asset-folder-playable-shard v1 can advance to Jetson archive candidate status.",
+  "enterpriseGate": {
+    "id": "creator-asset-shard-room",
+    "title": "Creator Asset Shard Room",
+    "manifest": "apps/holoshell/enterprise-gates/creator-asset-shard-room/package-gate.json",
+    "sourcePath": "apps/holoshell/source/holoshell-asset-shard-workflow.hsplus",
+    "supportingSourcePaths": [
+      "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+      "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+      "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs"
+    ],
+    "requiredReceipts": [
+      "source",
+      "validation",
+      "preview_source",
+      "approval",
+      "runtime_import",
+      "visual_witness",
+      "rollback"
+    ]
+  },
+  "promotedAppSource": {
+    "workflowSource": {
+      "path": "apps/holoshell/source/holoshell-asset-shard-workflow.hsplus",
+      "exists": true,
+      "sizeBytes": 8494,
+      "sha256": "65f3648479e541d347d6d3fef19f27f9a12e4d12e59208dc7c23f4786cf085ff"
+    },
+    "requiredTrio": [
+      "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+      "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+      "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs"
+    ],
+    "files": [
+      {
+        "path": "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+        "exists": true,
+        "sizeBytes": 5269,
+        "sha256": "8463df8487e7c03c59eec46a0999a7b03fac86d825d3abfe67339f0fb169ff37"
+      },
+      {
+        "path": "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+        "exists": true,
+        "sizeBytes": 5598,
+        "sha256": "967ccdcf08e909bbce33368905ba110a27593a7bee9faeedcd20d4554f59c239"
+      },
+      {
+        "path": "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs",
+        "exists": true,
+        "sizeBytes": 4913,
+        "sha256": "c363b8dd13bc8e2ddd3d0409f2a262ec692216b0470a718be7ee0b7ff5d93bab"
+      }
+    ]
+  },
+  "witness": {
+    "visualWitnessReceipt": ".tmp/holoshell/self-test/imported-shard-visual-witness.json",
+    "playableShardWitnessReceipt": ".tmp/holoshell/self-test/playable-shard-witness.json",
+    "visualWitnessStatus": "pass",
+    "playableWitnessStatus": "pass",
+    "screenshotSha256": "ce18159cb363756ae34dd1066ba420ab6492510779820ee16137593aa8ca12dc",
+    "domSha256": "094485f2593cb6dfa35972916c9c62f1ef010df437a6d11b7d2927681a0cdc23",
+    "playableScreenshotSha256": "ce18159cb363756ae34dd1066ba420ab6492510779820ee16137593aa8ca12dc",
+    "playableDomSha256": "094485f2593cb6dfa35972916c9c62f1ef010df437a6d11b7d2927681a0cdc23",
+    "sourceAssetsMutated": false,
+    "missingText": []
+  },
+  "archiveDecision": {
+    "supersededWorkflow": "asset-folder-playable-shard",
+    "replacementWorkflow": "asset-shard-2",
+    "status": "candidate_ready_for_jetson_archive_receipt",
+    "deletionAllowed": false,
+    "transferExecuted": false,
+    "nextRequiredReceipt": "task_1782803168047_djor must create and verify the Jetson archive tarball/manifest before any removal commit.",
+    "supersededSources": [
+      {
+        "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+        "exists": true,
+        "sizeBytes": 4962,
+        "sha256": "a2c8f340cf8609a49dad14c989446012babb4168a4cf2ce8736ab8eaf60d7961"
+      },
+      {
+        "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+        "exists": true,
+        "sizeBytes": 6500,
+        "sha256": "89b87d45f17e221c575bae54ccf6aa4c7553c72a6672f37228f70285992bccae"
+      },
+      {
+        "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs",
+        "exists": true,
+        "sizeBytes": 5443,
+        "sha256": "c30b8a570f124f4866549563e30f227e0559f599bac24b89e8a23b6b185947e8"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "creator-gate-manifest",
+      "status": "pass",
+      "target": "Creator asset-shard enterprise gate manifest is loaded.",
+      "evidence": {
+        "manifest": "apps/holoshell/enterprise-gates/creator-asset-shard-room/package-gate.json",
+        "id": "creator-asset-shard-room",
+        "sourcePath": "apps/holoshell/source/holoshell-asset-shard-workflow.hsplus",
+        "supportingSourcePaths": [
+          "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+          "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+          "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs"
+        ]
+      },
+      "notes": []
+    },
+    {
+      "id": "promoted-app-source-trio",
+      "status": "pass",
+      "target": "Creator gate names the promoted asset-shard-2 app-source trio and each file is present.",
+      "evidence": {
+        "required": [
+          "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+          "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+          "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs"
+        ],
+        "missingFromManifest": [],
+        "promotedSources": [
+          {
+            "path": "apps/holoshell/source/holoshell-asset-shard-2-room.holo",
+            "exists": true,
+            "sizeBytes": 5269,
+            "sha256": "8463df8487e7c03c59eec46a0999a7b03fac86d825d3abfe67339f0fb169ff37"
+          },
+          {
+            "path": "apps/holoshell/source/holoshell-asset-shard-2-policy.hsplus",
+            "exists": true,
+            "sizeBytes": 5598,
+            "sha256": "967ccdcf08e909bbce33368905ba110a27593a7bee9faeedcd20d4554f59c239"
+          },
+          {
+            "path": "apps/holoshell/source/holoshell-asset-shard-2-pipeline.hs",
+            "exists": true,
+            "sizeBytes": 4913,
+            "sha256": "c363b8dd13bc8e2ddd3d0409f2a262ec692216b0470a718be7ee0b7ff5d93bab"
+          }
+        ]
+      },
+      "notes": []
+    },
+    {
+      "id": "visual-witness-receipt",
+      "status": "pass",
+      "target": "Imported shard visual witness renders in a local browser with screenshot and DOM evidence.",
+      "evidence": {
+        "receipt": ".tmp/holoshell/self-test/imported-shard-visual-witness.json",
+        "status": "pass",
+        "screenshot": {
+          "path": ".tmp/holoshell/self-test/playable-shard-witness/imported-shard-witness-20260630T072241Z.png",
+          "sizeBytes": 68188,
+          "sha256": "ce18159cb363756ae34dd1066ba420ab6492510779820ee16137593aa8ca12dc",
+          "result": {
+            "status": 0,
+            "error": null,
+            "stderrPreview": "68188 bytes written to file C:\\Users\\josep\\Documents\\GitHub\\Hololand\\.tmp\\holoshell\\self-test\\playable-shard-witness\\imported-shard-witness-20260630T072241Z.png"
+          }
+        },
+        "domWitness": {
+          "path": ".tmp/holoshell/self-test/playable-shard-witness/imported-shard-witness-20260630T072241Z.dom.html",
+          "sizeBytes": 5777,
+          "sha256": "094485f2593cb6dfa35972916c9c62f1ef010df437a6d11b7d2927681a0cdc23",
+          "visibleTextPreview": "HoloShell Imported Shard Witness HoloShell Imported Shard Witness COMPLETED Playable Shard Preview Shard ID: shard.fixture-assets.demo World: fixture-assets Shard Source assets mutated: false Import status: completed Assets 3 Models 1 Images 1 Audio 1 Assets: 3 model platform.glb models/platform.glb image skin.png textures/skin.png audio loop.ogg audio/loop.ogg // Generated by scripts/holoshell-shard-import-approval.mjs // Runtime-local import source. Source assets remain read-only. composition \"Imported HoloLand Asset Shard\" { metadata { title: \"fixture-assets Shard\" shard_id: \"shard.fixture-assets.demo\" manifest: \".tmp/holoshell/shard-import-self-test/imports/shard-fixture-assets-demo/manifest.json\" source_contract: \"apps/holoshell/source/holoshell-asset-shard-workflow.hsplus\" } environment { theme: \"holo_os_liquid\" render_mode: \"desktop_spatial\" skybox: \"imported_asset_shard\" ambient_light: 0.55 receipt_underlay: true } template \"ImportedShardAsset\" { type: \"asset_proxy\" mesh: \"sphe",
+          "expectedText": [
+            "HoloShell Imported Shard Witness",
+            "Playable Shard Preview",
+            "Shard ID: shard.fixture-assets.demo",
+            "Assets: 3",
+            "Source assets mutated: false",
+            "Import status: completed"
+          ],
+          "missingText": [],
+          "result": {
+            "status": 0,
+            "error": null,
+            "stderrPreview": ""
+          }
+        },
+        "shardWitness": {
+          "enabled": true,
+          "workflowReceipt": ".tmp/holoshell/shard-import-self-test/import-latest.json",
+          "previewSource": ".tmp/holoshell/shard-import-self-test/imports/shard-fixture-assets-demo/shard.holo",
+          "shardId": "shard.fixture-assets.demo",
+          "previewHash": "7855e2bb589736e3e11c6009291d17dedf3b7a903dffcc7900a4674fd6f09003",
+          "assetCount": 3,
+          "sourceAssetsMutated": false
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "playable-shard-witness",
+      "status": "pass",
+      "target": "PlayableShardWitnessReceipt is present and source assets remain read-only.",
+      "evidence": {
+        "receipt": ".tmp/holoshell/self-test/playable-shard-witness.json",
+        "status": "pass",
+        "screenshot": {
+          "path": ".tmp/holoshell/self-test/playable-shard-witness/imported-shard-witness-20260630T072241Z.png",
+          "sizeBytes": 68188,
+          "sha256": "ce18159cb363756ae34dd1066ba420ab6492510779820ee16137593aa8ca12dc"
+        },
+        "domWitness": {
+          "path": ".tmp/holoshell/self-test/playable-shard-witness/imported-shard-witness-20260630T072241Z.dom.html",
+          "sha256": "094485f2593cb6dfa35972916c9c62f1ef010df437a6d11b7d2927681a0cdc23",
+          "missingText": []
+        },
+        "shardWitness": {
+          "enabled": true,
+          "workflowReceipt": ".tmp/holoshell/shard-import-self-test/import-latest.json",
+          "previewSource": ".tmp/holoshell/shard-import-self-test/imports/shard-fixture-assets-demo/shard.holo",
+          "shardId": "shard.fixture-assets.demo",
+          "previewHash": "7855e2bb589736e3e11c6009291d17dedf3b7a903dffcc7900a4674fd6f09003",
+          "assetCount": 3,
+          "sourceAssetsMutated": false
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "asset-folder-v1-archive-plan",
+      "status": "pass",
+      "target": "Superseded asset-folder-playable-shard v1 trio is visible and listed as superseded in the Jetson archive plan.",
+      "evidence": {
+        "archivePlan": "docs/audits/hololand-experiment-archive-plan-2026-06-30.json",
+        "requiredV1Sources": [
+          "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+          "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+          "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs"
+        ],
+        "missingV1PlanRows": [],
+        "supersededSources": [
+          {
+            "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-room.holo",
+            "exists": true,
+            "sizeBytes": 4962,
+            "sha256": "a2c8f340cf8609a49dad14c989446012babb4168a4cf2ce8736ab8eaf60d7961"
+          },
+          {
+            "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-policy.hsplus",
+            "exists": true,
+            "sizeBytes": 6500,
+            "sha256": "89b87d45f17e221c575bae54ccf6aa4c7553c72a6672f37228f70285992bccae"
+          },
+          {
+            "path": "experiments/holoshell-human-os-frontier/asset-folder-playable-shard-pipeline.hs",
+            "exists": true,
+            "sizeBytes": 5443,
+            "sha256": "c30b8a570f124f4866549563e30f227e0559f599bac24b89e8a23b6b185947e8"
+          }
+        ]
+      },
+      "notes": []
+    }
+  ],
+  "failedChecks": []
+}
