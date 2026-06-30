@@ -42,6 +42,8 @@ ignoredBuiltDependencies:
   - unrs-resolver
   - utf-8-validate
 
+verifyDepsBeforeRun: false
+
 overrides:
   '@holoscript/agent-protocol': link:../HoloScript/packages/agent-protocol
   '@holoscript/aibrittney': link:../HoloScript/packages/aibrittney
