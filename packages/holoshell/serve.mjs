@@ -1363,12 +1363,16 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
   const claimConfirmed = payloadConfirmsSovereignRoomClaim(payload);
   const doneRequested = payloadRequestsSovereignRoomDone(payload);
   const doneConfirmed = payloadConfirmsSovereignRoomDone(payload);
+  const claimTaskId = stringField(payload, ['claimTaskId', 'selectedTaskId', 'taskId']);
   if (claimRequested && doneRequested) {
     throw new Error('local_room_claim_and_done_must_be_separate_steps');
   }
   if (claimRequested) {
     if (!claimConfirmed) {
       throw new Error('local_room_claim_requires_confirmLocalClaim_true');
+    }
+    if (!claimTaskId) {
+      throw new Error('local_room_claim_requires_claimTaskId');
     }
     if (normalizedTaskLane !== 'local' || normalizedTaskTag === 'cloud') {
       throw new Error('local_room_claim_only_supports_local_lane');
@@ -1414,7 +1418,7 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     '--json',
   ];
   if (payload.cloudEscalationAllowed === true) args.push('--cloud-escalation-allowed');
-  if (claimRequested) args.push('--claim', '--confirm-claim');
+  if (claimRequested) args.push('--claim', '--confirm-claim', '--claim-task-id', claimTaskId);
   if (doneRequested) {
     args.push(
       '--done',
@@ -1453,6 +1457,7 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     matchedCandidateCount: summary.matchedCandidateCount || 0,
     selectedTaskId: summary.selectedTaskId || '',
     selectedTaskTitle: summary.selectedTaskTitle || '',
+    claimTaskIdRequested: summary.claimTaskIdRequested || claimTaskId || '',
     claimRequested: summary.claimRequested === true,
     claimAttempted: summary.claimAttempted === true,
     claimSucceeded: summary.claimSucceeded === true,
@@ -2433,6 +2438,36 @@ function approvalEvidenceFromPayload(payload = {}) {
   ).trim();
 }
 
+function operatorTerminalTaskSelectionForCommand(command, payload = {}) {
+  const commandId = safeOperatorTerminalId(command?.id, '');
+  if (commandId !== 'claim_local_room_task') return null;
+  const claimTaskId = stringField(payload, ['claimTaskId', 'selectedTaskId', 'taskId']);
+  if (!claimTaskId) {
+    const error = new Error('operator_terminal_claim_local_room_task_requires_selected_task_id');
+    error.statusCode = 400;
+    error.response = {
+      schemaVersion: OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA,
+      status: 'rejected',
+      commandId,
+      reason: error.message,
+      required: ['selectedTaskId|claimTaskId'],
+      executionAllowed: false,
+      endpointExecutesCommand: false,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      receiptRequired: true,
+    };
+    throw error;
+  }
+  return {
+    claimTaskId,
+    selectedTaskId: claimTaskId,
+    selectionSource: 'browser_selected_local_room_task',
+    claimMutationScope: 'claim_local_room_task_only',
+    explicitSelectionRequiredForClaim: true,
+  };
+}
+
 function buildOperatorTerminalGuardedExecuteReceipt(payload = {}) {
   const command = findOperatorTerminalCommand(payload.commandId || payload.label);
   if (!command) {
@@ -2486,6 +2521,7 @@ function buildOperatorTerminalGuardedExecuteReceipt(payload = {}) {
     throw error;
   }
 
+  const taskSelection = operatorTerminalTaskSelectionForCommand(command, payload);
   const generatedAt = new Date().toISOString();
   const executionId = `otgx_${Date.now().toString(36)}_${safeOperatorTerminalId(command.id, 'command')}`;
   return {
@@ -2517,6 +2553,7 @@ function buildOperatorTerminalGuardedExecuteReceipt(payload = {}) {
       confirmedAt: generatedAt,
       confirmGuardedExecute: true,
     },
+    taskSelection,
     execution: {
       lane: 'operator_terminal_guarded_execute',
       executionAllowed: true,
@@ -2564,9 +2601,11 @@ function writeOperatorTerminalGuardedExecuteReceipt(receipt) {
     severity: 'info',
     summary: `Guarded operator terminal receipt staged for ${receipt.command.label}.`,
     commandId: receipt.command.id,
+    selectedTaskId: receipt.taskSelection?.selectedTaskId || '',
     endpointExecutesCommand: false,
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
+    taskSelection: receipt.taskSelection || null,
   })}\n`, 'utf8');
   return withOutput;
 }
@@ -2590,6 +2629,7 @@ function operatorTerminalApprovedAdapterCatalog() {
       permissionEnvelope: adapter.permissionEnvelope,
       receipt: adapter.receipt,
       timeoutMs: adapter.timeoutMs,
+      requiresSelectedTaskId: commandId === 'claim_local_room_task',
     };
   });
 }
@@ -2604,8 +2644,19 @@ function truncateOperatorTerminalText(value, limit = OPERATOR_TERMINAL_APPROVED_
   return String(value || '').slice(0, limit);
 }
 
-function buildApprovedAdapterCliArgs(adapter) {
+function buildApprovedAdapterCliArgs(adapter, stagedReceipt = {}) {
   const args = [adapter.adapter, ...safeArray(adapter.args)];
+  if (adapter.id === 'claim_local_room_task') {
+    const claimTaskId = stringField(stagedReceipt.taskSelection || {}, ['claimTaskId', 'selectedTaskId']);
+    if (!claimTaskId) {
+      throw operatorTerminalApprovedExecutionError(409, 'approved_operator_terminal_claim_adapter_requires_staged_task_id', {
+        executionId: stagedReceipt.executionId || '',
+        commandId: adapter.id,
+        required: ['guardedReceipt.taskSelection.claimTaskId'],
+      });
+    }
+    args.push('--claim-task-id', claimTaskId);
+  }
   if (adapter.output) args.push('--output', adapter.output);
   if (adapter.jsOutput) args.push('--js-output', adapter.jsOutput);
   if (adapter.bundleDir) args.push('--bundle-dir', adapter.bundleDir);
@@ -2749,6 +2800,26 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
     });
   }
 
+  if (adapter.id === 'claim_local_room_task') {
+    const stagedClaimTaskId = stringField(stagedReceipt.taskSelection || {}, ['claimTaskId', 'selectedTaskId']);
+    const requestedClaimTaskId = stringField(payload, ['claimTaskId', 'selectedTaskId', 'taskId']);
+    if (!stagedClaimTaskId) {
+      throw operatorTerminalApprovedExecutionError(409, 'approved_operator_terminal_claim_adapter_requires_staged_task_id', {
+        executionId: stagedReceipt.executionId,
+        commandId: stagedCommandId,
+        required: ['guardedReceipt.taskSelection.claimTaskId'],
+      });
+    }
+    if (requestedClaimTaskId && requestedClaimTaskId !== stagedClaimTaskId) {
+      throw operatorTerminalApprovedExecutionError(409, 'approved_operator_terminal_claim_task_id_does_not_match_guarded_receipt', {
+        executionId: stagedReceipt.executionId,
+        commandId: stagedCommandId,
+        requestedClaimTaskId,
+        guardedClaimTaskId: stagedClaimTaskId,
+      });
+    }
+  }
+
   const approvalEvidence = approvalEvidenceFromPayload(payload);
   if (payload.confirmApprovedAdapterExecution !== true || !approvalEvidence) {
     throw operatorTerminalApprovedExecutionError(
@@ -2764,7 +2835,7 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
 
   const generatedAt = new Date().toISOString();
   const approvedExecutionId = `otax_${Date.now().toString(36)}_${safeOperatorTerminalId(stagedCommandId, 'command')}`;
-  const childArgs = buildApprovedAdapterCliArgs(adapter);
+  const childArgs = buildApprovedAdapterCliArgs(adapter, stagedReceipt);
   const startedAt = new Date().toISOString();
   let stdout = '';
   let stderr = '';
@@ -2823,6 +2894,7 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
       fresh: true,
       replayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
     },
+    taskSelection: stagedReceipt.taskSelection || null,
     approval: {
       evidence: approvalEvidence.slice(0, 500),
       confirmedAt: generatedAt,
@@ -2900,6 +2972,8 @@ function writeOperatorTerminalApprovedAdapterExecutionReceipt(receipt) {
     summary: `Approved operator-terminal adapter ${receipt.command.label} ${receipt.status}.`,
     commandId: receipt.command.id,
     approvedExecutionId: receipt.approvedExecutionId,
+    selectedTaskId: receipt.taskSelection?.selectedTaskId || '',
+    taskSelection: receipt.taskSelection || null,
     endpointExecutesApprovedAdapter: true,
     endpointExecutesRawCommand: false,
     destructiveActionsTaken: false,
@@ -3873,6 +3947,7 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
     });
     const approvedAdapter = operatorTerminalApprovedAdapterForCommand(command.id);
     const readOnlyAdapter = operatorTerminalReadOnlyAdapterForCommand(command.id);
+    const requiresSelectedTaskId = safeOperatorTerminalId(command.id, '') === 'claim_local_room_task';
     return {
       id: `terminal_run_card:${command.id || command.label}`,
       label: command.label || command.id || 'Terminal evidence',
@@ -3889,6 +3964,9 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
       guardedExecuteEndpoint: endpointStagesGuardedExecutionReceipt ? 'POST /api/operator-terminal/execute' : null,
       approvedAdapterAvailable: Boolean(approvedAdapter),
       approvedAdapterExecuteEndpoint: approvedAdapter ? 'POST /api/operator-terminal/run-approved' : null,
+      requiresSelectedTaskId,
+      taskSelectionField: requiresSelectedTaskId ? 'selectedTaskId' : null,
+      claimMutationScope: requiresSelectedTaskId ? 'claim_local_room_task_only' : null,
       endpointExecutesApprovedAdapter: false,
       readOnlyAdapterAvailable: Boolean(readOnlyAdapter),
       readOnlyAdapterExecuteEndpoint: readOnlyAdapter ? 'POST /api/operator-terminal/run-readonly' : null,
@@ -3948,6 +4026,8 @@ function buildOperatorTerminalSession() {
         permissionEnvelope: command.permissionEnvelope,
         approvalRequired: command.approvalRequired,
         receipt: command.receipt,
+        requiresSelectedTaskId: command.requiresSelectedTaskId === true,
+        taskSelectionField: command.taskSelectionField || null,
       }))
     : [];
   const terminalReceiptHash = terminalReceipt?.receipt?.terminalHash || null;
@@ -4959,6 +5039,8 @@ function buildBrittneyCockpitCapsule() {
       defaultTaskTag: 'local',
       claim: true,
       confirmLocalClaim: true,
+      requiresSelectedTaskId: true,
+      taskSelectionField: 'selectedTaskId',
       cloudEscalationAllowed: false,
       completionClaimAllowed: false,
       directExecutionAllowed: false,
@@ -5629,6 +5711,8 @@ async function handleRequest(req, res) {
           executionId: receipt.executionId,
           commandId: receipt.command.id,
           permissionEnvelope: receipt.command.permissionEnvelope,
+          selectedTaskId: receipt.taskSelection?.selectedTaskId || '',
+          taskSelection: receipt.taskSelection || null,
           executionAllowed: receipt.execution.executionAllowed,
           endpointExecutesCommand: false,
           endpointStagesGuardedExecutionReceipt: true,
@@ -5669,6 +5753,8 @@ async function handleRequest(req, res) {
           executionId: receipt.executionId,
           commandId: receipt.command.id,
           permissionEnvelope: receipt.command.permissionEnvelope,
+          selectedTaskId: receipt.taskSelection?.selectedTaskId || '',
+          taskSelection: receipt.taskSelection || null,
           executionAllowed: receipt.execution.executionAllowed,
           endpointExecutesCommand: false,
           endpointExecutesApprovedAdapter: true,

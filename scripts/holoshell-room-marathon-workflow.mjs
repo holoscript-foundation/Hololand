@@ -24,6 +24,7 @@ function parseArgs(argv) {
     modelRoute: 'sovereign_local',
     taskLane: 'local',
     taskTag: 'local',
+    claimTaskId: '',
     cloudEscalationAllowed: false,
     terminalApp: 'wt',
     browserApp: 'Chrome',
@@ -50,6 +51,7 @@ function parseArgs(argv) {
     else if (arg === '--model-route') args.modelRoute = argv[++index] || args.modelRoute;
     else if (arg === '--task-lane') args.taskLane = argv[++index] || args.taskLane;
     else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
+    else if (arg === '--claim-task-id' || arg === '--selected-task-id') args.claimTaskId = argv[++index] || '';
     else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--terminal-app') args.terminalApp = argv[++index] || args.terminalApp;
     else if (arg === '--browser-app') args.browserApp = argv[++index] || args.browserApp;
@@ -179,9 +181,10 @@ function defaultRoomCommand(args) {
   const tag = normalizeTaskLane(args.taskTag || args.taskLane);
   const escalation = args.cloudEscalationAllowed ? '1' : '0';
   const escalationFlag = args.cloudEscalationAllowed ? ' --cloud-escalation-allowed' : '';
+  const claimTaskId = String(args.claimTaskId || '<selectedTaskId>').replace(/"/g, '\\"');
   const guidance = `Sovereign HoloShell room marathon: claim ${tag}-tagged tasks first; keep local tasks on owned hardware; cloud-tagged work requires an explicit receipt.`;
   const escapedGuidance = guidance.replace(/"/g, '\\"');
-  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Set-Location "C:\\Users\\josep\\Documents\\GitHub\\HoloLand"; node scripts\\holoshell-sovereign-room-marathon.mjs --task-lane "${tag}" --task-tag "${tag}" --claim --confirm-claim${escalationFlag} --json; Write-Host "${escapedGuidance}"`;
+  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Set-Location "C:\\Users\\josep\\Documents\\GitHub\\HoloLand"; node scripts\\holoshell-sovereign-room-marathon.mjs --task-lane "${tag}" --task-tag "${tag}" --claim --confirm-claim --claim-task-id "${claimTaskId}"${escalationFlag} --json; Write-Host "${escapedGuidance}"`;
 }
 
 function findCommand(command) {
@@ -465,6 +468,7 @@ function assertSelfTest(workflow) {
   if (!roomCommand.includes('holoshell-sovereign-room-marathon.mjs')) failures.push('room command does not run sovereign room marathon adapter');
   if (!roomCommand.includes('--claim')) failures.push('guarded room command should claim the selected task');
   if (!roomCommand.includes('--confirm-claim')) failures.push('guarded room command should confirm local claim explicitly');
+  if (!roomCommand.includes('--claim-task-id')) failures.push('guarded room command should require selected task id');
   if (workflow.executionPolicy.mutationExecuted) failures.push('self-test should not execute mutations');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }

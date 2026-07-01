@@ -89,6 +89,8 @@ requireIncludes('browser-terminal source', browserTerminalSource, [
   'endpointMayExecuteReadOnlyAdapter: true',
   'approvedAdapterRequiresFreshGuardedReceipt: true',
   'oneApprovedAdapterExecutionPerGuardedExecutionId: true',
+  'selectedTaskIdRequiredForClaimLocalRoomTask: true',
+  'approvedClaimTaskMustMatchGuardedReceipt: true',
   'readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true',
   'GuardedTerminalExecutionStagesReceipts',
   'ApprovedTerminalAdapterExecutionConsumesReceipts',
@@ -105,13 +107,19 @@ requireIncludes('operator-terminal source', operatorTerminalSource, [
   'object "ClaimLocalTask" using "TerminalCommand"',
   'flow: "sovereign_room_task_claim"',
   'adapter: "scripts/holoshell-sovereign-room-marathon.mjs"',
+  'requiresSelectedTaskId: true',
+  'taskSelectionField: "selectedTaskId"',
   'confirmClaim_for_local_room_claim',
 ], failures);
 
 requireIncludes('sovereign room source', sovereignRoomSource, [
   'confirmClaimCliFlag: "--confirm-claim"',
+  'claimTaskIdCliFlag: "--claim-task-id"',
   'requiresConfirmClaimCliFlag: true',
+  'requiresExplicitClaimTaskId: true',
+  'requiresClaimableOpenLocalTask: true',
   'claimConfirmationObserved',
+  'claimTaskIdRequested',
   'claimBlockedReason',
 ], failures);
 
@@ -188,6 +196,9 @@ requireIncludes('HoloShell server adapter', serve, [
   'readonly_operator_terminal_adapter_execution_requires_confirmation',
   'claim_local_room_task',
   "'--confirm-claim'",
+  "'--claim-task-id'",
+  'operator_terminal_claim_local_room_task_requires_selected_task_id',
+  'approved_operator_terminal_claim_task_id_does_not_match_guarded_receipt',
   "'/api/sovereign-room/marathon'",
   "'/workflow/sovereign-room-marathon'",
   'stageSovereignRoomMarathonForChat',

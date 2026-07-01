@@ -44,6 +44,8 @@ writeFileSync(terminalReceiptPath, `${JSON.stringify({
         flow: 'sovereign_room_task_claim',
         permissionEnvelope: 'guarded_execute',
         approvalRequired: true,
+        requiresSelectedTaskId: true,
+        taskSelectionField: 'selectedTaskId',
         receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
       },
       {
@@ -184,6 +186,9 @@ try {
   assert.equal(session.terminal.approvedAdapterReplayGuard, 'one_approved_adapter_execution_per_guarded_execution_id');
   assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'build_world'));
   assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'claim_local_room_task'));
+  assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) =>
+    adapter.commandId === 'claim_local_room_task' && adapter.requiresSelectedTaskId === true
+  ));
   assert.equal(session.terminal.readOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
   assert.equal(session.terminal.readOnlyAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-readonly-adapter-execution.v0.1.0');
   assert.ok(session.terminal.readOnlyAdapterAllowlist.some((adapter) => adapter.commandId === 'show_receipts'));
@@ -209,6 +214,9 @@ try {
   assert.equal(claimLocalTaskCard.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
   assert.equal(claimLocalTaskCard.approvedAdapterAvailable, true);
   assert.equal(claimLocalTaskCard.approvedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(claimLocalTaskCard.requiresSelectedTaskId, true);
+  assert.equal(claimLocalTaskCard.taskSelectionField, 'selectedTaskId');
+  assert.equal(claimLocalTaskCard.claimMutationScope, 'claim_local_room_task_only');
   assert.equal(claimLocalTaskCard.endpointExecutesApprovedAdapter, false);
   assert.equal(claimLocalTaskCard.readOnlyAdapterAvailable, false);
   assert.equal(claimLocalTaskCard.endpointExecutesReadOnlyAdapter, false);
@@ -327,6 +335,8 @@ try {
           flow: 'sovereign_room_task_claim',
           permissionEnvelope: 'guarded_execute',
           approvalRequired: true,
+          requiresSelectedTaskId: true,
+          taskSelectionField: 'selectedTaskId',
           receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
         },
       ],
@@ -377,8 +387,20 @@ try {
   assert.equal(stagedExecution.receipt.execution.adapterSpawned, false);
   assert.match(readFileSync(join(tempDir, 'operator-terminal-guarded-execute-latest.json'), 'utf8'), /approval-test-receipt-123/);
 
+  const rejectedUntargetedClaimLocalTask = await postJsonExpectStatus('/api/operator-terminal/execute', {
+    commandId: 'claim_local_room_task',
+    confirmGuardedExecute: true,
+    approvalReceipt: 'approval-test-claim-local-task',
+    reason: 'stage local room task claim adapter without a selected task',
+    requestedBy: 'browser-test',
+  }, 400);
+  assert.equal(rejectedUntargetedClaimLocalTask.status, 'rejected');
+  assert.equal(rejectedUntargetedClaimLocalTask.executionAllowed, false);
+  assert.equal(rejectedUntargetedClaimLocalTask.reason, 'operator_terminal_claim_local_room_task_requires_selected_task_id');
+
   const stagedClaimLocalTask = await postJson('/api/operator-terminal/execute', {
     commandId: 'claim_local_room_task',
+    selectedTaskId: 'task_local_fixture',
     confirmGuardedExecute: true,
     approvalReceipt: 'approval-test-claim-local-task',
     reason: 'stage local room task claim adapter without running it',
@@ -387,11 +409,29 @@ try {
   assert.equal(stagedClaimLocalTask.schemaVersion, 'hololand.holoshell.operator-terminal-guarded-execute.v0.1.0');
   assert.equal(stagedClaimLocalTask.status, 'receipt_staged');
   assert.equal(stagedClaimLocalTask.commandId, 'claim_local_room_task');
+  assert.equal(stagedClaimLocalTask.selectedTaskId, 'task_local_fixture');
+  assert.equal(stagedClaimLocalTask.taskSelection.claimTaskId, 'task_local_fixture');
+  assert.equal(stagedClaimLocalTask.receipt.taskSelection.claimMutationScope, 'claim_local_room_task_only');
   assert.equal(stagedClaimLocalTask.executionAllowed, true);
   assert.equal(stagedClaimLocalTask.endpointExecutesCommand, false);
   assert.equal(stagedClaimLocalTask.endpointStagesGuardedExecutionReceipt, true);
   assert.equal(stagedClaimLocalTask.destructiveActionsTaken, false);
   assert.equal(stagedClaimLocalTask.receipt.execution.adapterSpawned, false);
+
+  const rejectedMismatchedClaimLocalTaskExecution = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
+    executionId: stagedClaimLocalTask.executionId,
+    commandId: 'claim_local_room_task',
+    selectedTaskId: 'task_other_fixture',
+    confirmApprovedAdapterExecution: true,
+    approvalReceipt: 'adapter-approval-test-claim-local-task-mismatch',
+    reason: 'attempt to change selected task after guarded staging',
+  }, 409);
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.status, 'rejected');
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.reason, 'approved_operator_terminal_claim_task_id_does_not_match_guarded_receipt');
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.executionAllowed, false);
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.endpointExecutesApprovedAdapter, false);
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.endpointExecutesRawCommand, false);
+  assert.equal(rejectedMismatchedClaimLocalTaskExecution.destructiveActionsTaken, false);
 
   const rejectedApprovedExecution = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
     executionId: stagedExecution.executionId,

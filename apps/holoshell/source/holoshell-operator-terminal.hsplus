@@ -222,6 +222,9 @@ composition "HoloShell Operator Terminal" {
       receipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
       target: "HoloMesh local room task claim"
       approvalRequired: true
+      requiresSelectedTaskId: true
+      taskSelectionField: "selectedTaskId"
+      claimMutationScope: "claim_local_room_task_only"
       guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
       endpointStagesGuardedExecutionReceipt: true
       approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
@@ -304,7 +307,7 @@ composition "HoloShell Operator Terminal" {
   }
 
   policy "GuardedExecuteStagesReceiptsOnly" {
-    appliesTo: ["build_world", "ask_brittney", "review_approvals"]
+    appliesTo: ["build_world", "ask_brittney", "review_approvals", "claim_local_room_task"]
     guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     allowedMutation: "write_guarded_execution_receipt"
@@ -313,6 +316,7 @@ composition "HoloShell Operator Terminal" {
     endpointMayStageGuardedExecutionReceipt: true
     adapterSpawnedByEndpoint: false
     requiredBeforeReceipt: ["known_terminal_route", "confirmGuardedExecute", "approvalReceipt"]
+    selectedTaskIdRequiredForClaimLocalRoomTask: true
     receiptRequired: true
   }
 
@@ -324,6 +328,8 @@ composition "HoloShell Operator Terminal" {
     guardedReceiptMaxAgeMs: 600000
     replayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
     allowedMutation: "run_server_allowlisted_adapter_and_write_execution_receipt"
+    requiredSelectedTaskIdForLocalClaim: true
+    approvedClaimTaskMustMatchGuardedReceipt: true
     directStateMutationAllowed: false
     endpointMayExecuteTerminalCommand: false
     endpointMayExecuteApprovedAdapter: true

@@ -266,6 +266,7 @@ function sovereignRoomMarathon(body = {}) {
   add('--receipt-dir', body.receiptDir);
   if (body.cloudEscalationAllowed === true) cli.push('--cloud-escalation-allowed');
   if (body.claim === true) cli.push('--claim');
+  add('--claim-task-id', body.claimTaskId || body.selectedTaskId || body.taskId);
   if (
     body.confirmClaim === true
     || body.confirmLocalClaim === true

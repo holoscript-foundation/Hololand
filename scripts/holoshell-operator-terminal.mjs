@@ -114,7 +114,9 @@ const HUMAN_COMMAND_ROUTES = [
     approvalRequired: true,
     adapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
     packageScript: null,
-    developerCommand: 'node scripts/holoshell-sovereign-room-marathon.mjs --task-lane local --task-tag local --claim --confirm-claim --json',
+    developerCommand: 'node scripts/holoshell-sovereign-room-marathon.mjs --task-lane local --task-tag local --claim --confirm-claim --claim-task-id <selectedTaskId> --json',
+    requiresSelectedTaskId: true,
+    taskSelectionField: 'selectedTaskId',
     reads: ['HoloMesh local room queue', '.tmp/holoshell/operator-terminal.json'],
     writes: ['.tmp/holoshell/sovereign-room-marathon-latest.json', '.tmp/holoshell/sovereign-room-marathon-latest.js'],
     receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
@@ -267,6 +269,8 @@ function routeSummaryForHuman(route) {
     approvalRequired: route.approvalRequired,
     target: route.target,
     receipt: route.receipt,
+    requiresSelectedTaskId: route.requiresSelectedTaskId === true,
+    taskSelectionField: route.taskSelectionField || null,
     exposesRawCommandByDefault: false,
   };
 }
@@ -288,6 +292,8 @@ function routeSummaryForAgent(route) {
     approvalReceipt: route.approvalReceipt || null,
     permissionEnvelope: route.permissionEnvelope,
     approvalRequired: route.approvalRequired,
+    requiresSelectedTaskId: route.requiresSelectedTaskId === true,
+    taskSelectionField: route.taskSelectionField || null,
   };
 }
 

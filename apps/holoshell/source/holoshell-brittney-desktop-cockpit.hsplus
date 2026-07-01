@@ -397,6 +397,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     adapterMaySummarizeOnly: true
     browserMayClaimRoomTask: true
     browserClaimRequiresExplicitLocalConfirmation: true
+    browserClaimRequiresSelectedTaskId: true
     claimMutationScope: "claim_local_room_task_only"
     cloudEscalationAllowed: false
     receiptRequired: true
@@ -529,6 +530,7 @@ composition "HoloShell Brittney Desktop Cockpit" {
     browserMayRefreshReceipt: true
     browserMayClaimRoomTask: true
     browserClaimRequiresExplicitLocalConfirmation: true
+    browserClaimRequiresSelectedTaskId: true
     claimMutationScope: "claim_local_room_task_only"
     completionClaimAllowed: false
     directExecutionAllowed: false

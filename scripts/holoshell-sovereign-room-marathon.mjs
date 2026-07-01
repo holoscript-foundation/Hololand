@@ -22,6 +22,7 @@ Options:
   --task-tag <tag>                 Task tag to match. Default: local
   --cloud-escalation-allowed       Permit cloud-tagged task selection.
   --claim                          Claim the selected task after queue receipt.
+  --claim-task-id <task-id>        Explicit local task id to claim. Required with --claim.
   --confirm-claim                  Explicit local confirmation required with --claim.
   --done, --mark-done              Mark a claimed local task done after evidence gates.
   --done-task-id <task-id>         Claimed local task id to close.
@@ -48,6 +49,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     taskTag: 'local',
     cloudEscalationAllowed: false,
     claim: false,
+    claimTaskId: '',
     confirmClaim: false,
     done: false,
     doneTaskId: '',
@@ -72,6 +74,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
     else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--claim') args.claim = true;
+    else if (arg === '--claim-task-id' || arg === '--selected-task-id') args.claimTaskId = argv[++index] || '';
     else if (arg === '--confirm-claim') args.confirmClaim = true;
     else if (arg === '--done' || arg === '--mark-done') args.done = true;
     else if (arg === '--done-task-id' || arg === '--task-id') args.doneTaskId = argv[++index] || '';
@@ -366,6 +369,26 @@ function validateDoneGate(args, task, executionReceipt) {
   };
 }
 
+function validateClaimGate(args, task) {
+  const blockers = [];
+  const requestedLane = normalizeTag(args.taskLane || 'local');
+  const requestedTag = normalizeTag(args.taskTag || requestedLane);
+  const taskStatus = String(task?.status || '').toLowerCase();
+  if (!args.confirmClaim) blockers.push('local_room_claim_requires_confirmClaim_true');
+  if (!String(args.claimTaskId || '').trim()) blockers.push('local_room_claim_requires_claim_task_id');
+  if (!task) blockers.push('local_room_claim_task_not_found');
+  if (task && task.classification !== 'local') blockers.push('local_room_claim_only_supports_local_tasks');
+  if (task && !task.claimable) blockers.push('local_room_claim_requires_claimable_task');
+  if (task && taskStatus !== 'open') blockers.push('local_room_claim_requires_open_task_status');
+  if (requestedLane !== 'local' || requestedTag === 'cloud') blockers.push('local_room_claim_only_supports_local_lane');
+  if (args.cloudEscalationAllowed) blockers.push('local_room_claim_cannot_use_cloud_escalation');
+  return {
+    allowed: blockers.length === 0,
+    blockers,
+    status: blockers.length === 0 ? 'ready_to_claim' : 'blocked_claim_guard_required',
+  };
+}
+
 function claimSelectedTask(task) {
   const joinScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'codex-team-daemon.mjs');
   const patchScript = path.join(AI_ECOSYSTEM_ROOT, 'scripts', 'room-patch-task.mjs');
@@ -458,22 +481,21 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   const requestedTag = normalizeTag(args.taskTag || requestedLane);
   const cloudRequested = requestedLane === 'cloud' || requestedTag === 'cloud';
   const doneTask = args.done ? findTaskById(queueResult.queue, args.doneTaskId) : null;
+  const claimTask = args.claim ? findTaskById(queueResult.queue, args.claimTaskId) : null;
   const executionReceipt = inspectExecutionReceipt(args.executionReceipt);
   const doneGate = args.done
     ? validateDoneGate(args, doneTask, executionReceipt)
     : { allowed: false, blockers: [], status: 'not_requested' };
   const claimGate = args.claim
-    ? {
-        allowed: args.confirmClaim === true,
-        blockers: args.confirmClaim === true ? [] : ['local_room_claim_requires_confirmClaim_true'],
-        status: args.confirmClaim === true ? 'ready_to_claim' : 'blocked_claim_guard_required',
-      }
+    ? validateClaimGate(args, claimTask)
     : { allowed: false, blockers: [], status: 'not_requested' };
   const candidates = cloudRequested && !args.cloudEscalationAllowed
     ? []
     : selectCandidates(queueResult.queue, args);
-  const selectedTask = doneTask || candidates[0] || null;
-  const displayedCandidates = args.done && doneTask ? [doneTask] : candidates;
+  const selectedTask = doneTask || claimTask || (args.claim ? null : candidates[0]) || null;
+  const displayedCandidates = (args.done && doneTask) || (args.claim && claimTask)
+    ? [selectedTask]
+    : candidates;
   let claimReceipt = {
     status: 'not_requested',
     attempted: false,
@@ -509,7 +531,7 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   } else if (cloudRequested && !args.cloudEscalationAllowed) {
     status = 'blocked_cloud_escalation_receipt_required';
     nextAction = 'emit_cloud_escalation_receipt_before_cloud_task_selection';
-  } else if (selectedTask && args.claim && !claimGate.allowed) {
+  } else if (args.claim && !claimGate.allowed) {
     status = 'blocked_claim_guard_required';
     nextAction = claimGate.blockers[0] || 'provide_explicit_local_claim_confirmation';
   } else if (selectedTask && args.claim && claimReceipt.succeeded) {
@@ -554,6 +576,7 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
       selectedTaskTitle: selectedTask?.title || '',
       selectedTaskTag: selectedTask?.classification || 'unknown',
       claimRequested: Boolean(args.claim),
+      claimTaskIdRequested: String(args.claimTaskId || ''),
       claimConfirmationObserved: Boolean(args.confirmClaim),
       claimAttempted: Boolean(claimReceipt.attempted),
       claimSucceeded: Boolean(claimReceipt.succeeded),
@@ -571,6 +594,17 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
     },
     candidates: displayedCandidates.map(({ raw, ...task }) => task),
     selectedTask: selectedTask ? (({ raw, ...task }) => task)(selectedTask) : null,
+    taskSelection: {
+      claimTaskId: String(args.claimTaskId || ''),
+      doneTaskId: String(args.doneTaskId || ''),
+      selectedTaskId: selectedTask?.id || '',
+      selectionSource: args.done
+        ? 'done-task-id'
+        : args.claim
+          ? 'claim-task-id'
+          : 'candidate-priority',
+      explicitSelectionRequiredForClaim: true,
+    },
     queue: {
       command: queueResult.command,
       stdoutHashPresent: Boolean(queueResult.stdout),
@@ -647,7 +681,7 @@ function assertSelfTest() {
   );
   if (cloudAllowed.summary.selectedTaskId !== 'task_cloud_high') failures.push('expected cloud task only after escalation flag');
   const claimed = buildReceipt(
-    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true, claimTaskId: 'task_local_mid' },
     { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
     () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
   );
@@ -660,6 +694,19 @@ function assertSelfTest() {
   );
   if (blockedClaim.summary.status !== 'blocked_claim_guard_required') failures.push('expected claim guard block without confirmation');
   if (blockedClaim.summary.claimAttempted) failures.push('claim must not attempt without confirmClaim');
+  const blockedMissingClaimTask = buildReceipt(
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+    () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+  );
+  if (blockedMissingClaimTask.summary.claimBlockedReason !== 'local_room_claim_requires_claim_task_id') failures.push('claim must require explicit claimTaskId');
+  if (blockedMissingClaimTask.summary.claimAttempted) failures.push('missing claimTaskId must not attempt claim');
+  const blockedCloudClaimTask = buildReceipt(
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true, claimTaskId: 'task_cloud_high' },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+    () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+  );
+  if (blockedCloudClaimTask.summary.claimBlockedReason !== 'local_room_claim_only_supports_local_tasks') failures.push('local claim must reject cloud target id');
   const done = buildReceipt(
     {
       ...parseArgs([]),

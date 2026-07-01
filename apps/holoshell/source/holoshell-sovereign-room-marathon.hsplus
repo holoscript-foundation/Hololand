@@ -18,6 +18,7 @@ composition "HoloShell Sovereign Room Marathon" {
     roomClaimCommand: "C:/Users/josep/.ai-ecosystem/scripts/room-patch-task.mjs claim <task-id>"
     roomDoneCommand: "C:/Users/josep/.ai-ecosystem/scripts/bullhorn.mjs done <task-id> <commit> --evidence <evidence> --summary <summary>"
     confirmClaimCliFlag: "--confirm-claim"
+    claimTaskIdCliFlag: "--claim-task-id"
     latestReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     browserBootstrap: ".tmp/holoshell/sovereign-room-marathon-latest.js"
     receiptDir: ".tmp/holoshell/sovereign-room-marathons"
@@ -38,6 +39,7 @@ composition "HoloShell Sovereign Room Marathon" {
     selectedTaskTitle: ""
     selectedTaskTag: "unknown"
     claimRequested: false
+    claimTaskIdRequested: ""
     claimConfirmationObserved: false
     claimAttempted: false
     claimSucceeded: false
@@ -103,6 +105,7 @@ composition "HoloShell Sovereign Room Marathon" {
     selectedTaskTitle: ""
     selectedTaskTag: "unknown"
     claimRequested: false
+    claimTaskIdRequested: ""
     claimConfirmationObserved: false
     claimAttempted: false
     claimSucceeded: false
@@ -137,7 +140,12 @@ composition "HoloShell Sovereign Room Marathon" {
     requiresGuardedWorkflowApprovalOrExplicitCliClaim: true
     requiresExplicitLocalClaimConfirmation: true
     requiresConfirmClaimCliFlag: true
+    requiresExplicitClaimTaskId: true
+    requiresClaimTaskIdCliFlag: true
+    requiresClaimableOpenLocalTask: true
     requiresTaskClassificationMatch: true
+    rejectsMissingOrUnknownClaimTaskId: true
+    rejectsCloudTaggedClaimTaskId: true
     boardMutationScope: "claim_local_room_task_only"
     completionClaimAllowed: false
     receiptRequired: true

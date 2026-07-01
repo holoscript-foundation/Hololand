@@ -44,7 +44,7 @@ assert.equal(cloudBlocked.summary.status, 'blocked_cloud_escalation_receipt_requ
 assert.equal(cloudBlocked.summary.selectedTaskId, '');
 
 const claimed = buildReceipt(
-  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true, claimTaskId: 'task_local_mid' },
   fixtureResult,
   () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
 );
@@ -60,6 +60,36 @@ const blockedClaim = buildReceipt(
 assert.equal(blockedClaim.summary.status, 'blocked_claim_guard_required');
 assert.equal(blockedClaim.summary.claimAttempted, false);
 assert.equal(blockedClaim.summary.claimBlockedReason, 'local_room_claim_requires_confirmClaim_true');
+
+const blockedMissingClaimTarget = buildReceipt(
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
+  fixtureResult,
+  () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+);
+assert.equal(blockedMissingClaimTarget.summary.status, 'blocked_claim_guard_required');
+assert.equal(blockedMissingClaimTarget.summary.claimAttempted, false);
+assert.equal(blockedMissingClaimTarget.summary.selectedTaskId, '');
+assert.equal(blockedMissingClaimTarget.summary.claimBlockedReason, 'local_room_claim_requires_claim_task_id');
+
+const blockedUnknownClaimTarget = buildReceipt(
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true, claimTaskId: 'task_missing' },
+  fixtureResult,
+  () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+);
+assert.equal(blockedUnknownClaimTarget.summary.status, 'blocked_claim_guard_required');
+assert.equal(blockedUnknownClaimTarget.summary.claimAttempted, false);
+assert.equal(blockedUnknownClaimTarget.summary.selectedTaskId, '');
+assert.equal(blockedUnknownClaimTarget.summary.claimBlockedReason, 'local_room_claim_task_not_found');
+
+const blockedCloudClaimTarget = buildReceipt(
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true, claimTaskId: 'task_cloud_high' },
+  fixtureResult,
+  () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+);
+assert.equal(blockedCloudClaimTarget.summary.status, 'blocked_claim_guard_required');
+assert.equal(blockedCloudClaimTarget.summary.claimAttempted, false);
+assert.equal(blockedCloudClaimTarget.summary.selectedTaskId, 'task_cloud_high');
+assert.equal(blockedCloudClaimTarget.summary.claimBlockedReason, 'local_room_claim_only_supports_local_tasks');
 
 const blockedDone = buildReceipt(
   {

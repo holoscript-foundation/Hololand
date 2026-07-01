@@ -259,11 +259,15 @@ try {
     intent: 'Claim the selected local sovereign room task.',
     taskLane: 'local',
     taskTag: 'local',
+    selectedTaskId: 'task_local_fixture',
     claim: true,
     confirmLocalClaim: true,
     claimConfirmation: 'local_room_task',
+    queueFixture: sovereignQueueFixture,
   });
   assert.equal(claimedSovereignRoom.summary.status, 'claimed');
+  assert.equal(claimedSovereignRoom.summary.selectedTaskId, 'task_local_fixture');
+  assert.equal(claimedSovereignRoom.summary.claimTaskIdRequested, 'task_local_fixture');
   assert.equal(claimedSovereignRoom.summary.claimRequested, true);
   assert.equal(claimedSovereignRoom.summary.claimAttempted, true);
   assert.equal(claimedSovereignRoom.summary.claimSucceeded, true);
@@ -508,6 +512,8 @@ try {
     card.primaryAction === 'claim_selected_local_room_task' &&
     card.claim === true &&
     card.confirmLocalClaim === true &&
+    card.requiresSelectedTaskId === true &&
+    card.taskSelectionField === 'selectedTaskId' &&
     card.completionClaimAllowed === false
   ));
   assert.ok(capsule.actionCards.some((card) => card.id === 'fara_peer_automation_pulse' && card.href === '/api/fara-peer-chat/automation-pulse'));
