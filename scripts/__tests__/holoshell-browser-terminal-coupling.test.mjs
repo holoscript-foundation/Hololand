@@ -141,12 +141,14 @@ try {
   assert.equal(liveStatus.route.operatorTerminalReportEndpoint, 'POST /api/operator-terminal/report');
   assert.equal(liveStatus.route.operatorTerminalGuardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
   assert.equal(liveStatus.route.operatorTerminalApprovedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(liveStatus.route.operatorTerminalReadOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
   assert.equal(liveStatus.route.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
   assert.ok(liveStatus.capabilities.includes('browser_terminal_coupling'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_session'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_guarded_execute_receipts'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_approved_adapter_execution'));
   assert.ok(liveStatus.capabilities.includes('operator_terminal_approved_adapter_replay_guard'));
+  assert.ok(liveStatus.capabilities.includes('operator_terminal_readonly_adapter_execution'));
   assert.ok(liveStatus.capabilities.includes('browser_session_snapshot'));
 
   const emptyBrowserState = await getJson('/api/browser-session/state');
@@ -162,6 +164,7 @@ try {
   assert.equal(session.browser.status, 'ready');
   assert.equal(session.browser.operatorTerminalSessionEndpoint, 'GET /api/operator-terminal/session');
   assert.equal(session.browser.operatorTerminalApprovedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(session.browser.operatorTerminalReadOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
   assert.equal(session.terminal.status, 'ready');
   assert.equal(session.terminal.receiptStatus, 'fresh');
   assert.equal(session.terminal.receiptHash, 'terminal-test-hash');
@@ -172,11 +175,15 @@ try {
   assert.equal(session.terminal.approvedAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-approved-adapter-execution.v0.1.0');
   assert.equal(session.terminal.approvedAdapterReplayGuard, 'one_approved_adapter_execution_per_guarded_execution_id');
   assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'build_world'));
+  assert.equal(session.terminal.readOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
+  assert.equal(session.terminal.readOnlyAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-readonly-adapter-execution.v0.1.0');
+  assert.ok(session.terminal.readOnlyAdapterAllowlist.some((adapter) => adapter.commandId === 'show_receipts'));
   assert.equal(session.terminal.runCards.length, 4);
   assert.equal(session.runCards.length, 4);
   assert.equal(session.runCards[0].label, 'Refresh Terminal Receipt');
   assert.equal(session.runCards[0].browserMayExecuteCommand, false);
   assert.equal(session.runCards[0].endpointExecutesCommand, false);
+  assert.equal(session.runCards[0].endpointExecutesReadOnlyAdapter, false);
   const buildWorldCard = session.runCards.find((card) => card.id === 'terminal_run_card:build_world');
   assert.equal(buildWorldCard.endpointExecutesCommand, false);
   assert.equal(buildWorldCard.endpointStagesGuardedExecutionReceipt, true);
@@ -184,7 +191,17 @@ try {
   assert.equal(buildWorldCard.approvedAdapterAvailable, true);
   assert.equal(buildWorldCard.approvedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
   assert.equal(buildWorldCard.endpointExecutesApprovedAdapter, false);
+  assert.equal(buildWorldCard.readOnlyAdapterAvailable, false);
+  assert.equal(buildWorldCard.endpointExecutesReadOnlyAdapter, false);
   assert.equal(buildWorldCard.endpointExecutesRawCommand, false);
+  const showReceiptsCard = session.runCards.find((card) => card.id === 'terminal_run_card:show_receipts');
+  assert.equal(showReceiptsCard.endpointExecutesCommand, false);
+  assert.equal(showReceiptsCard.endpointStagesGuardedExecutionReceipt, false);
+  assert.equal(showReceiptsCard.approvedAdapterAvailable, false);
+  assert.equal(showReceiptsCard.readOnlyAdapterAvailable, true);
+  assert.equal(showReceiptsCard.readOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
+  assert.equal(showReceiptsCard.endpointExecutesReadOnlyAdapter, false);
+  assert.equal(showReceiptsCard.endpointExecutesRawCommand, false);
   assert.equal(session.symbiosis.mode, 'always_on_native_terminal_plus_browser');
   assert.equal(session.symbiosis.browserMayExecuteTerminalCommand, false);
   assert.equal(session.symbiosis.endpointMayExecuteTerminalCommand, false);
@@ -192,6 +209,8 @@ try {
   assert.equal(session.symbiosis.endpointMayExecuteApprovedAdapter, true);
   assert.equal(session.symbiosis.approvedAdapterRequiresFreshGuardedReceipt, true);
   assert.equal(session.symbiosis.approvedAdapterReplayGuard, 'one_approved_adapter_execution_per_guarded_execution_id');
+  assert.equal(session.symbiosis.endpointMayExecuteReadOnlyAdapter, true);
+  assert.equal(session.symbiosis.readOnlyAdapterRequiresFreshOperatorTerminalReceipt, true);
   assert.equal(session.refreshRecovery.status, 'enabled');
   assert.equal(session.refreshRecovery.browserStateKey, 'holoshell:brittney:browser-session:v1');
   assert.equal(session.refreshRecovery.browserSessionStateEndpoint, 'GET/POST /api/browser-session/state?sessionId=:sessionId');
@@ -210,11 +229,49 @@ try {
   assert.equal(session.safety.endpointMayExecuteApprovedAdapter, true);
   assert.equal(session.safety.approvedAdapterRequiresFreshGuardedReceipt, true);
   assert.equal(session.safety.approvedAdapterReplayGuard, 'one_approved_adapter_execution_per_guarded_execution_id');
+  assert.equal(session.safety.endpointMayExecuteReadOnlyAdapter, true);
+  assert.equal(session.safety.readOnlyAdapterRequiresFreshOperatorTerminalReceipt, true);
   assert.equal(session.safety.terminalSpawnedByEndpoint, false);
   assert.equal(session.safety.adapterProcessMaySpawnFromEndpoint, true);
   assert.equal(session.destructiveActionsTaken, false);
   assert.equal(session.desktopAutomationExecuted, false);
   assert.match(session.nextSafeStep, /browser for Brittney chat and approvals/);
+
+  const rejectedReadOnlyExecution = await postJsonExpectStatus('/api/operator-terminal/run-readonly', {
+    commandId: 'show_receipts',
+    reason: 'missing read-only adapter confirmation',
+  }, 403);
+  assert.equal(rejectedReadOnlyExecution.status, 'confirmation_required');
+  assert.equal(rejectedReadOnlyExecution.reason, 'readonly_operator_terminal_adapter_execution_requires_confirmation');
+  assert.equal(rejectedReadOnlyExecution.executionAllowed, false);
+  assert.equal(rejectedReadOnlyExecution.endpointExecutesReadOnlyAdapter, false);
+  assert.equal(rejectedReadOnlyExecution.endpointExecutesRawCommand, false);
+  assert.equal(rejectedReadOnlyExecution.destructiveActionsTaken, false);
+
+  const readOnlyAdapterExecution = await postJson('/api/operator-terminal/run-readonly', {
+    commandId: 'show_receipts',
+    confirmReadOnlyAdapterExecution: true,
+    reason: 'show receipts from browser run card',
+  });
+  assert.equal(readOnlyAdapterExecution.schemaVersion, 'hololand.holoshell.operator-terminal-readonly-adapter-execution.v0.1.0');
+  assert.equal(readOnlyAdapterExecution.status, 'readonly_adapter_executed');
+  assert.equal(readOnlyAdapterExecution.commandId, 'show_receipts');
+  assert.equal(readOnlyAdapterExecution.executionAllowed, true);
+  assert.equal(readOnlyAdapterExecution.endpointExecutesCommand, false);
+  assert.equal(readOnlyAdapterExecution.endpointExecutesReadOnlyAdapter, true);
+  assert.equal(readOnlyAdapterExecution.endpointExecutesRawCommand, false);
+  assert.equal(readOnlyAdapterExecution.adapterSpawned, true);
+  assert.equal(readOnlyAdapterExecution.destructiveActionsTaken, false);
+  assert.equal(readOnlyAdapterExecution.desktopAutomationExecuted, false);
+  assert.equal(readOnlyAdapterExecution.receipt.adapter.ok, true);
+  assert.equal(readOnlyAdapterExecution.receipt.adapter.allowedByServerAllowlist, true);
+  assert.equal(readOnlyAdapterExecution.receipt.adapter.receiptObserved, true);
+  assert.equal(readOnlyAdapterExecution.receipt.terminalReceipt.fresh, true);
+  assert.equal(readOnlyAdapterExecution.receipt.execution.browserMayExecuteTerminalCommand, false);
+  assert.equal(readOnlyAdapterExecution.receipt.execution.endpointExecutesReadOnlyAdapter, true);
+  assert.equal(readOnlyAdapterExecution.receipt.execution.endpointExecutesRawCommand, false);
+  assert.match(readFileSync(join(tempDir, 'operator-terminal-readonly-execution-latest.json'), 'utf8'), /show_receipts/);
+  assert.match(readFileSync(join(tempDir, 'receipt-control-latest.json'), 'utf8'), /hololand.holoshell.receipt-control.v0.1.0/);
 
   const reported = await postJson('/api/operator-terminal/report', {
     schemaVersion: 'hololand.holoshell.operator-terminal.v0.1.0',

@@ -24,6 +24,7 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalReportEndpoint: "POST /api/operator-terminal/report"
     guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
+    readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
     guardedExecuteMaxAgeMs: 600000
     cockpitEndpoint: "GET /api/cockpit/capsule"
     browserSessionStateEndpoint: "GET/POST /api/browser-session/state?sessionId=:sessionId"
@@ -31,6 +32,7 @@ composition "HoloShell Browser Terminal Coupling" {
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
+    readOnlyAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-readonly-execution-latest.json"
     terminalRefreshCommand: "pnpm run holoshell:operator-terminal -- --agent --json"
     laptopReceiptFreshnessCommand: "pnpm run holoshell:laptop-receipt-freshness -- --watch --interval-ms 60000 --timeout-ms 60000 --json"
     receiptFreshnessWatchLog: ".tmp/holoshell/laptop-receipt-freshness-watch.log"
@@ -58,6 +60,8 @@ composition "HoloShell Browser Terminal Coupling" {
     endpointMayExecuteApprovedAdapter: true
     approvedAdapterRequiresFreshGuardedReceipt: true
     approvedAdapterReplayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
+    endpointMayExecuteReadOnlyAdapter: true
+    readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true
     destructiveActionsTaken: false
     desktopAutomationExecuted: false
   }
@@ -128,6 +132,9 @@ composition "HoloShell Browser Terminal Coupling" {
     approvedAdapterAvailable: false
     approvedAdapterExecuteEndpoint: ""
     endpointExecutesApprovedAdapter: false
+    readOnlyAdapterAvailable: false
+    readOnlyAdapterExecuteEndpoint: ""
+    endpointExecutesReadOnlyAdapter: false
     endpointExecutesRawCommand: false
     receiptRequired: true
   }
@@ -177,6 +184,7 @@ composition "HoloShell Browser Terminal Coupling" {
     endpointMayExecuteTerminalCommand: false
     endpointMayStageGuardedExecutionReceipt: true
     endpointMayExecuteApprovedAdapter: true
+    endpointMayExecuteReadOnlyAdapter: true
     receiptRequired: true
   }
 
@@ -206,6 +214,24 @@ composition "HoloShell Browser Terminal Coupling" {
     developerCommandMayNotBeExecutedFromReceipt: true
     endpointMayExecuteTerminalCommand: false
     endpointMayExecuteApprovedAdapter: true
+    endpointMayExecuteRawCommand: false
+    adapterSpawnedByEndpoint: true
+    browserMayExecuteTerminalCommand: false
+    destructiveActionsTaken: false
+    desktopAutomationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyTerminalAdapterExecutionRunsReceipts" {
+    appliesTo: ["operator_terminal_readonly_adapter_execution", "show_agents", "show_receipts"]
+    readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
+    terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    readOnlyAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-readonly-execution-latest.json"
+    allowedMutation: "run_server_allowlisted_read_only_adapter_and_write_execution_receipt"
+    requiredBeforeAdapter: ["commandId", "fresh_operator_terminal_receipt", "confirmReadOnlyAdapterExecution", "server_allowlisted_read_only_adapter"]
+    allowlistedAdaptersOnly: true
+    endpointMayExecuteTerminalCommand: false
+    endpointMayExecuteReadOnlyAdapter: true
     endpointMayExecuteRawCommand: false
     adapterSpawnedByEndpoint: true
     browserMayExecuteTerminalCommand: false
@@ -252,8 +278,10 @@ composition "HoloShell Browser Terminal Coupling" {
     browserMayExecuteTerminalCommand: false
     endpointMayExecuteTerminalCommand: false
     endpointMayExecuteApprovedAdapter: true
+    endpointMayExecuteReadOnlyAdapter: true
     approvedAdapterRequiresFreshGuardedReceipt: true
     approvedAdapterReplayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
+    readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true
     receiptRequired: true
   }
 
@@ -290,6 +318,7 @@ composition "HoloShell Browser Terminal Coupling" {
     browserMayExecuteRunCardsDirectly: false
     endpointMayExecuteTerminalCommand: false
     endpointMayExecuteApprovedAdapter: true
+    endpointMayExecuteReadOnlyAdapter: true
     receiptRequired: true
   }
 
@@ -313,6 +342,8 @@ composition "HoloShell Browser Terminal Coupling" {
     state.endpointMayExecuteApprovedAdapter = session.safety.endpointMayExecuteApprovedAdapter
     state.approvedAdapterRequiresFreshGuardedReceipt = session.safety.approvedAdapterRequiresFreshGuardedReceipt
     state.approvedAdapterReplayGuard = session.safety.approvedAdapterReplayGuard
+    state.endpointMayExecuteReadOnlyAdapter = session.safety.endpointMayExecuteReadOnlyAdapter
+    state.readOnlyAdapterRequiresFreshOperatorTerminalReceipt = session.safety.readOnlyAdapterRequiresFreshOperatorTerminalReceipt
     state.destructiveActionsTaken = session.destructiveActionsTaken
     state.desktopAutomationExecuted = session.desktopAutomationExecuted
 
@@ -337,6 +368,8 @@ composition "HoloShell Browser Terminal Coupling" {
       endpoint_may_execute_approved_adapter: state.endpointMayExecuteApprovedAdapter,
       approved_adapter_requires_fresh_guarded_receipt: state.approvedAdapterRequiresFreshGuardedReceipt,
       approved_adapter_replay_guard: state.approvedAdapterReplayGuard,
+      endpoint_may_execute_read_only_adapter: state.endpointMayExecuteReadOnlyAdapter,
+      read_only_adapter_requires_fresh_operator_terminal_receipt: state.readOnlyAdapterRequiresFreshOperatorTerminalReceipt,
       destructive_actions_taken: state.destructiveActionsTaken,
       desktop_automation_executed: state.desktopAutomationExecuted,
       receipt_required: true

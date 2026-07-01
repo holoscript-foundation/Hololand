@@ -298,6 +298,18 @@ function Test-JetsonChatWrapperParity {
       RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-workflow-approval-bundle.mjs'
     },
     @{
+      Name = 'agent-lanes'
+      RelativePath = 'scripts/holoshell-agent-lanes.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-agent-lanes.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-agent-lanes.mjs'
+    },
+    @{
+      Name = 'receipt-control'
+      RelativePath = 'scripts/holoshell-receipt-control.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-receipt-control.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-receipt-control.mjs'
+    },
+    @{
       Name = 'browser-terminal-coupling-source'
       RelativePath = 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus'
       LocalPath = Join-Path $Hololand 'apps\holoshell\source\holoshell-browser-terminal-coupling.hsplus'
@@ -413,6 +425,8 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'scripts\holoshell-terminal-event-stream.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-workflow-approval-bundle.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-agent-lanes.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-receipt-control.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-operator-terminal.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-desktop-control-plan.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-agent-dispatch.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },

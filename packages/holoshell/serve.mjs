@@ -70,6 +70,13 @@ const OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT =
 const OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR =
   process.env.HOLOSHELL_OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR ||
   join(HOLOSHELL_TMP_DIR, 'operator-terminal-approved-execution');
+const OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA = 'hololand.holoshell.operator-terminal-readonly-adapter-execution.v0.1.0';
+const OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT ||
+  join(HOLOSHELL_TMP_DIR, 'operator-terminal-readonly-execution-latest.json');
+const OPERATOR_TERMINAL_READONLY_EXECUTION_DIR =
+  process.env.HOLOSHELL_OPERATOR_TERMINAL_READONLY_EXECUTION_DIR ||
+  join(HOLOSHELL_TMP_DIR, 'operator-terminal-readonly-execution');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
 const OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS =
@@ -95,6 +102,28 @@ const OPERATOR_TERMINAL_APPROVED_ADAPTERS = {
     output: join(HOLOSHELL_TMP_DIR, 'workflow-approval-latest.json'),
     jsOutput: join(HOLOSHELL_TMP_DIR, 'workflow-approval-latest.js'),
     bundleDir: join(HOLOSHELL_TMP_DIR, 'workflow-approval-bundles'),
+    timeoutMs: 60_000,
+  },
+};
+const OPERATOR_TERMINAL_READONLY_ADAPTERS = {
+  show_agents: {
+    label: 'Show Agents',
+    adapter: 'scripts/holoshell-agent-lanes.mjs',
+    args: ['--json'],
+    permissionEnvelope: 'read_only',
+    receipt: '.tmp/holoshell/agent-lanes.json',
+    output: join(HOLOSHELL_TMP_DIR, 'agent-lanes.json'),
+    timeoutMs: 60_000,
+  },
+  show_receipts: {
+    label: 'Show Receipts',
+    adapter: 'scripts/holoshell-receipt-control.mjs',
+    args: ['--json', '--source', OPERATOR_TERMINAL_RECEIPT],
+    permissionEnvelope: 'read_only',
+    receipt: '.tmp/holoshell/receipt-control-latest.json',
+    output: join(HOLOSHELL_TMP_DIR, 'receipt-control-latest.json'),
+    jsOutput: join(HOLOSHELL_TMP_DIR, 'receipt-control-latest.js'),
+    receiptDir: join(HOLOSHELL_TMP_DIR, 'receipt-control-receipts'),
     timeoutMs: 60_000,
   },
 };
@@ -2867,6 +2896,241 @@ function writeOperatorTerminalApprovedAdapterExecutionReceipt(receipt) {
   return withOutput;
 }
 
+function operatorTerminalReadOnlyAdapterForCommand(commandId) {
+  const id = safeOperatorTerminalId(commandId, '');
+  if (!Object.prototype.hasOwnProperty.call(OPERATOR_TERMINAL_READONLY_ADAPTERS, id)) return null;
+  return {
+    id,
+    ...OPERATOR_TERMINAL_READONLY_ADAPTERS[id],
+  };
+}
+
+function operatorTerminalReadOnlyAdapterCatalog() {
+  return Object.keys(OPERATOR_TERMINAL_READONLY_ADAPTERS).map((commandId) => {
+    const adapter = operatorTerminalReadOnlyAdapterForCommand(commandId);
+    return {
+      commandId,
+      label: adapter.label,
+      adapter: adapter.adapter,
+      permissionEnvelope: adapter.permissionEnvelope,
+      receipt: adapter.receipt,
+      timeoutMs: adapter.timeoutMs,
+    };
+  });
+}
+
+function buildReadOnlyAdapterCliArgs(adapter) {
+  const args = [adapter.adapter, ...safeArray(adapter.args)];
+  if (adapter.output) args.push('--output', adapter.output);
+  if (adapter.jsOutput) args.push('--js-output', adapter.jsOutput);
+  if (adapter.receiptDir) args.push('--receipt-dir', adapter.receiptDir);
+  return args;
+}
+
+function operatorTerminalReadOnlyExecutionError(statusCode, reason, extra = {}) {
+  const error = new Error(reason);
+  error.statusCode = statusCode;
+  error.response = {
+    schemaVersion: OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA,
+    status: statusCode === 403 ? 'confirmation_required' : 'rejected',
+    reason,
+    executionAllowed: false,
+    endpointExecutesCommand: false,
+    endpointExecutesReadOnlyAdapter: false,
+    endpointExecutesRawCommand: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+    receiptRequired: true,
+    ...extra,
+  };
+  return error;
+}
+
+function assertFreshOperatorTerminalReceiptForReadOnlyExecution() {
+  const receipt = readJsonFileIfPresent(OPERATOR_TERMINAL_RECEIPT);
+  const receiptAgeMs = fileAgeMs(OPERATOR_TERMINAL_RECEIPT);
+  const receiptObserved = receipt?.schemaVersion === OPERATOR_TERMINAL_RECEIPT_SCHEMA;
+  const receiptFresh = receiptObserved && (receiptAgeMs === null || receiptAgeMs <= OPERATOR_TERMINAL_FRESHNESS_MS);
+  if (!receiptFresh) {
+    throw operatorTerminalReadOnlyExecutionError(409, 'operator_terminal_receipt_not_fresh', {
+      receiptObserved,
+      receiptAgeMs,
+      freshnessMs: OPERATOR_TERMINAL_FRESHNESS_MS,
+      required: ['fresh_operator_terminal_receipt'],
+    });
+  }
+  return { receipt, receiptAgeMs };
+}
+
+function buildOperatorTerminalReadOnlyAdapterExecutionReceipt(payload = {}) {
+  const { receipt: terminalReceipt, receiptAgeMs } = assertFreshOperatorTerminalReceiptForReadOnlyExecution();
+  const command = findOperatorTerminalCommand(payload.commandId || payload.label);
+  if (!command) {
+    throw operatorTerminalReadOnlyExecutionError(404, 'operator_terminal_command_not_found', {
+      commandId: safeOperatorTerminalId(payload.commandId || payload.label, ''),
+    });
+  }
+
+  const adapter = operatorTerminalReadOnlyAdapterForCommand(command.id);
+  if (!adapter) {
+    throw operatorTerminalReadOnlyExecutionError(403, 'operator_terminal_command_not_approved_for_readonly_adapter_execution', {
+      commandId: command.id,
+      allowlistedCommandIds: Object.keys(OPERATOR_TERMINAL_READONLY_ADAPTERS),
+    });
+  }
+
+  const envelope = String(command.permissionEnvelope || '').toLowerCase();
+  if (!envelope.includes('read_only')) {
+    throw operatorTerminalReadOnlyExecutionError(403, 'operator_terminal_command_is_not_read_only', {
+      commandId: command.id,
+      permissionEnvelope: command.permissionEnvelope,
+    });
+  }
+
+  if (payload.confirmReadOnlyAdapterExecution !== true) {
+    throw operatorTerminalReadOnlyExecutionError(403, 'readonly_operator_terminal_adapter_execution_requires_confirmation', {
+      commandId: command.id,
+      required: ['confirmReadOnlyAdapterExecution:true'],
+    });
+  }
+
+  const generatedAt = new Date().toISOString();
+  const readOnlyExecutionId = `otrx_${Date.now().toString(36)}_${safeOperatorTerminalId(command.id, 'command')}`;
+  const childArgs = buildReadOnlyAdapterCliArgs(adapter);
+  const startedAt = new Date().toISOString();
+  let stdout = '';
+  let stderr = '';
+  let exitCode = 0;
+  let adapterOk = true;
+
+  try {
+    stdout = execFileSync(process.execPath, childArgs, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: adapter.timeoutMs,
+      maxBuffer: 5 * 1024 * 1024,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        HOLOSHELL_OPERATOR_TERMINAL_READONLY_EXECUTION: '1',
+        HOLOSHELL_OPERATOR_TERMINAL_READONLY_EXECUTION_ID: readOnlyExecutionId,
+      },
+    });
+  } catch (error) {
+    adapterOk = false;
+    exitCode = Number.isInteger(error.status) ? error.status : 1;
+    stdout = String(error.stdout || '');
+    stderr = String(error.stderr || error.message || '');
+  }
+
+  const completedAt = new Date().toISOString();
+  const adapterReceiptPath = resolveRepoFilePath(adapter.output || adapter.receipt || command.receipt);
+  const adapterReceipt = readJsonFileIfPresent(adapterReceiptPath);
+  return {
+    schemaVersion: OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA,
+    source: OPERATOR_TERMINAL_COUPLING_SOURCE,
+    generatedAt,
+    readOnlyExecutionId,
+    sessionId: sharedHoloShellSessionId(),
+    status: adapterOk ? 'readonly_adapter_executed' : 'readonly_adapter_failed',
+    command: {
+      id: command.id,
+      label: command.label || adapter.label,
+      flow: command.flow || 'operator_terminal',
+      target: command.target || '',
+      permissionEnvelope: command.permissionEnvelope || adapter.permissionEnvelope,
+      approvalRequired: false,
+      adapter: adapter.adapter,
+      receipt: adapter.receipt,
+    },
+    terminalReceipt: {
+      path: OPERATOR_TERMINAL_RECEIPT,
+      receiptHash: terminalReceipt?.receipt?.terminalHash || null,
+      ageMs: receiptAgeMs,
+      freshnessMs: OPERATOR_TERMINAL_FRESHNESS_MS,
+      fresh: true,
+    },
+    confirmation: {
+      confirmedAt: generatedAt,
+      confirmReadOnlyAdapterExecution: true,
+    },
+    adapter: {
+      id: adapter.id,
+      label: adapter.label,
+      script: adapter.adapter,
+      allowedByServerAllowlist: true,
+      startedAt,
+      completedAt,
+      ok: adapterOk,
+      exitCode,
+      timeoutMs: adapter.timeoutMs,
+      stdoutPreview: truncateOperatorTerminalText(stdout),
+      stderrPreview: truncateOperatorTerminalText(stderr),
+      receiptPath: adapterReceiptPath,
+      receiptObserved: Boolean(adapterReceipt),
+      receiptSchemaVersion: adapterReceipt?.schemaVersion || null,
+    },
+    execution: {
+      lane: 'operator_terminal_readonly_adapter_execution',
+      executionAllowed: true,
+      endpointExecutesCommand: false,
+      endpointExecutesReadOnlyAdapter: true,
+      endpointExecutesRawCommand: false,
+      adapterSpawned: true,
+      browserMayExecuteTerminalCommand: false,
+      rawCommandHiddenFromHuman: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+    },
+    safety: {
+      directTerminalMutationAllowed: false,
+      terminalSpawnedByEndpoint: false,
+      adapterProcessSpawnedByEndpoint: true,
+      freshOperatorTerminalReceiptRequired: true,
+      destructiveActionsTaken: false,
+      desktopAutomationExecuted: false,
+      rawSecretsIncluded: false,
+      rawCommandsIncludedForHuman: false,
+      receiptRequired: true,
+    },
+  };
+}
+
+function writeOperatorTerminalReadOnlyAdapterExecutionReceipt(receipt) {
+  mkdirSync(OPERATOR_TERMINAL_READONLY_EXECUTION_DIR, { recursive: true });
+  const archivePath = join(OPERATOR_TERMINAL_READONLY_EXECUTION_DIR, `${receipt.readOnlyExecutionId}.json`);
+  const withOutput = {
+    ...receipt,
+    output: {
+      latestPath: writeJsonFile(OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT, receipt),
+      archivePath: writeJsonFile(archivePath, receipt),
+    },
+  };
+  writeJsonFile(OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT, withOutput);
+  writeJsonFile(archivePath, withOutput);
+  mkdirSync(dirname(OPERATOR_TERMINAL_EVENT_LOG), { recursive: true });
+  appendFileSync(OPERATOR_TERMINAL_EVENT_LOG, `${JSON.stringify({
+    schemaVersion: 'hololand.holoshell.terminal-event.v0.1.0',
+    eventId: `ote_${receipt.readOnlyExecutionId}`,
+    sessionId: receipt.sessionId,
+    receiptHash: receipt.readOnlyExecutionId,
+    sourceReceipt: OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT,
+    source: OPERATOR_TERMINAL_COUPLING_SOURCE,
+    generatedAt: receipt.generatedAt,
+    type: 'readonly_adapter_execution',
+    lifecycle: receipt.status,
+    severity: receipt.status === 'readonly_adapter_executed' ? 'info' : 'error',
+    summary: `Read-only operator-terminal adapter ${receipt.command.label} ${receipt.status}.`,
+    commandId: receipt.command.id,
+    readOnlyExecutionId: receipt.readOnlyExecutionId,
+    endpointExecutesReadOnlyAdapter: true,
+    endpointExecutesRawCommand: false,
+    destructiveActionsTaken: false,
+    desktopAutomationExecuted: false,
+  })}\n`, 'utf8');
+  return withOutput;
+}
+
 function normalizeWindowAwarenessReport(payload = {}) {
   const incoming = unwrapSchemaPayload(payload, LEGACY_WINDOW_INVENTORY_SCHEMA, ['receipt', 'windowInventory']);
   if (incoming.schemaVersion !== LEGACY_WINDOW_INVENTORY_SCHEMA) {
@@ -3596,6 +3860,7 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
       intentClass: 'guarded_execute',
     });
     const approvedAdapter = operatorTerminalApprovedAdapterForCommand(command.id);
+    const readOnlyAdapter = operatorTerminalReadOnlyAdapterForCommand(command.id);
     return {
       id: `terminal_run_card:${command.id || command.label}`,
       label: command.label || command.id || 'Terminal evidence',
@@ -3613,6 +3878,9 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
       approvedAdapterAvailable: Boolean(approvedAdapter),
       approvedAdapterExecuteEndpoint: approvedAdapter ? 'POST /api/operator-terminal/run-approved' : null,
       endpointExecutesApprovedAdapter: false,
+      readOnlyAdapterAvailable: Boolean(readOnlyAdapter),
+      readOnlyAdapterExecuteEndpoint: readOnlyAdapter ? 'POST /api/operator-terminal/run-readonly' : null,
+      endpointExecutesReadOnlyAdapter: false,
       endpointExecutesRawCommand: false,
       receiptRequired: true,
       receiptHash: receiptHash || null,
@@ -3632,6 +3900,13 @@ function terminalRunCardsFromCommands(commands, { terminalStatus, receiptHash })
     endpointExecutesCommand: false,
     endpointStagesGuardedExecutionReceipt: false,
     guardedExecuteEndpoint: null,
+    approvedAdapterAvailable: false,
+    approvedAdapterExecuteEndpoint: null,
+    endpointExecutesApprovedAdapter: false,
+    readOnlyAdapterAvailable: false,
+    readOnlyAdapterExecuteEndpoint: null,
+    endpointExecutesReadOnlyAdapter: false,
+    endpointExecutesRawCommand: false,
     receiptRequired: true,
     command: OPERATOR_TERMINAL_REFRESH_COMMAND,
     receiptHash: receiptHash || null,
@@ -3689,6 +3964,7 @@ function buildOperatorTerminalSession() {
       operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       operatorTerminalGuardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
       operatorTerminalApprovedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
+      operatorTerminalReadOnlyAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-readonly',
       permissionEnvelope: 'read_only',
       mayMutateWithoutConsent: false,
     },
@@ -3716,6 +3992,10 @@ function buildOperatorTerminalSession() {
       approvedAdapterExecutionSchema: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
       approvedAdapterAllowlist: operatorTerminalApprovedAdapterCatalog(),
       approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
+      readOnlyAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-readonly',
+      readOnlyAdapterExecutionReceipt: OPERATOR_TERMINAL_READONLY_EXECUTION_RECEIPT,
+      readOnlyAdapterExecutionSchema: OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA,
+      readOnlyAdapterAllowlist: operatorTerminalReadOnlyAdapterCatalog(),
       eventStreamStatus: terminalEventStream.status,
       eventStreamEventCount: terminalEventStream.eventCount,
       eventLog: terminalEventStream.eventLog,
@@ -3754,6 +4034,8 @@ function buildOperatorTerminalSession() {
       endpointMayExecuteApprovedAdapter: true,
       approvedAdapterRequiresFreshGuardedReceipt: true,
       approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
+      endpointMayExecuteReadOnlyAdapter: true,
+      readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true,
     },
     refreshRecovery: {
       status: 'enabled',
@@ -3814,6 +4096,20 @@ function buildOperatorTerminalSession() {
         required: ['executionId', 'fresh_guarded_execution_receipt', 'not_previously_consumed', 'commandId', 'confirmApprovedAdapterExecution:true', 'approvalReceipt|approvalId|approvalHash'],
       },
       {
+        id: 'run_readonly_operator_terminal_adapter',
+        label: 'Run Read-Only Adapter',
+        method: 'POST',
+        href: '/api/operator-terminal/run-readonly',
+        lane: 'operator_terminal_readonly_adapter_execution',
+        permissionEnvelope: 'read_only',
+        mayExecuteWithoutConsent: false,
+        endpointExecutesCommand: false,
+        endpointExecutesReadOnlyAdapter: true,
+        endpointExecutesRawCommand: false,
+        receiptRequired: true,
+        required: ['commandId', 'fresh_operator_terminal_receipt', 'confirmReadOnlyAdapterExecution:true'],
+      },
+      {
         id: 'open_browser_cockpit',
         label: 'Open Browser Cockpit',
         method: 'GET',
@@ -3834,6 +4130,8 @@ function buildOperatorTerminalSession() {
       endpointMayExecuteApprovedAdapter: true,
       approvedAdapterRequiresFreshGuardedReceipt: true,
       approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
+      endpointMayExecuteReadOnlyAdapter: true,
+      readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true,
       terminalSpawnedByEndpoint: false,
       adapterProcessMaySpawnFromEndpoint: true,
       terminalMutationRequires: ['identify', 'scope', 'preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt', 'log'],
@@ -3845,7 +4143,7 @@ function buildOperatorTerminalSession() {
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     nextSafeStep: terminalStatus === 'ready'
-      ? 'Use the browser for Brittney chat and approvals; stage guarded operator-terminal execution, then run only approved local adapters with a second confirmation.'
+      ? 'Use the browser for Brittney chat and approvals; run read-only cards with explicit confirmation, and keep mutations behind staged guarded receipts plus a second adapter confirmation.'
       : `Refresh the read-only terminal receipt with ${OPERATOR_TERMINAL_REFRESH_COMMAND}, then keep mutations behind preflight -> consent-token -> receipt.`,
   };
 }
@@ -3881,6 +4179,7 @@ function buildLiveStatusSnapshot() {
       operatorTerminalEventsEndpoint: 'GET /api/operator-terminal/events',
       operatorTerminalGuardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
       operatorTerminalApprovedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
+      operatorTerminalReadOnlyAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-readonly',
       desktopControlEndpoint: 'POST /api/desktop-control/plan',
       desktopBridgeEndpoint: 'GET /api/desktop-control/bridge',
       desktopBridgeReportEndpoint: 'POST /api/desktop-control/bridge/report',
@@ -3921,6 +4220,7 @@ function buildLiveStatusSnapshot() {
       'operator_terminal_guarded_execute_receipts',
       'operator_terminal_approved_adapter_execution',
       'operator_terminal_approved_adapter_replay_guard',
+      'operator_terminal_readonly_adapter_execution',
       'browser_refresh_evidence_rehydration',
       'browser_session_snapshot',
       'fara_brittney_peer_chat',
@@ -3958,6 +4258,7 @@ function buildLiveStatusSnapshot() {
       { id: 'sovereign_room_marathon', model: 'local sovereign room queue', role: 'local tagged HoloMesh room receipt and claim boundary' },
       { id: 'operator_terminal_guarded_execute', model: 'local HoloShell receipts', role: 'confirmation-bound operator terminal capability staging' },
       { id: 'operator_terminal_approved_adapter_execution', model: 'local HoloShell allowlisted adapters', role: 'receipt-bound approved adapter execution' },
+      { id: 'operator_terminal_readonly_adapter_execution', model: 'local HoloShell read-only adapters', role: 'browser-triggered read-only run cards with receipts' },
       { id: 'holoclaw_skills', model: 'HoloClaw skill shelf', role: 'native skill execution routes' },
       { id: 'holoclaw_runtime', model: 'HoloClaw AgentRunner', role: 'consent-gated HoloScript agent runtime bridge' },
       { id: 'codebase_fix', model: 'Codex/local agent seats', role: 'actual patch, validation, and commit-backed shakedown work' },
@@ -5374,6 +5675,49 @@ async function handleRequest(req, res) {
           executionAllowed: false,
           endpointExecutesCommand: false,
           endpointExecutesApprovedAdapter: false,
+          endpointExecutesRawCommand: false,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+        }, err.statusCode || 400);
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/api/operator-terminal/run-readonly') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const receipt = writeOperatorTerminalReadOnlyAdapterExecutionReceipt(
+          buildOperatorTerminalReadOnlyAdapterExecutionReceipt(payload)
+        );
+        respond(res, {
+          schemaVersion: OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA,
+          status: receipt.status,
+          readOnlyExecutionId: receipt.readOnlyExecutionId,
+          commandId: receipt.command.id,
+          permissionEnvelope: receipt.command.permissionEnvelope,
+          executionAllowed: receipt.execution.executionAllowed,
+          endpointExecutesCommand: false,
+          endpointExecutesReadOnlyAdapter: true,
+          endpointExecutesRawCommand: false,
+          adapterSpawned: receipt.execution.adapterSpawned,
+          destructiveActionsTaken: false,
+          desktopAutomationExecuted: false,
+          receiptRequired: true,
+          receipt,
+        }, receipt.adapter.ok ? 200 : 500);
+      } catch (err) {
+        respond(res, err.response || {
+          schemaVersion: OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA,
+          status: 'error',
+          error: String(err.message || err).slice(0, 300),
+          executionAllowed: false,
+          endpointExecutesCommand: false,
+          endpointExecutesReadOnlyAdapter: false,
           endpointExecutesRawCommand: false,
           destructiveActionsTaken: false,
           desktopAutomationExecuted: false,

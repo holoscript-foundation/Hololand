@@ -7,6 +7,7 @@ const root = process.cwd();
 const files = {
   source: 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus',
   browserTerminalSource: 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus',
+  operatorTerminalSource: 'apps/holoshell/source/holoshell-operator-terminal.hsplus',
   chatSource: 'apps/holoshell/source/holoshell-brittney-operator-chat.hsplus',
   launch: 'scripts/brittney-studio-launch.ps1',
   gateway: 'scripts/start-brittney.ts',
@@ -30,6 +31,7 @@ function requireIncludes(label, text, snippets, failures) {
 
 const source = read(files.source);
 const browserTerminalSource = read(files.browserTerminalSource);
+const operatorTerminalSource = read(files.operatorTerminalSource);
 const chatSource = read(files.chatSource);
 const launch = read(files.launch);
 const gateway = read(files.gateway);
@@ -79,12 +81,24 @@ requireIncludes('desktop cockpit source', source, [
 requireIncludes('browser-terminal source', browserTerminalSource, [
   'guardedExecuteEndpoint: "POST /api/operator-terminal/execute"',
   'approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"',
+  'readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"',
   'endpointMayStageGuardedExecutionReceipt: true',
   'endpointMayExecuteApprovedAdapter: true',
+  'endpointMayExecuteReadOnlyAdapter: true',
   'approvedAdapterRequiresFreshGuardedReceipt: true',
   'oneApprovedAdapterExecutionPerGuardedExecutionId: true',
+  'readOnlyAdapterRequiresFreshOperatorTerminalReceipt: true',
   'GuardedTerminalExecutionStagesReceipts',
   'ApprovedTerminalAdapterExecutionConsumesReceipts',
+  'ReadOnlyTerminalAdapterExecutionRunsReceipts',
+], failures);
+
+requireIncludes('operator-terminal source', operatorTerminalSource, [
+  'readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"',
+  'readOnlyAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-readonly-execution-latest.json"',
+  'ReadOnlyAdapterExecutionUsesFreshTerminalReceipt',
+  'readOnlyAdapterExecutionRequiresServerAllowlist: true',
+  'endpointMayExecuteReadOnlyAdapter: true',
 ], failures);
 
 requireIncludes('operator chat source', chatSource, [
@@ -148,12 +162,16 @@ requireIncludes('HoloShell server adapter', serve, [
   "'/api/operator-terminal/session'",
   "'/api/operator-terminal/execute'",
   "'/api/operator-terminal/run-approved'",
+  "'/api/operator-terminal/run-readonly'",
   'OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA',
   'OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA',
+  'OPERATOR_TERMINAL_READONLY_EXECUTION_SCHEMA',
   'OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS',
   'buildOperatorTerminalGuardedExecuteReceipt',
   'buildOperatorTerminalApprovedAdapterExecutionReceipt',
+  'buildOperatorTerminalReadOnlyAdapterExecutionReceipt',
   'guarded_execution_receipt_already_consumed',
+  'readonly_operator_terminal_adapter_execution_requires_confirmation',
   "'/api/sovereign-room/marathon'",
   "'/workflow/sovereign-room-marathon'",
   'stageSovereignRoomMarathonForChat',

@@ -36,6 +36,8 @@ composition "HoloShell Operator Terminal" {
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
     approvedAdapterReplayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
+    readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
+    readOnlyAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-readonly-execution-latest.json"
     receiptRequired: true
   }
 
@@ -65,6 +67,7 @@ composition "HoloShell Operator Terminal" {
     terminalReceiptHash: ""
     guardedExecuteReceiptStatus: "unknown"
     approvedAdapterExecutionStatus: "unknown"
+    readOnlyAdapterExecutionStatus: "unknown"
   }
 
   channel "holoshell:terminal:intent" {
@@ -103,6 +106,8 @@ composition "HoloShell Operator Terminal" {
     endpointStagesGuardedExecutionReceipt: false
     approvedAdapterExecuteEndpoint: ""
     endpointExecutesApprovedAdapter: false
+    readOnlyAdapterExecuteEndpoint: ""
+    endpointExecutesReadOnlyAdapter: false
     endpointExecutesRawCommand: false
     flow: "unknown"
     adapter: "unknown"
@@ -182,6 +187,9 @@ composition "HoloShell Operator Terminal" {
       receipt: ".tmp/holoshell/agent-lanes.json"
       target: "HoloMesh agent lane inventory"
       approvalRequired: false
+      readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
+      endpointExecutesReadOnlyAdapter: true
+      endpointExecutesRawCommand: false
     }
 
     object "ReviewApprovals" using "TerminalCommand" {
@@ -212,6 +220,9 @@ composition "HoloShell Operator Terminal" {
       receipt: ".tmp/holoshell/receipt-control-latest.json"
       target: "HoloShell receipt-control timeline"
       approvalRequired: false
+      readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
+      endpointExecutesReadOnlyAdapter: true
+      endpointExecutesRawCommand: false
     }
 
     object "AgentJson" using "TerminalCommand" {
@@ -248,6 +259,7 @@ composition "HoloShell Operator Terminal" {
     requiredAdapters: ["scripts/holoshell-brittney-turn.mjs", "scripts/holoshell-service-supervisor.mjs", "scripts/holoshell-build-custody.mjs", "scripts/holoshell-agent-lanes.mjs", "scripts/holoshell-workflow-approval-bundle.mjs", "scripts/holoshell-receipt-control.mjs"]
     guardedExecuteRequiresApprovalBeforeMutation: true
     approvedAdapterExecutionRequiresServerAllowlist: true
+    readOnlyAdapterExecutionRequiresServerAllowlist: true
     receiptRequired: true
   }
 
@@ -300,6 +312,22 @@ composition "HoloShell Operator Terminal" {
     adapterSpawnedByEndpoint: true
     requiredBeforeAdapter: ["fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
     oneApprovedAdapterExecutionPerGuardedExecutionId: true
+    disallowDeveloperCommandFromReceipt: true
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyAdapterExecutionUsesFreshTerminalReceipt" {
+    appliesTo: ["show_agents", "show_receipts"]
+    readOnlyAdapterExecuteEndpoint: "POST /api/operator-terminal/run-readonly"
+    terminalReceipt: ".tmp/holoshell/operator-terminal.json"
+    readOnlyAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-readonly-execution-latest.json"
+    allowedMutation: "run_server_allowlisted_read_only_adapter_and_write_execution_receipt"
+    directStateMutationAllowed: false
+    endpointMayExecuteTerminalCommand: false
+    endpointMayExecuteReadOnlyAdapter: true
+    endpointMayExecuteRawCommand: false
+    adapterSpawnedByEndpoint: true
+    requiredBeforeAdapter: ["fresh_operator_terminal_receipt", "confirmReadOnlyAdapterExecution", "server_allowlisted_read_only_adapter"]
     disallowDeveloperCommandFromReceipt: true
     receiptRequired: true
   }
