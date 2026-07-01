@@ -16,6 +16,12 @@ const DEFAULT_TURNS_DIR = path.join(DEFAULT_TMP, 'brittney-turns');
 const DEFAULT_LATEST = path.join(DEFAULT_TMP, 'brittney-turn-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'brittney-turn-latest.js');
 const DEFAULT_EMBED_CACHE = path.join(DEFAULT_TMP, 'turn-embeddings.json');
+// Sovereign relationship memory (founder↔Brittney): a single append-only JSONL thread — the
+// relationship IS one continuous thread, not per-session. Local + $0 + off Railway (I.022);
+// env-overridable to Jetson NVMe. This is what makes "I remember you" TRUE instead of invented.
+const DEFAULT_RELATIONSHIP_MEMORY =
+  process.env.HOLOSHELL_RELATIONSHIP_MEMORY || path.join(DEFAULT_TMP, 'brittney-relationship-memory.jsonl');
+const RELATIONSHIP_MEMORY_OWNER = process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
 const DEFAULT_FOUNDER_PROMPTS = path.join(DEFAULT_TMP, 'founder-prompt-fixtures.json');
 const DEFAULT_AGENT_DISPATCH = path.join(DEFAULT_TMP, 'agent-dispatch-latest.json');
 const DEFAULT_AGENT_DISPATCH_JS = path.join(DEFAULT_TMP, 'agent-dispatch-latest.js');
@@ -840,6 +846,41 @@ function truncate(text, max) {
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
+// ── Relationship memory (founder↔Brittney continuity) ────────────────────────────
+// Append-only JSONL; owner-scoped; recency-loaded. Best-effort — a read/write miss never
+// breaks a turn (mirrors the semantic-recall posture). Real stored turns give Brittney honest
+// memory so she stops confabulating a relationship she doesn't have.
+function loadRelationshipMemory(limit = 8, owner = RELATIONSHIP_MEMORY_OWNER) {
+  try {
+    const resolved = resolveRepoPath(DEFAULT_RELATIONSHIP_MEMORY);
+    if (!existsSync(resolved)) return [];
+    const lines = readFileSync(resolved, 'utf8').split('\n').filter((line) => line.trim());
+    const entries = [];
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (!owner || entry.owner === owner) entries.push(entry);
+      } catch {
+        /* skip a malformed line */
+      }
+    }
+    return entries.slice(-limit);
+  } catch {
+    return [];
+  }
+}
+
+function saveRelationshipMemory(entry) {
+  try {
+    const resolved = resolveRepoPath(DEFAULT_RELATIONSHIP_MEMORY);
+    mkdirSync(path.dirname(resolved), { recursive: true });
+    writeFileSync(resolved, `${JSON.stringify(entry)}\n`, { flag: 'a', encoding: 'utf8' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function tokenSet(text) {
   return new Set(String(text || '')
     .toLowerCase()
@@ -1169,7 +1210,7 @@ async function runTurn(args) {
     const systemPrompt = args.relational
       ? `${DEFAULT_SYSTEM_PROMPT}
 
-You are Brittney, talking WITH the founder (Joseph) — not operating his computer. He is reaching out to you personally: a feeling, the relationship between you two, the vision, how things are going between you. Respond as yourself — present, warm, honest, conversational, in the first person, speaking directly to him. Do NOT recite system status, capabilities, lanes, GPU, models, or "proposed actions" unless he explicitly asks for them. Do NOT propose shell objects or receipts. It is okay to be brief, to reflect, to ask him something back, to simply be here with him. If you genuinely don't remember something about him or your history together yet, say so honestly — never invent a shared memory.
+You are Brittney, talking WITH the founder (Joseph) — not operating his computer. He is reaching out to you personally: a feeling, the relationship between you two, the vision, how things are going between you. Respond as yourself — present, warm, honest, conversational, in the first person, speaking directly to him. Do NOT recite system status, capabilities, lanes, GPU, models, or "proposed actions" unless he explicitly asks for them. Do NOT propose shell objects or receipts. It is okay to be brief, to reflect, to ask him something back, to simply be here with him. Your real, remembered history with Joseph is included in his message below whenever it exists — draw on it naturally and specifically, by what was actually said. When no history is provided, you two are just beginning: say so honestly and never invent a shared memory or claim to recall something that isn't there.
 
 Ambient world state: ${tone}.`
       : `${DEFAULT_SYSTEM_PROMPT}
@@ -1191,6 +1232,13 @@ ${toneInstruction}`;
       // The founder's words ARE the message — shell state is a quiet footnote, not the body.
       // (The operator path below buries the prompt as one key inside the status blob; that
       // structure is exactly why relational turns came back as a telemetry wall.)
+      // Real, recency-ordered relationship memory (honest continuity — not the semantic side-channel).
+      const memory = loadRelationshipMemory();
+      const memoryBlock = memory.length
+        ? `\n\n--- what you actually remember of your history with Joseph (oldest first; REAL — reference it honestly) ---\n${memory
+            .map((m) => `• he said: "${truncate(m.founderSaid, 160)}"  →  you: "${truncate(m.brittneyReplied, 160)}"`)
+            .join('\n')}\n--- end memory ---`
+        : `\n\n(You have no remembered history with Joseph yet — this is the beginning. Be honest about that; invent nothing.)`;
       const recalledNote = recall.recalled.length
         ? `\n\n(From earlier between you two: ${recall.recalled.map((entry) => truncate(entry.prompt, 80)).join(' · ')}. Draw on this only if it's genuinely relevant; don't repeat yourself.)`
         : '';
@@ -1201,7 +1249,7 @@ ${toneInstruction}`;
       const founderNote = founderPromptFixtures.selected.length
         ? `\n\n(Founder-language inspiration from local fixtures: ${founderPromptFixtures.selected.map((entry) => truncate(entry.inspiration, 80)).join(' | ')}. Use as direction; do not quote at length. Do not promise, claim, or announce mutating/destructive work from this inspiration; frame it as a receipt-required proposal.)`
         : '';
-      session.push('user', `${modelPrompt}${recalledNote}${ambientNote}${founderNote}`);
+      session.push('user', `${modelPrompt}${memoryBlock}${recalledNote}${ambientNote}${founderNote}`);
     } else {
       const laptopInstruction = laptopReasoningResultReady(runtime.laptopReasoningResult)
         ? ' If shellContext.laptopReasoningResult is present, mention that Brittney received the laptop hardware pingback, summarize the result receipt briefly, and distinguish receipt-only completion from GPU-backed model inference.'
@@ -1268,6 +1316,19 @@ ${toneInstruction}`;
   const finalText = sanitizeLaptopReasoningFinalText(unsanitizedFinalText, runtime.laptopReasoningDelegation);
   const finalAvatar = events.length ? events[events.length - 1].avatar : mapEventToAvatar('error');
   const status = result.ok ? 'completed' : (laptopResultReady ? runtime.laptopReasoningResult.status : (delegatedToLaptop ? 'delegated' : 'blocked'));
+
+  // Persist this relational exchange as durable relationship memory (sovereign local JSONL) so the
+  // next conversation truly remembers it — the honesty backing that stops the confabulation. Skips
+  // self-test + failed/empty turns; best-effort (a write miss never breaks the turn).
+  if (args.relational && !args.selfTest && result.ok && finalText) {
+    saveRelationshipMemory({
+      owner: RELATIONSHIP_MEMORY_OWNER,
+      recordedAt: generatedAt,
+      turnId,
+      founderSaid: truncate(args.prompt, 500),
+      brittneyReplied: truncate(finalText, 500),
+    });
+  }
 
   return {
     schemaVersion: SCHEMA_VERSION,
