@@ -22,6 +22,43 @@ proof path. Do not chase stale workspace/package errors merely to make the old
 monorepo feel alive. Fix package graph issues only when they block the active
 builder proof loop or a still-running deployment.
 
+## 2026-07-01 Consumer Direction — HoloLand is HoloScript's TikTok (founder-ratified)
+
+Founder direction (2026-07-01, ecosystem D.114): HoloScript onboards non-developers of
+any background to extend their digital lives; **HoloLand is HoloScript's TikTok** — easy
+to use, where people build their digital worlds and products and play, spatially, at
+parks in real life or in the living room.
+
+**This reconciles WITH the 2026-06-29 reboot; it does not reverse it.** The reboot
+retired the *legacy R3F / package-garden / compiler-parity* approach to consumer — that
+retirement stands. The reboot also already says "human users should experience worlds."
+This direction sharpens that: the consumer experience is the PRODUCT, built ON the
+builder-proof loop, not beside it.
+
+- **The builder-proof loop is the SUBSTRATE.** `agent intent -> HoloScript source ->
+  validation -> execution/render -> live interaction -> receipt` is exactly the engine
+  under the consumer "TikTok cell": a person describes intent -> an agent authors `.holo`
+  -> it validates, renders (sovereign WebGPU), is interactive, and is receipted -> it is
+  shared.
+- **The consumer TikTok-loop is the PRODUCT on that substrate:** frictionless consume
+  (open a shared world via a link) -> a feed of worlds -> agent-authored creation in
+  minutes -> remix -> share/distribution -> creator payout. Built the native way
+  (agent -> `.holo` -> validated -> rendered -> receipted), NEVER by reviving the retired
+  R3F/package-garden platform.
+- **Active center, updated:** the builder-proof loop remains the proof; the **consumer
+  world experience is now the product it proves toward.** Human users experience worlds;
+  the loop is how those worlds get made and trusted.
+
+**Ground truth (audited 2026-07-01, verify-first):** there is no live consumer app yet
+(consumer domains dead, `list_worlds`=0); 5 of TikTok's 6 loop mechanics are unbuilt.
+The delivery pipe is real (`.holo` -> sovereign WebGPU `previewHtml` -> openable
+share-link); render fidelity was just fixed (WS-3, HoloScript `3edffc05a`) and the QR
+leak was fixed (WS-4, `a557ef473`). Remaining path = the roadmap at
+`~/.ai-ecosystem/research/2026-07-01_nondev-native-delivery-program-roadmap.md`:
+WS-1 (ungate agent-authoring — the create front door), WS-2 (consumer feed/consume loop),
+WS-8 (safety/a11y/consent gate before public), WS-5 (PWA); native HoloApps (WS-6) are the
+depth tier. Substrate is real; the loop + live app is the build.
+
 ## 30/60-Day Canonicality Rule
 
 HoloLand moves fast enough that age flips the burden of proof. Work older than
