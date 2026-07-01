@@ -6232,8 +6232,89 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // ── POST /api/brittney/op — the uAAL-native, MACHINE-facing operator surface. Agents send
+  // structured {op, args} and get {ok, op, result, receipt-fields} from the deterministic op
+  // catalog (no NL, no LLM, no intent-sniffing). This is what a uAAL CALL_NODE resolves to
+  // (increment 3 bridges the mesh-node poll loop to this route). NL chat (/api/brittney/chat)
+  // stays untouched for humans.
+  if (req.method === 'POST' && path === '/api/brittney/op') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const op = parsed.op;
+        const args = parsed.args && typeof parsed.args === 'object' ? parsed.args : {};
+        if (!op || typeof op !== 'string') {
+          respond(res, { ok: false, error: 'missing op (string)', known: Object.keys(BRITTNEY_OP_CATALOG) }, 400);
+          return;
+        }
+        const result = await dispatchBrittneyOp(op, args);
+        respond(res, { schemaVersion: 'hololand.holoshell.brittney-op.v0.1.0', ...result }, result.ok ? 200 : 400);
+      } catch (err) {
+        respond(res, { ok: false, error: String(err.message || err).slice(0, 300) }, 500);
+      }
+    });
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'not_found', path }));
+}
+
+// ── uAAL operator op-catalog (agent ⇄ Brittney) ─────────────────────────────────
+// The MACHINE-facing surface: agents invoke structured {op, args} → {ok, op, result, receipt
+// fields} over the SAME deterministic internal builders the maintenance operator already uses —
+// no NL, no LLM, no regex intent-sniffing (the op name IS the intent). Distinct from
+// /api/brittney/chat (natural language, humans). Every result is receipt-shaped by construction.
+const BRITTNEY_OP_CATALOG = {
+  status: 'read',
+  list_proposals: 'read',
+  inspect_substrate: 'read',
+  inspect_consent_queue: 'read',
+  inspect_desktop_bridge: 'read',
+  propose_action: 'propose',
+  queue_improvement_run: 'gated',
+};
+
+async function dispatchBrittneyOp(op, args = {}) {
+  const generatedAt = new Date().toISOString();
+  switch (op) {
+    case 'status': {
+      const snap = buildLiveStatusSnapshot();
+      return { ok: true, op, result: liveStatusResponseEnvelope(snap), receiptRequired: false, generatedAt };
+    }
+    case 'list_proposals': {
+      const snap = buildLiveStatusSnapshot();
+      const proposals = liveStatusProposals(snap, typeof args.message === 'string' ? args.message : '');
+      return { ok: true, op, result: { proposals }, receiptRequired: false, generatedAt };
+    }
+    case 'inspect_substrate':
+      return { ok: true, op, result: { substratePressure: substratePressure(), worktreeHealth: worktreeHealth() }, receiptRequired: false, generatedAt };
+    case 'inspect_consent_queue':
+      return { ok: true, op, result: { pendingConsents: pendingConsents() }, receiptRequired: false, generatedAt };
+    case 'inspect_desktop_bridge':
+      return { ok: true, op, result: desktopBridgeStatusSnapshot(), receiptRequired: false, generatedAt };
+    case 'propose_action': {
+      const intent = typeof args.intent === 'string' ? args.intent.trim() : '';
+      if (!intent) return { ok: false, op, error: 'propose_action requires args.intent (string)' };
+      if (looksLikeDesktopControlIntent(intent)) {
+        const plan = desktopControlPlanFor(intent, { actor: 'brittney-op' });
+        return { ok: true, op, result: { proposal: desktopControlProposal(plan), plan: plan?.summary ?? null }, receiptRequired: true, approvalRequired: true, mutating: true, generatedAt };
+      }
+      // Deterministic surface only: a non-desktop intent has no named op. We do NOT silently
+      // invoke the LLM here (that would make the op surface non-deterministic) — the agent should
+      // use a named op or fall to /api/brittney/chat with mode:'maintenance'.
+      return { ok: false, op, error: 'no deterministic action for this intent; use a named op or /api/brittney/chat (maintenance)', intent };
+    }
+    case 'queue_improvement_run': {
+      // Queues a receipt-backed batch — execution stays a separate, receipt-gated step.
+      const receipt = buildImprovementRunReceipt(args);
+      return { ok: true, op, result: receipt, receiptRequired: true, mutating: false, generatedAt };
+    }
+    default:
+      return { ok: false, op, error: `unknown op: ${String(op)}`, known: Object.keys(BRITTNEY_OP_CATALOG) };
+  }
 }
 
 function respond(res, data, status = 200) {
