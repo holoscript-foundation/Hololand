@@ -1843,7 +1843,9 @@ const runtimeScript = `  <script>
       inp.value = ''; _bMsg('You', msg, '#58a6ff', { chatId: 'brittney' });
       _persistDraftState();
       var pending = _bMsg('Brittney', 'thinking…', '#bc8cff', { persist: false, chatId: 'brittney' });
-      fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) })
+      /* Founder/user surface → LIVE mode (the companion: presence + memory). Agents call this
+         endpoint WITHOUT mode and get 'maintenance' (deterministic operator) by default. */
+      fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, mode: 'live' }) })
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (pending && pending.parentNode) pending.parentNode.removeChild(pending);

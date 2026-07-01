@@ -5990,17 +5990,23 @@ async function handleRequest(req, res) {
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
       try {
-        const { message, selfTest } = JSON.parse(body || '{}');
+        const { message, selfTest, mode } = JSON.parse(body || '{}');
         if (!message || typeof message !== 'string') {
           respond(res, { error: 'missing message' }, 400);
           return;
         }
+        // Mode split (founder directive): 'live' = founder/user companion (presence + memory);
+        // 'maintenance' = autonomous-agent operator (deterministic, receipt-driven, no relational
+        // path — removes the hesitancy agents hit when Brittney answered them relationally).
+        // DEFAULT maintenance so agents are safe by default; human surfaces (the dashboard) opt
+        // into live explicitly.
+        const resolvedMode = mode === 'live' ? 'live' : 'maintenance';
         const repoRoot = join(__dirname, '..', '..');
         const turnScript = join(repoRoot, 'scripts', 'holoshell-brittney-turn.mjs');
         // Relational turns win over the status/next-steps override: the founder talking WITH
         // Brittney gets HER reply, never a substituted status card (the "system" in "founder and
         // system" used to trip looksLikeStatusIntent and bury her answer).
-        const relational = looksLikeRelationalIntent(message);
+        const relational = resolvedMode === 'live' && looksLikeRelationalIntent(message);
         const liveStatus = !relational && (looksLikeStatusIntent(message) || looksLikeNextStepsIntent(message))
           ? buildLiveStatusSnapshot()
           : null;
@@ -6012,6 +6018,7 @@ async function handleRequest(req, res) {
         const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json'];
         if (selfTest) args.push('--self-test');
         if (relational) args.push('--relational');
+        else if (resolvedMode === 'maintenance') args.push('--maintenance');
         const out = execFileSync('node', args, {
           cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
         });
@@ -6047,6 +6054,7 @@ async function handleRequest(req, res) {
           } : null,
           systemStatus: liveStatus ? liveStatusResponseEnvelope(liveStatus) : null,
           receiptType: receipt.receipt?.receiptType || null,
+          mode: resolvedMode,
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
       } catch (err) {
