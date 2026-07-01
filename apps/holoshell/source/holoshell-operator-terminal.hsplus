@@ -32,8 +32,10 @@ composition "HoloShell Operator Terminal" {
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
+    guardedExecuteMaxAgeMs: 600000
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
+    approvedAdapterReplayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
     receiptRequired: true
   }
 
@@ -288,13 +290,16 @@ composition "HoloShell Operator Terminal" {
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
+    guardedReceiptMaxAgeMs: 600000
+    replayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
     allowedMutation: "run_server_allowlisted_adapter_and_write_execution_receipt"
     directStateMutationAllowed: false
     endpointMayExecuteTerminalCommand: false
     endpointMayExecuteApprovedAdapter: true
     endpointMayExecuteRawCommand: false
     adapterSpawnedByEndpoint: true
-    requiredBeforeAdapter: ["matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
+    requiredBeforeAdapter: ["fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
+    oneApprovedAdapterExecutionPerGuardedExecutionId: true
     disallowDeveloperCommandFromReceipt: true
     receiptRequired: true
   }

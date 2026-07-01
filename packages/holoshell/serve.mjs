@@ -72,6 +72,8 @@ const OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR =
   join(HOLOSHELL_TMP_DIR, 'operator-terminal-approved-execution');
 const OPERATOR_TERMINAL_REFRESH_COMMAND = 'node scripts/holoshell-operator-terminal.mjs --agent --json';
 const OPERATOR_TERMINAL_FRESHNESS_MS = Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_FRESHNESS_MS || 5 * 60 * 1000);
+const OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS =
+  Number(process.env.HOLOSHELL_OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS || 10 * 60 * 1000);
 const OPERATOR_TERMINAL_APPROVED_ADAPTER_STDIO_LIMIT = 4000;
 const OPERATOR_TERMINAL_APPROVED_ADAPTERS = {
   build_world: {
@@ -2615,6 +2617,40 @@ function readOperatorTerminalGuardedExecuteReceiptForPayload(payload = {}) {
   });
 }
 
+function operatorTerminalTimestampAgeMs(value, nowMs = Date.now()) {
+  const ms = new Date(value || '').getTime();
+  if (!Number.isFinite(ms)) return null;
+  return Math.max(0, nowMs - ms);
+}
+
+function operatorTerminalApprovedExecutionReceipts() {
+  const receipts = [];
+  const maybeAdd = (receipt) => {
+    if (receipt?.schemaVersion === OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA) receipts.push(receipt);
+  };
+  try {
+    if (existsSync(OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR)) {
+      for (const name of readdirSync(OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR)) {
+        if (!String(name || '').endsWith('.json')) continue;
+        maybeAdd(readJsonFileIfPresent(join(OPERATOR_TERMINAL_APPROVED_EXECUTION_DIR, name)));
+      }
+    }
+  } catch {
+    // Missing or unreadable archive should not become a silent allow; latest below
+    // still catches the common case and validation/deploy parity covers the path.
+  }
+  maybeAdd(readJsonFileIfPresent(OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT));
+  return receipts;
+}
+
+function findOperatorTerminalApprovedExecutionForGuardedExecution(executionId) {
+  const id = safeOperatorTerminalId(executionId, '');
+  if (!id) return null;
+  return operatorTerminalApprovedExecutionReceipts().find((receipt) =>
+    safeOperatorTerminalId(receipt.executionId, '') === id
+  ) || null;
+}
+
 function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
   const { receipt: stagedReceipt, receiptPath: stagedReceiptPath } =
     readOperatorTerminalGuardedExecuteReceiptForPayload(payload);
@@ -2632,6 +2668,34 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
     throw operatorTerminalApprovedExecutionError(409, 'guarded_execution_receipt_not_runnable', {
       executionId: stagedReceipt.executionId,
       guardedStatus: stagedReceipt.status,
+    });
+  }
+
+  const guardedReceiptAgeMs = operatorTerminalTimestampAgeMs(stagedReceipt.generatedAt);
+  if (
+    guardedReceiptAgeMs === null
+    || guardedReceiptAgeMs > OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS
+  ) {
+    throw operatorTerminalApprovedExecutionError(409, 'guarded_execution_receipt_stale', {
+      executionId: stagedReceipt.executionId,
+      commandId: stagedCommandId,
+      guardedGeneratedAt: stagedReceipt.generatedAt || null,
+      guardedReceiptAgeMs,
+      guardedReceiptMaxAgeMs: OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS,
+      required: ['fresh_guarded_execution_receipt'],
+    });
+  }
+
+  const priorApprovedExecution =
+    findOperatorTerminalApprovedExecutionForGuardedExecution(stagedReceipt.executionId);
+  if (priorApprovedExecution) {
+    throw operatorTerminalApprovedExecutionError(409, 'guarded_execution_receipt_already_consumed', {
+      executionId: stagedReceipt.executionId,
+      commandId: stagedCommandId,
+      approvedExecutionId: priorApprovedExecution.approvedExecutionId,
+      approvedExecutionStatus: priorApprovedExecution.status,
+      approvedExecutionGeneratedAt: priorApprovedExecution.generatedAt || null,
+      replayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
     });
   }
 
@@ -2713,6 +2777,10 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
       receiptPath: stagedReceiptPath,
       approvalEvidence: stagedReceipt.approval?.evidence || '',
       stagedAt: stagedReceipt.generatedAt || null,
+      ageMs: guardedReceiptAgeMs,
+      maxAgeMs: OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS,
+      fresh: true,
+      replayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
     },
     approval: {
       evidence: approvalEvidence.slice(0, 500),
@@ -2742,6 +2810,8 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
       endpointExecutesApprovedAdapter: true,
       endpointExecutesRawCommand: false,
       adapterSpawned: true,
+      guardedReceiptFresh: true,
+      guardedReceiptReplayProtected: true,
       browserMayExecuteTerminalCommand: false,
       rawCommandHiddenFromHuman: true,
       destructiveActionsTaken: false,
@@ -2751,6 +2821,8 @@ function buildOperatorTerminalApprovedAdapterExecutionReceipt(payload = {}) {
       directTerminalMutationAllowed: false,
       terminalSpawnedByEndpoint: false,
       adapterProcessSpawnedByEndpoint: true,
+      guardedReceiptFreshnessRequired: true,
+      guardedExecutionReplayPrevented: true,
       destructiveActionsTaken: false,
       desktopAutomationExecuted: false,
       rawSecretsIncluded: false,
@@ -3638,10 +3710,12 @@ function buildOperatorTerminalSession() {
       guardedExecuteEndpoint: 'POST /api/operator-terminal/execute',
       guardedExecuteReceipt: OPERATOR_TERMINAL_GUARDED_EXECUTE_RECEIPT,
       guardedExecuteSchema: OPERATOR_TERMINAL_GUARDED_EXECUTE_SCHEMA,
+      guardedExecuteMaxAgeMs: OPERATOR_TERMINAL_GUARDED_EXECUTE_MAX_AGE_MS,
       approvedAdapterExecuteEndpoint: 'POST /api/operator-terminal/run-approved',
       approvedAdapterExecutionReceipt: OPERATOR_TERMINAL_APPROVED_EXECUTION_RECEIPT,
       approvedAdapterExecutionSchema: OPERATOR_TERMINAL_APPROVED_EXECUTION_SCHEMA,
       approvedAdapterAllowlist: operatorTerminalApprovedAdapterCatalog(),
+      approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
       eventStreamStatus: terminalEventStream.status,
       eventStreamEventCount: terminalEventStream.eventCount,
       eventLog: terminalEventStream.eventLog,
@@ -3678,6 +3752,8 @@ function buildOperatorTerminalSession() {
       endpointMayExecuteTerminalCommand: false,
       endpointMayStageGuardedExecutionReceipt: true,
       endpointMayExecuteApprovedAdapter: true,
+      approvedAdapterRequiresFreshGuardedReceipt: true,
+      approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
     },
     refreshRecovery: {
       status: 'enabled',
@@ -3735,7 +3811,7 @@ function buildOperatorTerminalSession() {
         endpointExecutesApprovedAdapter: true,
         endpointExecutesRawCommand: false,
         receiptRequired: true,
-        required: ['executionId', 'commandId', 'confirmApprovedAdapterExecution:true', 'approvalReceipt|approvalId|approvalHash'],
+        required: ['executionId', 'fresh_guarded_execution_receipt', 'not_previously_consumed', 'commandId', 'confirmApprovedAdapterExecution:true', 'approvalReceipt|approvalId|approvalHash'],
       },
       {
         id: 'open_browser_cockpit',
@@ -3756,6 +3832,8 @@ function buildOperatorTerminalSession() {
       endpointMayExecuteTerminalCommand: false,
       endpointMayStageGuardedExecutionReceipt: true,
       endpointMayExecuteApprovedAdapter: true,
+      approvedAdapterRequiresFreshGuardedReceipt: true,
+      approvedAdapterReplayGuard: 'one_approved_adapter_execution_per_guarded_execution_id',
       terminalSpawnedByEndpoint: false,
       adapterProcessMaySpawnFromEndpoint: true,
       terminalMutationRequires: ['identify', 'scope', 'preflight', 'fresh_gesture_proof', 'consent_token', 'execution_receipt', 'log'],
@@ -3842,6 +3920,7 @@ function buildLiveStatusSnapshot() {
       'operator_terminal_run_cards',
       'operator_terminal_guarded_execute_receipts',
       'operator_terminal_approved_adapter_execution',
+      'operator_terminal_approved_adapter_replay_guard',
       'browser_refresh_evidence_rehydration',
       'browser_session_snapshot',
       'fara_brittney_peer_chat',
