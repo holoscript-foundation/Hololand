@@ -17,6 +17,7 @@ composition "HoloShell Sovereign Room Marathon" {
     roomHeartbeatCommand: "C:/Users/josep/.ai-ecosystem/scripts/codex-team-daemon.mjs join"
     roomClaimCommand: "C:/Users/josep/.ai-ecosystem/scripts/room-patch-task.mjs claim <task-id>"
     roomDoneCommand: "C:/Users/josep/.ai-ecosystem/scripts/bullhorn.mjs done <task-id> <commit> --evidence <evidence> --summary <summary>"
+    confirmClaimCliFlag: "--confirm-claim"
     latestReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     browserBootstrap: ".tmp/holoshell/sovereign-room-marathon-latest.js"
     receiptDir: ".tmp/holoshell/sovereign-room-marathons"
@@ -37,8 +38,10 @@ composition "HoloShell Sovereign Room Marathon" {
     selectedTaskTitle: ""
     selectedTaskTag: "unknown"
     claimRequested: false
+    claimConfirmationObserved: false
     claimAttempted: false
     claimSucceeded: false
+    claimBlockedReason: ""
     doneRequested: false
     doneAttempted: false
     doneSucceeded: false
@@ -100,8 +103,10 @@ composition "HoloShell Sovereign Room Marathon" {
     selectedTaskTitle: ""
     selectedTaskTag: "unknown"
     claimRequested: false
+    claimConfirmationObserved: false
     claimAttempted: false
     claimSucceeded: false
+    claimBlockedReason: ""
     doneRequested: false
     doneAttempted: false
     doneSucceeded: false
@@ -131,6 +136,7 @@ composition "HoloShell Sovereign Room Marathon" {
     requiresSignedHeartbeat: true
     requiresGuardedWorkflowApprovalOrExplicitCliClaim: true
     requiresExplicitLocalClaimConfirmation: true
+    requiresConfirmClaimCliFlag: true
     requiresTaskClassificationMatch: true
     boardMutationScope: "claim_local_room_task_only"
     completionClaimAllowed: false
@@ -170,8 +176,10 @@ composition "HoloShell Sovereign Room Marathon" {
     state.selectedTaskTitle = receipt.summary.selectedTaskTitle
     state.selectedTaskTag = receipt.summary.selectedTaskTag
     state.claimRequested = receipt.summary.claimRequested
+    state.claimConfirmationObserved = receipt.summary.claimConfirmationObserved
     state.claimAttempted = receipt.summary.claimAttempted
     state.claimSucceeded = receipt.summary.claimSucceeded
+    state.claimBlockedReason = receipt.summary.claimBlockedReason
     state.doneRequested = receipt.summary.doneRequested
     state.doneAttempted = receipt.summary.doneAttempted
     state.doneSucceeded = receipt.summary.doneSucceeded
@@ -188,7 +196,9 @@ composition "HoloShell Sovereign Room Marathon" {
       selected_task_id: state.selectedTaskId,
       selected_task_title: state.selectedTaskTitle,
       claim_requested: state.claimRequested,
+      claim_confirmation_observed: state.claimConfirmationObserved,
       claim_succeeded: state.claimSucceeded,
+      claim_blocked_reason: state.claimBlockedReason,
       done_requested: state.doneRequested,
       done_succeeded: state.doneSucceeded,
       execution_receipt_observed: state.executionReceiptObserved,

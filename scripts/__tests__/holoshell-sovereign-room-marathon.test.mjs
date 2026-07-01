@@ -44,13 +44,22 @@ assert.equal(cloudBlocked.summary.status, 'blocked_cloud_escalation_receipt_requ
 assert.equal(cloudBlocked.summary.selectedTaskId, '');
 
 const claimed = buildReceipt(
-  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true },
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
   fixtureResult,
   () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
 );
 assert.equal(claimed.summary.status, 'claimed');
 assert.equal(claimed.summary.claimSucceeded, true);
 assert.equal(claimed.summary.completionClaimAllowed, false);
+
+const blockedClaim = buildReceipt(
+  { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true },
+  fixtureResult,
+  () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+);
+assert.equal(blockedClaim.summary.status, 'blocked_claim_guard_required');
+assert.equal(blockedClaim.summary.claimAttempted, false);
+assert.equal(blockedClaim.summary.claimBlockedReason, 'local_room_claim_requires_confirmClaim_true');
 
 const blockedDone = buildReceipt(
   {

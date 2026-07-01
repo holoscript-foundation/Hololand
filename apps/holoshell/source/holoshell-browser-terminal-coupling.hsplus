@@ -201,13 +201,13 @@ composition "HoloShell Browser Terminal Coupling" {
   }
 
   policy "ApprovedTerminalAdapterExecutionConsumesReceipts" {
-    appliesTo: ["operator_terminal_approved_adapter_execution", "build_world", "review_approvals"]
+    appliesTo: ["operator_terminal_approved_adapter_execution", "build_world", "review_approvals", "claim_local_room_task"]
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
     guardedReceiptMaxAgeMs: 600000
     replayGuard: "one_approved_adapter_execution_per_guarded_execution_id"
-    requiredBeforeAdapter: ["executionId", "fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
+    requiredBeforeAdapter: ["executionId", "fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter", "confirmClaim_for_local_room_claim"]
     allowlistedAdaptersOnly: true
     oneApprovedAdapterExecutionPerGuardedExecutionId: true
     browserPayloadMayNotNameRawCommand: true

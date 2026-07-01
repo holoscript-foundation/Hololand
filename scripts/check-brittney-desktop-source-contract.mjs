@@ -8,6 +8,7 @@ const files = {
   source: 'apps/holoshell/source/holoshell-brittney-desktop-cockpit.hsplus',
   browserTerminalSource: 'apps/holoshell/source/holoshell-browser-terminal-coupling.hsplus',
   operatorTerminalSource: 'apps/holoshell/source/holoshell-operator-terminal.hsplus',
+  sovereignRoomSource: 'apps/holoshell/source/holoshell-sovereign-room-marathon.hsplus',
   chatSource: 'apps/holoshell/source/holoshell-brittney-operator-chat.hsplus',
   launch: 'scripts/brittney-studio-launch.ps1',
   gateway: 'scripts/start-brittney.ts',
@@ -32,6 +33,7 @@ function requireIncludes(label, text, snippets, failures) {
 const source = read(files.source);
 const browserTerminalSource = read(files.browserTerminalSource);
 const operatorTerminalSource = read(files.operatorTerminalSource);
+const sovereignRoomSource = read(files.sovereignRoomSource);
 const chatSource = read(files.chatSource);
 const launch = read(files.launch);
 const gateway = read(files.gateway);
@@ -91,6 +93,7 @@ requireIncludes('browser-terminal source', browserTerminalSource, [
   'GuardedTerminalExecutionStagesReceipts',
   'ApprovedTerminalAdapterExecutionConsumesReceipts',
   'ReadOnlyTerminalAdapterExecutionRunsReceipts',
+  'confirmClaim_for_local_room_claim',
 ], failures);
 
 requireIncludes('operator-terminal source', operatorTerminalSource, [
@@ -99,6 +102,17 @@ requireIncludes('operator-terminal source', operatorTerminalSource, [
   'ReadOnlyAdapterExecutionUsesFreshTerminalReceipt',
   'readOnlyAdapterExecutionRequiresServerAllowlist: true',
   'endpointMayExecuteReadOnlyAdapter: true',
+  'object "ClaimLocalTask" using "TerminalCommand"',
+  'flow: "sovereign_room_task_claim"',
+  'adapter: "scripts/holoshell-sovereign-room-marathon.mjs"',
+  'confirmClaim_for_local_room_claim',
+], failures);
+
+requireIncludes('sovereign room source', sovereignRoomSource, [
+  'confirmClaimCliFlag: "--confirm-claim"',
+  'requiresConfirmClaimCliFlag: true',
+  'claimConfirmationObserved',
+  'claimBlockedReason',
 ], failures);
 
 requireIncludes('operator chat source', chatSource, [
@@ -172,6 +186,8 @@ requireIncludes('HoloShell server adapter', serve, [
   'buildOperatorTerminalReadOnlyAdapterExecutionReceipt',
   'guarded_execution_receipt_already_consumed',
   'readonly_operator_terminal_adapter_execution_requires_confirmation',
+  'claim_local_room_task',
+  "'--confirm-claim'",
   "'/api/sovereign-room/marathon'",
   "'/workflow/sovereign-room-marathon'",
   'stageSovereignRoomMarathonForChat',

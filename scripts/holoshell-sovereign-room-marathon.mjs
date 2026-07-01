@@ -22,6 +22,7 @@ Options:
   --task-tag <tag>                 Task tag to match. Default: local
   --cloud-escalation-allowed       Permit cloud-tagged task selection.
   --claim                          Claim the selected task after queue receipt.
+  --confirm-claim                  Explicit local confirmation required with --claim.
   --done, --mark-done              Mark a claimed local task done after evidence gates.
   --done-task-id <task-id>         Claimed local task id to close.
   --done-commit <hash>             Commit hash for the done receipt.
@@ -47,6 +48,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     taskTag: 'local',
     cloudEscalationAllowed: false,
     claim: false,
+    confirmClaim: false,
     done: false,
     doneTaskId: '',
     doneCommit: '',
@@ -70,6 +72,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--task-tag') args.taskTag = argv[++index] || args.taskTag;
     else if (arg === '--cloud-escalation-allowed') args.cloudEscalationAllowed = true;
     else if (arg === '--claim') args.claim = true;
+    else if (arg === '--confirm-claim') args.confirmClaim = true;
     else if (arg === '--done' || arg === '--mark-done') args.done = true;
     else if (arg === '--done-task-id' || arg === '--task-id') args.doneTaskId = argv[++index] || '';
     else if (arg === '--done-commit' || arg === '--commit') args.doneCommit = argv[++index] || '';
@@ -459,6 +462,13 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   const doneGate = args.done
     ? validateDoneGate(args, doneTask, executionReceipt)
     : { allowed: false, blockers: [], status: 'not_requested' };
+  const claimGate = args.claim
+    ? {
+        allowed: args.confirmClaim === true,
+        blockers: args.confirmClaim === true ? [] : ['local_room_claim_requires_confirmClaim_true'],
+        status: args.confirmClaim === true ? 'ready_to_claim' : 'blocked_claim_guard_required',
+      }
+    : { allowed: false, blockers: [], status: 'not_requested' };
   const candidates = cloudRequested && !args.cloudEscalationAllowed
     ? []
     : selectCandidates(queueResult.queue, args);
@@ -471,7 +481,7 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
     stdout: '',
     stderr: '',
   };
-  if (args.claim && selectedTask) {
+  if (args.claim && selectedTask && claimGate.allowed) {
     claimReceipt = claimRunner(selectedTask, args);
   }
   let doneReceipt = {
@@ -499,6 +509,9 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
   } else if (cloudRequested && !args.cloudEscalationAllowed) {
     status = 'blocked_cloud_escalation_receipt_required';
     nextAction = 'emit_cloud_escalation_receipt_before_cloud_task_selection';
+  } else if (selectedTask && args.claim && !claimGate.allowed) {
+    status = 'blocked_claim_guard_required';
+    nextAction = claimGate.blockers[0] || 'provide_explicit_local_claim_confirmation';
   } else if (selectedTask && args.claim && claimReceipt.succeeded) {
     status = 'claimed';
     nextAction = 'execute_claimed_task_locally_and_mark_done_only_with_downstream_evidence';
@@ -541,8 +554,10 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
       selectedTaskTitle: selectedTask?.title || '',
       selectedTaskTag: selectedTask?.classification || 'unknown',
       claimRequested: Boolean(args.claim),
+      claimConfirmationObserved: Boolean(args.confirmClaim),
       claimAttempted: Boolean(claimReceipt.attempted),
       claimSucceeded: Boolean(claimReceipt.succeeded),
+      claimBlockedReason: claimGate.blockers[0] || '',
       doneRequested: Boolean(args.done),
       doneAttempted: Boolean(doneReceipt.attempted),
       doneSucceeded: Boolean(doneReceipt.succeeded),
@@ -561,7 +576,10 @@ function buildReceipt(args, queueResult = readQueue(args), claimRunner = claimSe
       stdoutHashPresent: Boolean(queueResult.stdout),
       stderr: queueResult.stderr ? String(queueResult.stderr).slice(0, 1200) : '',
     },
-    claim: claimReceipt,
+    claim: {
+      ...claimReceipt,
+      gate: claimGate,
+    },
     done: {
       ...doneReceipt,
       gate: doneGate,
@@ -629,12 +647,19 @@ function assertSelfTest() {
   );
   if (cloudAllowed.summary.selectedTaskId !== 'task_cloud_high') failures.push('expected cloud task only after escalation flag');
   const claimed = buildReceipt(
-    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true },
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: true },
     { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
     () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
   );
   if (claimed.summary.status !== 'claimed') failures.push('expected claimed status');
   if (claimed.summary.completionClaimAllowed) failures.push('done should require downstream evidence');
+  const blockedClaim = buildReceipt(
+    { ...parseArgs([]), taskLane: 'local', taskTag: 'local', claim: true, confirmClaim: false },
+    { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
+    () => ({ status: 'claimed', attempted: true, succeeded: true, stdout: 'claimed', stderr: '' }),
+  );
+  if (blockedClaim.summary.status !== 'blocked_claim_guard_required') failures.push('expected claim guard block without confirmation');
+  if (blockedClaim.summary.claimAttempted) failures.push('claim must not attempt without confirmClaim');
   const done = buildReceipt(
     {
       ...parseArgs([]),
@@ -670,7 +695,7 @@ function assertSelfTest() {
     { status: 'fixture', queue: fixtureQueue(), command: 'fixture' },
   );
   if (blockedDone.summary.status !== 'blocked_done_guard_required') failures.push('expected done guard block without confirmation');
-  return { ok: failures.length === 0, failures, local, cloudBlocked, cloudAllowed, claimed, done, blockedDone };
+  return { ok: failures.length === 0, failures, local, cloudBlocked, cloudAllowed, claimed, blockedClaim, done, blockedDone };
 }
 
 async function main() {

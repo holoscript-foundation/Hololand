@@ -266,6 +266,14 @@ function sovereignRoomMarathon(body = {}) {
   add('--receipt-dir', body.receiptDir);
   if (body.cloudEscalationAllowed === true) cli.push('--cloud-escalation-allowed');
   if (body.claim === true) cli.push('--claim');
+  if (
+    body.confirmClaim === true
+    || body.confirmLocalClaim === true
+    || body.claimConfirmation === 'local_room_task'
+    || body.guard === 'local_room_task_claim'
+  ) {
+    cli.push('--confirm-claim');
+  }
   cli.push('--json');
   const result = runChecked(cli);
   return {

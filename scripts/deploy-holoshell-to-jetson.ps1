@@ -274,6 +274,12 @@ function Test-JetsonChatWrapperParity {
       RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-sovereign-room-marathon.mjs'
     },
     @{
+      Name = 'control-daemon'
+      RelativePath = 'scripts/holoshell-control-daemon.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-control-daemon.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-control-daemon.mjs'
+    },
+    @{
       Name = 'holoclaw-runtime-bridge'
       RelativePath = 'scripts/holoshell-holoclaw-runtime-bridge.mjs'
       LocalPath = Join-Path $Hololand 'scripts\holoshell-holoclaw-runtime-bridge.mjs'
@@ -421,6 +427,7 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'packages\holoshell\dist\operate-room.html'; Destination = Join-RemotePath $RemoteSurface 'packages/holoshell/dist/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-brittney-turn.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-sovereign-room-marathon.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-control-daemon.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-holoclaw-runtime-bridge.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-terminal-event-stream.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },

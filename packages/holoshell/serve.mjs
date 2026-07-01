@@ -104,6 +104,17 @@ const OPERATOR_TERMINAL_APPROVED_ADAPTERS = {
     bundleDir: join(HOLOSHELL_TMP_DIR, 'workflow-approval-bundles'),
     timeoutMs: 60_000,
   },
+  claim_local_room_task: {
+    label: 'Claim Local Task',
+    adapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
+    args: ['--json', '--task-lane', 'local', '--task-tag', 'local', '--claim', '--confirm-claim'],
+    permissionEnvelope: 'guarded_execute',
+    receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
+    output: SOVEREIGN_ROOM_MARATHON_RECEIPT,
+    jsOutput: join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathon-latest.js'),
+    receiptDir: join(HOLOSHELL_TMP_DIR, 'sovereign-room-marathons'),
+    timeoutMs: 90_000,
+  },
 };
 const OPERATOR_TERMINAL_READONLY_ADAPTERS = {
   show_agents: {
@@ -1403,7 +1414,7 @@ function stageSovereignRoomMarathonForChat(payload = {}) {
     '--json',
   ];
   if (payload.cloudEscalationAllowed === true) args.push('--cloud-escalation-allowed');
-  if (claimRequested) args.push('--claim');
+  if (claimRequested) args.push('--claim', '--confirm-claim');
   if (doneRequested) {
     args.push(
       '--done',
@@ -2598,6 +2609,7 @@ function buildApprovedAdapterCliArgs(adapter) {
   if (adapter.output) args.push('--output', adapter.output);
   if (adapter.jsOutput) args.push('--js-output', adapter.jsOutput);
   if (adapter.bundleDir) args.push('--bundle-dir', adapter.bundleDir);
+  if (adapter.receiptDir) args.push('--receipt-dir', adapter.receiptDir);
   return args;
 }
 

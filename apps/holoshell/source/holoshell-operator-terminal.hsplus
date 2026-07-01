@@ -28,6 +28,7 @@ composition "HoloShell Operator Terminal" {
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     buildCustodyReceipt: ".tmp/holoshell/build-custody.json"
     workflowApprovalReceipt: ".tmp/holoshell/workflow-approval-latest.json"
+    sovereignRoomMarathonReceipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
     receiptControlReceipt: ".tmp/holoshell/receipt-control-latest.json"
     terminalReceipt: ".tmp/holoshell/operator-terminal.json"
     guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
@@ -68,6 +69,7 @@ composition "HoloShell Operator Terminal" {
     guardedExecuteReceiptStatus: "unknown"
     approvedAdapterExecutionStatus: "unknown"
     readOnlyAdapterExecutionStatus: "unknown"
+    localRoomClaimStatus: "unknown"
   }
 
   channel "holoshell:terminal:intent" {
@@ -210,6 +212,23 @@ composition "HoloShell Operator Terminal" {
       endpointExecutesRawCommand: false
     }
 
+    object "ClaimLocalTask" using "TerminalCommand" {
+      commandId: "claim_local_room_task"
+      label: "Claim Local Task"
+      audience: "human"
+      permissionEnvelope: "guarded_execute"
+      flow: "sovereign_room_task_claim"
+      adapter: "scripts/holoshell-sovereign-room-marathon.mjs"
+      receipt: ".tmp/holoshell/sovereign-room-marathon-latest.json"
+      target: "HoloMesh local room task claim"
+      approvalRequired: true
+      guardedExecuteEndpoint: "POST /api/operator-terminal/execute"
+      endpointStagesGuardedExecutionReceipt: true
+      approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
+      endpointExecutesApprovedAdapter: true
+      endpointExecutesRawCommand: false
+    }
+
     object "ShowReceipts" using "TerminalCommand" {
       commandId: "show_receipts"
       label: "Show Receipts"
@@ -247,16 +266,16 @@ composition "HoloShell Operator Terminal" {
     exposeGitByDefault: false
     exposeRawJsonByDefault: false
     useOutcomeLabels: true
-    allowedLabels: ["Ask Brittney", "Check System", "Build World", "Show Agents", "Review Approvals", "Show Receipts"]
+    allowedLabels: ["Ask Brittney", "Check System", "Build World", "Show Agents", "Review Approvals", "Claim Local Task", "Show Receipts"]
   }
 
   policy "HumanLabelsRouteExistingAdapters" {
-    appliesTo: ["ask_brittney", "check_system", "build_world", "show_agents", "review_approvals", "show_receipts"]
+    appliesTo: ["ask_brittney", "check_system", "build_world", "show_agents", "review_approvals", "claim_local_room_task", "show_receipts"]
     routeToExistingAdaptersOnly: true
     mintNewCommandGrammarAllowed: false
     routeLabelsInsteadOfRawCommands: true
-    requiredFlows: ["brittney_turn", "service_manager_status", "world_build_custody", "agent_lanes", "approval_review", "receipt_control"]
-    requiredAdapters: ["scripts/holoshell-brittney-turn.mjs", "scripts/holoshell-service-supervisor.mjs", "scripts/holoshell-build-custody.mjs", "scripts/holoshell-agent-lanes.mjs", "scripts/holoshell-workflow-approval-bundle.mjs", "scripts/holoshell-receipt-control.mjs"]
+    requiredFlows: ["brittney_turn", "service_manager_status", "world_build_custody", "agent_lanes", "approval_review", "sovereign_room_task_claim", "receipt_control"]
+    requiredAdapters: ["scripts/holoshell-brittney-turn.mjs", "scripts/holoshell-service-supervisor.mjs", "scripts/holoshell-build-custody.mjs", "scripts/holoshell-agent-lanes.mjs", "scripts/holoshell-workflow-approval-bundle.mjs", "scripts/holoshell-sovereign-room-marathon.mjs", "scripts/holoshell-receipt-control.mjs"]
     guardedExecuteRequiresApprovalBeforeMutation: true
     approvedAdapterExecutionRequiresServerAllowlist: true
     readOnlyAdapterExecutionRequiresServerAllowlist: true
@@ -298,7 +317,7 @@ composition "HoloShell Operator Terminal" {
   }
 
   policy "ApprovedAdapterExecutionConsumesGuardedReceipt" {
-    appliesTo: ["build_world", "review_approvals"]
+    appliesTo: ["build_world", "review_approvals", "claim_local_room_task"]
     approvedAdapterExecuteEndpoint: "POST /api/operator-terminal/run-approved"
     guardedExecuteReceipt: ".tmp/holoshell/operator-terminal-guarded-execute-latest.json"
     approvedAdapterExecutionReceipt: ".tmp/holoshell/operator-terminal-approved-execution-latest.json"
@@ -310,7 +329,7 @@ composition "HoloShell Operator Terminal" {
     endpointMayExecuteApprovedAdapter: true
     endpointMayExecuteRawCommand: false
     adapterSpawnedByEndpoint: true
-    requiredBeforeAdapter: ["fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter"]
+    requiredBeforeAdapter: ["fresh_guarded_execution_receipt", "not_previously_consumed", "matching_guarded_execute_receipt", "confirmApprovedAdapterExecution", "approvalReceipt", "server_allowlisted_adapter", "confirmClaim_for_local_room_claim"]
     oneApprovedAdapterExecutionPerGuardedExecutionId: true
     disallowDeveloperCommandFromReceipt: true
     receiptRequired: true

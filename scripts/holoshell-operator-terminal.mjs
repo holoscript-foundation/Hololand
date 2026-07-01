@@ -16,6 +16,7 @@ const HUMAN_LABELS = [
   'Build World',
   'Show Agents',
   'Review Approvals',
+  'Claim Local Task',
   'Show Receipts',
 ];
 const HUMAN_COMMAND_ROUTES = [
@@ -102,6 +103,22 @@ const HUMAN_COMMAND_ROUTES = [
     writes: ['.tmp/holoshell/workflow-approval-latest.json', '.tmp/holoshell/workflow-approval-latest.js'],
     receipt: '.tmp/holoshell/workflow-approval-latest.json',
     target: 'Nonce-bound HoloShell approval packets',
+  },
+  {
+    id: 'claim_local_room_task',
+    label: 'Claim Local Task',
+    meaning: 'Claim one local HoloMesh room task after guarded browser approval.',
+    flowLabel: 'Local task claim',
+    flow: 'sovereign_room_task_claim',
+    permissionEnvelope: 'guarded_execute',
+    approvalRequired: true,
+    adapter: 'scripts/holoshell-sovereign-room-marathon.mjs',
+    packageScript: null,
+    developerCommand: 'node scripts/holoshell-sovereign-room-marathon.mjs --task-lane local --task-tag local --claim --confirm-claim --json',
+    reads: ['HoloMesh local room queue', '.tmp/holoshell/operator-terminal.json'],
+    writes: ['.tmp/holoshell/sovereign-room-marathon-latest.json', '.tmp/holoshell/sovereign-room-marathon-latest.js'],
+    receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
+    target: 'HoloMesh local room task claim',
   },
   {
     id: 'show_receipts',
@@ -680,6 +697,7 @@ function assertSelfTest(receipt) {
   if (receipt.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (receipt.sourceAnchors.source !== 'apps/holoshell/source/holoshell-operator-terminal.hsplus') failures.push('source anchor mismatch');
   if (!receipt.commands.human.find((command) => command.label === 'Ask Brittney')) failures.push('missing Ask Brittney command');
+  if (!receipt.commands.human.find((command) => command.label === 'Claim Local Task')) failures.push('missing Claim Local Task command');
   if (!receipt.commands.human.find((command) => command.label === 'Show Receipts')) failures.push('missing Show Receipts command');
   if (receipt.humanContract.labels.join('|') !== HUMAN_LABELS.join('|')) failures.push('human label order changed');
   for (const label of HUMAN_LABELS) {

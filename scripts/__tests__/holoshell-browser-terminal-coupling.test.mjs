@@ -39,6 +39,14 @@ writeFileSync(terminalReceiptPath, `${JSON.stringify({
         receipt: '.tmp/holoshell/build-custody.json',
       },
       {
+        id: 'claim_local_room_task',
+        label: 'Claim Local Task',
+        flow: 'sovereign_room_task_claim',
+        permissionEnvelope: 'guarded_execute',
+        approvalRequired: true,
+        receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
+      },
+      {
         id: 'show_receipts',
         label: 'Show Receipts',
         flow: 'receipt_control',
@@ -49,7 +57,7 @@ writeFileSync(terminalReceiptPath, `${JSON.stringify({
     ],
   },
   humanContract: {
-    labels: ['Ask Brittney', 'Show Receipts'],
+    labels: ['Ask Brittney', 'Claim Local Task', 'Show Receipts'],
   },
   agentContract: {
     jsonCommand: 'node scripts/holoshell-operator-terminal.mjs --agent --json',
@@ -175,11 +183,12 @@ try {
   assert.equal(session.terminal.approvedAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-approved-adapter-execution.v0.1.0');
   assert.equal(session.terminal.approvedAdapterReplayGuard, 'one_approved_adapter_execution_per_guarded_execution_id');
   assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'build_world'));
+  assert.ok(session.terminal.approvedAdapterAllowlist.some((adapter) => adapter.commandId === 'claim_local_room_task'));
   assert.equal(session.terminal.readOnlyAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-readonly');
   assert.equal(session.terminal.readOnlyAdapterExecutionSchema, 'hololand.holoshell.operator-terminal-readonly-adapter-execution.v0.1.0');
   assert.ok(session.terminal.readOnlyAdapterAllowlist.some((adapter) => adapter.commandId === 'show_receipts'));
-  assert.equal(session.terminal.runCards.length, 4);
-  assert.equal(session.runCards.length, 4);
+  assert.equal(session.terminal.runCards.length, 5);
+  assert.equal(session.runCards.length, 5);
   assert.equal(session.runCards[0].label, 'Refresh Terminal Receipt');
   assert.equal(session.runCards[0].browserMayExecuteCommand, false);
   assert.equal(session.runCards[0].endpointExecutesCommand, false);
@@ -194,6 +203,16 @@ try {
   assert.equal(buildWorldCard.readOnlyAdapterAvailable, false);
   assert.equal(buildWorldCard.endpointExecutesReadOnlyAdapter, false);
   assert.equal(buildWorldCard.endpointExecutesRawCommand, false);
+  const claimLocalTaskCard = session.runCards.find((card) => card.id === 'terminal_run_card:claim_local_room_task');
+  assert.equal(claimLocalTaskCard.endpointExecutesCommand, false);
+  assert.equal(claimLocalTaskCard.endpointStagesGuardedExecutionReceipt, true);
+  assert.equal(claimLocalTaskCard.guardedExecuteEndpoint, 'POST /api/operator-terminal/execute');
+  assert.equal(claimLocalTaskCard.approvedAdapterAvailable, true);
+  assert.equal(claimLocalTaskCard.approvedAdapterExecuteEndpoint, 'POST /api/operator-terminal/run-approved');
+  assert.equal(claimLocalTaskCard.endpointExecutesApprovedAdapter, false);
+  assert.equal(claimLocalTaskCard.readOnlyAdapterAvailable, false);
+  assert.equal(claimLocalTaskCard.endpointExecutesReadOnlyAdapter, false);
+  assert.equal(claimLocalTaskCard.endpointExecutesRawCommand, false);
   const showReceiptsCard = session.runCards.find((card) => card.id === 'terminal_run_card:show_receipts');
   assert.equal(showReceiptsCard.endpointExecutesCommand, false);
   assert.equal(showReceiptsCard.endpointStagesGuardedExecutionReceipt, false);
@@ -302,10 +321,18 @@ try {
           approvalRequired: true,
           receipt: '.tmp/holoshell/build-custody.json',
         },
+        {
+          id: 'claim_local_room_task',
+          label: 'Claim Local Task',
+          flow: 'sovereign_room_task_claim',
+          permissionEnvelope: 'guarded_execute',
+          approvalRequired: true,
+          receipt: '.tmp/holoshell/sovereign-room-marathon-latest.json',
+        },
       ],
     },
     humanContract: {
-      labels: ['Ask Brittney'],
+      labels: ['Ask Brittney', 'Claim Local Task'],
     },
     agentContract: {
       jsonCommand: 'node scripts/holoshell-operator-terminal.mjs --agent --json',
@@ -350,6 +377,22 @@ try {
   assert.equal(stagedExecution.receipt.execution.adapterSpawned, false);
   assert.match(readFileSync(join(tempDir, 'operator-terminal-guarded-execute-latest.json'), 'utf8'), /approval-test-receipt-123/);
 
+  const stagedClaimLocalTask = await postJson('/api/operator-terminal/execute', {
+    commandId: 'claim_local_room_task',
+    confirmGuardedExecute: true,
+    approvalReceipt: 'approval-test-claim-local-task',
+    reason: 'stage local room task claim adapter without running it',
+    requestedBy: 'browser-test',
+  });
+  assert.equal(stagedClaimLocalTask.schemaVersion, 'hololand.holoshell.operator-terminal-guarded-execute.v0.1.0');
+  assert.equal(stagedClaimLocalTask.status, 'receipt_staged');
+  assert.equal(stagedClaimLocalTask.commandId, 'claim_local_room_task');
+  assert.equal(stagedClaimLocalTask.executionAllowed, true);
+  assert.equal(stagedClaimLocalTask.endpointExecutesCommand, false);
+  assert.equal(stagedClaimLocalTask.endpointStagesGuardedExecutionReceipt, true);
+  assert.equal(stagedClaimLocalTask.destructiveActionsTaken, false);
+  assert.equal(stagedClaimLocalTask.receipt.execution.adapterSpawned, false);
+
   const rejectedApprovedExecution = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
     executionId: stagedExecution.executionId,
     commandId: 'build_world',
@@ -361,6 +404,18 @@ try {
   assert.equal(rejectedApprovedExecution.endpointExecutesApprovedAdapter, false);
   assert.equal(rejectedApprovedExecution.endpointExecutesRawCommand, false);
   assert.equal(rejectedApprovedExecution.destructiveActionsTaken, false);
+
+  const rejectedClaimLocalTaskExecution = await postJsonExpectStatus('/api/operator-terminal/run-approved', {
+    executionId: stagedClaimLocalTask.executionId,
+    commandId: 'claim_local_room_task',
+    approvalReceipt: 'adapter-approval-test-claim-local-task',
+    reason: 'missing second confirmation for local room task claim',
+  }, 403);
+  assert.equal(rejectedClaimLocalTaskExecution.status, 'approval_required');
+  assert.equal(rejectedClaimLocalTaskExecution.executionAllowed, false);
+  assert.equal(rejectedClaimLocalTaskExecution.endpointExecutesApprovedAdapter, false);
+  assert.equal(rejectedClaimLocalTaskExecution.endpointExecutesRawCommand, false);
+  assert.equal(rejectedClaimLocalTaskExecution.destructiveActionsTaken, false);
 
   const stagedAskBrittney = await postJson('/api/operator-terminal/execute', {
     commandId: 'ask_brittney',

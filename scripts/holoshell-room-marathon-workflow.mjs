@@ -181,7 +181,7 @@ function defaultRoomCommand(args) {
   const escalationFlag = args.cloudEscalationAllowed ? ' --cloud-escalation-allowed' : '';
   const guidance = `Sovereign HoloShell room marathon: claim ${tag}-tagged tasks first; keep local tasks on owned hardware; cloud-tagged work requires an explicit receipt.`;
   const escapedGuidance = guidance.replace(/"/g, '\\"');
-  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Set-Location "C:\\Users\\josep\\Documents\\GitHub\\HoloLand"; node scripts\\holoshell-sovereign-room-marathon.mjs --task-lane "${tag}" --task-tag "${tag}" --claim${escalationFlag} --json; Write-Host "${escapedGuidance}"`;
+  return `Set-Location "C:\\Users\\josep\\.ai-ecosystem"; $env:HOLOSHELL_ROOM_MODE="marathon"; $env:HOLOSHELL_TASK_TAG="${tag}"; $env:HOLOSHELL_CONSUMPTION="sovereign"; $env:HOLOSHELL_CLOUD_ESCALATION_ALLOWED="${escalation}"; node scripts\\codex-team-daemon.mjs join; node hooks\\team-connect.mjs --queue; Set-Location "C:\\Users\\josep\\Documents\\GitHub\\HoloLand"; node scripts\\holoshell-sovereign-room-marathon.mjs --task-lane "${tag}" --task-tag "${tag}" --claim --confirm-claim${escalationFlag} --json; Write-Host "${escapedGuidance}"`;
 }
 
 function findCommand(command) {
@@ -464,6 +464,7 @@ function assertSelfTest(workflow) {
   const roomCommand = workflow.steps.find((item) => item.id === 'stage-room-command')?.action?.text || '';
   if (!roomCommand.includes('holoshell-sovereign-room-marathon.mjs')) failures.push('room command does not run sovereign room marathon adapter');
   if (!roomCommand.includes('--claim')) failures.push('guarded room command should claim the selected task');
+  if (!roomCommand.includes('--confirm-claim')) failures.push('guarded room command should confirm local claim explicitly');
   if (workflow.executionPolicy.mutationExecuted) failures.push('self-test should not execute mutations');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
