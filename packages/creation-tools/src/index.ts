@@ -130,5 +130,21 @@ export type {
   ExportOptions,
 } from './sharing';
 
+// Feed (sovereign consumer feed — WS-2 consume half)
+export {
+  WorldFeed,
+  seedFeedWorlds,
+  seedTemplateToFeedWorld,
+  isOpenableSovereignSceneUrl,
+} from './feed';
+export type {
+  FeedWorld,
+  OpenableWorld,
+  ShareLinkResult,
+  ShareLinkResolver,
+  StoreWorldLister,
+  WorldFeedConfig,
+} from './feed';
+
 // Version
 export const CREATION_TOOLS_VERSION = '1.0.0';

@@ -33,6 +33,10 @@
     "./sharing": {
       "import": "./dist/sharing/index.js",
       "types": "./dist/sharing/index.d.ts"
+    },
+    "./feed": {
+      "import": "./dist/feed/index.js",
+      "types": "./dist/feed/index.d.ts"
     }
   },
   "scripts": {
