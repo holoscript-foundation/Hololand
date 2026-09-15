@@ -56,10 +56,30 @@ import { datasetTools, handleDatasetTool } from './dataset-tools.js';
 // Using dynamic require to work around @holoscript/core ESM resolution issue
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const holoscriptCore = require('@holoscript/core');
-const HoloScriptCodeParser = holoscriptCore.HoloScriptCodeParser;
-const HOLOSCRIPT_DEMO_SCRIPTS = holoscriptCore.HOLOSCRIPT_DEMO_SCRIPTS;
-const HOLOSCRIPT_VERSION = holoscriptCore.HOLOSCRIPT_VERSION;
+// Optional — loaded lazily, like @infinitus/shared below. The Railway build
+// swaps the workspace-linked source for the published @holoscript/core
+// package (Dockerfile strips the local link so the build context doesn't
+// need the full sibling HoloScript repo); an unguarded require here crashed
+// the whole process at startup — including every non-HoloScript tool — the
+// moment that swap failed to resolve or exported a shape this file didn't
+// expect. Local-parsing tools degrade to a clear per-call error instead.
+let HoloScriptCodeParser: any = null;
+let HOLOSCRIPT_DEMO_SCRIPTS: Record<string, string> = {};
+let HOLOSCRIPT_VERSION: string | undefined;
+let holoscriptCoreAvailable = false;
+try {
+  const holoscriptCore = require('@holoscript/core');
+  HoloScriptCodeParser = holoscriptCore.HoloScriptCodeParser;
+  HOLOSCRIPT_DEMO_SCRIPTS = holoscriptCore.HOLOSCRIPT_DEMO_SCRIPTS;
+  HOLOSCRIPT_VERSION = holoscriptCore.HOLOSCRIPT_VERSION;
+  holoscriptCoreAvailable = true;
+} catch (err: any) {
+  console.error(
+    `[hololand-mcp] @holoscript/core failed to load — local HoloScript parsing tools ` +
+    `(parse_holoscript, validate_holoscript, get_holoscript_examples, get_holoscript_version) ` +
+    `will report unavailable per-call instead of the server crashing: ${err?.message || err}`
+  );
+}
 
 // Mesh registration with central orchestrator (optional — loaded lazily)
 let MeshClient: any = null;
@@ -262,9 +282,10 @@ class HololandClient {
 }
 
 /**
- * Local HoloScript Parser Instance (no API needed)
+ * Local HoloScript Parser Instance (no API needed).
+ * null when @holoscript/core failed to load — guarded per-call below.
  */
-const holoScriptParser = new HoloScriptCodeParser();
+const holoScriptParser: any = HoloScriptCodeParser ? new HoloScriptCodeParser() : null;
 
 /**
  * MCP Server
@@ -895,6 +916,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // =====================================================
 
       case 'parse_holoscript': {
+        if (!holoScriptParser) {
+          throw new Error('HoloScript local parser is unavailable in this deployment (@holoscript/core failed to load at startup)');
+        }
         const parseResult = holoScriptParser.parse(args.code);
         auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
@@ -907,6 +931,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'validate_holoscript': {
+        if (!holoScriptParser) {
+          throw new Error('HoloScript local parser is unavailable in this deployment (@holoscript/core failed to load at startup)');
+        }
         const validationResult = holoScriptParser.parse(args.code);
         const isValid = validationResult.success && validationResult.errors.length === 0;
         auditLogger.logCallSuccess(auditId);
@@ -921,6 +948,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_holoscript_examples': {
+        if (!holoscriptCoreAvailable) {
+          throw new Error('HoloScript examples are unavailable in this deployment (@holoscript/core failed to load at startup)');
+        }
         const category = args.category || 'all';
         let examples: Record<string, string>;
 
@@ -941,6 +971,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_holoscript_version': {
+        if (!holoscriptCoreAvailable) {
+          throw new Error('HoloScript version is unavailable in this deployment (@holoscript/core failed to load at startup)');
+        }
         auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
           version: HOLOSCRIPT_VERSION,
