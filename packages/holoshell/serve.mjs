@@ -7530,7 +7530,9 @@ async function handleRequest(req, res) {
         const prompt = [preamble, message]
           .filter(Boolean)
           .join('\n\n');
-        const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json'];
+        // 45 s runtime budget (the turn script's default is 20 s): a two-iteration tool turn on the Jetson
+        // runs ~15 tok/s and measured 18-25 s; the outer execFile timeout of 70 s still bounds it.
+        const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json', '--timeout-ms', String(Number(process.env.HOLOSHELL_TURN_TIMEOUT_MS) || 45000)];
         if (selfTest) args.push('--self-test');
         if (brain && typeof brain === 'string') args.push('--brain', brain);
         if (relational) args.push('--relational');
