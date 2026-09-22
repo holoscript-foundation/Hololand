@@ -6478,22 +6478,40 @@ const MCP_OAUTH_CLIENT_FILE = () => (process.env.HOLOSHELL_MCP_OAUTH_CLIENT_FILE
 let mcpToken = { value: '', expiresAt: 0 };
 function mcpOrigin() { try { return new URL(MCP_URL()).origin; } catch { return ''; } }
 function readOauthClient() { try { return JSON.parse(readFileSync(MCP_OAUTH_CLIENT_FILE(), 'utf8')); } catch { return null; } }
+// HoloShell registers AS the daimon owner. The anchor binds the daimon tools' callerId to the
+// token's principal (HoloScript 26360d668: a stranger can no longer type "founder" as callerId),
+// so the token must carry agent_id = the owner: bound at registration (accepted from a loopback
+// registrant while the anchor's registration is loopback-only) and requested at every grant.
+// If the anchor refuses the binding, HoloShell still registers without it and says so once:
+// Brittney then runs WITHOUT the daimon's memory rather than not at all.
 async function registerOauthClient() {
-  const r = await fetch(`${mcpOrigin()}/oauth/register`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
-    body: JSON.stringify({ client_name: 'holoshell-brittney-daimon', grant_types: ['client_credentials'],
-      token_endpoint_auth_method: 'client_secret_post', redirect_uris: ['https://localhost/holoshell/oauth-cb'],
-      scope: 'tools:read tools:execute' }),
-  });
-  const j = await r.json();
-  if (!j || !j.client_id || !j.client_secret) throw new Error(`oauth register failed: ${JSON.stringify(j).slice(0, 160)}`);
+  const owner = DAIMON_OWNER();
+  const register = async (asOwner) => {
+    const r = await fetch(`${mcpOrigin()}/oauth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({ client_name: 'holoshell-brittney-daimon', grant_types: ['client_credentials'],
+        token_endpoint_auth_method: 'client_secret_post', redirect_uris: ['https://localhost/holoshell/oauth-cb'],
+        scope: 'tools:read tools:execute', ...(asOwner ? { agent_id: owner } : {}) }),
+    });
+    return r.json().catch(() => null);
+  };
+  let j = await register(true);
+  let bound = Boolean(j && j.client_id && j.client_secret);
+  if (!bound) {
+    const why = JSON.stringify(j || null).slice(0, 160);
+    j = await register(false);
+    if (!j || !j.client_id || !j.client_secret) throw new Error(`oauth register failed: ${why}`);
+    console.warn(`[holoshell] the anchor would not let HoloShell register as "${owner}" (${why}); Brittney runs WITHOUT the daimon's memory until it does`);
+  }
+  const record = { ...j, agent_id: bound ? owner : '', agent_id_refused: !bound };
   mkdirSync(dirname(MCP_OAUTH_CLIENT_FILE()), { recursive: true });
-  writeFileSync(MCP_OAUTH_CLIENT_FILE(), JSON.stringify(j, null, 2), { mode: 0o600 });
-  return j;
+  writeFileSync(MCP_OAUTH_CLIENT_FILE(), JSON.stringify(record, null, 2), { mode: 0o600 });
+  return record;
 }
 async function fetchOauthToken(client) {
   const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: client.client_id,
-    client_secret: client.client_secret, scope: 'tools:read tools:execute' });
+    client_secret: client.client_secret, scope: 'tools:read tools:execute',
+    ...(client.agent_id ? { agent_id: client.agent_id } : {}) });
   const r = await fetch(`${mcpOrigin()}/oauth/token`, { method: 'POST', body, signal: AbortSignal.timeout(8000) });
   const j = await r.json();
   if (!j || !j.access_token) return { error: (j && j.error) || `HTTP ${r.status}` };
@@ -6503,6 +6521,9 @@ async function mcpAuthHeaders() {
   if (MCP_IS_CLOUD()) { const key = MCP_KEY(); return key ? { 'x-mcp-api-key': key } : null; }
   if (mcpToken.value && Date.now() < mcpToken.expiresAt) return { Authorization: `Bearer ${mcpToken.value}` };
   let client = readOauthClient();
+  // A client registered before the owner binding existed carries no agent_id: replace it, or every
+  // daimon read is refused as "not bound to the authenticated principal".
+  if (client && client.agent_id !== DAIMON_OWNER() && !client.agent_id_refused) client = null;
   let grant = client ? await fetchOauthToken(client) : { error: 'no client' };
   if (grant.error) { client = await registerOauthClient(); grant = await fetchOauthToken(client); }
   if (grant.error) throw new Error(`oauth token failed: ${grant.error}`);
