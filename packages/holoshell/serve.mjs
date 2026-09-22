@@ -884,9 +884,16 @@ function looksLikeRelationalIntent(message) {
   // Phrases are relational on their own; bare single words (memory, connection, feel, trust, grow,
   // listen, present, ...) only count with a first/second-person pronoun nearby, because
   // "how much memory is the jetson using?" is operational (claude1 review, 2026-09-22).
-  const phrases = /\b(remember|recall|about me|know about me|know me|who am i|my name|what do you know|relationship|how are you|how('?re| are) (we|things|you)|who are you|get to know|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
-  const bareSingles = /\b(memory|memories|connection|connecting|feel|feeling|trust|grow|growing|listen|present)\b/iu.test(text)
-    && /\b(i|me|my|mine|you|your|yours|we|us|our|ours)\b/iu.test(text);
+  const phrases = /\b(remember|recall|about me|know about me|know me|who am i|my name|what do you know|relationship|how are you|how('?re| are) (we|things|you)|who are you|get to know|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|present with|be (here|with) (me|you))\b/iu.test(text);
+  // A bare word is relational only when a person pronoun is ATTACHED to it: within two tokens
+  // after it ("trust you", "feel like you", "listening to me") or immediately before it as its
+  // owner or subject ("our connection", "you present"). "I" alone before the word does not count
+  // ("I trust the receipt" is operational), and "memory" is never a bare relational word ("what do
+  // you remember about me" is covered by the phrases). Scored on a held-out set written BEFORE this
+  // rule: scripts/__tests__/holoshell-relational-intent.heldout.mjs (claude1 review, 2026-09-22).
+  const BARE = '(connection|connections|connecting|feel|feeling|trust|grow|growing|listen|listening|present)';
+  const bareSingles = new RegExp('\\b' + BARE + '\\b(\\s+\\w+)?\\s+(you|me|us|we|our|your|my|i)\\b', 'iu').test(text)
+    || new RegExp('\\b(you|we|our|your|my|us|me)\\s+' + BARE + '\\b', 'iu').test(text);
   const relational = phrases || bareSingles;
   if (!relational) return false;
   if (/^\s*(build|run|open|launch|execute|deploy|install|fix|compile|test|queue|refresh|check|stage|focus|click|type|scroll|save|submit)\b/iu.test(text)) return false;
