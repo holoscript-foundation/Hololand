@@ -7444,8 +7444,11 @@ async function handleRequest(req, res) {
   }
 
   // ── GET /api/daimon/status — the emergent companion (D.053). Reads the live
-  // ConversationDaemon substrate (holo_list_daemons @ mcp.holoscript.net). The daimon is
-  // NOT granted; it emerges from accumulated soul-context and then feeds Brittney here.
+  // ConversationDaemon substrate through holo_list_daemons at MCP_URL() — the local anchor on the
+  // Jetson (HOLOSHELL_MCP_URL), the cloud only when nothing else is configured; this comment said
+  // mcp.holoscript.net for months after the daimon had moved home. Authenticated as the owner, so
+  // the rows carry ownerId; a stranger token would see displayName only. The daimon is NOT
+  // granted; it emerges from accumulated soul-context and then feeds Brittney here.
   if (req.method === 'GET' && path === '/api/daimon/status') {
     const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
     try {
