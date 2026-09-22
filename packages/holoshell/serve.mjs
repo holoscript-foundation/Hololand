@@ -881,7 +881,13 @@ function looksLikeNextStepsIntent(message) {
 // word inside an imperative tool/desktop command stays operational.
 function looksLikeRelationalIntent(message) {
   const text = String(message || '');
-  const relational = /\b(remember|recall|memory|memories|about me|know about me|know me|who am i|my name|what do you know|relationship|connection|connecting|how are you|how('?re| are) (we|things|you)|who are you|get to know|feel|feeling|trust|grow|growing|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
+  // Phrases are relational on their own; bare single words (memory, connection, feel, trust, grow,
+  // listen, present, ...) only count with a first/second-person pronoun nearby, because
+  // "how much memory is the jetson using?" is operational (claude1 review, 2026-09-22).
+  const phrases = /\b(remember|recall|about me|know about me|know me|who am i|my name|what do you know|relationship|how are you|how('?re| are) (we|things|you)|who are you|get to know|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
+  const bareSingles = /\b(memory|memories|connection|connecting|feel|feeling|trust|grow|growing|listen|present)\b/iu.test(text)
+    && /\b(i|me|my|mine|you|your|yours|we|us|our|ours)\b/iu.test(text);
+  const relational = phrases || bareSingles;
   if (!relational) return false;
   if (/^\s*(build|run|open|launch|execute|deploy|install|fix|compile|test|queue|refresh|check|stage|focus|click|type|scroll|save|submit)\b/iu.test(text)) return false;
   if (looksLikeDesktopControlIntent(text)) return false;
@@ -6564,28 +6570,44 @@ async function daimonRehydration() {
 // turn script will use (OLLAMA_HOST + AIBRITTNEY_API_STYLE), so the self-test goes RED when the
 // model server is down, moved, or speaks a different protocol — the exact failure that hid for
 // 83 days behind the deterministic harness.
+function normalizeModelHost(raw) {
+  // OLLAMA_HOST is spelled scheme-less by the ollama CLI ("127.0.0.1:11434") and with a scheme by
+  // fetch callers; accept both (claude1 review: the scheme-less spelling made the probe throw).
+  const h = String(raw || 'http://127.0.0.1:11434').trim().replace(/\/+$/u, '');
+  return /^https?:\/\//iu.test(h) ? h : `http://${h}`;
+}
 async function probeModelReachability() {
-  const host = (process.env.OLLAMA_HOST || 'http://127.0.0.1:11434').replace(/\/$/u, '');
+  const host = normalizeModelHost(process.env.OLLAMA_HOST);
   const style = (process.env.AIBRITTNEY_API_STYLE || 'auto').toLowerCase();
   const model = process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct';
   const started = Date.now();
-  const attempt = async (path, body) => {
-    const r = await fetch(`${host}${path}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
-    });
-    return r;
-  };
+  // Reachability: does anything answer at all (5 s on the model list), separately from warmth.
+  let reachable = false; let listStatus = 0;
+  for (const path of style === 'ollama' ? ['/api/tags'] : ['/v1/models', '/api/tags']) {
+    try { const r = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000) }); listStatus = r.status; reachable = true; break; } catch { /* try the next */ }
+  }
+  if (!reachable) return { reachable: false, warm: false, host, style, model, httpStatus: 0, latencyMs: Date.now() - started, error: 'no answer on the model list within 5 s' };
+  // Warmth: one token. A cold model may take longer than the budget; that is "not warm", not "not there".
+  const attempt = async (path, body) => fetch(`${host}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
+  });
   const openai = () => attempt('/v1/chat/completions', { model, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1, stream: false });
   const ollama = () => attempt('/api/chat', { model, messages: [{ role: 'user', content: 'ok' }], stream: false, options: { num_predict: 1 } });
+  let used = style === 'openai' ? 'openai' : 'ollama';
   try {
-    let r = style === 'openai' ? await openai() : await ollama();
-    let used = style === 'openai' ? 'openai' : 'ollama';
-    if (style === 'auto' && (r.status === 404 || r.status === 405)) { r = await openai(); used = 'openai'; }
-    const reachable = r.ok;
-    return { reachable, host, style: used, model, httpStatus: r.status, latencyMs: Date.now() - started, error: reachable ? null : `HTTP ${r.status}` };
+    let r;
+    if (style === 'openai') { r = await openai(); }
+    else {
+      try { r = await ollama(); } catch (err) { if (style !== 'auto') throw err; r = null; }
+      if (style === 'auto' && (!r || r.status === 404 || r.status === 405)) { r = await openai(); used = 'openai'; }
+    }
+    const warm = r.ok;
+    return { reachable: true, warm, host, style: used, model, httpStatus: r.status, listStatus, latencyMs: Date.now() - started, error: warm ? null : `HTTP ${r.status}` };
   } catch (err) {
-    return { reachable: false, host, style, model, httpStatus: 0, latencyMs: Date.now() - started, error: String(err && err.message || err) };
+    const timedOut = /abort|timeout/iu.test(String(err && err.name || '') + String(err && err.message || ''));
+    return { reachable: true, warm: false, host, style: used, model, httpStatus: 0, listStatus, latencyMs: Date.now() - started,
+      error: timedOut ? 'reachable but no token within 20 s (cold model?)' : String(err && err.message || err) };
   }
 }
 
