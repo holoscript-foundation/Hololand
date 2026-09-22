@@ -17,8 +17,10 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, isAbsolute, resolve } from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync, execFileSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import {
   appendTerminalEvents,
   buildTerminalEventStream,
@@ -211,6 +213,7 @@ const BROWSER_CHAT_WORKSPACE_ROUTE_MAP = {
 const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
+const execFileAsync = promisify(execFile);
 // Bind host. Default loopback (the laptop-local case). On the JETSON — where this
 // surface is hosted so the laptop/Quest are just screens (founder 2026-06-17) — set
 // HOLOSHELL_SERVE_HOST=0.0.0.0 so http://holojetson.local:8747 is LAN-reachable.
@@ -6682,7 +6685,8 @@ function isPhoneAdmin(req) {
   if (isLoopback(req)) return true;
   const key = PHONE_ADMIN_KEY();
   const given = String(req.headers['x-phone-admin'] || '').trim();
-  return Boolean(key) && given.length === key.length && given === key;
+  if (!key || given.length !== key.length) return false;
+  return timingSafeEqual(Buffer.from(given), Buffer.from(key));
 }
 function isLoopback(req) {
   const a = String((req.socket && req.socket.remoteAddress) || '');
@@ -6698,7 +6702,7 @@ const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><me
 <div id="out"></div>
 <script>
 const out=document.getElementById('out');const tok=document.getElementById('tok');
-const k=new URLSearchParams(location.search).get('k')||'';
+const k=new URLSearchParams(location.search).get('k')||'';if(k){try{history.replaceState(null,'',location.pathname);}catch{}}
 async function status(){try{const r=await fetch('/api/phone/status');return await r.json();}catch{return null;}}
 async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
 document.getElementById('go').onclick=async()=>{out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':k},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
@@ -7502,7 +7506,9 @@ async function handleRequest(req, res) {
         if (brain && typeof brain === 'string') args.push('--brain', brain);
         if (relational) args.push('--relational');
         else if (resolvedMode === 'maintenance') args.push('--maintenance');
-        const out = execFileSync('node', args, {
+        // Awaited, not execFileSync: a synchronous turn froze the whole event loop (dashboard polls,
+        // health, daimon status, the phone poller) for the length of a model call (claude1 review).
+        const { stdout: out } = await execFileAsync('node', args, {
           cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
         });
         const receipt = JSON.parse(out.slice(out.indexOf('{')));
