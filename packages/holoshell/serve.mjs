@@ -878,7 +878,7 @@ function looksLikeNextStepsIntent(message) {
 // word inside an imperative tool/desktop command stays operational.
 function looksLikeRelationalIntent(message) {
   const text = String(message || '');
-  const relational = /\b(relationship|connection|connecting|how are you|how('?re| are) (we|things|you)|who are you|get to know|feel|feeling|trust|grow|growing|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
+  const relational = /\b(remember|recall|memory|memories|about me|know about me|know me|who am i|my name|what do you know|relationship|connection|connecting|how are you|how('?re| are) (we|things|you)|who are you|get to know|feel|feeling|trust|grow|growing|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
   if (!relational) return false;
   if (/^\s*(build|run|open|launch|execute|deploy|install|fix|compile|test|queue|refresh|check|stage|focus|click|type|scroll|save|submit)\b/iu.test(text)) return false;
   if (looksLikeDesktopControlIntent(text)) return false;
@@ -6448,35 +6448,98 @@ function buildBrittneyCockpitCapsule() {
 // PARSED tool result (e.g. {daemons:[...]} / a turn object), or null on any failure.
 const DAIMON_OWNER = () => process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
 const MCP_KEY = () => process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
+// Where the daimon lives. Default stays the cloud for compatibility; on the Jetson set
+// HOLOSHELL_MCP_URL=http://127.0.0.1:7411/mcp so the founder's daimon is sovereign (its store is
+// the anchor's local emergence JSONL, which survived a real anchor restart on 2026-09-22).
+const MCP_URL = () => (process.env.HOLOSHELL_MCP_URL || 'https://mcp.holoscript.net/mcp').trim();
+const MCP_IS_CLOUD = () => /mcp\.holoscript\.net/u.test(MCP_URL());
+// The local anchor takes no shared API key: it issues OAuth client-credentials tokens to a client
+// that registers itself (public registration, scopes tools:read + tools:execute). The client record
+// lives in HOLOSHELL_MCP_OAUTH_CLIENT_FILE (mode 600). The anchor's client registry is in-memory, so
+// after an anchor restart the token grant fails with invalid_grant and we re-register once.
+const MCP_OAUTH_CLIENT_FILE = () => (process.env.HOLOSHELL_MCP_OAUTH_CLIENT_FILE
+  || join(process.env.HOLOSHELL_RECEIPTS_DIR || join(__dirname, '..', '..', '.tmp', 'holoshell'), 'anchor-oauth-client.json'));
+let mcpToken = { value: '', expiresAt: 0 };
+function mcpOrigin() { try { return new URL(MCP_URL()).origin; } catch { return ''; } }
+function readOauthClient() { try { return JSON.parse(readFileSync(MCP_OAUTH_CLIENT_FILE(), 'utf8')); } catch { return null; } }
+async function registerOauthClient() {
+  const r = await fetch(`${mcpOrigin()}/oauth/register`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({ client_name: 'holoshell-brittney-daimon', grant_types: ['client_credentials'],
+      token_endpoint_auth_method: 'client_secret_post', redirect_uris: ['https://localhost/holoshell/oauth-cb'],
+      scope: 'tools:read tools:execute' }),
+  });
+  const j = await r.json();
+  if (!j || !j.client_id || !j.client_secret) throw new Error(`oauth register failed: ${JSON.stringify(j).slice(0, 160)}`);
+  mkdirSync(dirname(MCP_OAUTH_CLIENT_FILE()), { recursive: true });
+  writeFileSync(MCP_OAUTH_CLIENT_FILE(), JSON.stringify(j, null, 2), { mode: 0o600 });
+  return j;
+}
+async function fetchOauthToken(client) {
+  const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: client.client_id,
+    client_secret: client.client_secret, scope: 'tools:read tools:execute' });
+  const r = await fetch(`${mcpOrigin()}/oauth/token`, { method: 'POST', body, signal: AbortSignal.timeout(8000) });
+  const j = await r.json();
+  if (!j || !j.access_token) return { error: (j && j.error) || `HTTP ${r.status}` };
+  return { token: j.access_token, expiresIn: Number(j.expires_in) || 3600 };
+}
+async function mcpAuthHeaders() {
+  if (MCP_IS_CLOUD()) { const key = MCP_KEY(); return key ? { 'x-mcp-api-key': key } : null; }
+  if (mcpToken.value && Date.now() < mcpToken.expiresAt) return { Authorization: `Bearer ${mcpToken.value}` };
+  let client = readOauthClient();
+  let grant = client ? await fetchOauthToken(client) : { error: 'no client' };
+  if (grant.error) { client = await registerOauthClient(); grant = await fetchOauthToken(client); }
+  if (grant.error) throw new Error(`oauth token failed: ${grant.error}`);
+  mcpToken = { value: grant.token, expiresAt: Date.now() + (grant.expiresIn - 60) * 1000 };
+  return { Authorization: `Bearer ${mcpToken.value}` };
+}
 function holoMcp(name, args) {
-  const key = MCP_KEY();
-  if (!key) return Promise.resolve(null);
-  return fetch('https://mcp.holoscript.net/mcp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
-    body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
-    signal: AbortSignal.timeout(8000),
-  }).then((r) => r.json())
-    .then((j) => { try { return JSON.parse(j?.result?.content?.[0]?.text || 'null'); } catch { return null; } })
-    .catch(() => null);
+  return mcpAuthHeaders().then((auth) => {
+    if (!auth) return null;
+    return fetch(MCP_URL(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...auth },
+      body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
+      signal: AbortSignal.timeout(8000),
+    }).then((r) => r.json())
+      .then((j) => { try { return JSON.parse(j?.result?.content?.[0]?.text || 'null'); } catch { return null; } });
+  }).catch(() => null);
 }
 
 // Emergence loop: every management turn is a care-signal that accumulates the daimon's
 // soul; emergence_check manifests it at threshold (5 turns + richness 3). Fire-and-forget.
 async function growDaimon(message) {
-  if (!MCP_KEY() || !message) return;
+  if (!message) return;
+  if (MCP_IS_CLOUD() && !MCP_KEY()) return;
+  // Self-test pings are not the founder: on 2026-09-22 the cloud daimon had "emerged" from
+  // nothing but "holoshell route self-test:" deltas and knew nothing about him.
+  if (/^\s*holoshell route self-test/iu.test(String(message))) return;
   const significanceScore = Math.min(0.95, 0.5 + message.length / 400);
   const recentFocus = message.toLowerCase().split(/\s+/).slice(0, 3).join(' ').slice(0, 48);
   await holoMcp('holo_observe_soul', { ownerId: DAIMON_OWNER(), contextDelta: {
     careSignalHistory: ['system-management', 'shared-work'], significanceScore, updatedPreferences: { recentFocus } } });
-  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: 'Daimon' });
+  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: process.env.HOLOSHELL_DAIMON_NAME || 'Diamond' });
 }
 
 // Once the daimon has EMERGED, pull its turn (the Brittney rehydration channel, surfaceId
 // 'holoshell') and return a preamble that primes Brittney's prompt with the companion's
 // accumulated context. Empty string until emergence — so this is a no-op cost today.
+// holo_daemon_turn returns { accepted, rehydratedContext: { aggregatedPreferences, careSignals,
+// receiptRefs, deltas }, daemonId } (daemon-lifecycle-tools.ts). Until 2026-09-22 this read
+// turn.rehydration|context|finalText|summary|text, none of which exist, so the preamble was empty
+// forever and Brittney could not remember anything even after the daimon had emerged.
+function renderRehydratedContext(ctx) {
+  if (!ctx || typeof ctx !== 'object') return '';
+  const prefs = ctx.aggregatedPreferences && typeof ctx.aggregatedPreferences === 'object' ? ctx.aggregatedPreferences : {};
+  const lines = Object.entries(prefs)
+    .filter(([k, v]) => k !== 'recentFocus' && v !== undefined && v !== null && String(v).trim())
+    .map(([k, v]) => `- ${k.replace(/_/gu, ' ')}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
+  const care = Array.isArray(ctx.careSignals) ? ctx.careSignals.filter((c) => typeof c === 'string' && c && !/^(system-management|shared-work)$/u.test(c)) : [];
+  if (care.length) lines.push(`- care signals: ${[...new Set(care)].join(', ')}`);
+  return lines.join('\n');
+}
 async function daimonRehydration() {
-  if (!MCP_KEY()) return '';
+  if (MCP_IS_CLOUD() && !MCP_KEY()) return '';
   const list = await holoMcp('holo_list_daemons', {});
   const daemons = (list && list.daemons) || [];
   if (!daemons.length) return '';  // not yet emerged
@@ -6487,9 +6550,40 @@ async function daimonRehydration() {
     contextDelta: { careSignalHistory: ['system-management'], significanceScore: 0.6, updatedPreferences: {} },
     surfaceId: 'holoshell',
   });
-  const ctx = turn && (turn.rehydration || turn.context || turn.finalText || turn.summary || turn.text);
+  const rendered = turn && turn.rehydratedContext ? renderRehydratedContext(turn.rehydratedContext) : '';
+  const legacy = turn && (turn.rehydration || turn.context || turn.finalText || turn.summary || turn.text);
+  const ctx = rendered || (legacy ? String(legacy) : '');
   if (!ctx) return '';
-  return `[${mine.displayName || 'Daimon'} — your emergent companion — offers remembered context: ${String(ctx).slice(0, 600)}]`;
+  return `[${mine.displayName || 'Daimon'} — Joseph's own daimon, his private companion that has learned him — offers REAL remembered context about him (use it, do not invent beyond it):\n${ctx.slice(0, 1200)}]`;
+}
+
+// Real model reachability probe for the chat self-test. One token, same host and API style the
+// turn script will use (OLLAMA_HOST + AIBRITTNEY_API_STYLE), so the self-test goes RED when the
+// model server is down, moved, or speaks a different protocol — the exact failure that hid for
+// 83 days behind the deterministic harness.
+async function probeModelReachability() {
+  const host = (process.env.OLLAMA_HOST || 'http://127.0.0.1:11434').replace(/\/$/u, '');
+  const style = (process.env.AIBRITTNEY_API_STYLE || 'auto').toLowerCase();
+  const model = process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct';
+  const started = Date.now();
+  const attempt = async (path, body) => {
+    const r = await fetch(`${host}${path}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
+    });
+    return r;
+  };
+  const openai = () => attempt('/v1/chat/completions', { model, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1, stream: false });
+  const ollama = () => attempt('/api/chat', { model, messages: [{ role: 'user', content: 'ok' }], stream: false, options: { num_predict: 1 } });
+  try {
+    let r = style === 'openai' ? await openai() : await ollama();
+    let used = style === 'openai' ? 'openai' : 'ollama';
+    if (style === 'auto' && (r.status === 404 || r.status === 405)) { r = await openai(); used = 'openai'; }
+    const reachable = r.ok;
+    return { reachable, host, style: used, model, httpStatus: r.status, latencyMs: Date.now() - started, error: reachable ? null : `HTTP ${r.status}` };
+  } catch (err) {
+    return { reachable: false, host, style, model, httpStatus: 0, latencyMs: Date.now() - started, error: String(err && err.message || err) };
+  }
 }
 
 // ── Request handler ───────────────────────────────────────────────────────────
@@ -7182,9 +7276,10 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && path === '/api/daimon/status') {
     const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
     try {
-      const mcp = await fetch('https://mcp.holoscript.net/mcp', {
+      const statusAuth = (await mcpAuthHeaders().catch(() => null)) || (key ? { 'x-mcp-api-key': key } : {});
+      const mcp = await fetch(MCP_URL(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...statusAuth },
         body: JSON.stringify({ jsonrpc: '2.0', id: 'd', method: 'tools/call',
           params: { name: 'holo_list_daemons', arguments: {} } }),
         signal: AbortSignal.timeout(8000),
@@ -7247,6 +7342,15 @@ async function handleRequest(req, res) {
         const receipt = JSON.parse(out.slice(out.indexOf('{')));
         const r = receipt.result || {};
         const modelReply = r.finalText || r.summary || r.text || '(no reply)';
+        // Self-test: the deterministic harness above proves the route; this proves the MODEL.
+        const modelProbe = selfTest ? await probeModelReachability() : null;
+        if (modelProbe && !modelProbe.reachable) {
+          respond(res, {
+            turnId: receipt.turnId, reply: '(self-test failed: model server unreachable)',
+            selfTest: true, modelProbe, proposals: [], receiptType: receipt.receipt?.receiptType || null,
+          }, 503);
+          return;
+        }
         const reply = liveStatus
           ? buildGroundedStatusReply(liveStatus, message)
           : modelReply;
@@ -7262,6 +7366,7 @@ async function handleRequest(req, res) {
         respond(res, {
           turnId: receipt.turnId,
           reply,
+          modelProbe,
           proposals,
           desktopControl: desktopControl ? {
             planId: desktopControl.planId,
