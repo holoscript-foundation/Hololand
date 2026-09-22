@@ -6518,7 +6518,7 @@ async function growDaimon(message) {
   const recentFocus = message.toLowerCase().split(/\s+/).slice(0, 3).join(' ').slice(0, 48);
   await holoMcp('holo_observe_soul', { ownerId: DAIMON_OWNER(), contextDelta: {
     careSignalHistory: ['system-management', 'shared-work'], significanceScore, updatedPreferences: { recentFocus } } });
-  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: process.env.HOLOSHELL_DAIMON_NAME || 'Diamond' });
+  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: process.env.HOLOSHELL_DAIMON_NAME || 'Daimon' });
 }
 
 // Once the daimon has EMERGED, pull its turn (the Brittney rehydration channel, surfaceId
@@ -6585,6 +6585,109 @@ async function probeModelReachability() {
     return { reachable: false, host, style, model, httpStatus: 0, latencyMs: Date.now() - started, error: String(err && err.message || err) };
   }
 }
+
+// ── Phone channel (Telegram) ──────────────────────────────────────────────────
+// Build 2 of the Muse direction (founder, 2026-09-22): the founder's daimon reaches his phone
+// and he can talk to Brittney from his pocket. A Telegram bot, long-polled from this process,
+// answers ONLY the one chat that paired with the code shown on /connect-phone. Runs here on
+// the Jetson: no rented compute, no third-party agent in the loop; Telegram is the relay only.
+// State file (mode 600): HOLOSHELL_PHONE_FILE or <receipts dir>/phone-channel.json.
+const PHONE_FILE = () => (process.env.HOLOSHELL_PHONE_FILE
+  || join(process.env.HOLOSHELL_RECEIPTS_DIR || join(__dirname, '..', '..', '.tmp', 'holoshell'), 'phone-channel.json'));
+const phone = { token: '', botUsername: '', founderChatId: '', pairingCode: '', pairingExpiresAt: 0,
+  offset: 0, polling: false, lastInboundAt: '', lastOutboundAt: '', lastError: '' };
+function loadPhoneState() {
+  try {
+    const j = JSON.parse(readFileSync(PHONE_FILE(), 'utf8'));
+    phone.token = j.botToken || ''; phone.botUsername = j.botUsername || ''; phone.founderChatId = j.founderChatId || '';
+  } catch { /* not configured yet */ }
+  if (!phone.token && process.env.TELEGRAM_BOT_TOKEN) phone.token = String(process.env.TELEGRAM_BOT_TOKEN).trim();
+}
+function savePhoneState() {
+  mkdirSync(dirname(PHONE_FILE()), { recursive: true });
+  writeFileSync(PHONE_FILE(), JSON.stringify({ botToken: phone.token, botUsername: phone.botUsername,
+    founderChatId: phone.founderChatId, pairedAt: phone.founderChatId ? new Date().toISOString() : null }, null, 2), { mode: 0o600 });
+}
+async function tg(method, body, timeoutMs = 20000) {
+  const r = await fetch(`https://api.telegram.org/bot${phone.token}/${method}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}), signal: AbortSignal.timeout(timeoutMs),
+  });
+  const j = await r.json().catch(() => null);
+  if (!j || !j.ok) throw new Error((j && j.description) || `telegram ${method} HTTP ${r.status}`);
+  return j.result;
+}
+async function phoneSend(text) {
+  if (!phone.token || !phone.founderChatId) return false;
+  await tg('sendMessage', { chat_id: phone.founderChatId, text: String(text).slice(0, 4000) });
+  phone.lastOutboundAt = new Date().toISOString();
+  return true;
+}
+async function phoneAnswer(text) {
+  const r = await fetch(`http://127.0.0.1:${PORT}/api/brittney/chat`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text, mode: 'live' }), signal: AbortSignal.timeout(150000),
+  });
+  const j = await r.json().catch(() => null);
+  return (j && j.reply) || 'I could not answer that just now.';
+}
+async function phonePoll() {
+  if (phone.polling) return;
+  phone.polling = true;
+  while (phone.token) {
+    try {
+      const updates = await tg('getUpdates', { offset: phone.offset, timeout: 25, allowed_updates: ['message'] }, 40000);
+      for (const u of updates) {
+        phone.offset = u.update_id + 1;
+        const m = u.message;
+        if (!m || typeof m.text !== 'string') continue;
+        const chatId = String(m.chat && m.chat.id);
+        if (!phone.founderChatId) {
+          // Pairing: the first chat that sends the code shown on /connect-phone becomes the founder's.
+          if (phone.pairingCode && Date.now() < phone.pairingExpiresAt && m.text.includes(phone.pairingCode)) {
+            phone.founderChatId = chatId; phone.pairingCode = ''; savePhoneState();
+            await phoneSend(`Paired. This is Brittney, and ${process.env.HOLOSHELL_DAIMON_NAME || 'Daimon'} is with me. Say anything.`);
+          }
+          continue;
+        }
+        if (chatId !== phone.founderChatId) continue; // only the founder's chat, ever
+        phone.lastInboundAt = new Date().toISOString();
+        const reply = await phoneAnswer(m.text);
+        await phoneSend(reply);
+      }
+      phone.lastError = '';
+    } catch (err) {
+      phone.lastError = String((err && err.message) || err);
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5000));
+    }
+  }
+  phone.polling = false;
+}
+function startPhoneChannel() { loadPhoneState(); if (phone.token) phonePoll(); }
+function phoneStatus() {
+  return { configured: Boolean(phone.token), paired: Boolean(phone.founderChatId), botUsername: phone.botUsername,
+    pairingCode: phone.founderChatId ? null : (phone.pairingCode || null), lastInboundAt: phone.lastInboundAt,
+    lastOutboundAt: phone.lastOutboundAt, lastError: phone.lastError, polling: phone.polling };
+}
+function isLoopback(req) {
+  const a = String((req.socket && req.socket.remoteAddress) || '');
+  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+}
+const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Brittney to your phone</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#17212b;background:#f4f6f8}h1{font-size:28px}ol li{margin:10px 0}input{font:inherit;width:100%;padding:12px;border:1px solid #9aa;border-radius:8px}button{font:inherit;padding:12px 20px;border:0;border-radius:8px;background:#1f4e79;color:#fff;margin-top:12px}#out{margin-top:18px;padding:14px;border-radius:8px;background:#fff;border:1px solid #d9e0e7;min-height:1.5em}.big{font-size:32px;font-weight:700;letter-spacing:.1em}</style></head><body>
+<h1>Connect Brittney to your phone</h1>
+<ol><li>On your phone, open <b>Telegram</b> and search for <b>BotFather</b>. Tap <b>Start</b>.</li>
+<li>Send it: <b>/newbot</b>. Give the bot a name (for example <b>Brittney</b>) and a username that ends in <b>bot</b> (for example <b>joseph_brittney_bot</b>).</li>
+<li>BotFather answers with a long code called a <b>token</b>. Copy it and paste it here.</li></ol>
+<input id="tok" placeholder="paste the token here" autocomplete="off"><button id="go">Connect</button>
+<div id="out"></div>
+<script>
+const out=document.getElementById('out');const tok=document.getElementById('tok');
+async function status(){try{const r=await fetch('/api/phone/status');return await r.json();}catch{return null;}}
+async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
+document.getElementById('go').onclick=async()=>{out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
+(async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected</b> to @'+s.botUsername+'. Say something to it in Telegram.';}else if(s&&s.configured&&s.pairingCode){out.innerHTML='Open your bot in Telegram: <b>@'+s.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+s.pairingCode+'</div>';watch();}})();
+</script></body></html>`;
 
 // ── Request handler ───────────────────────────────────────────────────────────
 
@@ -7301,6 +7404,53 @@ async function handleRequest(req, res) {
   // REAL HoloShell Brittney operator loop (scripts/holoshell-brittney-turn.mjs →
   // @holoscript/aibrittney, model-policy LOCAL/Jetson by default) and returns Brittney's
   // reply + permission-enveloped action proposals + receipt. NOT a Studio-only operator.
+  // ── Phone channel: the founder connects his phone here (see the block above).
+  if (req.method === 'GET' && (path === '/connect-phone' || path === '/connect-phone/')) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(CONNECT_PHONE_HTML);
+    return;
+  }
+  if (req.method === 'GET' && path === '/api/phone/status') { respond(res, phoneStatus()); return; }
+  if (req.method === 'POST' && path === '/api/phone/connect') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      try {
+        if (phone.founderChatId && !isLoopback(req)) { respond(res, { error: 'already paired; re-pairing is allowed only from the Jetson itself' }, 403); return; }
+        const { token } = JSON.parse(body || '{}');
+        const t = String(token || '').trim();
+        if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { respond(res, { error: 'that does not look like a bot token' }, 400); return; }
+        phone.token = t; phone.founderChatId = ''; phone.botUsername = '';
+        const me = await tg('getMe', {});
+        phone.botUsername = me.username || '';
+        phone.pairingCode = String(Math.floor(1000 + Math.random() * 9000));
+        phone.pairingExpiresAt = Date.now() + 15 * 60 * 1000;
+        savePhoneState();
+        phonePoll();
+        respond(res, { ok: true, botUsername: phone.botUsername, pairingCode: phone.pairingCode });
+      } catch (err) {
+        phone.token = '';
+        respond(res, { error: String((err && err.message) || err) }, 502);
+      }
+    });
+    return;
+  }
+  if (req.method === 'POST' && path === '/api/phone/notify') {
+    if (!isLoopback(req)) { respond(res, { error: 'loopback only' }, 403); return; }
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      try {
+        const { text } = JSON.parse(body || '{}');
+        if (!text) { respond(res, { error: 'missing text' }, 400); return; }
+        const sent = await phoneSend(text);
+        respond(res, { ok: sent, paired: Boolean(phone.founderChatId) }, sent ? 200 : 409);
+      } catch (err) {
+        respond(res, { error: String((err && err.message) || err) }, 502);
+      }
+    });
+    return;
+  }
   if (req.method === 'POST' && path === '/api/brittney/chat') {
     let body = '';
     req.on('data', (c) => { body += c; });
@@ -7666,6 +7816,7 @@ function respond(res, data, status = 200) {
 
 const server = createServer(handleRequest);
 server.listen(PORT, HOST, () => {
+  startPhoneChannel();
   console.log(`HoloShell Operate Room: http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}  (bound ${HOST})`);
   console.log(`  Receipts: ${RECEIPTS_DIR}`);
   if (FARA_PEER_AUTOMATION_DEFAULT_INTERVAL_MS > 0) {
