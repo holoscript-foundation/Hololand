@@ -6644,9 +6644,14 @@ async function phonePoll() {
         const chatId = String(m.chat && m.chat.id);
         if (!phone.founderChatId) {
           // Pairing: the first chat that sends the code shown on /connect-phone becomes the founder's.
-          if (phone.pairingCode && Date.now() < phone.pairingExpiresAt && m.text.includes(phone.pairingCode)) {
-            phone.founderChatId = chatId; phone.pairingCode = ''; savePhoneState();
-            await phoneSend(`Paired. This is Brittney, and ${process.env.HOLOSHELL_DAIMON_NAME || 'Daimon'} is with me. Say anything.`);
+          if (phone.pairingCode && Date.now() < phone.pairingExpiresAt) {
+            if (m.text.trim() === phone.pairingCode) {
+              phone.founderChatId = chatId; phone.pairingCode = ''; phone.pairingAttempts = 0; savePhoneState();
+              await phoneSend(`Paired. This is Brittney, and ${process.env.HOLOSHELL_DAIMON_NAME || 'Daimon'} is with me. Say anything.`);
+            } else {
+              phone.pairingAttempts = (phone.pairingAttempts || 0) + 1;
+              if (phone.pairingAttempts >= 5) { phone.pairingCode = ''; phone.lastError = 'pairing code voided after 5 wrong attempts; connect again'; }
+            }
           }
           continue;
         }
@@ -6664,10 +6669,20 @@ async function phonePoll() {
   phone.polling = false;
 }
 function startPhoneChannel() { loadPhoneState(); if (phone.token) phonePoll(); }
+// No secret in a GET: the pairing code and the bot's username are returned only by the POST that
+// set them (claude1 review, 2026-09-22: a LAN device could read the code here and pair first).
 function phoneStatus() {
-  return { configured: Boolean(phone.token), paired: Boolean(phone.founderChatId), botUsername: phone.botUsername,
-    pairingCode: phone.founderChatId ? null : (phone.pairingCode || null), lastInboundAt: phone.lastInboundAt,
-    lastOutboundAt: phone.lastOutboundAt, lastError: phone.lastError, polling: phone.polling };
+  return { configured: Boolean(phone.token), paired: Boolean(phone.founderChatId), pairingOpen: Boolean(phone.pairingCode) && Date.now() < phone.pairingExpiresAt,
+    lastInboundAt: phone.lastInboundAt, lastOutboundAt: phone.lastOutboundAt, lastError: phone.lastError, polling: phone.polling };
+}
+// The founder's desktop shortcut carries the admin key in its URL (?k=); the page sends it back
+// as x-phone-admin. Without it, or loopback, nobody can set or replace the bot token.
+const PHONE_ADMIN_KEY = () => String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+function isPhoneAdmin(req) {
+  if (isLoopback(req)) return true;
+  const key = PHONE_ADMIN_KEY();
+  const given = String(req.headers['x-phone-admin'] || '').trim();
+  return Boolean(key) && given.length === key.length && given === key;
 }
 function isLoopback(req) {
   const a = String((req.socket && req.socket.remoteAddress) || '');
@@ -6683,10 +6698,11 @@ const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><me
 <div id="out"></div>
 <script>
 const out=document.getElementById('out');const tok=document.getElementById('tok');
+const k=new URLSearchParams(location.search).get('k')||'';
 async function status(){try{const r=await fetch('/api/phone/status');return await r.json();}catch{return null;}}
 async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
-document.getElementById('go').onclick=async()=>{out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
-(async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected</b> to @'+s.botUsername+'. Say something to it in Telegram.';}else if(s&&s.configured&&s.pairingCode){out.innerHTML='Open your bot in Telegram: <b>@'+s.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+s.pairingCode+'</div>';watch();}})();
+document.getElementById('go').onclick=async()=>{out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':k},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
+(async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected.</b> Say something to your bot in Telegram.';}else if(s&&s.configured&&s.pairingOpen){out.innerHTML='A pairing is already open but this page cannot show the code again. Paste the token and press Connect to get a fresh code.';}})();
 </script></body></html>`;
 
 // ── Request handler ───────────────────────────────────────────────────────────
@@ -7416,7 +7432,7 @@ async function handleRequest(req, res) {
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
       try {
-        if (phone.founderChatId && !isLoopback(req)) { respond(res, { error: 'already paired; re-pairing is allowed only from the Jetson itself' }, 403); return; }
+        if (!isPhoneAdmin(req)) { respond(res, { error: 'not allowed from here: open the page from the desktop icon' }, 403); return; }
         const { token } = JSON.parse(body || '{}');
         const t = String(token || '').trim();
         if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { respond(res, { error: 'that does not look like a bot token' }, 400); return; }
