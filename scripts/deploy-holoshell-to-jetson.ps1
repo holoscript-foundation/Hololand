@@ -411,7 +411,11 @@ function Invoke-ChatReceipt {
     verification = 'jetson_deploy_wrapper_parity'
   } | ConvertTo-Json -Depth 5
   try {
-    $response = Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Body $body -TimeoutSec $ChatTimeoutSec
+    # /api/brittney/chat requires the HoloShell admin key (x-phone-admin). Set
+    # HOLOSHELL_PHONE_ADMIN_KEY in this shell to the Jetson's key; without it the route answers 403.
+    $chatHeaders = @{}
+    if ($env:HOLOSHELL_PHONE_ADMIN_KEY) { $chatHeaders['x-phone-admin'] = $env:HOLOSHELL_PHONE_ADMIN_KEY }
+    $response = Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Headers $chatHeaders -Body $body -TimeoutSec $ChatTimeoutSec
     $propertyNames = @($response.PSObject.Properties | ForEach-Object { $_.Name })
     $responseStatus = 'unknown'
     if ($propertyNames -contains 'summary' -and $response.summary) {

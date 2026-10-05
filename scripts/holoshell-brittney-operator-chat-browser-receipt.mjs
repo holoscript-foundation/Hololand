@@ -380,6 +380,12 @@ function installChatProbeExpression(prompt, chatSelfTest) {
   })()`;
 }
 
+// /api/brittney/chat requires the HoloShell admin key; the page reads it from sessionStorage.
+// Seed it from HOLOSHELL_PHONE_ADMIN_KEY so the page does not stop at its key prompt.
+function seedAdminKeyExpression(adminKey) {
+  return `(() => { try { sessionStorage.setItem('holoshell.phoneAdminKey', ${JSON.stringify(adminKey)}); } catch {} return true; })()`;
+}
+
 function sendChatExpression(prompt) {
   return `(() => {
     const prompt = ${JSON.stringify(prompt)};
@@ -653,6 +659,8 @@ async function runReceipt(args) {
     );
 
     await evaluate(client, installChatProbeExpression(args.prompt, args.chatSelfTest));
+    const adminKey = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+    if (adminKey) await evaluate(client, seedAdminKeyExpression(adminKey));
     await evaluate(client, sendChatExpression(args.prompt));
 
     await waitForExpression(

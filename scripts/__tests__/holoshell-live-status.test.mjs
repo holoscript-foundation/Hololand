@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const port = 8870 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
+// /api/brittney/chat requires the admin key; a throwaway key for this local server only.
+const adminKey = randomBytes(18).toString('hex');
 const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
   cwd: process.cwd(),
   env: {
@@ -14,6 +17,7 @@ const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
     HOLOSHELL_SERVE_PORT: String(port),
     HOLOSCRIPT_API_KEY: '',
     HOLOSCRIPT_MCP_API_KEY: '',
+    HOLOSHELL_PHONE_ADMIN_KEY: adminKey,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -43,7 +47,7 @@ async function waitForServer() {
 async function postChat(message, extra = {}) {
   const response = await fetch(`${baseUrl}/api/brittney/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-phone-admin': adminKey },
     body: JSON.stringify({ message, selfTest: true, ...extra }),
     signal: AbortSignal.timeout(80_000),
   });

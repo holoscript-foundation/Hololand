@@ -17,7 +17,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, isAbsolute, resolve } from 'node:path';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -6677,8 +6677,10 @@ async function phoneSend(text) {
   return true;
 }
 async function phoneAnswer(text) {
+  // /api/brittney/chat requires the admin key; this server-internal caller presents it. With
+  // HOLOSHELL_PHONE_ADMIN_KEY unset the route fails closed and the phone gets the fallback line.
   const r = await fetch(`http://127.0.0.1:${PORT}/api/brittney/chat`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-phone-admin': PHONE_ADMIN_KEY() },
     body: JSON.stringify({ message: text, mode: 'live' }), signal: AbortSignal.timeout(150000),
   });
   const j = await r.json().catch(() => null);
@@ -6751,7 +6753,8 @@ function isLoopback(req) {
 function isJsonRequest(req) {
   return String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
 }
-// Phone responses carry no Access-Control-Allow-Origin, so a foreign page cannot read them.
+// Phone and /api/brittney/chat responses carry no Access-Control-Allow-Origin, so a foreign
+// page cannot read them.
 function phoneRespond(res, data, status = 200) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
@@ -7552,13 +7555,20 @@ async function handleRequest(req, res) {
     return;
   }
   if (req.method === 'POST' && path === '/api/brittney/chat') {
+    // Same gate as the phone admin routes: x-phone-admin must match HOLOSHELL_PHONE_ADMIN_KEY
+    // (fail closed when unset), JSON only (a text/plain POST is a preflight-free simple request),
+    // and no wildcard CORS, so neither a web page nor an unkeyed LAN device can drive a turn.
+    if (!isPhoneAdmin(req)) { req.resume(); phoneRespond(res, { error: 'admin key required: send it as the x-phone-admin header' }, 403); return; }
+    if (!isJsonRequest(req)) { req.resume(); phoneRespond(res, { error: 'Content-Type must be application/json' }, 415); return; }
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
+      let payload;
+      try { payload = JSON.parse(body || '{}'); } catch { phoneRespond(res, { error: 'invalid JSON body' }, 400); return; }
       try {
-        const { message, selfTest, mode, brain } = JSON.parse(body || '{}');
+        const { message, selfTest, mode, brain } = (payload && typeof payload === 'object') ? payload : {};
         if (!message || typeof message !== 'string') {
-          respond(res, { error: 'missing message' }, 400);
+          phoneRespond(res, { error: 'missing message' }, 400);
           return;
         }
         // Mode split (founder directive): 'live' = founder/user companion (presence + memory);
@@ -7599,7 +7609,7 @@ async function handleRequest(req, res) {
         // Self-test: the deterministic harness above proves the route; this proves the MODEL.
         const modelProbe = selfTest ? await probeModelReachability() : null;
         if (modelProbe && !modelProbe.reachable) {
-          respond(res, {
+          phoneRespond(res, {
             turnId: receipt.turnId, reply: '(self-test failed: model server unreachable)',
             selfTest: true, modelProbe, proposals: [], receiptType: receipt.receipt?.receiptType || null,
           }, 503);
@@ -7617,7 +7627,7 @@ async function handleRequest(req, res) {
         const proposals = liveStatus
           ? mergeProposals(liveStatusProposals(liveStatus, message), receiptProposals)
           : receiptProposals;
-        respond(res, {
+        phoneRespond(res, {
           turnId: receipt.turnId,
           reply,
           modelProbe,
@@ -7649,7 +7659,13 @@ async function handleRequest(req, res) {
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
       } catch (err) {
-        respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
+        // The raw error is a child_process failure: it carries the turn command line (absolute
+        // paths, the prompt) and the turn script's stderr/stack. Log it here; send a generic line
+        // and an id the operator can grep for in the server log.
+        const errorId = `chat-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
+        console.error(`[brittney-chat] ${errorId}:`, err);
+        const timedOut = Boolean(err && (err.killed || err.code === 'ETIMEDOUT'));
+        phoneRespond(res, { error: timedOut ? 'Brittney took too long to answer; try again' : 'Brittney could not answer this turn', errorId }, 500);
       }
     });
     return;

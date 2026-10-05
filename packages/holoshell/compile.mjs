@@ -2600,6 +2600,18 @@ const runtimeScript = `  <script>
       _renderAgentHandoffCards(response.proposals || []);
       _renderReceiptNarration(response);
     }
+    /* /api/brittney/chat needs the HoloShell admin key in x-phone-admin. Asked once per tab and
+       kept in sessionStorage (same slot as /connect-phone); never read from the URL. */
+    function _holoshellAdminKey() {
+      var v = '';
+      try { v = sessionStorage.getItem('holoshell.phoneAdminKey') || ''; } catch (e) {}
+      if (!v) {
+        v = String(window.prompt('Enter the HoloShell admin key (asked once per tab):') || '').trim();
+        if (v) { try { sessionStorage.setItem('holoshell.phoneAdminKey', v); } catch (e) {} }
+      }
+      return v;
+    }
+    function _forgetHoloshellAdminKey() { try { sessionStorage.removeItem('holoshell.phoneAdminKey'); } catch (e) {} }
     function sendBrittneyChat() {
       var inp = document.getElementById('brittney-input'); if (!inp) return;
       var msg = inp.value.trim(); if (!msg) return;
@@ -2607,13 +2619,15 @@ const runtimeScript = `  <script>
       if (_activeChatId === 'holoclaw') { _sendHoloClawChat(msg, inp); return; }
       if (_activeChatId === 'terminal') { _sendTerminalChat(msg, inp); return; }
       if (_activeChatId === 'improvement') { _sendImprovementChat(msg, inp); return; }
+      var adminKey = _holoshellAdminKey();
+      if (!adminKey) { _bMsg('Brittney', 'The HoloShell admin key is needed to chat with me.', '#f85149', { chatId: 'brittney' }); return; }
       inp.value = ''; _bMsg('You', msg, '#58a6ff', { chatId: 'brittney' });
       _persistDraftState();
       var pending = _bMsg('Brittney', 'thinking…', '#bc8cff', { persist: false, chatId: 'brittney' });
       /* Founder/user surface → LIVE mode (the companion: presence + memory). Agents call this
          endpoint WITHOUT mode and get 'maintenance' (deterministic operator) by default. */
-      fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, mode: 'live' }) })
-        .then(function(r) { return r.json(); })
+      fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-phone-admin': adminKey }, body: JSON.stringify({ message: msg, mode: 'live' }) })
+        .then(function(r) { if (r.status === 403) _forgetHoloshellAdminKey(); return r.json(); })
         .then(function(d) {
           if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
           if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149', { chatId: 'brittney' }); return; }
