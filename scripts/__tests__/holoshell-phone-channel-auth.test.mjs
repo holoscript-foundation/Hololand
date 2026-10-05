@@ -23,12 +23,14 @@ import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSyn
 import http from 'node:http';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { after, before, describe, test } from 'node:test';
 
-const SERVE = resolve('packages/holoshell/serve.mjs');
+// Resolved from this file, not the working directory, so the test runs from any cwd.
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const SERVE = fileURLToPath(new URL('../../packages/holoshell/serve.mjs', import.meta.url));
 const ADMIN_KEY = randomBytes(18).toString('hex');
 const fakeToken = (id) => `${id}:${randomBytes(24).toString('base64url')}`;
 const TOKEN_SEEDED = fakeToken('1000001');
@@ -121,7 +123,7 @@ async function bootServer({ adminKey, seed }) {
   delete env.HOLOSHELL_PHONE_ADMIN_KEY;
   if (adminKey) env.HOLOSHELL_PHONE_ADMIN_KEY = adminKey;
   const child = spawn(process.execPath, ['--import', pathToFileURL(stubPath).href, SERVE], {
-    cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
   child.stdout.on('data', (c) => { output += c; });

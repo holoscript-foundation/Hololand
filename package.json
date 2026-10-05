@@ -67,6 +67,7 @@
     "test:cael-exporter": "node scripts/__tests__/cael-trace-corpus-exporter.test.mjs",
     "test:holoshell-agent-lanes": "node scripts/holoshell-agent-lanes.mjs --self-test",
     "test:holoshell-operator-terminal": "node scripts/holoshell-operator-terminal.mjs --self-test",
+    "test:holoshell-phone-channel-auth": "node scripts/__tests__/holoshell-phone-channel-auth.test.mjs",
     "test:holoshell-agent-dispatch": "node scripts/__tests__/holoshell-agent-dispatch.test.mjs",
     "test:holoshell-desktop-control": "node scripts/__tests__/holoshell-desktop-control-plan.test.mjs",
     "test:holoshell-laptop-desktop-bridge": "node scripts/__tests__/holoshell-laptop-desktop-bridge.test.mjs",

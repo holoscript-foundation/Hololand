@@ -7510,15 +7510,16 @@ async function handleRequest(req, res) {
     req.on('end', async () => {
       // A failed connect must not take the live bot offline: nothing in `phone` changes until
       // Telegram accepts the new token, and anything that throws after that is rolled back.
-      const prev = { token: phone.token, botUsername: phone.botUsername, founderChatId: phone.founderChatId,
-        pairingCode: phone.pairingCode, pairingExpiresAt: phone.pairingExpiresAt, pairingAttempts: phone.pairingAttempts };
-      let swapped = false;
+      // The snapshot is taken AFTER the getMe await, so a pairing that completed while getMe was
+      // in flight is what gets restored, not the stale pre-await state.
+      let prev = null;
       try {
         const { token } = JSON.parse(body || '{}');
         const t = String(token || '').trim();
         if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { phoneRespond(res, { error: 'that does not look like a bot token' }, 400); return; }
         const me = await tg('getMe', {}, 20000, t);
-        swapped = true;
+        prev = { token: phone.token, botUsername: phone.botUsername, founderChatId: phone.founderChatId,
+          pairingCode: phone.pairingCode, pairingExpiresAt: phone.pairingExpiresAt, pairingAttempts: phone.pairingAttempts };
         phone.token = t; phone.founderChatId = ''; phone.botUsername = me.username || '';
         phone.pairingCode = String(Math.floor(1000 + Math.random() * 9000));
         phone.pairingExpiresAt = Date.now() + 15 * 60 * 1000;
@@ -7527,7 +7528,7 @@ async function handleRequest(req, res) {
         phonePoll();
         phoneRespond(res, { ok: true, botUsername: phone.botUsername, pairingCode: phone.pairingCode });
       } catch (err) {
-        if (swapped) Object.assign(phone, prev);
+        if (prev) Object.assign(phone, prev);
         phoneRespond(res, { error: String((err && err.message) || err) }, 502);
       }
     });
