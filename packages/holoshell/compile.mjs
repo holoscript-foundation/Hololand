@@ -948,6 +948,31 @@ let html = compileOperateRoomShell(composition);
 // you read them in the conversation; no dashboard.
 const runtimeScript = `  <script>
     /* HoloShell — Brittney chat (the whole surface) */
+    /* serve.mjs gates every /api/* and /workflow/* call behind the HoloShell admin key
+       (x-phone-admin). This one wrapper adds it to SAME-ORIGIN calls only, so the key never
+       goes to the laptop bridge (127.0.0.1:8751-8753) or any other origin. The key is asked
+       once per tab and kept in sessionStorage (same slot as /connect-phone). */
+    var _holoshellAdminKeyDeclined = false;
+    (function() {
+      var nativeFetch = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        var target;
+        try { target = new URL(typeof input === 'string' ? input : ((input && input.url) || ''), window.location.href); } catch (e) { return nativeFetch(input, init); }
+        if (target.origin !== window.location.origin || (target.pathname.indexOf('/api/') !== 0 && target.pathname.indexOf('/workflow/') !== 0) || target.pathname === '/api/health') {
+          return nativeFetch(input, init);
+        }
+        var key = _holoshellAdminKey(!_holoshellAdminKeyDeclined);
+        if (!key) return nativeFetch(input, init);
+        var opts = Object.assign({}, init || {});
+        var headers = new Headers(opts.headers || (typeof input !== 'string' && input && input.headers) || {});
+        headers.set('x-phone-admin', key);
+        opts.headers = headers;
+        return nativeFetch(input, opts).then(function(r) {
+          if (r.headers.get('x-holoshell-gate') === 'key-required') _forgetHoloshellAdminKey();
+          return r;
+        });
+      };
+    })();
     var _lastImprovementRunId = null;
     var _lastLaptopDesktopBridgeBaseUrl = null;
     var _laptopDesktopBridgeBases = ['http://127.0.0.1:8751', 'http://127.0.0.1:8752', 'http://127.0.0.1:8753'];
@@ -1882,19 +1907,34 @@ const runtimeScript = `  <script>
       // stream"). This SUPPLEMENTS _startTerminalSessionEvidencePolling(), which stays on
       // as the fallback if EventSource is unavailable or the connection drops and cannot
       // reconnect — this never replaces the safety net, only adds a faster live path.
+      // EventSource cannot send x-phone-admin, so a keyed POST mints a 60 s stream token that
+      // rides in ?t=. If the stream closes for good (token expired before a reconnect), mint
+      // again after 30 s; the poll stays the safety net either way.
       if (typeof window.EventSource !== 'function') return;
-      try {
-        if (_terminalEventSource) _terminalEventSource.close();
-        _terminalEventSource = new EventSource('/api/operator-terminal/events/stream');
-        _terminalEventSource.addEventListener('events', function(e) {
+      fetch('/api/operator-terminal/events/stream-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(grant) {
+          if (!grant || !grant.token) return;
           try {
-            var data = JSON.parse(e.data);
-            (data.events || []).forEach(_renderTerminalEvent);
-          } catch (err) { /* malformed push payload — poll fallback still covers state */ }
-        });
-      } catch (err) {
-        /* EventSource construction failed — the 30s poll remains the source of truth */
-      }
+            if (_terminalEventSource) _terminalEventSource.close();
+            var source = new EventSource('/api/operator-terminal/events/stream?t=' + encodeURIComponent(grant.token));
+            _terminalEventSource = source;
+            source.addEventListener('events', function(e) {
+              try {
+                var data = JSON.parse(e.data);
+                (data.events || []).forEach(_renderTerminalEvent);
+              } catch (err) { /* malformed push payload — poll fallback still covers state */ }
+            });
+            source.onerror = function() {
+              if (source.readyState === 2 && _terminalEventSource === source) {
+                window.setTimeout(_startTerminalEventStreamPush, 30000);
+              }
+            };
+          } catch (err) {
+            /* EventSource construction failed — the 30s poll remains the source of truth */
+          }
+        })
+        .catch(function() { /* no key yet or server down — the 30s poll remains the source of truth */ });
     }
     function _inspectOperatorTerminalSession() {
       fetch('/api/operator-terminal/session', { cache: 'no-store' })
@@ -2602,12 +2642,13 @@ const runtimeScript = `  <script>
     }
     /* /api/brittney/chat needs the HoloShell admin key in x-phone-admin. Asked once per tab and
        kept in sessionStorage (same slot as /connect-phone); never read from the URL. */
-    function _holoshellAdminKey() {
+    function _holoshellAdminKey(interactive) {
       var v = '';
       try { v = sessionStorage.getItem('holoshell.phoneAdminKey') || ''; } catch (e) {}
-      if (!v) {
+      if (!v && interactive !== false) {
         v = String(window.prompt('Enter the HoloShell admin key (asked once per tab):') || '').trim();
-        if (v) { try { sessionStorage.setItem('holoshell.phoneAdminKey', v); } catch (e) {} }
+        if (v) { _holoshellAdminKeyDeclined = false; try { sessionStorage.setItem('holoshell.phoneAdminKey', v); } catch (e) {} }
+        else { _holoshellAdminKeyDeclined = true; }
       }
       return v;
     }
@@ -2627,7 +2668,7 @@ const runtimeScript = `  <script>
       /* Founder/user surface → LIVE mode (the companion: presence + memory). Agents call this
          endpoint WITHOUT mode and get 'maintenance' (deterministic operator) by default. */
       fetch('/api/brittney/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-phone-admin': adminKey }, body: JSON.stringify({ message: msg, mode: 'live' }) })
-        .then(function(r) { if (r.status === 403) _forgetHoloshellAdminKey(); return r.json(); })
+        .then(function(r) { return r.json(); })
         .then(function(d) {
           if (pending && pending.parentNode) pending.parentNode.removeChild(pending);
           if (d.error) { _bMsg('Brittney', 'error: ' + d.error, '#f85149', { chatId: 'brittney' }); return; }

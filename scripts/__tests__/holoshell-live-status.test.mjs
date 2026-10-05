@@ -7,8 +7,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 const port = 8870 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
-// /api/brittney/chat requires the admin key; a throwaway key for this local server only.
+// HoloShell gates /api/* and /workflow/* (chat included) behind the admin key; a throwaway key
+// for this local server only, added to every loopback API call this test makes.
 const adminKey = randomBytes(18).toString('hex');
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\/(api|workflow)\//u.test(String(input?.url ?? input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': adminKey } })
+  : unkeyedFetch(input, init));
 const server = spawn(process.execPath, ['packages/holoshell/serve.mjs'], {
   cwd: process.cwd(),
   env: {

@@ -380,8 +380,9 @@ function installChatProbeExpression(prompt, chatSelfTest) {
   })()`;
 }
 
-// /api/brittney/chat requires the HoloShell admin key; the page reads it from sessionStorage.
-// Seed it from HOLOSHELL_PHONE_ADMIN_KEY so the page does not stop at its key prompt.
+// HoloShell gates every /api/* and /workflow/* call (page loads included) behind the admin key;
+// the page reads it from sessionStorage. Seed it from HOLOSHELL_PHONE_ADMIN_KEY before any page
+// script runs, so the headless page never stops at its key prompt.
 function seedAdminKeyExpression(adminKey) {
   return `(() => { try { sessionStorage.setItem('holoshell.phoneAdminKey', ${JSON.stringify(adminKey)}); } catch {} return true; })()`;
 }
@@ -638,6 +639,8 @@ async function runReceipt(args) {
 
     await client.send('Runtime.enable');
     await client.send('Page.enable');
+    const adminKey = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+    if (adminKey) await client.send('Page.addScriptToEvaluateOnNewDocument', { source: seedAdminKeyExpression(adminKey) });
     const loaded = waitForEvent(client, 'Page.loadEventFired', args.timeoutMs);
     await client.send('Page.navigate', { url: args.url });
     await loaded;
@@ -659,8 +662,6 @@ async function runReceipt(args) {
     );
 
     await evaluate(client, installChatProbeExpression(args.prompt, args.chatSelfTest));
-    const adminKey = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
-    if (adminKey) await evaluate(client, seedAdminKeyExpression(adminKey));
     await evaluate(client, sendChatExpression(args.prompt));
 
     await waitForExpression(

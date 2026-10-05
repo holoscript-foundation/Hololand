@@ -163,7 +163,7 @@ async function bootServer({ adminKey, seedPhone = false }) {
   for (let i = 0; i < 120; i += 1) {
     if (child.exitCode !== null) throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
     try {
-      const r = await request(port, 'GET', '/api/phone/status');
+      const r = await request(port, 'GET', '/api/health'); // open liveness route (the gate keys the rest)
       if (r.status === 200) break;
     } catch { /* not up yet */ }
     await delay(250);

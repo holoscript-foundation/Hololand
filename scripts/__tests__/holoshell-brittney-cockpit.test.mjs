@@ -5,6 +5,15 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+// HoloShell gates /api/* and /workflow/* behind x-phone-admin: a throwaway key for this local
+// test server, inherited by the spawned server and any script it runs, and added to this
+// process's loopback API calls.
+process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\/(api|workflow)\//u.test(String(input?.url ?? input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })
+  : unkeyedFetch(input, init));
+
 const port = 9070 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const tmpDir = mkdtempSync(join(tmpdir(), 'holoshell-cockpit-'));

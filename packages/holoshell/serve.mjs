@@ -4244,7 +4244,6 @@ function handleOperatorTerminalEventStreamSSE(req, res) {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
     'X-Accel-Buffering': 'no',
   });
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
@@ -6769,20 +6768,87 @@ const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><me
 <div id="out"></div>
 <script>
 const out=document.getElementById('out');const tok=document.getElementById('tok');
-const KEY_SLOT='holoshell.phoneAdminKey';
+const KEY_SLOT='holoshell.phoneAdminKey';let keyDeclined=false;
 if(new URLSearchParams(location.search).has('k')){try{history.replaceState(null,'',location.pathname);}catch{}}
-function adminKey(){let v='';try{v=sessionStorage.getItem(KEY_SLOT)||'';}catch{}if(!v){v=String(prompt('Enter the HoloShell phone admin key (asked once per tab):')||'').trim();if(v){try{sessionStorage.setItem(KEY_SLOT,v);}catch{}}}return v;}
-async function status(){try{const r=await fetch('/api/phone/status');return await r.json();}catch{return null;}}
+function adminKey(){let v='';try{v=sessionStorage.getItem(KEY_SLOT)||'';}catch{}if(!v&&!keyDeclined){v=String(prompt('Enter the HoloShell phone admin key (asked once per tab):')||'').trim();if(v){try{sessionStorage.setItem(KEY_SLOT,v);}catch{}}else{keyDeclined=true;}}return v;}
+async function status(){const key=adminKey();if(!key)return null;try{const r=await fetch('/api/phone/status',{headers:{'x-phone-admin':key}});if(r.headers.get('x-holoshell-gate')==='key-required'){try{sessionStorage.removeItem(KEY_SLOT);}catch{}return null;}return await r.json();}catch{return null;}}
 async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
-document.getElementById('go').onclick=async()=>{const key=adminKey();if(!key){out.textContent='The admin key is needed to connect.';return;}out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':key},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(r.status===403){try{sessionStorage.removeItem(KEY_SLOT);}catch{}}if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
+document.getElementById('go').onclick=async()=>{keyDeclined=false;const key=adminKey();if(!key){out.textContent='The admin key is needed to connect.';return;}out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':key},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(r.status===403){try{sessionStorage.removeItem(KEY_SLOT);}catch{}}if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
 (async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected.</b> Say something to your bot in Telegram.';}else if(s&&s.configured&&s.pairingOpen){out.innerHTML='A pairing is already open but this page cannot show the code again. Paste the token and press Connect to get a fresh code.';}})();
 </script></body></html>`;
+
+// ── Whole-server gate ─────────────────────────────────────────────────────────
+// Runs before routing, on the same parsed path the router uses. Every /api/* and /workflow/*
+// request needs the admin key (x-phone-admin, constant-time, fail closed when
+// HOLOSHELL_PHONE_ADMIN_KEY is unset); every non-GET/HEAD one also needs Content-Type
+// application/json (a text/plain or form POST is a preflight-free simple request). Both checks
+// run before the body is read. OPTIONS is answered without any Access-Control-Allow-* header,
+// so a browser preflight from another origin always fails.
+// Open without a key (no secrets in them): the pages, the favicon, and GET /api/health.
+// Exemptions from JSON-only: none. Every POST handler parses its body as JSON; Telegram is
+// long-polled (no webhook route) and the anchor OAuth flow is client-credentials (no callback).
+// The terminal event stream (EventSource cannot set headers) also accepts a short-lived token
+// minted by the keyed POST /api/operator-terminal/events/stream-token.
+const GATE_OPEN_PATHS = new Set(['/', '/operator', '/operator/', '/favicon.ico', '/connect-phone', '/connect-phone/', '/api/health']);
+const TERMINAL_STREAM_PATH = '/api/operator-terminal/events/stream';
+const STREAM_TOKEN_TTL_MS = 60_000;
+const STREAM_TOKEN_MAX = 256;
+const streamTokens = new Map(); // token -> expiresAt (ms)
+function pruneStreamTokens(now = Date.now()) {
+  for (const [token, expiresAt] of streamTokens) if (expiresAt <= now) streamTokens.delete(token);
+  while (streamTokens.size >= STREAM_TOKEN_MAX) streamTokens.delete(streamTokens.keys().next().value);
+}
+function mintStreamToken() {
+  pruneStreamTokens();
+  const token = randomBytes(24).toString('hex');
+  const expiresAt = Date.now() + STREAM_TOKEN_TTL_MS;
+  streamTokens.set(token, expiresAt);
+  return { token, expiresAt: new Date(expiresAt).toISOString(), ttlMs: STREAM_TOKEN_TTL_MS };
+}
+function isValidStreamToken(token) {
+  if (typeof token !== 'string' || !/^[0-9a-f]{48}$/u.test(token)) return false;
+  const expiresAt = streamTokens.get(token);
+  return Boolean(expiresAt && expiresAt > Date.now());
+}
+function gateRespond(res, status, error, reason) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-HoloShell-Gate': reason });
+  res.end(JSON.stringify({ error }));
+}
+// Returns true when the gate answered the request itself.
+function gateRequest(req, res, url) {
+  const path = url.pathname;
+  if (req.method === 'OPTIONS') {
+    req.resume();
+    res.writeHead(204, { Allow: 'GET, HEAD, POST, OPTIONS', 'Cache-Control': 'no-store' });
+    res.end();
+    return true;
+  }
+  const gated = path === '/api' || path.startsWith('/api/') || path === '/workflow' || path.startsWith('/workflow/');
+  if (!gated || GATE_OPEN_PATHS.has(path)) return false;
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    if (path === TERMINAL_STREAM_PATH && isValidStreamToken(url.searchParams.get('t'))) return false;
+    if (isPhoneAdmin(req)) return false;
+    gateRespond(res, 403, 'admin key required: send it as the x-phone-admin header', 'key-required');
+    return true;
+  }
+  if (!isPhoneAdmin(req)) { req.resume(); gateRespond(res, 403, 'admin key required: send it as the x-phone-admin header', 'key-required'); return true; }
+  if (!isJsonRequest(req)) { req.resume(); gateRespond(res, 415, 'Content-Type must be application/json', 'json-required'); return true; }
+  return false;
+}
 
 // ── Request handler ───────────────────────────────────────────────────────────
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const path = url.pathname;
+  if (gateRequest(req, res, url)) return;
+
+  // ── GET /api/health — open, minimal liveness (no state, no secrets).
+  if (req.method === 'GET' && path === '/api/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, service: 'holoshell' }));
+    return;
+  }
 
   // ── GET / → natural layer surface (compiled from holoshell-shell-world.holo)
   if (req.method === 'GET' && path === '/') {
@@ -7176,6 +7242,13 @@ async function handleRequest(req, res) {
 
   if (req.method === 'GET' && path === '/api/operator-terminal/events/stream') {
     handleOperatorTerminalEventStreamSSE(req, res);
+    return;
+  }
+  // ── POST /api/operator-terminal/events/stream-token — keyed (gate above); returns a 60 s token
+  // the page passes as ?t= to EventSource, which cannot send x-phone-admin itself.
+  if (req.method === 'POST' && path === '/api/operator-terminal/events/stream-token') {
+    req.resume();
+    phoneRespond(res, mintStreamToken());
     return;
   }
 
@@ -7924,10 +7997,11 @@ async function dispatchBrittneyOp(op, args = {}) {
   }
 }
 
+// No Access-Control-Allow-Origin on any response: every HoloShell caller is same-origin (the
+// page) or not a browser (scripts, the phone poller), so no response needs cross-origin reads.
 function respond(res, data, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(data));
 }

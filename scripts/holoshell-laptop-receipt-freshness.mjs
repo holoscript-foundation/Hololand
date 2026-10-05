@@ -295,10 +295,17 @@ function buildFreshnessDispatch(args, generatedAt) {
   return dispatch;
 }
 
+// HoloShell gates /api/* behind the admin key (x-phone-admin). Set HOLOSHELL_PHONE_ADMIN_KEY to
+// the target surface's key (the Jetson's, for the default base URL); without it these calls get 403.
+function holoshellAdminHeaders() {
+  const key = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+  return key ? { 'x-phone-admin': key } : {};
+}
+
 async function postJson(baseUrl, endpoint, payload, timeoutMs) {
   const response = await fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...holoshellAdminHeaders() },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -311,6 +318,7 @@ async function postJson(baseUrl, endpoint, payload, timeoutMs) {
 
 async function getJson(baseUrl, endpoint, timeoutMs) {
   const response = await fetch(`${baseUrl}${endpoint}`, {
+    headers: holoshellAdminHeaders(),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await response.json().catch(() => ({}));
