@@ -146,21 +146,57 @@ function consentGestureMaxTtlMs(preflight = {}) {
 // Claims bind the scope, operation, exact preflight (id + receipt hash + target fingerprint +
 // challenge), issue time, a mandatory expiry (at most 5 minutes after issue) and a random nonce.
 // Only this bridge mints and verifies them, so the secret never leaves the laptop. The secret is
-// HOLOSHELL_CONSENT_SECRET (at least 32 characters) or, when that is unset, an HMAC of the admin
-// key under a fixed domain-separation label. With neither set, no token is issued or accepted.
+// HOLOSHELL_CONSENT_SECRET only: at least 32 characters and NOT the admin key. There is no
+// fallback (a secret derived from the admin key would let any admin-key holder mint tokens and
+// skip the F8 gesture), so the bridge refuses to start without a valid one, and the token
+// functions fail closed if it is missing or invalid.
 export const CONSENT_TOKEN_FORMAT = 'hsct1';
 export const CONSENT_TOKEN_SCOPE = 'desktop-control.execute';
 export const CONSENT_TOKEN_MAX_TTL_MS = 5 * 60_000;
-const CONSENT_TOKEN_SECRET_LABEL = 'hololand.holoshell.desktop-consent-token.v1';
 const CONSENT_TOKEN_FUTURE_SKEW_MS = 5_000;
-const CONSUMED_NONCE_MAX = 4096;
+export const CONSENT_SECRET_MIN_LENGTH = 32;
+export const CONSENT_SECRET_GENERATE_HINT =
+  'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"';
+const DEFAULT_CONSUMED_NONCE_MAX = 4096;
+
+function consumedNonceMax(env = process.env) {
+  const value = Number(env.HOLOSHELL_CONSENT_NONCE_MAX || DEFAULT_CONSUMED_NONCE_MAX);
+  return Number.isInteger(value) && value >= 1 ? value : DEFAULT_CONSUMED_NONCE_MAX;
+}
+
+/**
+ * Condition of HOLOSHELL_CONSENT_SECRET, never its value: ok | missing | too_short |
+ * equals_admin_key. The admin-key comparison is over sha256 digests with timingSafeEqual.
+ */
+export function consentSecretCondition(env = process.env) {
+  const secret = String(env.HOLOSHELL_CONSENT_SECRET || '').trim();
+  if (!secret) return 'missing';
+  if (secret.length < CONSENT_SECRET_MIN_LENGTH) return 'too_short';
+  const adminKey = String(env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+  if (adminKey) {
+    const a = createHash('sha256').update(secret, 'utf8').digest();
+    const b = createHash('sha256').update(adminKey, 'utf8').digest();
+    if (timingSafeEqual(a, b)) return 'equals_admin_key';
+  }
+  return 'ok';
+}
+
+export function consentSecretProblem(condition) {
+  if (condition === 'missing') return 'HOLOSHELL_CONSENT_SECRET is not set.';
+  if (condition === 'too_short') return `HOLOSHELL_CONSENT_SECRET is shorter than ${CONSENT_SECRET_MIN_LENGTH} characters.`;
+  if (condition === 'equals_admin_key') return 'HOLOSHELL_CONSENT_SECRET must not be the same value as HOLOSHELL_PHONE_ADMIN_KEY.';
+  return '';
+}
+
+export function consentSecretStartupError(condition) {
+  return `${consentSecretProblem(condition)} The laptop desktop bridge refuses to start without an independent consent-token secret. ` +
+    `Generate one with: ${CONSENT_SECRET_GENERATE_HINT} and set it as HOLOSHELL_CONSENT_SECRET on the laptop only ` +
+    '(at least 32 characters, never the admin key).';
+}
 
 export function consentTokenSecret(env = process.env) {
-  const explicit = String(env.HOLOSHELL_CONSENT_SECRET || '').trim();
-  if (explicit) return explicit.length >= 32 ? Buffer.from(explicit, 'utf8') : null;
-  const adminKey = String(env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
-  if (!adminKey) return null;
-  return createHmac('sha256', adminKey).update(CONSENT_TOKEN_SECRET_LABEL, 'utf8').digest();
+  if (consentSecretCondition(env) !== 'ok') return null;
+  return Buffer.from(String(env.HOLOSHELL_CONSENT_SECRET).trim(), 'utf8');
 }
 
 function consentTokenMac(body, secret) {
@@ -202,9 +238,11 @@ function tokenClockMs(options = {}) {
   return Number.isFinite(at) ? at : Date.now();
 }
 
-function pruneConsumedNonces(store, now) {
+// Drops only EXPIRED nonces (an unexpired one must stay to block its replay). Returns true when
+// there is room for one more; callers fail closed (503) when it is still full.
+function pruneConsumedNonces(store, now, max = consumedNonceMax()) {
   for (const [nonce, exp] of store) if (exp <= now) store.delete(nonce);
-  while (store.size >= CONSUMED_NONCE_MAX) store.delete(store.keys().next().value);
+  return store.size < max;
 }
 
 function preflightReceiptHash(preflight = {}) {
@@ -560,6 +598,12 @@ export function buildBridgeStatus(options = {}) {
       execute: '/api/desktop-control/execute',
     },
     mutationBoundary: 'os_mutation_refused_until_consent_token_and_action_executor',
+    // Condition only (never the value) of this process's HOLOSHELL_CONSENT_SECRET.
+    consentSecret: {
+      variable: 'HOLOSHELL_CONSENT_SECRET',
+      condition: consentSecretCondition(),
+      problem: consentSecretProblem(consentSecretCondition()),
+    },
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     approvalRequiredForDesktopAutomation: true,
@@ -800,7 +844,9 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
   // Single use: burn the nonce before anything runs, so a failed or refused execution cannot be
   // retried with the same token either.
   if (options.consumedNonces) {
-    pruneConsumedNonces(options.consumedNonces, tokenClockMs(options));
+    if (!pruneConsumedNonces(options.consumedNonces, tokenClockMs(options), options.consumedNonceMax)) {
+      throw new Error('consent_nonce_store_full');
+    }
     options.consumedNonces.set(validation.nonce, validation.nonceExpiresAtMs);
   }
   const at = generatedAt(options);
@@ -960,7 +1006,7 @@ function gateBridgeRequest(req, res, pathname) {
     res.end();
     return true;
   }
-  if (req.method === 'GET' && pathname === '/health') return false;
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/health') return false;
   if (!isBridgeAdmin(req)) {
     req.resume();
     sendJson(res, { error: 'admin key required: send it as the x-phone-admin header', destructiveActionsTaken: false }, 403, { 'X-HoloShell-Gate': 'key-required' });
@@ -1000,13 +1046,30 @@ export async function handleBridgeRequest(req, res, options = {}) {
     createdAt: options.createdAt,
     realClock: true,
     consumedNonces: options.consumedNonces || DEFAULT_CONSUMED_NONCES,
+    consumedNonceMax: options.consumedNonceMax || consumedNonceMax(),
   };
 
   if (gateBridgeRequest(req, res, requestUrl.pathname)) return;
 
-  // Open liveness only: no status, receipts or paths without the key.
-  if (req.method === 'GET' && requestUrl.pathname === '/health') {
+  // Open liveness only: no status, receipts or paths without the key. HEAD gets the same headers.
+  if ((req.method === 'GET' || req.method === 'HEAD') && requestUrl.pathname === '/health') {
+    if (req.method === 'HEAD') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...(res.holoshellCorsHeaders || {}) });
+      res.end();
+      return;
+    }
     sendJson(res, { ok: true, service: 'holoshell-laptop-desktop-bridge', schemaVersion: LAPTOP_DESKTOP_BRIDGE_SCHEMA });
+    return;
+  }
+
+  // Single-use nonces must stay until they expire. If the store is full of unexpired nonces,
+  // refuse to mint or accept tokens (fail closed) instead of forgetting one.
+  if (req.method === 'POST' && (requestUrl.pathname === '/api/desktop-control/consent-token' ||
+      requestUrl.pathname === '/api/desktop-control/execute') &&
+      !pruneConsumedNonces(requestOptions.consumedNonces, Date.now(), requestOptions.consumedNonceMax)) {
+    req.resume();
+    sendJson(res, { error: 'consent_nonce_store_full', reason: 'too many unexpired consent tokens; retry after they expire',
+      destructiveActionsTaken: false, desktopAutomationExecuted: false }, 503, { 'Retry-After': '60' });
     return;
   }
 
@@ -1107,6 +1170,9 @@ export async function handleBridgeRequest(req, res, options = {}) {
 }
 
 export function createLaptopDesktopBridgeServer(options = {}) {
+  // Refuse to start without an independent consent-token secret (see consentSecretCondition).
+  const condition = consentSecretCondition();
+  if (condition !== 'ok') throw new Error(consentSecretStartupError(condition));
   const serverOptions = { ...options, consumedNonces: options.consumedNonces || new Map() };
   return createServer((req, res) => {
     handleBridgeRequest(req, res, serverOptions).catch((error) => {
@@ -1265,15 +1331,26 @@ if (isMain()) {
       process.exit(0);
     }
     if (args.status) {
-      const status = await probeBridgeStatus(args);
+      const probed = await probeBridgeStatus(args);
+      // The live bridge reports its own consent-secret condition; this adds the condition of the
+      // environment running --status (the one a restart would use). Never the value.
+      const localCondition = consentSecretCondition();
+      const status = { ...probed, localConsentSecret: { variable: 'HOLOSHELL_CONSENT_SECRET', condition: localCondition,
+        problem: consentSecretProblem(localCondition), bridgeWouldStart: localCondition === 'ok' } };
       if (args.json) console.log(JSON.stringify(status, null, 2));
       else {
         console.log(`Status: ${status.status}`);
         console.log(`URL: ${status.url}`);
         console.log(`Loopback reachable: ${status.loopbackReachable ? 'yes' : 'no'}`);
         console.log(`Mutation boundary: ${status.mutationBoundary}`);
+        console.log(`Consent secret (this environment): ${localCondition === 'ok' ? 'ok' : `NOT OK - ${consentSecretProblem(localCondition)} Generate one with: ${CONSENT_SECRET_GENERATE_HINT}`}`);
       }
       process.exit(0);
+    }
+    const condition = consentSecretCondition();
+    if (condition !== 'ok') {
+      console.error(`holoshell-laptop-desktop-bridge refused to start: ${consentSecretStartupError(condition)}`);
+      process.exit(2);
     }
     const server = createLaptopDesktopBridgeServer(args);
     server.listen(args.port, args.host, () => {

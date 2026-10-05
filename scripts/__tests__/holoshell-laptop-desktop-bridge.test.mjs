@@ -4,9 +4,11 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-// The bridge requires the HoloShell admin key on every route but /health and signs consent tokens
-// with a secret derived from it. Throwaway per-run key, added to this file's loopback requests.
+// The bridge requires the HoloShell admin key on every route but /health and an independent
+// HOLOSHELL_CONSENT_SECRET to start. Throwaway per-run values; the key is added to this file's
+// loopback requests.
 process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+process.env.HOLOSHELL_CONSENT_SECRET = `consent-${globalThis.crypto.randomUUID()}`;
 const unkeyedFetch = globalThis.fetch;
 globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\//u.test(String(input?.url || input))
   ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })

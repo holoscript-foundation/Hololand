@@ -41,8 +41,12 @@ const PAGE_ORIGIN = 'http://holoshell-page.test:8747';
 const DAEMON_PAGE_ORIGIN = 'http://control-page.test:9000';
 const OPEN_URL_INTENT = 'Open URL https://example.com/status in the default browser.';
 const OTHER_URL_INTENT = 'Open URL https://example.com/other in the default browser.';
-// Documented derivation (README): HMAC-SHA256(key = admin key, message = this label).
-const CONSENT_SECRET = createHmac('sha256', ADMIN_KEY).update('hololand.holoshell.desktop-consent-token.v1').digest();
+// An independent throwaway consent-token secret (HOLOSHELL_CONSENT_SECRET), never the admin key.
+const CONSENT_SECRET_TEXT = randomBytes(32).toString('hex');
+const CONSENT_SECRET = Buffer.from(CONSENT_SECRET_TEXT, 'utf8');
+// The secret the 1c8515ba bridge derived from the admin key when HOLOSHELL_CONSENT_SECRET was
+// unset. Any admin-key holder could compute it; tokens signed with it must now be refused.
+const ADMIN_DERIVED_SECRET = createHmac('sha256', ADMIN_KEY).update('hololand.holoshell.desktop-consent-token.v1').digest();
 
 const tmp = mkdtempSync(join(tmpdir(), 'holoshell-desktop-bridge-auth-'));
 const HOME = join(tmp, 'home');
@@ -114,8 +118,10 @@ const crossOriginPlain = { Origin: EVIL_ORIGIN, 'Content-Type': 'text/plain' };
 
 function startServer(label, script, args, extraEnv) {
   const env = { ...process.env, HOME, BRIDGE_TEST_STUB_LOG: STUB_LOG, BRIDGE_TEST_SERVER: label,
-    HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, ...extraEnv };
-  delete env.HOLOSHELL_CONSENT_SECRET;
+    HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, HOLOSHELL_CONSENT_SECRET: CONSENT_SECRET_TEXT, ...extraEnv };
+  for (const name of Object.keys(env)) if (env[name] === undefined) delete env[name];
+  delete env.HOLOSHELL_CONSENT_NONCE_MAX;
+  if (extraEnv?.HOLOSHELL_CONSENT_NONCE_MAX) env.HOLOSHELL_CONSENT_NONCE_MAX = extraEnv.HOLOSHELL_CONSENT_NONCE_MAX;
   delete env.HOLOSHELL_ALLOW_FLAG_GESTURE;
   delete env.HOLOSHELL_ADMIT_GUI_MUTATION;
   const child = spawn(process.execPath, ['--import', pathToFileURL(PRELOAD).href, script, ...args], {
@@ -230,9 +236,9 @@ function attackerRewrite(consent, { preflight, expiresAtMs }) {
 }
 
 /** A correctly signed token with chosen claims (only possible because the test knows the secret). */
-function signedToken(claims) {
+function signedToken(claims, secret = CONSENT_SECRET) {
   const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
-  const mac = createHmac('sha256', CONSENT_SECRET).update(`hsct1.${body}`).digest('base64url');
+  const mac = createHmac('sha256', secret).update(`hsct1.${body}`).digest('base64url');
   return `hsct1.${body}.${mac}`;
 }
 function claimsFor(preflight, overrides = {}) {
@@ -378,8 +384,92 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
     assert.equal(evil.headers['access-control-allow-origin'], undefined);
   });
 
+  // ── consent secret: independent, mandatory (patch 5) ────────────────────────────────────────
+  for (const [label, secretEnv] of [
+    ['no HOLOSHELL_CONSENT_SECRET', { HOLOSHELL_CONSENT_SECRET: undefined }],
+    ['a HOLOSHELL_CONSENT_SECRET shorter than 32 characters', { HOLOSHELL_CONSENT_SECRET: randomBytes(8).toString('hex') }],
+    ['HOLOSHELL_CONSENT_SECRET equal to the admin key', { HOLOSHELL_CONSENT_SECRET: ADMIN_KEY.padEnd(40, 'x'), HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY.padEnd(40, 'x') }],
+  ]) {
+    test(`bridge refuses to start with ${label}`, async () => {
+      const port = await freePort();
+      const srv = startServer('bridge-nostart', BRIDGE, ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'nostart')], secretEnv);
+      const exited = await Promise.race([
+        new Promise((r) => srv.child.once('exit', (code) => r({ code }))),
+        delay(4000).then(() => null),
+      ]);
+      let listening = false;
+      try { listening = (await request(port, 'GET', '/health')).status === 200; } catch { /* refused: good */ }
+      srv.child.kill();
+      assert.ok(exited, `bridge kept running with ${label}`);
+      assert.notEqual(exited.code, 0);
+      assert.equal(listening, false, `bridge listened with ${label}`);
+      assert.match(srv.output(), /HOLOSHELL_CONSENT_SECRET/);
+      assert.match(srv.output(), /randomBytes\(32\)/, 'the error must say how to generate a secret');
+      if (secretEnv.HOLOSHELL_CONSENT_SECRET) assert.ok(!srv.output().includes(secretEnv.HOLOSHELL_CONSENT_SECRET), 'the error printed the secret');
+    });
+  }
+
+  test('bridge: a token signed with the old admin-key-derived secret is refused', async () => {
+    const preflight = await preflightFor(OPEN_URL_INTENT);
+    assertRefusedExecution(await execute(preflight, signedToken(claimsFor(preflight), ADMIN_DERIVED_SECRET)), 'admin-key-derived', /consent_token_signature_invalid/);
+  });
+
+  test('bridge --status shows the consent-secret condition without the value', async () => {
+    const run = (extraEnv) => new Promise((resolveRun) => {
+      const env = { ...process.env, HOME, HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, ...extraEnv };
+      for (const name of Object.keys(env)) if (env[name] === undefined) delete env[name];
+      const child = spawn(process.execPath, [BRIDGE, '--status', '--json', '--port', '65533', '--receipt-dir', join(tmp, 'status-cli')], { cwd: REPO_ROOT, env });
+      let out = '';
+      child.stdout.on('data', (c) => { out += c; });
+      child.on('exit', () => resolveRun(out));
+    });
+    const missing = JSON.parse(await run({ HOLOSHELL_CONSENT_SECRET: undefined }));
+    assert.equal(missing.localConsentSecret?.condition, 'missing');
+    assert.equal(missing.localConsentSecret?.bridgeWouldStart, false);
+    const okOut = await run({ HOLOSHELL_CONSENT_SECRET: CONSENT_SECRET_TEXT });
+    assert.equal(JSON.parse(okOut).localConsentSecret?.condition, 'ok');
+    assert.ok(!okOut.includes(CONSENT_SECRET_TEXT), '--status printed the secret');
+  });
+
+  test('bridge: HEAD /health is open like GET /health', async () => {
+    const r = await request(bridgePort, 'HEAD', '/health');
+    assert.equal(r.status, 200);
+    assert.equal(r.text, '');
+  });
+
+  test('bridge: a full nonce store refuses to mint or accept (503) instead of evicting unexpired nonces', async () => {
+    const port = await freePort();
+    const small = startServer('bridge-small', BRIDGE, ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'small')],
+      { HOLOSHELL_CONSENT_NONCE_MAX: '2' });
+    try {
+      await waitHealthy(port, small);
+      const post = (path, body) => request(port, 'POST', path, { headers: keyedJson(), body });
+      const tokens = [];
+      let preflight;
+      for (let i = 0; i < 3; i += 1) {
+        preflight = (await post('/api/desktop-control/preflight', { intent: OPEN_URL_INTENT })).json;
+        const minted = await post('/api/desktop-control/consent-token', { preflight, operation: 'open_url', gestureProof: gestureProofFor(preflight) });
+        assert.equal(minted.status, 200, minted.text);
+        tokens.push({ preflight, consent: minted.json });
+      }
+      for (const { preflight: p, consent } of tokens.slice(0, 2)) {
+        const ok = await post('/api/desktop-control/execute', { preflight: p, operation: 'open_url', consentToken: consent });
+        assert.equal(ok.status, 200, ok.text);
+      }
+      const third = await post('/api/desktop-control/execute', { preflight: tokens[2].preflight, operation: 'open_url', consentToken: tokens[2].consent });
+      assert.equal(third.status, 503, `third execute with a full store -> ${third.status}`);
+      const mint = await post('/api/desktop-control/consent-token', { preflight, operation: 'open_url', gestureProof: gestureProofFor(preflight) });
+      assert.equal(mint.status, 503, `mint with a full store -> ${mint.status}`);
+      // The first token is still remembered (not evicted), so its replay stays refused.
+      const replay = await post('/api/desktop-control/execute', { preflight: tokens[0].preflight, operation: 'open_url', consentToken: tokens[0].consent });
+      assert.notEqual(replay.status, 200);
+    } finally {
+      small.child.kill();
+    }
+  });
+
   // ── green on both: the legitimate path ─────────────────────────────────────────────────────
-  test('bridge: key + JSON + a properly minted token reaches the handler (staged, then simulated open_url)', async () => {
+  test('bridge: started with a valid independent secret, key + JSON + a properly minted token reaches the handler (staged, then simulated open_url)', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
     const staged = await execute(preflight, await mintConsent(preflight));
     assert.equal(staged.status, 200, staged.text);
