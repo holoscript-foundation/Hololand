@@ -169,6 +169,14 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
   Write-Host '[Brittney Studio] node unavailable; laptop desktop bridge not started.'
 }
 "@
+  # The bridge (inherits this environment) needs the HoloShell admin key on every route but
+  # /health, and answers cross-origin only for the exact page origins listed here (no wildcard).
+  if (-not $env:HOLOSHELL_BRIDGE_ALLOWED_ORIGINS) {
+    $env:HOLOSHELL_BRIDGE_ALLOWED_ORIGINS = "$JetsonSurface,http://holojetson.local:8747,http://127.0.0.1:8747,http://localhost:8747"
+  }
+  if (-not $env:HOLOSHELL_PHONE_ADMIN_KEY) {
+    Write-Host '[Brittney Studio] HOLOSHELL_PHONE_ADMIN_KEY is not set; the laptop desktop bridge will refuse every request except /health.'
+  }
   Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Hidden -ArgumentList @(
     '-NoProfile',
     '-ExecutionPolicy',

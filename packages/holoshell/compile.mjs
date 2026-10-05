@@ -949,9 +949,10 @@ let html = compileOperateRoomShell(composition);
 const runtimeScript = `  <script>
     /* HoloShell — Brittney chat (the whole surface) */
     /* serve.mjs gates every /api/* and /workflow/* call behind the HoloShell admin key
-       (x-phone-admin). This one wrapper adds it to SAME-ORIGIN calls only, so the key never
-       goes to the laptop bridge (127.0.0.1:8751-8753) or any other origin. The key is asked
-       once per tab and kept in sessionStorage (same slot as /connect-phone). */
+       (x-phone-admin). This one wrapper adds it to SAME-ORIGIN calls only. The laptop desktop
+       bridge (127.0.0.1:8751-8753, same key) gets it only through _laptopBridgeHeaders, which
+       checks the exact bridge origin; no other origin ever receives it. The key is asked once
+       per tab and kept in sessionStorage (same slot as /connect-phone). */
     var _holoshellAdminKeyDeclined = false;
     (function() {
       var nativeFetch = window.fetch.bind(window);
@@ -2487,13 +2488,25 @@ const runtimeScript = `  <script>
         return true;
       });
     }
+    /* The laptop bridge requires the same HoloShell admin key. Only the fixed loopback bridge
+       origins get it; a bridge 403 does not drop the stored key (it may be right for the
+       Jetson while the laptop bridge has a different or missing key). */
+    function _laptopBridgeHeaders(url, headers) {
+      var out = Object.assign({}, headers || {});
+      var origin = '';
+      try { origin = new URL(url).origin; } catch (e) { return out; }
+      if (_laptopDesktopBridgeBases.indexOf(origin) === -1) return out;
+      var key = _holoshellAdminKey(!_holoshellAdminKeyDeclined);
+      if (key) out['x-phone-admin'] = key;
+      return out;
+    }
     function _postLaptopBridge(path, body, index) {
       var urls = _bridgeUrls(path);
       var offset = index || 0;
       if (offset >= urls.length) return Promise.reject(new Error('laptop_desktop_bridge_unavailable'));
       return fetch(urls[offset], {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-HoloShell-Bridge': 'browser' },
+        headers: _laptopBridgeHeaders(urls[offset], { 'Content-Type': 'application/json', 'X-HoloShell-Bridge': 'browser' }),
         body: JSON.stringify(body || {})
       }).then(function(r) {
         return r.text().then(function(text) {
@@ -2824,7 +2837,7 @@ const runtimeScript = `  <script>
     }
     function _probeLaptopDesktopBridgeAt(urls, index) {
       if (index >= urls.length) { _loadServerDesktopBridgeStatus(); return; }
-      fetch(urls[index], { cache: 'no-store' })
+      fetch(urls[index], { cache: 'no-store', headers: _laptopBridgeHeaders(urls[index]) })
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (d.schemaVersion !== 'hololand.holoshell.laptop-desktop-bridge.v0.1.0') {
