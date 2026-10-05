@@ -17,7 +17,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, isAbsolute, resolve } from 'node:path';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { execSync, execFileSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -6661,8 +6661,8 @@ function savePhoneState() {
   writeFileSync(PHONE_FILE(), JSON.stringify({ botToken: phone.token, botUsername: phone.botUsername,
     founderChatId: phone.founderChatId, pairedAt: phone.founderChatId ? new Date().toISOString() : null }, null, 2), { mode: 0o600 });
 }
-async function tg(method, body, timeoutMs = 20000) {
-  const r = await fetch(`https://api.telegram.org/bot${phone.token}/${method}`, {
+async function tg(method, body, timeoutMs = 20000, token = phone.token) {
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body || {}), signal: AbortSignal.timeout(timeoutMs),
   });
@@ -6728,19 +6728,33 @@ function phoneStatus() {
   return { configured: Boolean(phone.token), paired: Boolean(phone.founderChatId), pairingOpen: Boolean(phone.pairingCode) && Date.now() < phone.pairingExpiresAt,
     lastInboundAt: phone.lastInboundAt, lastOutboundAt: phone.lastOutboundAt, lastError: phone.lastError, polling: phone.polling };
 }
-// The founder's desktop shortcut carries the admin key in its URL (?k=); the page sends it back
-// as x-phone-admin. Without it, or loopback, nobody can set or replace the bot token.
+// Admin routes (/api/phone/connect, /api/phone/notify) require the x-phone-admin header to match
+// HOLOSHELL_PHONE_ADMIN_KEY. Loopback is NOT trusted: any web page in a browser on this machine is
+// a loopback caller. The key is never read from the URL (?k= would land in history, proxy logs and
+// the first GET). If HOLOSHELL_PHONE_ADMIN_KEY is unset, the admin routes refuse everyone.
 const PHONE_ADMIN_KEY = () => String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
 function isPhoneAdmin(req) {
-  if (isLoopback(req)) return true;
   const key = PHONE_ADMIN_KEY();
+  if (!key) return false; // fail closed
   const given = String(req.headers['x-phone-admin'] || '').trim();
-  if (!key || given.length !== key.length) return false;
-  return timingSafeEqual(Buffer.from(given), Buffer.from(key));
+  // Fixed-length digests: no early return on length, no throw on multibyte input.
+  const a = createHash('sha256').update(given, 'utf8').digest();
+  const b = createHash('sha256').update(key, 'utf8').digest();
+  return timingSafeEqual(a, b);
 }
 function isLoopback(req) {
   const a = String((req.socket && req.socket.remoteAddress) || '');
   return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+}
+// A text/plain (or form) POST is a CORS "simple request" a foreign page can send without a
+// preflight; requiring application/json forces a preflight, which this server never grants.
+function isJsonRequest(req) {
+  return String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
+}
+// Phone responses carry no Access-Control-Allow-Origin, so a foreign page cannot read them.
+function phoneRespond(res, data, status = 200) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(data));
 }
 const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Brittney to your phone</title>
 <style>body{font:18px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#17212b;background:#f4f6f8}h1{font-size:28px}ol li{margin:10px 0}input{font:inherit;width:100%;padding:12px;border:1px solid #9aa;border-radius:8px}button{font:inherit;padding:12px 20px;border:0;border-radius:8px;background:#1f4e79;color:#fff;margin-top:12px}#out{margin-top:18px;padding:14px;border-radius:8px;background:#fff;border:1px solid #d9e0e7;min-height:1.5em}.big{font-size:32px;font-weight:700;letter-spacing:.1em}</style></head><body>
@@ -6752,10 +6766,12 @@ const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><me
 <div id="out"></div>
 <script>
 const out=document.getElementById('out');const tok=document.getElementById('tok');
-const k=new URLSearchParams(location.search).get('k')||'';if(k){try{history.replaceState(null,'',location.pathname);}catch{}}
+const KEY_SLOT='holoshell.phoneAdminKey';
+if(new URLSearchParams(location.search).has('k')){try{history.replaceState(null,'',location.pathname);}catch{}}
+function adminKey(){let v='';try{v=sessionStorage.getItem(KEY_SLOT)||'';}catch{}if(!v){v=String(prompt('Enter the HoloShell phone admin key (asked once per tab):')||'').trim();if(v){try{sessionStorage.setItem(KEY_SLOT,v);}catch{}}}return v;}
 async function status(){try{const r=await fetch('/api/phone/status');return await r.json();}catch{return null;}}
 async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
-document.getElementById('go').onclick=async()=>{out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':k},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
+document.getElementById('go').onclick=async()=>{const key=adminKey();if(!key){out.textContent='The admin key is needed to connect.';return;}out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':key},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(r.status===403){try{sessionStorage.removeItem(KEY_SLOT);}catch{}}if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
 (async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected.</b> Say something to your bot in Telegram.';}else if(s&&s.configured&&s.pairingOpen){out.innerHTML='A pairing is already open but this page cannot show the code again. Paste the token and press Connect to get a fresh code.';}})();
 </script></body></html>`;
 
@@ -7483,43 +7499,53 @@ async function handleRequest(req, res) {
     res.end(CONNECT_PHONE_HTML);
     return;
   }
-  if (req.method === 'GET' && path === '/api/phone/status') { respond(res, phoneStatus()); return; }
+  if (req.method === 'GET' && path === '/api/phone/status') { phoneRespond(res, phoneStatus()); return; }
+  if (req.method === 'POST' && (path === '/api/phone/connect' || path === '/api/phone/notify')) {
+    if (!isPhoneAdmin(req)) { req.resume(); phoneRespond(res, { error: 'admin key required: send it as the x-phone-admin header' }, 403); return; }
+    if (!isJsonRequest(req)) { req.resume(); phoneRespond(res, { error: 'Content-Type must be application/json' }, 415); return; }
+  }
   if (req.method === 'POST' && path === '/api/phone/connect') {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
+      // A failed connect must not take the live bot offline: nothing in `phone` changes until
+      // Telegram accepts the new token, and anything that throws after that is rolled back.
+      const prev = { token: phone.token, botUsername: phone.botUsername, founderChatId: phone.founderChatId,
+        pairingCode: phone.pairingCode, pairingExpiresAt: phone.pairingExpiresAt, pairingAttempts: phone.pairingAttempts };
+      let swapped = false;
       try {
-        if (!isPhoneAdmin(req)) { respond(res, { error: 'not allowed from here: open the page from the desktop icon' }, 403); return; }
         const { token } = JSON.parse(body || '{}');
         const t = String(token || '').trim();
-        if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { respond(res, { error: 'that does not look like a bot token' }, 400); return; }
-        phone.token = t; phone.founderChatId = ''; phone.botUsername = '';
-        const me = await tg('getMe', {});
-        phone.botUsername = me.username || '';
+        if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { phoneRespond(res, { error: 'that does not look like a bot token' }, 400); return; }
+        const me = await tg('getMe', {}, 20000, t);
+        swapped = true;
+        phone.token = t; phone.founderChatId = ''; phone.botUsername = me.username || '';
         phone.pairingCode = String(Math.floor(1000 + Math.random() * 9000));
         phone.pairingExpiresAt = Date.now() + 15 * 60 * 1000;
+        phone.pairingAttempts = 0; // a fresh code starts with a fresh miss budget
         savePhoneState();
         phonePoll();
-        respond(res, { ok: true, botUsername: phone.botUsername, pairingCode: phone.pairingCode });
+        phoneRespond(res, { ok: true, botUsername: phone.botUsername, pairingCode: phone.pairingCode });
       } catch (err) {
-        phone.token = '';
-        respond(res, { error: String((err && err.message) || err) }, 502);
+        if (swapped) Object.assign(phone, prev);
+        phoneRespond(res, { error: String((err && err.message) || err) }, 502);
       }
     });
     return;
   }
   if (req.method === 'POST' && path === '/api/phone/notify') {
-    if (!isLoopback(req)) { respond(res, { error: 'loopback only' }, 403); return; }
+    // Still loopback-only as before, now in addition to the admin key checked above.
+    if (!isLoopback(req)) { req.resume(); phoneRespond(res, { error: 'loopback only' }, 403); return; }
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
       try {
         const { text } = JSON.parse(body || '{}');
-        if (!text) { respond(res, { error: 'missing text' }, 400); return; }
+        if (!text) { phoneRespond(res, { error: 'missing text' }, 400); return; }
         const sent = await phoneSend(text);
-        respond(res, { ok: sent, paired: Boolean(phone.founderChatId) }, sent ? 200 : 409);
+        phoneRespond(res, { ok: sent, paired: Boolean(phone.founderChatId) }, sent ? 200 : 409);
       } catch (err) {
-        respond(res, { error: String((err && err.message) || err) }, 502);
+        phoneRespond(res, { error: String((err && err.message) || err) }, 502);
       }
     });
     return;
