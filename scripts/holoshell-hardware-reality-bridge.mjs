@@ -10,6 +10,11 @@ const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'hardware-reality.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'hardware-reality.js');
 const DEFAULT_FIXTURE = path.join('apps', 'holoshell', 'samples', 'hardware-reality-fixture.json');
+const DEFAULT_MACHINE_STATE_FIXTURE = path.join('apps', 'holoshell', 'samples', 'machine-state-fixture.json');
+// Upstream HoloShell operate-room server (ai-ecosystem scripts/holoshell-operate-room-server.mjs),
+// loopback only. Its /api/machine-state carries the additive seatCapacity (holoshell.seat-capacity.v2).
+const DEFAULT_OPERATE_ROOM_URL = `http://127.0.0.1:${Number(process.env.OPERATE_ROOM_PORT) || 8747}`;
+const SEAT_CAPACITY_SCHEMA = 'holoshell.seat-capacity.v2';
 const REQUIRED_TOOLS = [
   'holoshell_run_registry_snapshot',
   'holoshell_preflight_terminate',
@@ -30,6 +35,8 @@ function parseArgs(argv) {
     mcpScript: defaultMcpScript(),
     timeoutMs: 20000,
     selfTest: false,
+    machineState: '',
+    operateRoomUrl: process.env.HOLOSHELL_OPERATE_ROOM_URL || DEFAULT_OPERATE_ROOM_URL,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -42,6 +49,8 @@ function parseArgs(argv) {
     else if (arg === '--mcp-script') args.mcpScript = argv[++index];
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index]) || args.timeoutMs;
     else if (arg === '--self-test') args.selfTest = true;
+    else if (arg === '--machine-state') args.machineState = argv[++index];
+    else if (arg === '--operate-room-url') args.operateRoomUrl = argv[++index];
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -51,6 +60,7 @@ function parseArgs(argv) {
   }
 
   if (args.selfTest && !args.fixture) args.fixture = DEFAULT_FIXTURE;
+  if (args.selfTest && !args.machineState) args.machineState = DEFAULT_MACHINE_STATE_FIXTURE;
   return args;
 }
 
@@ -68,6 +78,8 @@ Options:
   --mcp-script <path>    HoloShell stdio MCP script. Defaults to ~/.ai-ecosystem/scripts/holoshell-mcp-stdio.mjs.
   --timeout-ms <n>       Upstream live snapshot timeout. Defaults to 20000.
   --self-test            Use the sample fixture and assert bridge invariants.
+  --machine-state FILE   Read a HoloShell machine-state snapshot (seat-capacity v2) from FILE.
+  --operate-room-url URL Loopback operate-room server (default http://127.0.0.1:8747).
   -h, --help             Show this help.
 `);
 }
@@ -685,7 +697,67 @@ function buildRecommendations(snapshot, summary) {
   return recommendations;
 }
 
-function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
+function isLoopbackUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read the HoloShell machine-state snapshot: from a file (--machine-state or the
+ * self-test fixture), or else from the loopback operate-room server. Read-only. A
+ * missing or unreachable source returns null; the bridge never fails on it.
+ */
+async function readMachineState(args) {
+  if (args.machineState) return readOptionalJson(args.machineState, null);
+  if (!isLoopbackUrl(args.operateRoomUrl)) return null;
+  try {
+    const res = await fetch(`${args.operateRoomUrl.replace(/\/$/, '')}/api/machine-state`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body?.snapshot || body;
+  } catch {
+    return null;
+  }
+}
+
+const num = (value) => (Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : null);
+
+/** Project seat-capacity v2 into the HoloLand model. Unknown or legacy shapes become null. */
+function projectSeatCapacity(machineState) {
+  const sc = machineState?.seatCapacity;
+  if (!sc || sc.schema !== SEAT_CAPACITY_SCHEMA) return null;
+  return {
+    schema: SEAT_CAPACITY_SCHEMA,
+    seatId: String(sc.seat_id || ''),
+    owner: sc.owner || null,
+    arch: sc.arch || null,
+    os: sc.os || null,
+    cores: num(sc.cores),
+    ramTotalGb: num(sc.ram_total_gb),
+    ramAvailableGb: num(sc.ram_available_gb),
+    load1m: num(sc.load?.['1m']),
+    loadPerCore1m: num(sc.load?.per_core_1m),
+    gpu: safeArray(sc.gpu).map((g) => ({ name: String(g.name || ''), vramTotalGb: num(g.vram_total_gb), vramFreeGb: num(g.vram_free_gb), utilPct: num(g.util_pct) })),
+    online: sc.online === true,
+    fresh: sc.fresh === true,
+    observedAt: sc.observed_at || null,
+    reserved: { ramGb: num(sc.reserved?.ram_gb) ?? 0, cores: num(sc.reserved?.cores) ?? 0, services: safeArray(sc.reserved?.services).map(String) },
+    headroom: { ramGb: num(sc.headroom?.ram_gb), cores: num(sc.headroom?.cores) },
+    consent: { status: sc.consent?.status || 'placeholder', enforced: sc.consent?.enforced === true, acceptRequesters: sc.consent?.accept_requesters || 'self' },
+    schedulable: sc.schedulable === true,
+    notSchedulableReasons: safeArray(sc.not_schedulable_reasons).map(String),
+    observeOnly: true,
+  };
+}
+
+function createHardwareRealityModel({ initialize, tools, snapshot, args, machineState = null }) {
+  const seatCapacity = projectSeatCapacity(machineState);
   const lanes = buildLaneModels(snapshot);
   const shellRuns = buildShellRunModels(snapshot);
   const legacyApps = groupLegacyApps(snapshot);
@@ -710,6 +782,8 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     mcpToolCount: toolNames.length,
     requiredToolCount: REQUIRED_TOOLS.length,
     requiredToolsAvailable: REQUIRED_TOOLS.every((name) => toolNames.includes(name)),
+    seatCapacityReported: Boolean(seatCapacity),
+    seatSchedulable: Boolean(seatCapacity?.schedulable),
   };
   const safety = {
     destructiveActionsTaken: Boolean(snapshot.receipt?.destructive_actions_taken),
@@ -750,6 +824,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     shellRuns,
     listeners,
     legacyApps,
+    seatCapacity,
     terminationPreflights: safeArray(snapshot.terminationPreflights).map((preflight) => ({
       pid: preflight.pid || null,
       reason: String(preflight.reason || '').slice(0, 220),
@@ -811,6 +886,14 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
         value: `${summary.terminationPreflightCount} cleanup`,
         intent: 'Keep every destructive operation behind MCP preflight and receipt checks.',
       },
+      {
+        cardId: 'seat-capacity',
+        title: 'Seat Capacity',
+        value: seatCapacity
+          ? `${seatCapacity.cores ?? '?'} cores · ${seatCapacity.headroom.ramGb ?? '?'} GB free after reserve${seatCapacity.schedulable ? '' : ' (not schedulable)'}`
+          : 'not reported',
+        intent: 'Show what this seat can take on (observe only; consent is a placeholder).',
+      },
     ],
     recommendations: buildRecommendations(snapshot, summary),
     receipt: {
@@ -864,6 +947,14 @@ function assertSelfTest(model) {
   if (model.safety.destructiveActionsTaken !== false) failures.push('bridge must not take destructive actions');
   if (!model.safety.preflightRequiredForTermination) failures.push('termination preflight must be required');
   if (!model.receipt.snapshotHash) failures.push('missing upstream snapshot hash');
+  if (!model.seatCapacity) failures.push('expected seat-capacity v2 projection from machine-state fixture');
+  if (model.seatCapacity?.owner !== 'joseph') failures.push('seat capacity owner missing');
+  if (model.seatCapacity?.arch !== 'arm64') failures.push('expected Linux/ARM seat in machine-state fixture');
+  if (model.seatCapacity?.headroom.ramGb !== 2) failures.push('seat headroom should be RAM available minus reserve');
+  if (model.seatCapacity?.consent.enforced !== false) failures.push('consent must stay a non-enforced placeholder');
+  if (projectSeatCapacity({ seatCapacity: { schema: 'holoshell.seat-capacity.v1' } }) !== null) failures.push('unknown seat schema must project to null');
+  if (projectSeatCapacity({}) !== null) failures.push('missing seatCapacity must project to null');
+  if (isLoopbackUrl('https://mcp.holoscript.net')) failures.push('operate-room URL must be loopback only');
   const overlayFixture = overlayProcessHealthCustody({
     counts: { processes: 99, shellRuns: 99 },
     terminationPreflights: [{ pid: 1, reason: 'upstream unsplit preflight' }],
@@ -952,7 +1043,8 @@ async function main() {
       };
     }
   }
-  const model = createHardwareRealityModel({ ...mcpReality, args });
+  const machineState = await readMachineState(args);
+  const model = createHardwareRealityModel({ ...mcpReality, args, machineState });
   const output = writeModel(model, args.output);
   const jsOutput = writeBrowserBootstrap(model, args.jsOutput);
   if (args.selfTest) assertSelfTest(model);
@@ -972,6 +1064,7 @@ async function main() {
     console.log(`Owner handoffs: ${model.summary.ownerHandoffPlanCount}`);
     console.log(`Fallback active: ${model.summary.fallbackActive}`);
     console.log(`Destructive actions: ${model.safety.destructiveActionsTaken}`);
+    console.log(`Seat capacity: ${model.seatCapacity ? `${model.seatCapacity.seatId} schedulable=${model.seatCapacity.schedulable}` : 'not reported'}`);
   }
 }
 
