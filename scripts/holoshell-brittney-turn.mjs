@@ -791,45 +791,27 @@ function selectedBrainDevice(ollamaHost) {
 
 function createSelfTestHarness() {
   let callCount = 0;
-  const fetchImpl = async () => {
+  // The fake model answers in the protocol the runtime actually asked for: Ollama /api/chat
+  // (message.tool_calls with object arguments) or OpenAI-style /v1/chat/completions
+  // (choices[0].message.tool_calls with JSON-string arguments). Until 2026-09-22 it only
+  // knew the Ollama shape, so a runtime pointed at llama-server failed the self-test with a
+  // 500 instead of the honest 503 the model probe produces.
+  const fetchImpl = async (url) => {
     callCount += 1;
-    if (callCount === 1) {
-      return {
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        async json() {
-          return {
-            message: {
-              role: 'assistant',
-              content: '',
-              tool_calls: [
-                {
-                  id: 'self-test-call-1',
-                  function: {
-                    name: 'holo_parse_to_graph',
-                    arguments: { source: 'object "Brittney" { type: "assistant_avatar" }' },
-                  },
-                },
-              ],
-            },
-          };
-        },
-      };
-    }
-    return {
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      async json() {
-        return {
-          message: {
-            role: 'assistant',
-            content: 'Runtime self-test complete. I can map the turn into shell objects and attach receipts.',
-          },
-        };
-      },
+    const openai = String(url || '').includes('/v1/chat/completions');
+    const toolCall = {
+      id: 'self-test-call-1',
+      function: { name: 'holo_parse_to_graph', arguments: { source: 'object "Brittney" { type: "assistant_avatar" }' } },
     };
+    const first = { role: 'assistant', content: '', tool_calls: [toolCall] };
+    const second = { role: 'assistant', content: 'Runtime self-test complete. I can map the turn into shell objects and attach receipts.' };
+    const message = callCount === 1 ? first : second;
+    const body = openai
+      ? { choices: [{ message: message.tool_calls
+          ? { ...message, tool_calls: message.tool_calls.map((c) => ({ id: c.id, type: 'function', function: { name: c.function.name, arguments: JSON.stringify(c.function.arguments) } })) }
+          : message }], usage: { completion_tokens: 1 } }
+      : { message };
+    return { ok: true, status: 200, statusText: 'OK', async json() { return body; } };
   };
   const mcp = {
     async callTool({ server, tool, args }) {
@@ -1328,7 +1310,7 @@ ${toneInstruction}`;
         ? `\n\n--- what you actually remember of your history with Joseph (oldest first; REAL — reference it honestly) ---\n${memory
             .map((m) => `• he said: "${truncate(m.founderSaid, 160)}"  →  you: "${truncate(m.brittneyReplied, 160)}"`)
             .join('\n')}\n--- end memory ---`
-        : `\n\n(You have no remembered history with Joseph yet — this is the beginning. Be honest about that; invent nothing.)`;
+        : `\n\n(No stored conversation transcripts with Joseph yet. If a daimon context block appears above, that IS real remembered context about him — use it plainly. Invent nothing beyond it.)`;
       const recalledNote = recall.recalled.length
         ? `\n\n(From earlier between you two: ${recall.recalled.map((entry) => truncate(entry.prompt, 80)).join(' · ')}. Draw on this only if it's genuinely relevant; don't repeat yourself.)`
         : '';

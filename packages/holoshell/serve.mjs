@@ -17,8 +17,10 @@
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, existsSync, statSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, dirname, isAbsolute, resolve } from 'node:path';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync, execFileSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import {
   appendTerminalEvents,
   buildTerminalEventStream,
@@ -211,6 +213,7 @@ const BROWSER_CHAT_WORKSPACE_ROUTE_MAP = {
 const LAPTOP_REASONING_RESULT_SCHEMA = 'hololand.holoshell.laptop-reasoning-result.v0.1.0';
 
 const PORT = Number(process.env.HOLOSHELL_SERVE_PORT ?? 8747);
+const execFileAsync = promisify(execFile);
 // Bind host. Default loopback (the laptop-local case). On the JETSON — where this
 // surface is hosted so the laptop/Quest are just screens (founder 2026-06-17) — set
 // HOLOSHELL_SERVE_HOST=0.0.0.0 so http://holojetson.local:8747 is LAN-reachable.
@@ -878,7 +881,20 @@ function looksLikeNextStepsIntent(message) {
 // word inside an imperative tool/desktop command stays operational.
 function looksLikeRelationalIntent(message) {
   const text = String(message || '');
-  const relational = /\b(relationship|connection|connecting|how are you|how('?re| are) (we|things|you)|who are you|get to know|feel|feeling|trust|grow|growing|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|listen|present with|be (here|with) (me|you))\b/iu.test(text);
+  // Phrases are relational on their own; bare single words (memory, connection, feel, trust, grow,
+  // listen, present, ...) only count with a first/second-person pronoun nearby, because
+  // "how much memory is the jetson using?" is operational (claude1 review, 2026-09-22).
+  const phrases = /\b(remember|recall|about me|know about me|know me|who am i|my name|what do you know|relationship|how are you|how('?re| are) (we|things|you)|who are you|get to know|together|companion|friend|love|care about|caring|thank you|thanks|appreciate|proud|miss you|between (us|founder|you)|you and (i|me)|our (bond|relationship)|present with|be (here|with) (me|you))\b/iu.test(text);
+  // A bare word is relational only when a person pronoun is ATTACHED to it: within two tokens
+  // after it ("trust you", "feel like you", "listening to me") or immediately before it as its
+  // owner or subject ("our connection", "you present"). "I" alone before the word does not count
+  // ("I trust the receipt" is operational), and "memory" is never a bare relational word ("what do
+  // you remember about me" is covered by the phrases). Scored on a held-out set written BEFORE this
+  // rule: scripts/__tests__/holoshell-relational-intent.heldout.mjs (claude1 review, 2026-09-22).
+  const BARE = '(connection|connections|connecting|feel|feeling|trust|grow|growing|listen|listening|present)';
+  const bareSingles = new RegExp('\\b' + BARE + '\\b(\\s+\\w+)?\\s+(you|me|us|we|our|your|my|i)\\b', 'iu').test(text)
+    || new RegExp('\\b(you|we|our|your|my|us|me)\\s+' + BARE + '\\b', 'iu').test(text);
+  const relational = phrases || bareSingles;
   if (!relational) return false;
   if (/^\s*(build|run|open|launch|execute|deploy|install|fix|compile|test|queue|refresh|check|stage|focus|click|type|scroll|save|submit)\b/iu.test(text)) return false;
   if (looksLikeDesktopControlIntent(text)) return false;
@@ -4228,7 +4244,6 @@ function handleOperatorTerminalEventStreamSSE(req, res) {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
     'X-Accel-Buffering': 'no',
   });
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
@@ -6448,35 +6463,119 @@ function buildBrittneyCockpitCapsule() {
 // PARSED tool result (e.g. {daemons:[...]} / a turn object), or null on any failure.
 const DAIMON_OWNER = () => process.env.HOLOSHELL_DAIMON_OWNER || 'founder';
 const MCP_KEY = () => process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
+// Where the daimon lives. Default stays the cloud for compatibility; on the Jetson set
+// HOLOSHELL_MCP_URL=http://127.0.0.1:7411/mcp so the founder's daimon is sovereign (its store is
+// the anchor's local emergence JSONL, which survived a real anchor restart on 2026-09-22).
+const MCP_URL = () => (process.env.HOLOSHELL_MCP_URL || 'https://mcp.holoscript.net/mcp').trim();
+const MCP_IS_CLOUD = () => /mcp\.holoscript\.net/u.test(MCP_URL());
+// The local anchor takes no shared API key: it issues OAuth client-credentials tokens to a client
+// that registers itself (public registration, scopes tools:read + tools:execute). The client record
+// lives in HOLOSHELL_MCP_OAUTH_CLIENT_FILE (mode 600). The anchor's client registry is in-memory, so
+// after an anchor restart the token grant fails with invalid_grant and we re-register once.
+const MCP_OAUTH_CLIENT_FILE = () => (process.env.HOLOSHELL_MCP_OAUTH_CLIENT_FILE
+  || join(process.env.HOLOSHELL_RECEIPTS_DIR || join(__dirname, '..', '..', '.tmp', 'holoshell'), 'anchor-oauth-client.json'));
+let mcpToken = { value: '', expiresAt: 0 };
+function mcpOrigin() { try { return new URL(MCP_URL()).origin; } catch { return ''; } }
+function readOauthClient() { try { return JSON.parse(readFileSync(MCP_OAUTH_CLIENT_FILE(), 'utf8')); } catch { return null; } }
+// HoloShell registers AS the daimon owner. The anchor binds the daimon tools' callerId to the
+// token's principal (HoloScript 26360d668: a stranger can no longer type "founder" as callerId),
+// so the token must carry agent_id = the owner: bound at registration (accepted from a loopback
+// registrant while the anchor's registration is loopback-only) and requested at every grant.
+// If the anchor refuses the binding, HoloShell still registers without it and says so once:
+// Brittney then runs WITHOUT the daimon's memory rather than not at all.
+async function registerOauthClient() {
+  const owner = DAIMON_OWNER();
+  const register = async (asOwner) => {
+    const r = await fetch(`${mcpOrigin()}/oauth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({ client_name: 'holoshell-brittney-daimon', grant_types: ['client_credentials'],
+        token_endpoint_auth_method: 'client_secret_post', redirect_uris: ['https://localhost/holoshell/oauth-cb'],
+        scope: 'tools:read tools:execute', ...(asOwner ? { agent_id: owner } : {}) }),
+    });
+    return r.json().catch(() => null);
+  };
+  let j = await register(true);
+  let bound = Boolean(j && j.client_id && j.client_secret);
+  if (!bound) {
+    const why = JSON.stringify(j || null).slice(0, 160);
+    j = await register(false);
+    if (!j || !j.client_id || !j.client_secret) throw new Error(`oauth register failed: ${why}`);
+    console.warn(`[holoshell] the anchor would not let HoloShell register as "${owner}" (${why}); Brittney runs WITHOUT the daimon's memory until it does`);
+  }
+  const record = { ...j, agent_id: bound ? owner : '', agent_id_refused: !bound };
+  mkdirSync(dirname(MCP_OAUTH_CLIENT_FILE()), { recursive: true });
+  writeFileSync(MCP_OAUTH_CLIENT_FILE(), JSON.stringify(record, null, 2), { mode: 0o600 });
+  return record;
+}
+async function fetchOauthToken(client) {
+  const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: client.client_id,
+    client_secret: client.client_secret, scope: 'tools:read tools:execute',
+    ...(client.agent_id ? { agent_id: client.agent_id } : {}) });
+  const r = await fetch(`${mcpOrigin()}/oauth/token`, { method: 'POST', body, signal: AbortSignal.timeout(8000) });
+  const j = await r.json();
+  if (!j || !j.access_token) return { error: (j && j.error) || `HTTP ${r.status}` };
+  return { token: j.access_token, expiresIn: Number(j.expires_in) || 3600 };
+}
+async function mcpAuthHeaders() {
+  if (MCP_IS_CLOUD()) { const key = MCP_KEY(); return key ? { 'x-mcp-api-key': key } : null; }
+  if (mcpToken.value && Date.now() < mcpToken.expiresAt) return { Authorization: `Bearer ${mcpToken.value}` };
+  let client = readOauthClient();
+  // A client registered before the owner binding existed carries no agent_id: replace it, or every
+  // daimon read is refused as "not bound to the authenticated principal".
+  if (client && client.agent_id !== DAIMON_OWNER() && !client.agent_id_refused) client = null;
+  let grant = client ? await fetchOauthToken(client) : { error: 'no client' };
+  if (grant.error) { client = await registerOauthClient(); grant = await fetchOauthToken(client); }
+  if (grant.error) throw new Error(`oauth token failed: ${grant.error}`);
+  mcpToken = { value: grant.token, expiresAt: Date.now() + (grant.expiresIn - 60) * 1000 };
+  return { Authorization: `Bearer ${mcpToken.value}` };
+}
 function holoMcp(name, args) {
-  const key = MCP_KEY();
-  if (!key) return Promise.resolve(null);
-  return fetch('https://mcp.holoscript.net/mcp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
-    body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
-    signal: AbortSignal.timeout(8000),
-  }).then((r) => r.json())
-    .then((j) => { try { return JSON.parse(j?.result?.content?.[0]?.text || 'null'); } catch { return null; } })
-    .catch(() => null);
+  return mcpAuthHeaders().then((auth) => {
+    if (!auth) return null;
+    return fetch(MCP_URL(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...auth },
+      body: JSON.stringify({ jsonrpc: '2.0', id: name, method: 'tools/call', params: { name, arguments: args } }),
+      signal: AbortSignal.timeout(8000),
+    }).then((r) => r.json())
+      .then((j) => { try { return JSON.parse(j?.result?.content?.[0]?.text || 'null'); } catch { return null; } });
+  }).catch(() => null);
 }
 
 // Emergence loop: every management turn is a care-signal that accumulates the daimon's
 // soul; emergence_check manifests it at threshold (5 turns + richness 3). Fire-and-forget.
 async function growDaimon(message) {
-  if (!MCP_KEY() || !message) return;
+  if (!message) return;
+  if (MCP_IS_CLOUD() && !MCP_KEY()) return;
+  // Self-test pings are not the founder: on 2026-09-22 the cloud daimon had "emerged" from
+  // nothing but "holoshell route self-test:" deltas and knew nothing about him.
+  if (/^\s*holoshell route self-test/iu.test(String(message))) return;
   const significanceScore = Math.min(0.95, 0.5 + message.length / 400);
   const recentFocus = message.toLowerCase().split(/\s+/).slice(0, 3).join(' ').slice(0, 48);
   await holoMcp('holo_observe_soul', { ownerId: DAIMON_OWNER(), contextDelta: {
     careSignalHistory: ['system-management', 'shared-work'], significanceScore, updatedPreferences: { recentFocus } } });
-  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: 'Daimon' });
+  await holoMcp('holo_daemon_emergence_check', { ownerId: DAIMON_OWNER(), displayName: process.env.HOLOSHELL_DAIMON_NAME || 'Daimon' });
 }
 
 // Once the daimon has EMERGED, pull its turn (the Brittney rehydration channel, surfaceId
 // 'holoshell') and return a preamble that primes Brittney's prompt with the companion's
 // accumulated context. Empty string until emergence — so this is a no-op cost today.
+// holo_daemon_turn returns { accepted, rehydratedContext: { aggregatedPreferences, careSignals,
+// receiptRefs, deltas }, daemonId } (daemon-lifecycle-tools.ts). Until 2026-09-22 this read
+// turn.rehydration|context|finalText|summary|text, none of which exist, so the preamble was empty
+// forever and Brittney could not remember anything even after the daimon had emerged.
+function renderRehydratedContext(ctx) {
+  if (!ctx || typeof ctx !== 'object') return '';
+  const prefs = ctx.aggregatedPreferences && typeof ctx.aggregatedPreferences === 'object' ? ctx.aggregatedPreferences : {};
+  const lines = Object.entries(prefs)
+    .filter(([k, v]) => k !== 'recentFocus' && v !== undefined && v !== null && String(v).trim())
+    .map(([k, v]) => `- ${k.replace(/_/gu, ' ')}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
+  const care = Array.isArray(ctx.careSignals) ? ctx.careSignals.filter((c) => typeof c === 'string' && c && !/^(system-management|shared-work)$/u.test(c)) : [];
+  if (care.length) lines.push(`- care signals: ${[...new Set(care)].join(', ')}`);
+  return lines.join('\n');
+}
 async function daimonRehydration() {
-  if (!MCP_KEY()) return '';
+  if (MCP_IS_CLOUD() && !MCP_KEY()) return '';
   const list = await holoMcp('holo_list_daemons', {});
   const daemons = (list && list.daemons) || [];
   if (!daemons.length) return '';  // not yet emerged
@@ -6487,9 +6586,254 @@ async function daimonRehydration() {
     contextDelta: { careSignalHistory: ['system-management'], significanceScore: 0.6, updatedPreferences: {} },
     surfaceId: 'holoshell',
   });
-  const ctx = turn && (turn.rehydration || turn.context || turn.finalText || turn.summary || turn.text);
+  const rendered = turn && turn.rehydratedContext ? renderRehydratedContext(turn.rehydratedContext) : '';
+  const legacy = turn && (turn.rehydration || turn.context || turn.finalText || turn.summary || turn.text);
+  const ctx = rendered || (legacy ? String(legacy) : '');
   if (!ctx) return '';
-  return `[${mine.displayName || 'Daimon'} — your emergent companion — offers remembered context: ${String(ctx).slice(0, 600)}]`;
+  return `[${mine.displayName || 'Daimon'} — Joseph's own daimon, his private companion that has learned him — offers REAL remembered context about him (use it, do not invent beyond it):\n${ctx.slice(0, 1200)}]`;
+}
+
+// Real model reachability probe for the chat self-test. One token, same host and API style the
+// turn script will use (OLLAMA_HOST + AIBRITTNEY_API_STYLE), so the self-test goes RED when the
+// model server is down, moved, or speaks a different protocol — the exact failure that hid for
+// 83 days behind the deterministic harness.
+function normalizeModelHost(raw) {
+  // OLLAMA_HOST is spelled scheme-less by the ollama CLI ("127.0.0.1:11434") and with a scheme by
+  // fetch callers; accept both (claude1 review: the scheme-less spelling made the probe throw).
+  const h = String(raw || 'http://127.0.0.1:11434').trim().replace(/\/+$/u, '');
+  return /^https?:\/\//iu.test(h) ? h : `http://${h}`;
+}
+async function probeModelReachability() {
+  const host = normalizeModelHost(process.env.OLLAMA_HOST);
+  const style = (process.env.AIBRITTNEY_API_STYLE || 'auto').toLowerCase();
+  const model = process.env.AIBRITTNEY_MODEL || 'qwen3:4b-instruct';
+  const started = Date.now();
+  // Reachability: does anything answer at all (5 s on the model list), separately from warmth.
+  let reachable = false; let listStatus = 0;
+  for (const path of style === 'ollama' ? ['/api/tags'] : ['/v1/models', '/api/tags']) {
+    try { const r = await fetch(`${host}${path}`, { signal: AbortSignal.timeout(5000) }); listStatus = r.status; reachable = true; break; } catch { /* try the next */ }
+  }
+  if (!reachable) return { reachable: false, warm: false, host, style, model, httpStatus: 0, latencyMs: Date.now() - started, error: 'no answer on the model list within 5 s' };
+  // Warmth: one token. A cold model may take longer than the budget; that is "not warm", not "not there".
+  const attempt = async (path, body) => fetch(`${host}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: AbortSignal.timeout(20000),
+  });
+  const openai = () => attempt('/v1/chat/completions', { model, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1, stream: false });
+  const ollama = () => attempt('/api/chat', { model, messages: [{ role: 'user', content: 'ok' }], stream: false, options: { num_predict: 1 } });
+  let used = style === 'openai' ? 'openai' : 'ollama';
+  try {
+    let r;
+    if (style === 'openai') { r = await openai(); }
+    else {
+      try { r = await ollama(); } catch (err) { if (style !== 'auto') throw err; r = null; }
+      if (style === 'auto' && (!r || r.status === 404 || r.status === 405)) { r = await openai(); used = 'openai'; }
+    }
+    const warm = r.ok;
+    return { reachable: true, warm, host, style: used, model, httpStatus: r.status, listStatus, latencyMs: Date.now() - started, error: warm ? null : `HTTP ${r.status}` };
+  } catch (err) {
+    const timedOut = /abort|timeout/iu.test(String(err && err.name || '') + String(err && err.message || ''));
+    return { reachable: true, warm: false, host, style: used, model, httpStatus: 0, listStatus, latencyMs: Date.now() - started,
+      error: timedOut ? 'reachable but no token within 20 s (cold model?)' : String(err && err.message || err) };
+  }
+}
+
+// ── Phone channel (Telegram) ──────────────────────────────────────────────────
+// Build 2 of the Muse direction (founder, 2026-09-22): the founder's daimon reaches his phone
+// and he can talk to Brittney from his pocket. A Telegram bot, long-polled from this process,
+// answers ONLY the one chat that paired with the code shown on /connect-phone. Runs here on
+// the Jetson: no rented compute, no third-party agent in the loop; Telegram is the relay only.
+// State file (mode 600): HOLOSHELL_PHONE_FILE or <receipts dir>/phone-channel.json.
+const PHONE_FILE = () => (process.env.HOLOSHELL_PHONE_FILE
+  || join(process.env.HOLOSHELL_RECEIPTS_DIR || join(__dirname, '..', '..', '.tmp', 'holoshell'), 'phone-channel.json'));
+const phone = { token: '', botUsername: '', founderChatId: '', pairingCode: '', pairingExpiresAt: 0,
+  offset: 0, polling: false, lastInboundAt: '', lastOutboundAt: '', lastError: '' };
+function loadPhoneState() {
+  try {
+    const j = JSON.parse(readFileSync(PHONE_FILE(), 'utf8'));
+    phone.token = j.botToken || ''; phone.botUsername = j.botUsername || ''; phone.founderChatId = j.founderChatId || '';
+  } catch { /* not configured yet */ }
+  if (!phone.token && process.env.TELEGRAM_BOT_TOKEN) phone.token = String(process.env.TELEGRAM_BOT_TOKEN).trim();
+}
+function savePhoneState() {
+  mkdirSync(dirname(PHONE_FILE()), { recursive: true });
+  writeFileSync(PHONE_FILE(), JSON.stringify({ botToken: phone.token, botUsername: phone.botUsername,
+    founderChatId: phone.founderChatId, pairedAt: phone.founderChatId ? new Date().toISOString() : null }, null, 2), { mode: 0o600 });
+}
+async function tg(method, body, timeoutMs = 20000, token = phone.token) {
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}), signal: AbortSignal.timeout(timeoutMs),
+  });
+  const j = await r.json().catch(() => null);
+  if (!j || !j.ok) throw new Error((j && j.description) || `telegram ${method} HTTP ${r.status}`);
+  return j.result;
+}
+async function phoneSend(text) {
+  if (!phone.token || !phone.founderChatId) return false;
+  await tg('sendMessage', { chat_id: phone.founderChatId, text: String(text).slice(0, 4000) });
+  phone.lastOutboundAt = new Date().toISOString();
+  return true;
+}
+async function phoneAnswer(text) {
+  // /api/brittney/chat requires the admin key; this server-internal caller presents it. With
+  // HOLOSHELL_PHONE_ADMIN_KEY unset the route fails closed and the phone gets the fallback line.
+  const r = await fetch(`http://127.0.0.1:${PORT}/api/brittney/chat`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-phone-admin': PHONE_ADMIN_KEY() },
+    body: JSON.stringify({ message: text, mode: 'live' }), signal: AbortSignal.timeout(150000),
+  });
+  const j = await r.json().catch(() => null);
+  return (j && j.reply) || 'I could not answer that just now.';
+}
+async function phonePoll() {
+  if (phone.polling) return;
+  phone.polling = true;
+  while (phone.token) {
+    try {
+      const updates = await tg('getUpdates', { offset: phone.offset, timeout: 25, allowed_updates: ['message'] }, 40000);
+      for (const u of updates) {
+        phone.offset = u.update_id + 1;
+        const m = u.message;
+        if (!m || typeof m.text !== 'string') continue;
+        const chatId = String(m.chat && m.chat.id);
+        if (!phone.founderChatId) {
+          // Pairing: the first chat that sends the code shown on /connect-phone becomes the founder's.
+          if (phone.pairingCode && Date.now() < phone.pairingExpiresAt) {
+            if (m.text.trim() === phone.pairingCode) {
+              phone.founderChatId = chatId; phone.pairingCode = ''; phone.pairingAttempts = 0; savePhoneState();
+              await phoneSend(`Paired. This is Brittney, and ${process.env.HOLOSHELL_DAIMON_NAME || 'Daimon'} is with me. Say anything.`);
+            } else {
+              phone.pairingAttempts = (phone.pairingAttempts || 0) + 1;
+              if (phone.pairingAttempts >= 5) { phone.pairingCode = ''; phone.lastError = 'pairing code voided after 5 wrong attempts; connect again'; }
+            }
+          }
+          continue;
+        }
+        if (chatId !== phone.founderChatId) continue; // only the founder's chat, ever
+        phone.lastInboundAt = new Date().toISOString();
+        const reply = await phoneAnswer(m.text);
+        await phoneSend(reply);
+      }
+      phone.lastError = '';
+    } catch (err) {
+      phone.lastError = String((err && err.message) || err);
+      await new Promise((resolveWait) => setTimeout(resolveWait, 5000));
+    }
+  }
+  phone.polling = false;
+}
+function startPhoneChannel() { loadPhoneState(); if (phone.token) phonePoll(); }
+// No secret in a GET: the pairing code and the bot's username are returned only by the POST that
+// set them (claude1 review, 2026-09-22: a LAN device could read the code here and pair first).
+function phoneStatus() {
+  return { configured: Boolean(phone.token), paired: Boolean(phone.founderChatId), pairingOpen: Boolean(phone.pairingCode) && Date.now() < phone.pairingExpiresAt,
+    lastInboundAt: phone.lastInboundAt, lastOutboundAt: phone.lastOutboundAt, lastError: phone.lastError, polling: phone.polling };
+}
+// Admin routes (/api/phone/connect, /api/phone/notify) require the x-phone-admin header to match
+// HOLOSHELL_PHONE_ADMIN_KEY. Loopback is NOT trusted: any web page in a browser on this machine is
+// a loopback caller. The key is never read from the URL (?k= would land in history, proxy logs and
+// the first GET). If HOLOSHELL_PHONE_ADMIN_KEY is unset, the admin routes refuse everyone.
+const PHONE_ADMIN_KEY = () => String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+function isPhoneAdmin(req) {
+  const key = PHONE_ADMIN_KEY();
+  if (!key) return false; // fail closed
+  const given = String(req.headers['x-phone-admin'] || '').trim();
+  // Fixed-length digests: no early return on length, no throw on multibyte input.
+  const a = createHash('sha256').update(given, 'utf8').digest();
+  const b = createHash('sha256').update(key, 'utf8').digest();
+  return timingSafeEqual(a, b);
+}
+function isLoopback(req) {
+  const a = String((req.socket && req.socket.remoteAddress) || '');
+  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+}
+// A text/plain (or form) POST is a CORS "simple request" a foreign page can send without a
+// preflight; requiring application/json forces a preflight, which this server never grants.
+function isJsonRequest(req) {
+  return String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
+}
+// Phone and /api/brittney/chat responses carry no Access-Control-Allow-Origin, so a foreign
+// page cannot read them.
+function phoneRespond(res, data, status = 200) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(data));
+}
+const CONNECT_PHONE_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Brittney to your phone</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#17212b;background:#f4f6f8}h1{font-size:28px}ol li{margin:10px 0}input{font:inherit;width:100%;padding:12px;border:1px solid #9aa;border-radius:8px}button{font:inherit;padding:12px 20px;border:0;border-radius:8px;background:#1f4e79;color:#fff;margin-top:12px}#out{margin-top:18px;padding:14px;border-radius:8px;background:#fff;border:1px solid #d9e0e7;min-height:1.5em}.big{font-size:32px;font-weight:700;letter-spacing:.1em}</style></head><body>
+<h1>Connect Brittney to your phone</h1>
+<ol><li>On your phone, open <b>Telegram</b> and search for <b>BotFather</b>. Tap <b>Start</b>.</li>
+<li>Send it: <b>/newbot</b>. Give the bot a name (for example <b>Brittney</b>) and a username that ends in <b>bot</b> (for example <b>joseph_brittney_bot</b>).</li>
+<li>BotFather answers with a long code called a <b>token</b>. Copy it and paste it here.</li></ol>
+<input id="tok" placeholder="paste the token here" autocomplete="off"><button id="go">Connect</button>
+<div id="out"></div>
+<script>
+const out=document.getElementById('out');const tok=document.getElementById('tok');
+const KEY_SLOT='holoshell.phoneAdminKey';let keyDeclined=false;
+if(new URLSearchParams(location.search).has('k')){try{history.replaceState(null,'',location.pathname);}catch{}}
+function adminKey(){let v='';try{v=sessionStorage.getItem(KEY_SLOT)||'';}catch{}if(!v&&!keyDeclined){v=String(prompt('Enter the HoloShell phone admin key (asked once per tab):')||'').trim();if(v){try{sessionStorage.setItem(KEY_SLOT,v);}catch{}}else{keyDeclined=true;}}return v;}
+async function status(){const key=adminKey();if(!key)return null;try{const r=await fetch('/api/phone/status',{headers:{'x-phone-admin':key}});if(r.headers.get('x-holoshell-gate')==='key-required'){try{sessionStorage.removeItem(KEY_SLOT);}catch{}return null;}return await r.json();}catch{return null;}}
+async function watch(){const s=await status();if(s&&s.paired){out.innerHTML='<b>Paired.</b> Brittney just said hello on your phone. You can close this.';return;}setTimeout(watch,3000);}
+document.getElementById('go').onclick=async()=>{keyDeclined=false;const key=adminKey();if(!key){out.textContent='The admin key is needed to connect.';return;}out.textContent='Checking the token...';const r=await fetch('/api/phone/connect',{method:'POST',headers:{'Content-Type':'application/json','x-phone-admin':key},body:JSON.stringify({token:tok.value.trim()})});const j=await r.json().catch(()=>({error:'no answer'}));if(r.status===403){try{sessionStorage.removeItem(KEY_SLOT);}catch{}}if(!r.ok){out.textContent='That did not work: '+(j.error||r.status)+'. Check the token and try again.';return;}out.innerHTML='Good. Now open your bot in Telegram: <b>@'+j.botUsername+'</b>, press <b>Start</b>, and send it this code:<div class="big">'+j.pairingCode+'</div>I am listening.';watch();};
+(async()=>{const s=await status();if(s&&s.paired){out.innerHTML='<b>Already connected.</b> Say something to your bot in Telegram.';}else if(s&&s.configured&&s.pairingOpen){out.innerHTML='A pairing is already open but this page cannot show the code again. Paste the token and press Connect to get a fresh code.';}})();
+</script></body></html>`;
+
+// ── Whole-server gate ─────────────────────────────────────────────────────────
+// Runs before routing, on the same parsed path the router uses. Every /api/* and /workflow/*
+// request needs the admin key (x-phone-admin, constant-time, fail closed when
+// HOLOSHELL_PHONE_ADMIN_KEY is unset); every non-GET/HEAD one also needs Content-Type
+// application/json (a text/plain or form POST is a preflight-free simple request). Both checks
+// run before the body is read. OPTIONS is answered without any Access-Control-Allow-* header,
+// so a browser preflight from another origin always fails.
+// Open without a key (no secrets in them): the pages, the favicon, and GET /api/health.
+// Exemptions from JSON-only: none. Every POST handler parses its body as JSON; Telegram is
+// long-polled (no webhook route) and the anchor OAuth flow is client-credentials (no callback).
+// The terminal event stream (EventSource cannot set headers) also accepts a short-lived token
+// minted by the keyed POST /api/operator-terminal/events/stream-token.
+const GATE_OPEN_PATHS = new Set(['/', '/operator', '/operator/', '/favicon.ico', '/connect-phone', '/connect-phone/', '/api/health']);
+const TERMINAL_STREAM_PATH = '/api/operator-terminal/events/stream';
+const STREAM_TOKEN_TTL_MS = 60_000;
+const STREAM_TOKEN_MAX = 256;
+const streamTokens = new Map(); // token -> expiresAt (ms)
+function pruneStreamTokens(now = Date.now()) {
+  for (const [token, expiresAt] of streamTokens) if (expiresAt <= now) streamTokens.delete(token);
+  while (streamTokens.size >= STREAM_TOKEN_MAX) streamTokens.delete(streamTokens.keys().next().value);
+}
+function mintStreamToken() {
+  pruneStreamTokens();
+  const token = randomBytes(24).toString('hex');
+  const expiresAt = Date.now() + STREAM_TOKEN_TTL_MS;
+  streamTokens.set(token, expiresAt);
+  return { token, expiresAt: new Date(expiresAt).toISOString(), ttlMs: STREAM_TOKEN_TTL_MS };
+}
+function isValidStreamToken(token) {
+  if (typeof token !== 'string' || !/^[0-9a-f]{48}$/u.test(token)) return false;
+  const expiresAt = streamTokens.get(token);
+  return Boolean(expiresAt && expiresAt > Date.now());
+}
+function gateRespond(res, status, error, reason) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-HoloShell-Gate': reason });
+  res.end(JSON.stringify({ error }));
+}
+// Returns true when the gate answered the request itself.
+function gateRequest(req, res, url) {
+  const path = url.pathname;
+  if (req.method === 'OPTIONS') {
+    req.resume();
+    res.writeHead(204, { Allow: 'GET, HEAD, POST, OPTIONS', 'Cache-Control': 'no-store' });
+    res.end();
+    return true;
+  }
+  const gated = path === '/api' || path.startsWith('/api/') || path === '/workflow' || path.startsWith('/workflow/');
+  if (!gated || GATE_OPEN_PATHS.has(path)) return false;
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    if (path === TERMINAL_STREAM_PATH && isValidStreamToken(url.searchParams.get('t'))) return false;
+    if (isPhoneAdmin(req)) return false;
+    gateRespond(res, 403, 'admin key required: send it as the x-phone-admin header', 'key-required');
+    return true;
+  }
+  if (!isPhoneAdmin(req)) { req.resume(); gateRespond(res, 403, 'admin key required: send it as the x-phone-admin header', 'key-required'); return true; }
+  if (!isJsonRequest(req)) { req.resume(); gateRespond(res, 415, 'Content-Type must be application/json', 'json-required'); return true; }
+  return false;
 }
 
 // ── Request handler ───────────────────────────────────────────────────────────
@@ -6497,6 +6841,14 @@ async function daimonRehydration() {
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const path = url.pathname;
+  if (gateRequest(req, res, url)) return;
+
+  // ── GET /api/health — open, minimal liveness (no state, no secrets).
+  if (req.method === 'GET' && path === '/api/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ok: true, service: 'holoshell' }));
+    return;
+  }
 
   // ── GET / → natural layer surface (compiled from holoshell-shell-world.holo)
   if (req.method === 'GET' && path === '/') {
@@ -6892,6 +7244,13 @@ async function handleRequest(req, res) {
     handleOperatorTerminalEventStreamSSE(req, res);
     return;
   }
+  // ── POST /api/operator-terminal/events/stream-token — keyed (gate above); returns a 60 s token
+  // the page passes as ?t= to EventSource, which cannot send x-phone-admin itself.
+  if (req.method === 'POST' && path === '/api/operator-terminal/events/stream-token') {
+    req.resume();
+    phoneRespond(res, mintStreamToken());
+    return;
+  }
 
   if (req.method === 'POST' && path === '/api/operator-terminal/report') {
     let body = '';
@@ -7177,14 +7536,18 @@ async function handleRequest(req, res) {
   }
 
   // ── GET /api/daimon/status — the emergent companion (D.053). Reads the live
-  // ConversationDaemon substrate (holo_list_daemons @ mcp.holoscript.net). The daimon is
-  // NOT granted; it emerges from accumulated soul-context and then feeds Brittney here.
+  // ConversationDaemon substrate through holo_list_daemons at MCP_URL() — the local anchor on the
+  // Jetson (HOLOSHELL_MCP_URL), the cloud only when nothing else is configured; this comment said
+  // mcp.holoscript.net for months after the daimon had moved home. Authenticated as the owner, so
+  // the rows carry ownerId; a stranger token would see displayName only. The daimon is NOT
+  // granted; it emerges from accumulated soul-context and then feeds Brittney here.
   if (req.method === 'GET' && path === '/api/daimon/status') {
     const key = process.env.HOLOSCRIPT_API_KEY || process.env.HOLOSCRIPT_MCP_API_KEY || '';
     try {
-      const mcp = await fetch('https://mcp.holoscript.net/mcp', {
+      const statusAuth = (await mcpAuthHeaders().catch(() => null)) || (key ? { 'x-mcp-api-key': key } : {});
+      const mcp = await fetch(MCP_URL(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-mcp-api-key': key },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...statusAuth },
         body: JSON.stringify({ jsonrpc: '2.0', id: 'd', method: 'tools/call',
           params: { name: 'holo_list_daemons', arguments: {} } }),
         signal: AbortSignal.timeout(8000),
@@ -7206,14 +7569,79 @@ async function handleRequest(req, res) {
   // REAL HoloShell Brittney operator loop (scripts/holoshell-brittney-turn.mjs →
   // @holoscript/aibrittney, model-policy LOCAL/Jetson by default) and returns Brittney's
   // reply + permission-enveloped action proposals + receipt. NOT a Studio-only operator.
-  if (req.method === 'POST' && path === '/api/brittney/chat') {
+  // ── Phone channel: the founder connects his phone here (see the block above).
+  if (req.method === 'GET' && (path === '/connect-phone' || path === '/connect-phone/')) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(CONNECT_PHONE_HTML);
+    return;
+  }
+  if (req.method === 'GET' && path === '/api/phone/status') { phoneRespond(res, phoneStatus()); return; }
+  if (req.method === 'POST' && (path === '/api/phone/connect' || path === '/api/phone/notify')) {
+    if (!isPhoneAdmin(req)) { req.resume(); phoneRespond(res, { error: 'admin key required: send it as the x-phone-admin header' }, 403); return; }
+    if (!isJsonRequest(req)) { req.resume(); phoneRespond(res, { error: 'Content-Type must be application/json' }, 415); return; }
+  }
+  if (req.method === 'POST' && path === '/api/phone/connect') {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      // A failed connect must not take the live bot offline: nothing in `phone` changes until
+      // Telegram accepts the new token, and anything that throws after that is rolled back.
+      // The snapshot is taken AFTER the getMe await, so a pairing that completed while getMe was
+      // in flight is what gets restored, not the stale pre-await state.
+      let prev = null;
+      try {
+        const { token } = JSON.parse(body || '{}');
+        const t = String(token || '').trim();
+        if (!/^\d+:[A-Za-z0-9_-]{30,}$/u.test(t)) { phoneRespond(res, { error: 'that does not look like a bot token' }, 400); return; }
+        const me = await tg('getMe', {}, 20000, t);
+        prev = { token: phone.token, botUsername: phone.botUsername, founderChatId: phone.founderChatId,
+          pairingCode: phone.pairingCode, pairingExpiresAt: phone.pairingExpiresAt, pairingAttempts: phone.pairingAttempts };
+        phone.token = t; phone.founderChatId = ''; phone.botUsername = me.username || '';
+        phone.pairingCode = String(Math.floor(1000 + Math.random() * 9000));
+        phone.pairingExpiresAt = Date.now() + 15 * 60 * 1000;
+        phone.pairingAttempts = 0; // a fresh code starts with a fresh miss budget
+        savePhoneState();
+        phonePoll();
+        phoneRespond(res, { ok: true, botUsername: phone.botUsername, pairingCode: phone.pairingCode });
+      } catch (err) {
+        if (prev) Object.assign(phone, prev);
+        phoneRespond(res, { error: String((err && err.message) || err) }, 502);
+      }
+    });
+    return;
+  }
+  if (req.method === 'POST' && path === '/api/phone/notify') {
+    // Still loopback-only as before, now in addition to the admin key checked above.
+    if (!isLoopback(req)) { req.resume(); phoneRespond(res, { error: 'loopback only' }, 403); return; }
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', async () => {
       try {
-        const { message, selfTest, mode, brain } = JSON.parse(body || '{}');
+        const { text } = JSON.parse(body || '{}');
+        if (!text) { phoneRespond(res, { error: 'missing text' }, 400); return; }
+        const sent = await phoneSend(text);
+        phoneRespond(res, { ok: sent, paired: Boolean(phone.founderChatId) }, sent ? 200 : 409);
+      } catch (err) {
+        phoneRespond(res, { error: String((err && err.message) || err) }, 502);
+      }
+    });
+    return;
+  }
+  if (req.method === 'POST' && path === '/api/brittney/chat') {
+    // Same gate as the phone admin routes: x-phone-admin must match HOLOSHELL_PHONE_ADMIN_KEY
+    // (fail closed when unset), JSON only (a text/plain POST is a preflight-free simple request),
+    // and no wildcard CORS, so neither a web page nor an unkeyed LAN device can drive a turn.
+    if (!isPhoneAdmin(req)) { req.resume(); phoneRespond(res, { error: 'admin key required: send it as the x-phone-admin header' }, 403); return; }
+    if (!isJsonRequest(req)) { req.resume(); phoneRespond(res, { error: 'Content-Type must be application/json' }, 415); return; }
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', async () => {
+      let payload;
+      try { payload = JSON.parse(body || '{}'); } catch { phoneRespond(res, { error: 'invalid JSON body' }, 400); return; }
+      try {
+        const { message, selfTest, mode, brain } = (payload && typeof payload === 'object') ? payload : {};
         if (!message || typeof message !== 'string') {
-          respond(res, { error: 'missing message' }, 400);
+          phoneRespond(res, { error: 'missing message' }, 400);
           return;
         }
         // Mode split (founder directive): 'live' = founder/user companion (presence + memory);
@@ -7236,17 +7664,30 @@ async function handleRequest(req, res) {
         const prompt = [preamble, message]
           .filter(Boolean)
           .join('\n\n');
-        const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json'];
+        // 45 s runtime budget (the turn script's default is 20 s): a two-iteration tool turn on the Jetson
+        // runs ~15 tok/s and measured 18-25 s; the outer execFile timeout of 70 s still bounds it.
+        const args = [turnScript, '--prompt', prompt, '--routing-intent', message, '--json', '--timeout-ms', String(Number(process.env.HOLOSHELL_TURN_TIMEOUT_MS) || 45000)];
         if (selfTest) args.push('--self-test');
         if (brain && typeof brain === 'string') args.push('--brain', brain);
         if (relational) args.push('--relational');
         else if (resolvedMode === 'maintenance') args.push('--maintenance');
-        const out = execFileSync('node', args, {
+        // Awaited, not execFileSync: a synchronous turn froze the whole event loop (dashboard polls,
+        // health, daimon status, the phone poller) for the length of a model call (claude1 review).
+        const { stdout: out } = await execFileAsync('node', args, {
           cwd: repoRoot, encoding: 'utf8', timeout: 70_000, maxBuffer: 16 * 1024 * 1024,
         });
         const receipt = JSON.parse(out.slice(out.indexOf('{')));
         const r = receipt.result || {};
         const modelReply = r.finalText || r.summary || r.text || '(no reply)';
+        // Self-test: the deterministic harness above proves the route; this proves the MODEL.
+        const modelProbe = selfTest ? await probeModelReachability() : null;
+        if (modelProbe && !modelProbe.reachable) {
+          phoneRespond(res, {
+            turnId: receipt.turnId, reply: '(self-test failed: model server unreachable)',
+            selfTest: true, modelProbe, proposals: [], receiptType: receipt.receipt?.receiptType || null,
+          }, 503);
+          return;
+        }
         const reply = liveStatus
           ? buildGroundedStatusReply(liveStatus, message)
           : modelReply;
@@ -7259,9 +7700,10 @@ async function handleRequest(req, res) {
         const proposals = liveStatus
           ? mergeProposals(liveStatusProposals(liveStatus, message), receiptProposals)
           : receiptProposals;
-        respond(res, {
+        phoneRespond(res, {
           turnId: receipt.turnId,
           reply,
+          modelProbe,
           proposals,
           desktopControl: desktopControl ? {
             planId: desktopControl.planId,
@@ -7290,7 +7732,13 @@ async function handleRequest(req, res) {
         });
         growDaimon(message).catch(() => {});  // accumulate the daimon's soul from this turn
       } catch (err) {
-        respond(res, { error: String(err.message || err).slice(0, 300) }, 500);
+        // The raw error is a child_process failure: it carries the turn command line (absolute
+        // paths, the prompt) and the turn script's stderr/stack. Log it here; send a generic line
+        // and an id the operator can grep for in the server log.
+        const errorId = `chat-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
+        console.error(`[brittney-chat] ${errorId}:`, err);
+        const timedOut = Boolean(err && (err.killed || err.code === 'ETIMEDOUT'));
+        phoneRespond(res, { error: timedOut ? 'Brittney took too long to answer; try again' : 'Brittney could not answer this turn', errorId }, 500);
       }
     });
     return;
@@ -7549,10 +7997,11 @@ async function dispatchBrittneyOp(op, args = {}) {
   }
 }
 
+// No Access-Control-Allow-Origin on any response: every HoloShell caller is same-origin (the
+// page) or not a browser (scripts, the phone poller), so no response needs cross-origin reads.
 function respond(res, data, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(data));
 }
@@ -7561,6 +8010,7 @@ function respond(res, data, status = 200) {
 
 const server = createServer(handleRequest);
 server.listen(PORT, HOST, () => {
+  startPhoneChannel();
   console.log(`HoloShell Operate Room: http://${HOST === '0.0.0.0' ? 'holojetson.local' : 'localhost'}:${PORT}  (bound ${HOST})`);
   console.log(`  Receipts: ${RECEIPTS_DIR}`);
   if (FARA_PEER_AUTOMATION_DEFAULT_INTERVAL_MS > 0) {

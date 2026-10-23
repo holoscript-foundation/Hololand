@@ -4,6 +4,16 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+// The bridge requires the HoloShell admin key on every route but /health and an independent
+// HOLOSHELL_CONSENT_SECRET to start. Throwaway per-run values; the key is added to this file's
+// loopback requests.
+process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+process.env.HOLOSHELL_CONSENT_SECRET = `consent-${globalThis.crypto.randomUUID()}`;
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\//u.test(String(input?.url || input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })
+  : unkeyedFetch(input, init));
+
 import {
   buildBridgeStatus,
   buildConsentToken,
@@ -375,13 +385,25 @@ try {
   assert.equal(openUrlExecuteBody.destructiveActionsTaken, false);
   assert.equal(openUrlExecuteBody.executionTargetMatchVerified, true);
 
+  // Consent tokens are single-use, so the mismatched-URL attempt gets its own fresh token.
+  const mismatchConsentResponse = await fetch(`${baseUrl}/api/desktop-control/consent-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      preflight: openUrlPreflightBody,
+      operation: 'open_url',
+      gestureProof: gestureProofFor(openUrlPreflightBody),
+    }),
+  });
+  assert.equal(mismatchConsentResponse.status, 200);
+  const mismatchConsentBody = await mismatchConsentResponse.json();
   const blockedMismatchedUrlResponse = await fetch(`${baseUrl}/api/desktop-control/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       preflight: openUrlPreflightBody,
       operation: 'open_url',
-      consentToken: openUrlConsentBody,
+      consentToken: mismatchConsentBody,
       url: 'https://example.org/status',
       executeApprovedAction: true,
       executorMode: 'simulated',

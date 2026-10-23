@@ -13,6 +13,10 @@
 #   0.0.0.0 so http://holojetson.local:8747 is LAN-reachable to the laptop/Quest.
 # - HOLOSCRIPT_REPO points the Brittney turn handler at synced package dists,
 #   including @holoscript/holollama for Brain selection.
+# - HoloShell gates every /api/* and /workflow/* route behind HOLOSHELL_PHONE_ADMIN_KEY and
+#   fails closed without it. Keep the key OUT of this file (it is in git): put
+#   HOLOSHELL_PHONE_ADMIN_KEY=<key> in /etc/holoshell/holoshell.env (root:root, mode 600).
+#   Re-copy this unit and daemon-reload after changing it.
 # - No model endpoint is pinned here: the turn handler resolves the model node from
 #   the @model_fleet brain. Any Ollama-compatible endpoint is substrate fallback,
 #   not the product target.
@@ -29,6 +33,7 @@ WorkingDirectory=/mnt/nvme/holo/holoshell-surface
 Environment=HOLOSHELL_SERVE_HOST=0.0.0.0
 Environment=HOLOSCRIPT_REPO=/mnt/nvme/holo/holoscript-root
 Environment=HOLOSHELL_RECEIPTS_DIR=/mnt/nvme/holo/holoshell-surface/.tmp/receipts
+EnvironmentFile=-/etc/holoshell/holoshell.env
 ExecStart=/usr/bin/node packages/holoshell/serve.mjs
 Restart=on-failure
 RestartSec=5

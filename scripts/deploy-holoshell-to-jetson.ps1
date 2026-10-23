@@ -317,6 +317,12 @@ function Test-JetsonChatWrapperParity {
       RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-terminal-event-stream.mjs'
     },
     @{
+      Name = 'terminal-runner'
+      RelativePath = 'scripts/holoshell-terminal-runner.mjs'
+      LocalPath = Join-Path $Hololand 'scripts\holoshell-terminal-runner.mjs'
+      RemotePath = Join-RemotePath $RemoteSurface 'scripts/holoshell-terminal-runner.mjs'
+    },
+    @{
       Name = 'build-custody'
       RelativePath = 'scripts/holoshell-build-custody.mjs'
       LocalPath = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'
@@ -411,7 +417,11 @@ function Invoke-ChatReceipt {
     verification = 'jetson_deploy_wrapper_parity'
   } | ConvertTo-Json -Depth 5
   try {
-    $response = Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Body $body -TimeoutSec $ChatTimeoutSec
+    # /api/brittney/chat requires the HoloShell admin key (x-phone-admin). Set
+    # HOLOSHELL_PHONE_ADMIN_KEY in this shell to the Jetson's key; without it the route answers 403.
+    $chatHeaders = @{}
+    if ($env:HOLOSHELL_PHONE_ADMIN_KEY) { $chatHeaders['x-phone-admin'] = $env:HOLOSHELL_PHONE_ADMIN_KEY }
+    $response = Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Headers $chatHeaders -Body $body -TimeoutSec $ChatTimeoutSec
     $propertyNames = @($response.PSObject.Properties | ForEach-Object { $_.Name })
     $responseStatus = 'unknown'
     if ($propertyNames -contains 'summary' -and $response.summary) {
@@ -463,6 +473,7 @@ $copyPlan = @(
   @{ Source = Join-Path $Hololand 'scripts\holoshell-control-daemon.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-holoclaw-runtime-bridge.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-terminal-event-stream.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
+  @{ Source = Join-Path $Hololand 'scripts\holoshell-terminal-runner.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-build-custody.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-workflow-approval-bundle.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },
   @{ Source = Join-Path $Hololand 'scripts\holoshell-agent-lanes.mjs'; Destination = Join-RemotePath $RemoteSurface 'scripts/'; Recursive = $false; Required = $true },

@@ -6,6 +6,15 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// HoloShell gates /api/* and /workflow/* behind x-phone-admin: a throwaway key for this local
+// test server, inherited by the spawned server and any script it runs, and added to this
+// process's loopback API calls.
+process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\/(api|workflow)\//u.test(String(input?.url ?? input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })
+  : unkeyedFetch(input, init));
+
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), '..', '..');
 const OUTPUT_DIR = path.join(REPO_ROOT, '.tmp', 'holoshell', 'self-test', 'brittney-operator-chat-browser');

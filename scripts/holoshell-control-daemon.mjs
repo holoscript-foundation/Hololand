@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import http from 'node:http';
@@ -129,13 +130,49 @@ function readJson(filePath, fallback = {}) {
   return JSON.parse(readFileSync(resolved, 'utf8'));
 }
 
-function jsonResponse(response, statusCode, payload) {
+// ── Access gate (security patch 4) ──────────────────────────────────────────────
+// This daemon stages actions, dispatches agents and founder commands and (with --enable-execute)
+// runs approved mutations, so every route except GET /health needs the HoloShell admin key in
+// x-phone-admin (constant-time, fails closed when HOLOSHELL_PHONE_ADMIN_KEY is unset) and every
+// POST needs Content-Type application/json, both checked before the body is read. No wildcard
+// CORS: only exact origins listed in HOLOSHELL_CONTROL_ALLOWED_ORIGINS (default none) may read
+// responses cross-origin; '*' and 'null' are never accepted.
+function controlAllowedOrigins(env = process.env) {
+  return new Set(String(env.HOLOSHELL_CONTROL_ALLOWED_ORIGINS || '').split(',')
+    .map((item) => item.trim().replace(/\/+$/u, ''))
+    .filter((item) => /^https?:\/\/[A-Za-z0-9.\-\[\]:]+$/u.test(item)));
+}
+
+function isControlAdmin(request) {
+  const key = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+  if (!key) return false; // fail closed
+  const given = String(request.headers['x-phone-admin'] || '').trim();
+  const a = createHash('sha256').update(given, 'utf8').digest();
+  const b = createHash('sha256').update(key, 'utf8').digest();
+  return timingSafeEqual(a, b);
+}
+
+function isJsonRequest(request) {
+  return String(request.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
+}
+
+function corsHeadersFor(request) {
+  const origin = typeof request.headers?.origin === 'string' ? request.headers.origin : '';
+  if (!origin || !controlAllowedOrigins().has(origin)) return { Vary: 'Origin' };
+  return {
+    Vary: 'Origin',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Phone-Admin',
+  };
+}
+
+function jsonResponse(response, statusCode, payload, extraHeaders = {}) {
   response.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-store',
+    ...(response.holoshellCorsHeaders || {}),
+    ...extraHeaders,
   });
   response.end(`${JSON.stringify(payload, null, 2)}\n`);
 }
@@ -898,11 +935,26 @@ function createServer(args) {
         jsonResponse(response, 403, { ok: false, error: 'Loopback access only.' });
         return;
       }
+      response.holoshellCorsHeaders = corsHeadersFor(request);
       if (request.method === 'OPTIONS') {
-        jsonResponse(response, 204, {});
+        request.resume();
+        response.writeHead(204, { Allow: 'GET, POST, OPTIONS', 'Cache-Control': 'no-store', ...response.holoshellCorsHeaders });
+        response.end();
         return;
       }
       const url = new URL(request.url || '/', `http://${args.host}:${args.port}`);
+      if (!(request.method === 'GET' && url.pathname === '/health')) {
+        if (!isControlAdmin(request)) {
+          request.resume();
+          jsonResponse(response, 403, { ok: false, error: 'admin key required: send it as the x-phone-admin header' }, { 'X-HoloShell-Gate': 'key-required' });
+          return;
+        }
+        if (request.method === 'POST' && !isJsonRequest(request)) {
+          request.resume();
+          jsonResponse(response, 415, { ok: false, error: 'Content-Type must be application/json' }, { 'X-HoloShell-Gate': 'json-required' });
+          return;
+        }
+      }
       if (request.method === 'GET') {
         jsonResponse(response, 200, routeGet(args, url.pathname));
         return;

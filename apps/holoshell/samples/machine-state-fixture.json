@@ -1,0 +1,43 @@
+{
+  "schema": "holoshell.machine-state.v1",
+  "collectedAt": "2026-10-16T09:00:00.000Z",
+  "platform": "linux",
+  "nodeVersion": "v20.19.2",
+  "gpu": null,
+  "hostMemory": { "totalMB": 7619, "freeMB": 5120, "usedMB": 2499, "source": "node-os" },
+  "staleProcessCount": 0,
+  "seatCapacity": {
+    "schema": "holoshell.seat-capacity.v2",
+    "seat_id": "jetson-orin",
+    "owner": "joseph",
+    "source": "operate-room-self",
+    "arch": "arm64",
+    "os": "linux",
+    "cores": 6,
+    "ram_total_gb": 7.4,
+    "ram_available_gb": 5,
+    "load": { "1m": 0.6, "5m": 0.5, "15m": 0.4, "per_core_1m": 0.1 },
+    "gpu": [],
+    "online": true,
+    "observed_at": "2026-10-16T09:00:00.000Z",
+    "fresh": true,
+    "reserved": {
+      "ram_gb": 3,
+      "cores": 1,
+      "services": ["llama-server :18080", "holokeyd"],
+      "note": null
+    },
+    "headroom": { "ram_gb": 2, "cores": 5 },
+    "consent": {
+      "status": "placeholder",
+      "enforced": false,
+      "accept_requesters": "self",
+      "accept_job_classes": [],
+      "owner": "joseph",
+      "note": "Placeholder only."
+    },
+    "schedulable": true,
+    "not_schedulable_reasons": [],
+    "observe_only": true
+  }
+}

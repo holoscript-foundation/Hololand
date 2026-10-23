@@ -51,6 +51,8 @@ $HoloLlamaProxyIdentity = 'holo-inference-proxy/v0'
 $ExpectedHoloLlamaModel = '/mnt/nvme/holo/models/qwen3-4b-instruct.gguf'
 $HoloLlamaMaxBodyBytes = 1048576
 $JetsonSurface = 'http://192.168.0.119:8747'  # Jetson-HOSTED Brittney surface (systemd holoshell-surface)
+# Override without editing this file (also becomes the bridge's allowed page origin below).
+if ($env:HOLOSHELL_JETSON_SURFACE) { $JetsonSurface = $env:HOLOSHELL_JETSON_SURFACE.TrimEnd('/') }
 $HoloScript  = Join-Path (Split-Path -Parent $Hololand) 'HoloScript'  # sibling repo — Studio lives here
 $StudioPort  = 3101                                                   # Studio /create = BrittneyPlus (building)
 $LaptopDesktopBridgePort = 8751
@@ -169,6 +171,29 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
   Write-Host '[Brittney Studio] node unavailable; laptop desktop bridge not started.'
 }
 "@
+  # The bridge (inherits this environment) needs the HoloShell admin key on every route but
+  # /health, and answers cross-origin only for the exact page origins listed here (no wildcard).
+  if (-not $env:HOLOSHELL_BRIDGE_ALLOWED_ORIGINS) {
+    $env:HOLOSHELL_BRIDGE_ALLOWED_ORIGINS = "$JetsonSurface,http://holojetson.local:8747,http://127.0.0.1:8747,http://localhost:8747"
+  }
+  if (-not $env:HOLOSHELL_PHONE_ADMIN_KEY) {
+    Write-Host '[Brittney Studio] HOLOSHELL_PHONE_ADMIN_KEY is not set; the laptop desktop bridge will refuse every request except /health.'
+  }
+  # The bridge refuses to start without an independent consent-token secret. Check it here so the
+  # reason is visible; the value is never printed.
+  $consentSecret = "$env:HOLOSHELL_CONSENT_SECRET".Trim()
+  $consentProblem = $null
+  if (-not $consentSecret) { $consentProblem = 'HOLOSHELL_CONSENT_SECRET is not set' }
+  elseif ($consentSecret.Length -lt 32) { $consentProblem = 'HOLOSHELL_CONSENT_SECRET is shorter than 32 characters' }
+  elseif ($env:HOLOSHELL_PHONE_ADMIN_KEY -and ($consentSecret -ceq "$env:HOLOSHELL_PHONE_ADMIN_KEY".Trim())) {
+    $consentProblem = 'HOLOSHELL_CONSENT_SECRET must not equal HOLOSHELL_PHONE_ADMIN_KEY'
+  }
+  if ($consentProblem) {
+    Write-Host "[Brittney Studio] $consentProblem; NOT starting the laptop desktop bridge (desktop approvals stay off)."
+    Write-Host '[Brittney Studio] Generate a laptop-only secret with: node -e "console.log(require(''crypto'').randomBytes(32).toString(''hex''))"'
+    Write-Host '[Brittney Studio] then set it as the HOLOSHELL_CONSENT_SECRET user environment variable and relaunch.'
+    return $false
+  }
   Start-Process powershell.exe -WorkingDirectory $Hololand -WindowStyle Hidden -ArgumentList @(
     '-NoProfile',
     '-ExecutionPolicy',

@@ -11,6 +11,15 @@ import {
   upstreamTerminalEventStreamSnapshot,
 } from '../holoshell-terminal-event-stream.mjs';
 
+// HoloShell gates /api/* and /workflow/* behind x-phone-admin: a throwaway key for this local
+// test server, inherited by the spawned server and any script it runs, and added to this
+// process's loopback API calls.
+process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\/(api|workflow)\//u.test(String(input?.url ?? input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })
+  : unkeyedFetch(input, init));
+
 const tempDir = mkdtempSync(join(tmpdir(), 'holoshell-terminal-events-'));
 const receiptPath = join(tempDir, 'operator-terminal.json');
 const eventLogPath = join(tempDir, 'operator-terminal-events.jsonl');

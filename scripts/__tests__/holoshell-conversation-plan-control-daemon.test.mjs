@@ -8,6 +8,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+
+// The control daemon requires the HoloShell admin key on every route but /health. Throwaway
+// per-run key, inherited by the spawned daemon and added to this file's loopback requests.
+process.env.HOLOSHELL_PHONE_ADMIN_KEY = `test-${globalThis.crypto.randomUUID()}`;
+const unkeyedFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => (/^http:\/\/127\.0\.0\.1:\d+\//u.test(String(input?.url || input))
+  ? unkeyedFetch(input, { ...init, headers: { ...(init.headers || {}), 'x-phone-admin': process.env.HOLOSHELL_PHONE_ADMIN_KEY } })
+  : unkeyedFetch(input, init));
 const tmp = mkdtempSync(path.join(tmpdir(), 'holoshell-conversation-plan-control-'));
 const turnsDir = path.join(tmp, 'turns');
 const latestOutput = path.join(tmp, 'brittney-turn-latest.json');

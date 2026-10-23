@@ -8,9 +8,16 @@
  * preflight receipts, issues HoloGate consent tokens, and stages approved
  * execution receipts without touching the OS until a concrete executor lane is
  * implemented and validated.
+ *
+ * Access (security patch 4): every route except GET /health and OPTIONS needs the HoloShell admin
+ * key in x-phone-admin (constant-time, fails closed when HOLOSHELL_PHONE_ADMIN_KEY is unset), and
+ * every POST needs Content-Type application/json; both are checked before the body is read. The
+ * :8747 page calls this bridge cross-origin, so responses allow exactly the origins in
+ * HOLOSHELL_BRIDGE_ALLOWED_ORIGINS (default: the canonical HoloShell surface origins), never '*'.
+ * Consent tokens are HMAC-SHA256 signed (see signConsentToken), short-lived and single-use.
  */
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -129,19 +136,113 @@ function safeString(value, fallback = '') {
   return text || fallback;
 }
 
-function plusMinutes(iso, minutes) {
-  const base = Date.parse(iso);
-  const safeBase = Number.isFinite(base) ? base : Date.now();
-  return new Date(safeBase + Math.max(1, Number(minutes || 5)) * 60_000).toISOString();
-}
-
 function consentGestureMaxTtlMs(preflight = {}) {
   const ttlMs = Number(preflight.consentGesture?.ttlMs || 30000);
   return Number.isFinite(ttlMs) && ttlMs > 0 ? Math.max(1000, ttlMs) : 30000;
 }
 
-function tokenHash(token, preflightReceiptHash, operation, expiresAt, consentChallenge = '') {
-  return hashText(`${token}:${preflightReceiptHash}:${operation}:${expiresAt}:${consentChallenge}`);
+// ── Consent tokens ────────────────────────────────────────────────────────────
+// Format: hsct1.<base64url(JSON claims)>.<base64url(HMAC-SHA256(secret, "hsct1.<claims>"))>
+// Claims bind the scope, operation, exact preflight (id + receipt hash + target fingerprint +
+// challenge), issue time, a mandatory expiry (at most 5 minutes after issue) and a random nonce.
+// Only this bridge mints and verifies them, so the secret never leaves the laptop. The secret is
+// HOLOSHELL_CONSENT_SECRET only: at least 32 characters and NOT the admin key. There is no
+// fallback (a secret derived from the admin key would let any admin-key holder mint tokens and
+// skip the F8 gesture), so the bridge refuses to start without a valid one, and the token
+// functions fail closed if it is missing or invalid.
+export const CONSENT_TOKEN_FORMAT = 'hsct1';
+export const CONSENT_TOKEN_SCOPE = 'desktop-control.execute';
+export const CONSENT_TOKEN_MAX_TTL_MS = 5 * 60_000;
+const CONSENT_TOKEN_FUTURE_SKEW_MS = 5_000;
+export const CONSENT_SECRET_MIN_LENGTH = 32;
+export const CONSENT_SECRET_GENERATE_HINT =
+  'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"';
+const DEFAULT_CONSUMED_NONCE_MAX = 4096;
+
+function consumedNonceMax(env = process.env) {
+  const value = Number(env.HOLOSHELL_CONSENT_NONCE_MAX || DEFAULT_CONSUMED_NONCE_MAX);
+  return Number.isInteger(value) && value >= 1 ? value : DEFAULT_CONSUMED_NONCE_MAX;
+}
+
+/**
+ * Condition of HOLOSHELL_CONSENT_SECRET, never its value: ok | missing | too_short |
+ * equals_admin_key. The admin-key comparison is over sha256 digests with timingSafeEqual.
+ */
+export function consentSecretCondition(env = process.env) {
+  const secret = String(env.HOLOSHELL_CONSENT_SECRET || '').trim();
+  if (!secret) return 'missing';
+  if (secret.length < CONSENT_SECRET_MIN_LENGTH) return 'too_short';
+  const adminKey = String(env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+  if (adminKey) {
+    const a = createHash('sha256').update(secret, 'utf8').digest();
+    const b = createHash('sha256').update(adminKey, 'utf8').digest();
+    if (timingSafeEqual(a, b)) return 'equals_admin_key';
+  }
+  return 'ok';
+}
+
+export function consentSecretProblem(condition) {
+  if (condition === 'missing') return 'HOLOSHELL_CONSENT_SECRET is not set.';
+  if (condition === 'too_short') return `HOLOSHELL_CONSENT_SECRET is shorter than ${CONSENT_SECRET_MIN_LENGTH} characters.`;
+  if (condition === 'equals_admin_key') return 'HOLOSHELL_CONSENT_SECRET must not be the same value as HOLOSHELL_PHONE_ADMIN_KEY.';
+  return '';
+}
+
+export function consentSecretStartupError(condition) {
+  return `${consentSecretProblem(condition)} The laptop desktop bridge refuses to start without an independent consent-token secret. ` +
+    `Generate one with: ${CONSENT_SECRET_GENERATE_HINT} and set it as HOLOSHELL_CONSENT_SECRET on the laptop only ` +
+    '(at least 32 characters, never the admin key).';
+}
+
+export function consentTokenSecret(env = process.env) {
+  if (consentSecretCondition(env) !== 'ok') return null;
+  return Buffer.from(String(env.HOLOSHELL_CONSENT_SECRET).trim(), 'utf8');
+}
+
+function consentTokenMac(body, secret) {
+  return createHmac('sha256', secret).update(`${CONSENT_TOKEN_FORMAT}.${body}`, 'utf8').digest();
+}
+
+export function signConsentToken(claims, secret = consentTokenSecret()) {
+  if (!secret) throw new Error('consent_secret_unavailable');
+  const body = Buffer.from(JSON.stringify(claims), 'utf8').toString('base64url');
+  return `${CONSENT_TOKEN_FORMAT}.${body}.${consentTokenMac(body, secret).toString('base64url')}`;
+}
+
+export function verifyConsentTokenSignature(token, secret = consentTokenSecret()) {
+  if (!secret) return { ok: false, reason: 'consent_secret_unavailable' };
+  const parts = typeof token === 'string' ? token.split('.') : [];
+  if (parts.length !== 3 || parts[0] !== CONSENT_TOKEN_FORMAT ||
+      !/^[A-Za-z0-9_-]{1,4096}$/u.test(parts[1]) || !/^[A-Za-z0-9_-]{43}$/u.test(parts[2])) {
+    return { ok: false, reason: 'consent_token_malformed' };
+  }
+  const expected = consentTokenMac(parts[1], secret);
+  const provided = Buffer.from(parts[2], 'base64url');
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+    return { ok: false, reason: 'consent_token_signature_invalid' };
+  }
+  try {
+    const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    if (!claims || typeof claims !== 'object') return { ok: false, reason: 'consent_token_malformed' };
+    return { ok: true, claims };
+  } catch {
+    return { ok: false, reason: 'consent_token_malformed' };
+  }
+}
+
+// Expiry uses the wall clock when options.realClock is set (the HTTP server always sets it, so
+// --created-at cannot freeze token expiry); in-process callers use their createdAt clock.
+function tokenClockMs(options = {}) {
+  if (options.realClock) return Date.now();
+  const at = Date.parse(generatedAt(options));
+  return Number.isFinite(at) ? at : Date.now();
+}
+
+// Drops only EXPIRED nonces (an unexpired one must stay to block its replay). Returns true when
+// there is room for one more; callers fail closed (503) when it is still full.
+function pruneConsumedNonces(store, now, max = consumedNonceMax()) {
+  for (const [nonce, exp] of store) if (exp <= now) store.delete(nonce);
+  return store.size < max;
 }
 
 function preflightReceiptHash(preflight = {}) {
@@ -497,6 +598,12 @@ export function buildBridgeStatus(options = {}) {
       execute: '/api/desktop-control/execute',
     },
     mutationBoundary: 'os_mutation_refused_until_consent_token_and_action_executor',
+    // Condition only (never the value) of this process's HOLOSHELL_CONSENT_SECRET.
+    consentSecret: {
+      variable: 'HOLOSHELL_CONSENT_SECRET',
+      condition: consentSecretCondition(),
+      problem: consentSecretProblem(consentSecretCondition()),
+    },
     destructiveActionsTaken: false,
     desktopAutomationExecuted: false,
     approvalRequiredForDesktopAutomation: true,
@@ -605,9 +712,13 @@ export function buildConsentToken(payload = {}, options = {}) {
   const missingChallenge = consentRequired && !expectedChallenge;
   const freshUserGesture = gestureResult.ok
     || (flagGestureAllowed && (payload.freshUserGesture === true || payload.freshGesture === true));
-  const ttlMinutes = Number(payload.ttlMinutes || options.ttlMinutes || 5);
-  const expiresAt = options.expiresAt || plusMinutes(at, ttlMinutes);
-  const token = options.token || randomBytes(24).toString('base64url');
+  const issuedAtMs = tokenClockMs(options);
+  const requestedTtlMs = Number(payload.ttlMinutes || options.ttlMinutes || 5) * 60_000;
+  const ttlMs = Math.min(CONSENT_TOKEN_MAX_TTL_MS, Math.max(1_000, Number.isFinite(requestedTtlMs) ? requestedTtlMs : CONSENT_TOKEN_MAX_TTL_MS));
+  const optionExpiryMs = options.expiresAt ? Date.parse(options.expiresAt) : NaN;
+  const expiresAtMs = Number.isFinite(optionExpiryMs) ? Math.min(optionExpiryMs, issuedAtMs + CONSENT_TOKEN_MAX_TTL_MS) : issuedAtMs + ttlMs;
+  const expiresAt = new Date(expiresAtMs).toISOString();
+  const secret = options.consentSecret || consentTokenSecret();
   const blockedReason = permissionEnvelope === 'break_glass'
     ? 'break_glass_requires_founder_review'
     : (missingChallenge
@@ -616,14 +727,34 @@ export function buildConsentToken(payload = {}, options = {}) {
         ? (gestureResult.reason && gestureResult.reason !== 'no_gesture_proof'
             ? gestureResult.reason
             : 'fresh_user_gesture_required')
-        : ''));
+        : (consentRequired && !secret ? 'consent_secret_unavailable' : '')));
   const status = blockedReason ? 'blocked' : (consentRequired ? 'issued' : 'not_required_read_only');
-  const tokenId = stableId('desktop_consent_token', `${at}:${preflight.preflightId}:${operation}:${hash}`);
+  const nonce = randomBytes(16).toString('hex');
+  const tokenId = stableId('desktop_consent_token', `${at}:${preflight.preflightId}:${operation}:${hash}:${nonce}`);
+  // Only an issued consent carries a token; blocked and read-only receipts carry none.
+  const token = status === 'issued'
+    ? signConsentToken({
+        v: 1,
+        scope: CONSENT_TOKEN_SCOPE,
+        tid: tokenId,
+        op: operation,
+        pid: preflight.preflightId,
+        prh: hash,
+        tfp: preflight.targetFingerprint || '',
+        ch: expectedChallenge,
+        iat: issuedAtMs,
+        exp: expiresAtMs,
+        nonce,
+      }, secret)
+    : '';
   return {
     schemaVersion: DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA,
     tokenId,
     token,
-    tokenHash: tokenHash(token, hash, operation, expiresAt, expectedChallenge),
+    tokenFormat: token ? CONSENT_TOKEN_FORMAT : '',
+    tokenScope: CONSENT_TOKEN_SCOPE,
+    tokenSingleUse: true,
+    tokenHash: token ? hashText(token) : '',
     generatedAt: at,
     expiresAt,
     status,
@@ -661,37 +792,47 @@ export function buildConsentToken(payload = {}, options = {}) {
 export function validateConsentToken(payload = {}, options = {}) {
   const preflight = payload.preflight || null;
   const consentToken = payload.consentToken || payload.token || null;
-  const token = typeof consentToken === 'string' ? { token: consentToken } : consentToken;
+  // Only the signed token string is trusted; every other client-supplied field is ignored.
+  const tokenString = typeof consentToken === 'string' ? consentToken : consentToken?.token;
   if (!preflight?.preflightId) return { valid: false, reason: 'missing_exact_preflight_receipt' };
-  if (!token?.token || !token?.tokenHash) return { valid: false, reason: 'missing_consent_token' };
-  const operation = safeString(payload.operation || preflight.intent?.primaryAction || token.operation, 'inspect_screen');
+  if (!tokenString || typeof tokenString !== 'string') return { valid: false, reason: 'missing_consent_token' };
+  const verified = verifyConsentTokenSignature(tokenString, options.consentSecret || consentTokenSecret());
+  if (!verified.ok) return { valid: false, reason: verified.reason };
+  const claims = verified.claims;
+  if (claims.v !== 1 || claims.scope !== CONSENT_TOKEN_SCOPE) return { valid: false, reason: 'consent_token_scope_mismatch' };
+  const operation = safeString(payload.operation || preflight.intent?.primaryAction || claims.op, 'inspect_screen');
+  if (claims.op !== operation) return { valid: false, reason: 'consent_token_operation_mismatch' };
+  if (claims.pid !== preflight.preflightId) return { valid: false, reason: 'consent_token_preflight_mismatch' };
   const hash = preflightReceiptHash(preflight);
-  const consentChallenge = safeString(token.consentChallenge || preflight.consentChallenge, '');
-  if (token.schemaVersion && token.schemaVersion !== DESKTOP_CONTROL_CONSENT_TOKEN_SCHEMA) {
-    return { valid: false, reason: 'consent_token_schema_mismatch' };
-  }
-  if (token.status && token.status !== 'issued') return { valid: false, reason: token.blockedReason || 'consent_token_not_issued' };
-  if (token.preflightId && token.preflightId !== preflight.preflightId) return { valid: false, reason: 'consent_token_preflight_mismatch' };
-  if (token.preflightReceiptHash && token.preflightReceiptHash !== hash) return { valid: false, reason: 'consent_token_receipt_hash_mismatch' };
-  if (token.targetFingerprint && token.targetFingerprint !== (preflight.targetFingerprint || '')) {
-    return { valid: false, reason: 'consent_token_target_mismatch' };
-  }
-  if (token.consentChallenge && preflight.consentChallenge && token.consentChallenge !== preflight.consentChallenge) {
+  if (claims.prh !== hash) return { valid: false, reason: 'consent_token_receipt_hash_mismatch' };
+  if (claims.tfp !== (preflight.targetFingerprint || '')) return { valid: false, reason: 'consent_token_target_mismatch' };
+  if (preflight.consentChallenge && claims.ch !== preflight.consentChallenge) {
     return { valid: false, reason: 'consent_token_challenge_mismatch' };
   }
-  if (token.operation && token.operation !== operation) return { valid: false, reason: 'consent_token_operation_mismatch' };
-  if (token.expiresAt && Date.parse(token.expiresAt) <= Date.parse(generatedAt(options))) return { valid: false, reason: 'consent_token_expired' };
-  const expectedHash = tokenHash(token.token, hash, operation, token.expiresAt || '', consentChallenge);
-  if (expectedHash !== token.tokenHash) return { valid: false, reason: 'consent_token_hash_mismatch' };
+  const now = tokenClockMs(options);
+  if (!Number.isFinite(claims.iat) || !Number.isFinite(claims.exp) ||
+      claims.exp <= claims.iat || claims.exp - claims.iat > CONSENT_TOKEN_MAX_TTL_MS) {
+    return { valid: false, reason: 'consent_token_expiry_invalid' };
+  }
+  if (claims.exp <= now) return { valid: false, reason: 'consent_token_expired' };
+  if (claims.iat - now > CONSENT_TOKEN_FUTURE_SKEW_MS) return { valid: false, reason: 'consent_token_from_future' };
+  if (typeof claims.nonce !== 'string' || !/^[0-9a-f]{32}$/u.test(claims.nonce)) {
+    return { valid: false, reason: 'consent_token_malformed' };
+  }
+  if (options.consumedNonces && options.consumedNonces.has(claims.nonce)) {
+    return { valid: false, reason: 'consent_token_replayed' };
+  }
   return {
     valid: true,
     reason: '',
     operation,
     preflightReceiptHash: hash,
     targetFingerprint: preflight.targetFingerprint || '',
-    consentChallenge,
-    tokenId: token.tokenId || '',
-    expiresAt: token.expiresAt || '',
+    consentChallenge: safeString(claims.ch, ''),
+    tokenId: safeString(claims.tid, ''),
+    expiresAt: new Date(claims.exp).toISOString(),
+    nonce: claims.nonce,
+    nonceExpiresAtMs: claims.exp,
   };
 }
 
@@ -699,6 +840,14 @@ export function buildDesktopControlExecution(payload = {}, options = {}) {
   const validation = validateConsentToken(payload, options);
   if (!validation.valid) {
     throw new Error(validation.reason || 'consent_token_invalid');
+  }
+  // Single use: burn the nonce before anything runs, so a failed or refused execution cannot be
+  // retried with the same token either.
+  if (options.consumedNonces) {
+    if (!pruneConsumedNonces(options.consumedNonces, tokenClockMs(options), options.consumedNonceMax)) {
+      throw new Error('consent_nonce_store_full');
+    }
+    options.consumedNonces.set(validation.nonce, validation.nonceExpiresAtMs);
   }
   const at = generatedAt(options);
   const preflight = payload.preflight;
@@ -796,14 +945,79 @@ export function writeLatestBridgeStatus(status, receiptDir = DEFAULT_RECEIPT_DIR
   return withPath;
 }
 
-function sendJson(res, data, statusCode = 200) {
+// ── Access gate ───────────────────────────────────────────────────────────────
+const DEFAULT_BRIDGE_ALLOWED_ORIGINS = 'http://holojetson.local:8747,http://127.0.0.1:8747,http://localhost:8747';
+
+// Exact origins (scheme://host[:port]) the HoloShell page is served from. '*', 'null' and
+// anything that is not a bare http(s) origin are dropped, so there is no wildcard path.
+export function bridgeAllowedOrigins(env = process.env) {
+  const raw = env.HOLOSHELL_BRIDGE_ALLOWED_ORIGINS ?? DEFAULT_BRIDGE_ALLOWED_ORIGINS;
+  return new Set(String(raw).split(',')
+    .map((item) => item.trim().replace(/\/+$/u, ''))
+    .filter((item) => /^https?:\/\/[A-Za-z0-9.\-\[\]:]+$/u.test(item)));
+}
+
+export function isBridgeAdmin(req, env = process.env) {
+  const key = String(env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
+  if (!key) return false; // fail closed
+  const given = String(req.headers['x-phone-admin'] || '').trim();
+  const a = createHash('sha256').update(given, 'utf8').digest();
+  const b = createHash('sha256').update(key, 'utf8').digest();
+  return timingSafeEqual(a, b);
+}
+
+function isJsonRequest(req) {
+  return String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
+}
+
+function corsHeadersFor(req) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+  if (!origin || !bridgeAllowedOrigins().has(origin)) return { Vary: 'Origin' };
+  const headers = {
+    Vary: 'Origin',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Content-Type, X-HoloShell-Bridge, X-Phone-Admin',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Max-Age': '600',
+  };
+  // Chrome Private Network Access preflight (page on a LAN/host origin calling 127.0.0.1).
+  if (String(req.headers['access-control-request-private-network'] || '').toLowerCase() === 'true') {
+    headers['Access-Control-Allow-Private-Network'] = 'true';
+  }
+  return headers;
+}
+
+function sendJson(res, data, statusCode = 200, extraHeaders = {}) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, X-HoloShell-Bridge',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Cache-Control': 'no-store',
+    ...(res.holoshellCorsHeaders || {}),
+    ...extraHeaders,
   });
   res.end(JSON.stringify(data));
+}
+
+// Returns true when the gate answered the request itself.
+function gateBridgeRequest(req, res, pathname) {
+  res.holoshellCorsHeaders = corsHeadersFor(req);
+  if (req.method === 'OPTIONS') {
+    req.resume();
+    res.writeHead(204, { Allow: 'GET, POST, OPTIONS', 'Cache-Control': 'no-store', ...res.holoshellCorsHeaders });
+    res.end();
+    return true;
+  }
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/health') return false;
+  if (!isBridgeAdmin(req)) {
+    req.resume();
+    sendJson(res, { error: 'admin key required: send it as the x-phone-admin header', destructiveActionsTaken: false }, 403, { 'X-HoloShell-Gate': 'key-required' });
+    return true;
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !isJsonRequest(req)) {
+    req.resume();
+    sendJson(res, { error: 'Content-Type must be application/json', destructiveActionsTaken: false }, 415, { 'X-HoloShell-Gate': 'json-required' });
+    return true;
+  }
+  return false;
 }
 
 function readRequestBody(req) {
@@ -821,6 +1035,8 @@ function readRequestBody(req) {
   });
 }
 
+const DEFAULT_CONSUMED_NONCES = new Map(); // nonce -> expiry (ms), per bridge process
+
 export async function handleBridgeRequest(req, res, options = {}) {
   const requestUrl = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
   const requestOptions = {
@@ -828,16 +1044,38 @@ export async function handleBridgeRequest(req, res, options = {}) {
     port: options.port || DEFAULT_PORT,
     receiptDir: options.receiptDir || DEFAULT_RECEIPT_DIR,
     createdAt: options.createdAt,
+    realClock: true,
+    consumedNonces: options.consumedNonces || DEFAULT_CONSUMED_NONCES,
+    consumedNonceMax: options.consumedNonceMax || consumedNonceMax(),
   };
 
-  if (req.method === 'OPTIONS') {
-    sendJson(res, { ok: true }, 204);
+  if (gateBridgeRequest(req, res, requestUrl.pathname)) return;
+
+  // Open liveness only: no status, receipts or paths without the key. HEAD gets the same headers.
+  if ((req.method === 'GET' || req.method === 'HEAD') && requestUrl.pathname === '/health') {
+    if (req.method === 'HEAD') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...(res.holoshellCorsHeaders || {}) });
+      res.end();
+      return;
+    }
+    sendJson(res, { ok: true, service: 'holoshell-laptop-desktop-bridge', schemaVersion: LAPTOP_DESKTOP_BRIDGE_SCHEMA });
     return;
   }
 
-  if (req.method === 'GET' && (requestUrl.pathname === '/health' || requestUrl.pathname === '/api/desktop-control/bridge')) {
+  // Single-use nonces must stay until they expire. If the store is full of unexpired nonces,
+  // refuse to mint or accept tokens (fail closed) instead of forgetting one.
+  if (req.method === 'POST' && (requestUrl.pathname === '/api/desktop-control/consent-token' ||
+      requestUrl.pathname === '/api/desktop-control/execute') &&
+      !pruneConsumedNonces(requestOptions.consumedNonces, Date.now(), requestOptions.consumedNonceMax)) {
+    req.resume();
+    sendJson(res, { error: 'consent_nonce_store_full', reason: 'too many unexpired consent tokens; retry after they expire',
+      destructiveActionsTaken: false, desktopAutomationExecuted: false }, 503, { 'Retry-After': '60' });
+    return;
+  }
+
+  if (req.method === 'GET' && requestUrl.pathname === '/api/desktop-control/bridge') {
     const status = writeLatestBridgeStatus(buildBridgeStatus(requestOptions), requestOptions.receiptDir);
-    sendJson(res, requestUrl.pathname === '/health' ? { ok: true, bridge: status } : status);
+    sendJson(res, status);
     return;
   }
 
@@ -932,8 +1170,12 @@ export async function handleBridgeRequest(req, res, options = {}) {
 }
 
 export function createLaptopDesktopBridgeServer(options = {}) {
+  // Refuse to start without an independent consent-token secret (see consentSecretCondition).
+  const condition = consentSecretCondition();
+  if (condition !== 'ok') throw new Error(consentSecretStartupError(condition));
+  const serverOptions = { ...options, consumedNonces: options.consumedNonces || new Map() };
   return createServer((req, res) => {
-    handleBridgeRequest(req, res, options).catch((error) => {
+    handleBridgeRequest(req, res, serverOptions).catch((error) => {
       sendJson(res, { error: String(error.message || error), destructiveActionsTaken: false }, 500);
     });
   });
@@ -953,8 +1195,10 @@ function statusProbeError(error) {
 export async function probeBridgeStatus(options = {}) {
   const endpoint = bridgeStatusEndpoint(options);
   try {
+    const adminKey = String(process.env.HOLOSHELL_PHONE_ADMIN_KEY || '').trim();
     const response = await fetch(endpoint, {
       cache: 'no-store',
+      headers: adminKey ? { 'x-phone-admin': adminKey } : {},
       signal: AbortSignal.timeout(1500),
     });
     const body = await response.json().catch(() => ({}));
@@ -991,7 +1235,9 @@ export async function probeBridgeStatus(options = {}) {
   }
 }
 
-export function runSelfTest(options = {}) {
+export function runSelfTest(inputOptions = {}) {
+  // The self-test signs with a throwaway in-memory secret; it never needs the real one.
+  const options = { ...inputOptions, consentSecret: inputOptions.consentSecret || randomBytes(32) };
   const status = buildBridgeStatus({ ...options, createdAt: options.createdAt || '2026-06-23T00:00:00.000Z' });
   const preflight = buildDesktopControlPreflight({
     intent: 'Use Fara to inspect the screen and click the Save button.',
@@ -1014,12 +1260,12 @@ export function runSelfTest(options = {}) {
     preflight,
     operation: preflight.intent.primaryAction,
     gestureProof: proofFor(preflight),
-  }, { ...options, createdAt: status.generatedAt, token: 'self-test-token' });
+  }, { ...options, createdAt: status.generatedAt });
   // A consent request with NO gesture proof must be BLOCKED (the agent can't self-authorize).
   const noGestureConsent = buildConsentToken({
     preflight,
     operation: preflight.intent.primaryAction,
-  }, { ...options, createdAt: status.generatedAt, token: 'self-test-nogesture' });
+  }, { ...options, createdAt: status.generatedAt });
   const refusal = buildExecutionRefusal({ preflightId: preflight.preflightId }, { ...options, createdAt: status.generatedAt });
   const execution = buildDesktopControlExecution({
     preflight,
@@ -1033,7 +1279,7 @@ export function runSelfTest(options = {}) {
     preflight: openUrlPreflight,
     operation: 'open_url',
     gestureProof: proofFor(openUrlPreflight),
-  }, { ...options, createdAt: status.generatedAt, token: 'self-test-open-url-token' });
+  }, { ...options, createdAt: status.generatedAt });
   const openUrlExecution = buildDesktopControlExecution({
     preflight: openUrlPreflight,
     operation: 'open_url',
@@ -1085,15 +1331,26 @@ if (isMain()) {
       process.exit(0);
     }
     if (args.status) {
-      const status = await probeBridgeStatus(args);
+      const probed = await probeBridgeStatus(args);
+      // The live bridge reports its own consent-secret condition; this adds the condition of the
+      // environment running --status (the one a restart would use). Never the value.
+      const localCondition = consentSecretCondition();
+      const status = { ...probed, localConsentSecret: { variable: 'HOLOSHELL_CONSENT_SECRET', condition: localCondition,
+        problem: consentSecretProblem(localCondition), bridgeWouldStart: localCondition === 'ok' } };
       if (args.json) console.log(JSON.stringify(status, null, 2));
       else {
         console.log(`Status: ${status.status}`);
         console.log(`URL: ${status.url}`);
         console.log(`Loopback reachable: ${status.loopbackReachable ? 'yes' : 'no'}`);
         console.log(`Mutation boundary: ${status.mutationBoundary}`);
+        console.log(`Consent secret (this environment): ${localCondition === 'ok' ? 'ok' : `NOT OK - ${consentSecretProblem(localCondition)} Generate one with: ${CONSENT_SECRET_GENERATE_HINT}`}`);
       }
       process.exit(0);
+    }
+    const condition = consentSecretCondition();
+    if (condition !== 'ok') {
+      console.error(`holoshell-laptop-desktop-bridge refused to start: ${consentSecretStartupError(condition)}`);
+      process.exit(2);
     }
     const server = createLaptopDesktopBridgeServer(args);
     server.listen(args.port, args.host, () => {
