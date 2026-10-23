@@ -46,14 +46,18 @@ const CONSENT_SECRET_TEXT = randomBytes(32).toString('hex');
 const CONSENT_SECRET = Buffer.from(CONSENT_SECRET_TEXT, 'utf8');
 // The secret the 1c8515ba bridge derived from the admin key when HOLOSHELL_CONSENT_SECRET was
 // unset. Any admin-key holder could compute it; tokens signed with it must now be refused.
-const ADMIN_DERIVED_SECRET = createHmac('sha256', ADMIN_KEY).update('hololand.holoshell.desktop-consent-token.v1').digest();
+const ADMIN_DERIVED_SECRET = createHmac('sha256', ADMIN_KEY)
+  .update('hololand.holoshell.desktop-consent-token.v1')
+  .digest();
 
 const tmp = mkdtempSync(join(tmpdir(), 'holoshell-desktop-bridge-auth-'));
 const HOME = join(tmp, 'home');
 const STUB_LOG = join(tmp, 'stub-calls.jsonl');
 const PRELOAD = join(tmp, 'stub-preload.mjs');
 writeFileSync(STUB_LOG, '');
-writeFileSync(PRELOAD, String.raw`
+writeFileSync(
+  PRELOAD,
+  String.raw`
 import cp from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { appendFileSync } from 'node:fs';
@@ -82,17 +86,25 @@ globalThis.fetch = async (input, init = {}) => {
   log({ blocked: url.hostname });
   throw new Error('desktop-bridge-auth stub: network disabled for ' + url.hostname);
 };
-`);
+`
+);
 
 function stubCalls(server) {
-  return readFileSync(STUB_LOG, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.server === server);
+  return readFileSync(STUB_LOG, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => JSON.parse(l))
+    .filter((e) => e.server === server);
 }
 
 function freePort() {
   return new Promise((resolvePort, reject) => {
     const srv = net.createServer();
     srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolvePort(port)); });
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address();
+      srv.close(() => resolvePort(port));
+    });
   });
 }
 
@@ -101,11 +113,28 @@ const seen = []; // every response, for the global no-ACAO-* check
 function request(port, method, path, { headers = {}, body } = {}) {
   return new Promise((resolveReq, reject) => {
     const req = http.request({ host: '127.0.0.1', port, method, path, headers }, (res) => {
-      const rec = { port, method, path, status: res.statusCode, headers: res.headers, text: '', json: null };
+      const rec = {
+        port,
+        method,
+        path,
+        status: res.statusCode,
+        headers: res.headers,
+        text: '',
+        json: null,
+      };
       seen.push(rec);
       res.setEncoding('utf8');
-      res.on('data', (c) => { rec.text += c; });
-      res.on('end', () => { try { rec.json = JSON.parse(rec.text); } catch { /* not json */ } resolveReq(rec); });
+      res.on('data', (c) => {
+        rec.text += c;
+      });
+      res.on('end', () => {
+        try {
+          rec.json = JSON.parse(rec.text);
+        } catch {
+          /* not json */
+        }
+        resolveReq(rec);
+      });
     });
     req.on('error', reject);
     if (body !== undefined) req.write(typeof body === 'string' ? body : JSON.stringify(body));
@@ -113,44 +142,92 @@ function request(port, method, path, { headers = {}, body } = {}) {
   });
 }
 
-const keyedJson = (extra = {}) => ({ 'x-phone-admin': ADMIN_KEY, 'Content-Type': 'application/json', ...extra });
+const keyedJson = (extra = {}) => ({
+  'x-phone-admin': ADMIN_KEY,
+  'Content-Type': 'application/json',
+  ...extra,
+});
 const crossOriginPlain = { Origin: EVIL_ORIGIN, 'Content-Type': 'text/plain' };
 
 function startServer(label, script, args, extraEnv) {
-  const env = { ...process.env, HOME, BRIDGE_TEST_STUB_LOG: STUB_LOG, BRIDGE_TEST_SERVER: label,
-    HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, HOLOSHELL_CONSENT_SECRET: CONSENT_SECRET_TEXT, ...extraEnv };
+  const env = {
+    ...process.env,
+    HOME,
+    BRIDGE_TEST_STUB_LOG: STUB_LOG,
+    BRIDGE_TEST_SERVER: label,
+    HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY,
+    HOLOSHELL_CONSENT_SECRET: CONSENT_SECRET_TEXT,
+    ...extraEnv,
+  };
   for (const name of Object.keys(env)) if (env[name] === undefined) delete env[name];
   delete env.HOLOSHELL_CONSENT_NONCE_MAX;
-  if (extraEnv?.HOLOSHELL_CONSENT_NONCE_MAX) env.HOLOSHELL_CONSENT_NONCE_MAX = extraEnv.HOLOSHELL_CONSENT_NONCE_MAX;
+  if (extraEnv?.HOLOSHELL_CONSENT_NONCE_MAX)
+    env.HOLOSHELL_CONSENT_NONCE_MAX = extraEnv.HOLOSHELL_CONSENT_NONCE_MAX;
   delete env.HOLOSHELL_ALLOW_FLAG_GESTURE;
   delete env.HOLOSHELL_ADMIT_GUI_MUTATION;
-  const child = spawn(process.execPath, ['--import', pathToFileURL(PRELOAD).href, script, ...args], {
-    cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(
+    process.execPath,
+    ['--import', pathToFileURL(PRELOAD).href, script, ...args],
+    {
+      cwd: REPO_ROOT,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
   let output = '';
-  child.stdout.on('data', (c) => { output += c; });
-  child.stderr.on('data', (c) => { output += c; });
+  child.stdout.on('data', (c) => {
+    output += c;
+  });
+  child.stderr.on('data', (c) => {
+    output += c;
+  });
   return { child, output: () => output };
 }
 
 async function waitHealthy(port, srv) {
   for (let i = 0; i < 150; i += 1) {
-    try { const r = await request(port, 'GET', '/health'); if (r.status === 200) return; } catch { /* not up */ }
+    try {
+      const r = await request(port, 'GET', '/health');
+      if (r.status === 200) return;
+    } catch {
+      /* not up */
+    }
     await delay(100);
   }
   throw new Error(`server on ${port} did not start:\n${srv.output()}`);
 }
 
-let bridgePort; let daemonPort; let bridge; let daemon; let signGestureProof; let CONSENT_GESTURE_SCHEMA;
+let bridgePort;
+let daemonPort;
+let bridge;
+let daemon;
+let signGestureProof;
+let CONSENT_GESTURE_SCHEMA;
 
 before(async () => {
   process.env.HOME = HOME; // consent-gesture.mjs resolves its key file from HOME at import time
   ({ signProof: signGestureProof, CONSENT_GESTURE_SCHEMA } = await import(GESTURE));
   bridgePort = await freePort();
   daemonPort = await freePort();
-  bridge = startServer('bridge', BRIDGE, ['--host', '127.0.0.1', '--port', String(bridgePort), '--receipt-dir', join(tmp, 'bridge-receipts')],
-    { HOLOSHELL_BRIDGE_ALLOWED_ORIGINS: PAGE_ORIGIN });
-  daemon = startServer('daemon', DAEMON, ['--host', '127.0.0.1', '--port', String(daemonPort), '--tmp-dir', join(tmp, 'daemon-tmp')],
-    { HOLOSHELL_CONTROL_ALLOWED_ORIGINS: DAEMON_PAGE_ORIGIN });
+  bridge = startServer(
+    'bridge',
+    BRIDGE,
+    [
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(bridgePort),
+      '--receipt-dir',
+      join(tmp, 'bridge-receipts'),
+    ],
+    { HOLOSHELL_BRIDGE_ALLOWED_ORIGINS: PAGE_ORIGIN }
+  );
+  daemon = startServer(
+    'daemon',
+    DAEMON,
+    ['--host', '127.0.0.1', '--port', String(daemonPort), '--tmp-dir', join(tmp, 'daemon-tmp')],
+    { HOLOSHELL_CONTROL_ALLOWED_ORIGINS: DAEMON_PAGE_ORIGIN }
+  );
   await waitHealthy(bridgePort, bridge);
   await waitHealthy(daemonPort, daemon);
 });
@@ -162,7 +239,10 @@ after(() => {
 
 // ── helpers for the legitimate flow (key + JSON + real signed gesture proof) ──────────────────
 async function preflightFor(intent) {
-  const r = await request(bridgePort, 'POST', '/api/desktop-control/preflight', { headers: keyedJson(), body: { intent } });
+  const r = await request(bridgePort, 'POST', '/api/desktop-control/preflight', {
+    headers: keyedJson(),
+    body: { intent },
+  });
   assert.equal(r.status, 200, r.text);
   return r.json;
 }
@@ -192,7 +272,9 @@ async function mintConsent(preflight, extra = {}) {
 
 function execute(preflight, consentToken, { headers = keyedJson(), extra = {} } = {}) {
   return request(bridgePort, 'POST', '/api/desktop-control/execute', {
-    headers, body: { preflight, operation: 'open_url', consentToken, ...extra } });
+    headers,
+    body: { preflight, operation: 'open_url', consentToken, ...extra },
+  });
 }
 
 const sha256 = (text) => createHash('sha256').update(String(text), 'utf8').digest('hex');
@@ -206,7 +288,13 @@ function forgeOldFormatToken(preflight) {
     schemaVersion: 'hololand.holoshell.desktop-control-consent-token.v0.1.0',
     tokenId: 'desktop_consent_token_forged',
     token,
-    tokenHash: oldTokenHash(token, preflight.preflightReceiptHash, 'open_url', expiresAt, preflight.consentChallenge),
+    tokenHash: oldTokenHash(
+      token,
+      preflight.preflightReceiptHash,
+      'open_url',
+      expiresAt,
+      preflight.consentChallenge
+    ),
     expiresAt,
     status: 'issued',
     operation: 'open_url',
@@ -223,15 +311,34 @@ function attackerRewrite(consent, { preflight, expiresAtMs }) {
     const [fmt, body, mac] = consent.token.split('.');
     const claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (expiresAtMs) claims.exp = expiresAtMs;
-    if (preflight) Object.assign(claims, { pid: preflight.preflightId, prh: preflight.preflightReceiptHash,
-      tfp: preflight.targetFingerprint || '', ch: preflight.consentChallenge });
-    return { ...consent, token: `${fmt}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.${mac}` };
+    if (preflight)
+      Object.assign(claims, {
+        pid: preflight.preflightId,
+        prh: preflight.preflightReceiptHash,
+        tfp: preflight.targetFingerprint || '',
+        ch: preflight.consentChallenge,
+      });
+    return {
+      ...consent,
+      token: `${fmt}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.${mac}`,
+    };
   }
   const out = { ...consent };
   if (expiresAtMs) out.expiresAt = new Date(expiresAtMs).toISOString();
-  if (preflight) Object.assign(out, { preflightId: preflight.preflightId, preflightReceiptHash: preflight.preflightReceiptHash,
-    targetFingerprint: preflight.targetFingerprint || '', consentChallenge: preflight.consentChallenge });
-  out.tokenHash = oldTokenHash(out.token, out.preflightReceiptHash, out.operation, out.expiresAt, out.consentChallenge);
+  if (preflight)
+    Object.assign(out, {
+      preflightId: preflight.preflightId,
+      preflightReceiptHash: preflight.preflightReceiptHash,
+      targetFingerprint: preflight.targetFingerprint || '',
+      consentChallenge: preflight.consentChallenge,
+    });
+  out.tokenHash = oldTokenHash(
+    out.token,
+    out.preflightReceiptHash,
+    out.operation,
+    out.expiresAt,
+    out.consentChallenge
+  );
   return out;
 }
 
@@ -243,9 +350,20 @@ function signedToken(claims, secret = CONSENT_SECRET) {
 }
 function claimsFor(preflight, overrides = {}) {
   const now = Date.now();
-  return { v: 1, scope: 'desktop-control.execute', tid: 'desktop_consent_token_test', op: 'open_url',
-    pid: preflight.preflightId, prh: preflight.preflightReceiptHash, tfp: preflight.targetFingerprint || '',
-    ch: preflight.consentChallenge, iat: now, exp: now + 60_000, nonce: randomBytes(16).toString('hex'), ...overrides };
+  return {
+    v: 1,
+    scope: 'desktop-control.execute',
+    tid: 'desktop_consent_token_test',
+    op: 'open_url',
+    pid: preflight.preflightId,
+    prh: preflight.preflightReceiptHash,
+    tfp: preflight.targetFingerprint || '',
+    ch: preflight.consentChallenge,
+    iat: now,
+    exp: now + 60_000,
+    nonce: randomBytes(16).toString('hex'),
+    ...overrides,
+  };
 }
 
 function assertRefusedExecution(r, label, reason) {
@@ -259,16 +377,25 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
   // ── bridge: transport gate ──────────────────────────────────────────────────────────────────
   test('bridge: a forged old-format consent token sent cross-origin as text/plain with no key is refused', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
-    const r = await execute(preflight, forgeOldFormatToken(preflight), { headers: crossOriginPlain });
+    const r = await execute(preflight, forgeOldFormatToken(preflight), {
+      headers: crossOriginPlain,
+    });
     assertRefusedExecution(r, 'cross-origin forged');
     assert.equal(r.headers['x-holoshell-gate'], 'key-required');
   });
 
   test('bridge: keyless requests are refused on every route but /health', async () => {
-    for (const [method, path] of [['GET', '/api/desktop-control/bridge'], ['POST', '/api/desktop-control/preflight'],
-      ['POST', '/api/desktop-control/gesture-proof'], ['POST', '/api/desktop-control/consent-token'], ['POST', '/api/desktop-control/execute']]) {
+    for (const [method, path] of [
+      ['GET', '/api/desktop-control/bridge'],
+      ['POST', '/api/desktop-control/preflight'],
+      ['POST', '/api/desktop-control/gesture-proof'],
+      ['POST', '/api/desktop-control/consent-token'],
+      ['POST', '/api/desktop-control/execute'],
+    ]) {
       const r = await request(bridgePort, method, path, {
-        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {}, body: method === 'POST' ? {} : undefined });
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+        body: method === 'POST' ? {} : undefined,
+      });
       assert.equal(r.status, 403, `${method} ${path} -> ${r.status}`);
       assert.equal(r.headers['x-holoshell-gate'], 'key-required', `${method} ${path}`);
     }
@@ -278,9 +405,16 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
   });
 
   test('bridge: a keyed text/plain POST gets 415 on every POST route', async () => {
-    for (const path of ['/api/desktop-control/preflight', '/api/desktop-control/gesture-proof',
-      '/api/desktop-control/consent-token', '/api/desktop-control/execute']) {
-      const r = await request(bridgePort, 'POST', path, { headers: { 'x-phone-admin': ADMIN_KEY, 'Content-Type': 'text/plain' }, body: '{}' });
+    for (const path of [
+      '/api/desktop-control/preflight',
+      '/api/desktop-control/gesture-proof',
+      '/api/desktop-control/consent-token',
+      '/api/desktop-control/execute',
+    ]) {
+      const r = await request(bridgePort, 'POST', path, {
+        headers: { 'x-phone-admin': ADMIN_KEY, 'Content-Type': 'text/plain' },
+        body: '{}',
+      });
       assert.equal(r.status, 415, `${path} -> ${r.status}`);
     }
   });
@@ -288,24 +422,48 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
   // ── bridge: consent tokens ──────────────────────────────────────────────────────────────────
   test('bridge: a forged old-format token is refused even with the key', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
-    assertRefusedExecution(await execute(preflight, forgeOldFormatToken(preflight)), 'keyed forged old-format', /consent_token_malformed/);
+    assertRefusedExecution(
+      await execute(preflight, forgeOldFormatToken(preflight)),
+      'keyed forged old-format',
+      /consent_token_malformed/
+    );
   });
 
   test('bridge: a random token string is refused', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
-    assertRefusedExecution(await execute(preflight, randomBytes(24).toString('base64url')), 'random string', /consent_token_malformed/);
-    assertRefusedExecution(await execute(preflight, `hsct1.${randomBytes(30).toString('base64url')}.${randomBytes(32).toString('base64url')}`), 'random hsct1', /consent_token_signature_invalid/);
+    assertRefusedExecution(
+      await execute(preflight, randomBytes(24).toString('base64url')),
+      'random string',
+      /consent_token_malformed/
+    );
+    assertRefusedExecution(
+      await execute(
+        preflight,
+        `hsct1.${randomBytes(30).toString('base64url')}.${randomBytes(32).toString('base64url')}`
+      ),
+      'random hsct1',
+      /consent_token_signature_invalid/
+    );
   });
 
   test('bridge: a tampered token (expiry extended by a caller without the secret) is refused', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
     const consent = await mintConsent(preflight);
     const tampered = attackerRewrite(consent, { expiresAtMs: Date.now() + 24 * 3600_000 });
-    assertRefusedExecution(await execute(preflight, tampered), 'tampered expiry', /consent_token_signature_invalid/);
+    assertRefusedExecution(
+      await execute(preflight, tampered),
+      'tampered expiry',
+      /consent_token_signature_invalid/
+    );
     if (String(consent.token).startsWith('hsct1.')) {
       const [fmt, body, mac] = consent.token.split('.');
-      const flipped = Buffer.from(mac, 'base64url'); flipped[0] ^= 1;
-      assertRefusedExecution(await execute(preflight, `${fmt}.${body}.${flipped.toString('base64url')}`), 'flipped MAC', /consent_token_signature_invalid/);
+      const flipped = Buffer.from(mac, 'base64url');
+      flipped[0] ^= 1;
+      assertRefusedExecution(
+        await execute(preflight, `${fmt}.${body}.${flipped.toString('base64url')}`),
+        'flipped MAC',
+        /consent_token_signature_invalid/
+      );
     }
   });
 
@@ -313,7 +471,10 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
     const consent = await mintConsent(preflight, { ttlMinutes: 600 });
     const lifetimeMs = Date.parse(consent.expiresAt) - Date.now();
-    assert.ok(lifetimeMs <= 5 * 60_000 + 2_000, `token lifetime ${Math.round(lifetimeMs / 1000)} s exceeds 5 minutes`);
+    assert.ok(
+      lifetimeMs <= 5 * 60_000 + 2_000,
+      `token lifetime ${Math.round(lifetimeMs / 1000)} s exceeds 5 minutes`
+    );
   });
 
   test('bridge: an expired (correctly signed) token is refused', async () => {
@@ -328,10 +489,30 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
     const preflightA = await preflightFor(OPEN_URL_INTENT);
     const preflightB = await preflightFor(OTHER_URL_INTENT);
     const consentA = await mintConsent(preflightA);
-    assertRefusedExecution(await execute(preflightB, attackerRewrite(consentA, { preflight: preflightB }),
-      { extra: { url: 'https://example.com/other', executeApprovedAction: true, executorMode: 'simulated' } }), 'retargeted to preflight B', /consent_token_signature_invalid/);
-    assertRefusedExecution(await execute(preflightA, signedToken(claimsFor(preflightA, { scope: 'desktop-control.other' }))), 'other scope', /consent_token_scope_mismatch/);
-    assertRefusedExecution(await execute(preflightA, signedToken(claimsFor(preflightA, { op: 'type_text' }))), 'other operation', /consent_token_operation_mismatch/);
+    assertRefusedExecution(
+      await execute(preflightB, attackerRewrite(consentA, { preflight: preflightB }), {
+        extra: {
+          url: 'https://example.com/other',
+          executeApprovedAction: true,
+          executorMode: 'simulated',
+        },
+      }),
+      'retargeted to preflight B',
+      /consent_token_signature_invalid/
+    );
+    assertRefusedExecution(
+      await execute(
+        preflightA,
+        signedToken(claimsFor(preflightA, { scope: 'desktop-control.other' }))
+      ),
+      'other scope',
+      /consent_token_scope_mismatch/
+    );
+    assertRefusedExecution(
+      await execute(preflightA, signedToken(claimsFor(preflightA, { op: 'type_text' }))),
+      'other operation',
+      /consent_token_operation_mismatch/
+    );
   });
 
   test('bridge: a consent token is single-use (replay refused)', async () => {
@@ -344,25 +525,48 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
   });
 
   test('bridge: CORS allows only the configured page origin, never *', async () => {
-    const page = await request(bridgePort, 'OPTIONS', '/api/desktop-control/execute', { headers: {
-      Origin: PAGE_ORIGIN, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type,x-phone-admin' } });
+    const page = await request(bridgePort, 'OPTIONS', '/api/desktop-control/execute', {
+      headers: {
+        Origin: PAGE_ORIGIN,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type,x-phone-admin',
+      },
+    });
     assert.equal(page.headers['access-control-allow-origin'], PAGE_ORIGIN);
     assert.match(String(page.headers['access-control-allow-headers']), /x-phone-admin/i);
-    const evil = await request(bridgePort, 'OPTIONS', '/api/desktop-control/execute', { headers: {
-      Origin: EVIL_ORIGIN, 'Access-Control-Request-Method': 'POST' } });
+    const evil = await request(bridgePort, 'OPTIONS', '/api/desktop-control/execute', {
+      headers: {
+        Origin: EVIL_ORIGIN,
+        'Access-Control-Request-Method': 'POST',
+      },
+    });
     assert.equal(evil.headers['access-control-allow-origin'], undefined);
-    const evilGet = await request(bridgePort, 'GET', '/api/desktop-control/bridge', { headers: { Origin: EVIL_ORIGIN, 'x-phone-admin': ADMIN_KEY } });
+    const evilGet = await request(bridgePort, 'GET', '/api/desktop-control/bridge', {
+      headers: { Origin: EVIL_ORIGIN, 'x-phone-admin': ADMIN_KEY },
+    });
     assert.equal(evilGet.headers['access-control-allow-origin'], undefined);
   });
 
   // ── daemon ────────────────────────────────────────────────────────────────────────────────
   test('daemon: a cross-origin text/plain POST with no key is refused and reaches no handler', async () => {
     const before = stubCalls('daemon').length;
-    for (const path of ['/action', '/approval/execute', '/workflow/founder-command', '/workflow/agent-dispatch']) {
-      const r = await request(daemonPort, 'POST', path, { headers: crossOriginPlain, body: JSON.stringify({ action: 'list_programs' }) });
+    for (const path of [
+      '/action',
+      '/approval/execute',
+      '/workflow/founder-command',
+      '/workflow/agent-dispatch',
+    ]) {
+      const r = await request(daemonPort, 'POST', path, {
+        headers: crossOriginPlain,
+        body: JSON.stringify({ action: 'list_programs' }),
+      });
       assert.equal(r.status, 403, `${path} -> ${r.status} ${r.text.slice(0, 200)}`);
     }
-    assert.equal(stubCalls('daemon').length, before, 'a refused daemon request started a (stubbed) process');
+    assert.equal(
+      stubCalls('daemon').length,
+      before,
+      'a refused daemon request started a (stubbed) process'
+    );
   });
 
   test('daemon: keyless GET reads are refused; /health stays open', async () => {
@@ -373,56 +577,108 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
   });
 
   test('daemon: a keyed text/plain POST gets 415', async () => {
-    const r = await request(daemonPort, 'POST', '/action', { headers: { 'x-phone-admin': ADMIN_KEY, 'Content-Type': 'text/plain' }, body: '{}' });
+    const r = await request(daemonPort, 'POST', '/action', {
+      headers: { 'x-phone-admin': ADMIN_KEY, 'Content-Type': 'text/plain' },
+      body: '{}',
+    });
     assert.equal(r.status, 415);
   });
 
   test('daemon: CORS allows only the configured origin, never *', async () => {
-    const allowed = await request(daemonPort, 'GET', '/health', { headers: { Origin: DAEMON_PAGE_ORIGIN } });
+    const allowed = await request(daemonPort, 'GET', '/health', {
+      headers: { Origin: DAEMON_PAGE_ORIGIN },
+    });
     assert.equal(allowed.headers['access-control-allow-origin'], DAEMON_PAGE_ORIGIN);
-    const evil = await request(daemonPort, 'OPTIONS', '/action', { headers: { Origin: EVIL_ORIGIN, 'Access-Control-Request-Method': 'POST' } });
+    const evil = await request(daemonPort, 'OPTIONS', '/action', {
+      headers: { Origin: EVIL_ORIGIN, 'Access-Control-Request-Method': 'POST' },
+    });
     assert.equal(evil.headers['access-control-allow-origin'], undefined);
   });
 
   // ── consent secret: independent, mandatory (patch 5) ────────────────────────────────────────
   for (const [label, secretEnv] of [
     ['no HOLOSHELL_CONSENT_SECRET', { HOLOSHELL_CONSENT_SECRET: undefined }],
-    ['a HOLOSHELL_CONSENT_SECRET shorter than 32 characters', { HOLOSHELL_CONSENT_SECRET: randomBytes(8).toString('hex') }],
-    ['HOLOSHELL_CONSENT_SECRET equal to the admin key', { HOLOSHELL_CONSENT_SECRET: ADMIN_KEY.padEnd(40, 'x'), HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY.padEnd(40, 'x') }],
+    [
+      'a HOLOSHELL_CONSENT_SECRET shorter than 32 characters',
+      { HOLOSHELL_CONSENT_SECRET: randomBytes(8).toString('hex') },
+    ],
+    [
+      'HOLOSHELL_CONSENT_SECRET equal to the admin key',
+      {
+        HOLOSHELL_CONSENT_SECRET: ADMIN_KEY.padEnd(40, 'x'),
+        HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY.padEnd(40, 'x'),
+      },
+    ],
   ]) {
     test(`bridge refuses to start with ${label}`, async () => {
       const port = await freePort();
-      const srv = startServer('bridge-nostart', BRIDGE, ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'nostart')], secretEnv);
+      const srv = startServer(
+        'bridge-nostart',
+        BRIDGE,
+        ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'nostart')],
+        secretEnv
+      );
       const exited = await Promise.race([
         new Promise((r) => srv.child.once('exit', (code) => r({ code }))),
         delay(4000).then(() => null),
       ]);
       let listening = false;
-      try { listening = (await request(port, 'GET', '/health')).status === 200; } catch { /* refused: good */ }
+      try {
+        listening = (await request(port, 'GET', '/health')).status === 200;
+      } catch {
+        /* refused: good */
+      }
       srv.child.kill();
       assert.ok(exited, `bridge kept running with ${label}`);
       assert.notEqual(exited.code, 0);
       assert.equal(listening, false, `bridge listened with ${label}`);
       assert.match(srv.output(), /HOLOSHELL_CONSENT_SECRET/);
-      assert.match(srv.output(), /randomBytes\(32\)/, 'the error must say how to generate a secret');
-      if (secretEnv.HOLOSHELL_CONSENT_SECRET) assert.ok(!srv.output().includes(secretEnv.HOLOSHELL_CONSENT_SECRET), 'the error printed the secret');
+      assert.match(
+        srv.output(),
+        /randomBytes\(32\)/,
+        'the error must say how to generate a secret'
+      );
+      if (secretEnv.HOLOSHELL_CONSENT_SECRET)
+        assert.ok(
+          !srv.output().includes(secretEnv.HOLOSHELL_CONSENT_SECRET),
+          'the error printed the secret'
+        );
     });
   }
 
   test('bridge: a token signed with the old admin-key-derived secret is refused', async () => {
     const preflight = await preflightFor(OPEN_URL_INTENT);
-    assertRefusedExecution(await execute(preflight, signedToken(claimsFor(preflight), ADMIN_DERIVED_SECRET)), 'admin-key-derived', /consent_token_signature_invalid/);
+    assertRefusedExecution(
+      await execute(preflight, signedToken(claimsFor(preflight), ADMIN_DERIVED_SECRET)),
+      'admin-key-derived',
+      /consent_token_signature_invalid/
+    );
   });
 
   test('bridge --status shows the consent-secret condition without the value', async () => {
-    const run = (extraEnv) => new Promise((resolveRun) => {
-      const env = { ...process.env, HOME, HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, ...extraEnv };
-      for (const name of Object.keys(env)) if (env[name] === undefined) delete env[name];
-      const child = spawn(process.execPath, [BRIDGE, '--status', '--json', '--port', '65533', '--receipt-dir', join(tmp, 'status-cli')], { cwd: REPO_ROOT, env });
-      let out = '';
-      child.stdout.on('data', (c) => { out += c; });
-      child.on('exit', () => resolveRun(out));
-    });
+    const run = (extraEnv) =>
+      new Promise((resolveRun) => {
+        const env = { ...process.env, HOME, HOLOSHELL_PHONE_ADMIN_KEY: ADMIN_KEY, ...extraEnv };
+        for (const name of Object.keys(env)) if (env[name] === undefined) delete env[name];
+        const child = spawn(
+          process.execPath,
+          [
+            BRIDGE,
+            '--status',
+            '--json',
+            '--port',
+            '65533',
+            '--receipt-dir',
+            join(tmp, 'status-cli'),
+          ],
+          { cwd: REPO_ROOT, env }
+        );
+        let out = '';
+        child.stdout.on('data', (c) => {
+          out += c;
+        });
+        child.on('exit', () => resolveRun(out));
+      });
     const missing = JSON.parse(await run({ HOLOSHELL_CONSENT_SECRET: undefined }));
     assert.equal(missing.localConsentSecret?.condition, 'missing');
     assert.equal(missing.localConsentSecret?.bridgeWouldStart, false);
@@ -439,29 +695,54 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
 
   test('bridge: a full nonce store refuses to mint or accept (503) instead of evicting unexpired nonces', async () => {
     const port = await freePort();
-    const small = startServer('bridge-small', BRIDGE, ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'small')],
-      { HOLOSHELL_CONSENT_NONCE_MAX: '2' });
+    const small = startServer(
+      'bridge-small',
+      BRIDGE,
+      ['--host', '127.0.0.1', '--port', String(port), '--receipt-dir', join(tmp, 'small')],
+      { HOLOSHELL_CONSENT_NONCE_MAX: '2' }
+    );
     try {
       await waitHealthy(port, small);
       const post = (path, body) => request(port, 'POST', path, { headers: keyedJson(), body });
       const tokens = [];
       let preflight;
       for (let i = 0; i < 3; i += 1) {
-        preflight = (await post('/api/desktop-control/preflight', { intent: OPEN_URL_INTENT })).json;
-        const minted = await post('/api/desktop-control/consent-token', { preflight, operation: 'open_url', gestureProof: gestureProofFor(preflight) });
+        preflight = (await post('/api/desktop-control/preflight', { intent: OPEN_URL_INTENT }))
+          .json;
+        const minted = await post('/api/desktop-control/consent-token', {
+          preflight,
+          operation: 'open_url',
+          gestureProof: gestureProofFor(preflight),
+        });
         assert.equal(minted.status, 200, minted.text);
         tokens.push({ preflight, consent: minted.json });
       }
       for (const { preflight: p, consent } of tokens.slice(0, 2)) {
-        const ok = await post('/api/desktop-control/execute', { preflight: p, operation: 'open_url', consentToken: consent });
+        const ok = await post('/api/desktop-control/execute', {
+          preflight: p,
+          operation: 'open_url',
+          consentToken: consent,
+        });
         assert.equal(ok.status, 200, ok.text);
       }
-      const third = await post('/api/desktop-control/execute', { preflight: tokens[2].preflight, operation: 'open_url', consentToken: tokens[2].consent });
+      const third = await post('/api/desktop-control/execute', {
+        preflight: tokens[2].preflight,
+        operation: 'open_url',
+        consentToken: tokens[2].consent,
+      });
       assert.equal(third.status, 503, `third execute with a full store -> ${third.status}`);
-      const mint = await post('/api/desktop-control/consent-token', { preflight, operation: 'open_url', gestureProof: gestureProofFor(preflight) });
+      const mint = await post('/api/desktop-control/consent-token', {
+        preflight,
+        operation: 'open_url',
+        gestureProof: gestureProofFor(preflight),
+      });
       assert.equal(mint.status, 503, `mint with a full store -> ${mint.status}`);
       // The first token is still remembered (not evicted), so its replay stays refused.
-      const replay = await post('/api/desktop-control/execute', { preflight: tokens[0].preflight, operation: 'open_url', consentToken: tokens[0].consent });
+      const replay = await post('/api/desktop-control/execute', {
+        preflight: tokens[0].preflight,
+        operation: 'open_url',
+        consentToken: tokens[0].consent,
+      });
       assert.notEqual(replay.status, 200);
     } finally {
       small.child.kill();
@@ -476,36 +757,66 @@ describe('HoloShell laptop desktop bridge and control daemon access', () => {
     assert.equal(staged.json.status, 'approved_execution_staged');
     assert.equal(staged.json.desktopAutomationExecuted, false);
     const opened = await execute(preflight, await mintConsent(preflight), {
-      extra: { url: 'https://example.com/status', executeApprovedAction: true, executorMode: 'simulated' } });
+      extra: {
+        url: 'https://example.com/status',
+        executeApprovedAction: true,
+        executorMode: 'simulated',
+      },
+    });
     assert.equal(opened.status, 200, opened.text);
     assert.equal(opened.json.status, 'completed_open_url');
     assert.equal(opened.json.destructiveActionsTaken, false);
-    const status = await request(bridgePort, 'GET', '/api/desktop-control/bridge', { headers: { 'x-phone-admin': ADMIN_KEY } });
+    const status = await request(bridgePort, 'GET', '/api/desktop-control/bridge', {
+      headers: { 'x-phone-admin': ADMIN_KEY },
+    });
     assert.equal(status.status, 200);
     assert.equal(status.json.schemaVersion, 'hololand.holoshell.laptop-desktop-bridge.v0.1.0');
   });
 
   test('daemon: a keyed JSON request reaches its handler (process call stubbed)', async () => {
     const before = stubCalls('daemon').length;
-    const r = await request(daemonPort, 'POST', '/action', { headers: keyedJson(), body: { action: 'list_programs' } });
+    const r = await request(daemonPort, 'POST', '/action', {
+      headers: keyedJson(),
+      body: { action: 'list_programs' },
+    });
     assert.equal(r.status, 200, r.text.slice(0, 300));
     assert.equal(r.json.ok, true);
-    assert.ok(stubCalls('daemon').length > before, 'the keyed /action request should reach the stubbed process call');
-    const feed = await request(daemonPort, 'GET', '/feed', { headers: { 'x-phone-admin': ADMIN_KEY } });
+    assert.ok(
+      stubCalls('daemon').length > before,
+      'the keyed /action request should reach the stubbed process call'
+    );
+    const feed = await request(daemonPort, 'GET', '/feed', {
+      headers: { 'x-phone-admin': ADMIN_KEY },
+    });
     assert.equal(feed.status, 200);
   });
 
   test('nothing ran for real: no non-simulated executor call, no network attempt', () => {
     const calls = stubCalls('bridge');
-    assert.deepEqual(calls.filter((c) => c.blocked), [], 'a server tried to reach the network');
-    assert.deepEqual(stubCalls('daemon').filter((c) => c.blocked), []);
-    assert.deepEqual(calls.filter((c) => c.cp && c.args.some((a) => /holoshell-action-executor/.test(a))), [],
-      'the bridge started the action executor');
+    assert.deepEqual(
+      calls.filter((c) => c.blocked),
+      [],
+      'a server tried to reach the network'
+    );
+    assert.deepEqual(
+      stubCalls('daemon').filter((c) => c.blocked),
+      []
+    );
+    assert.deepEqual(
+      calls.filter((c) => c.cp && c.args.some((a) => /holoshell-action-executor/.test(a))),
+      [],
+      'the bridge started the action executor'
+    );
   });
 
   test('no response from the bridge or the daemon carried Access-Control-Allow-Origin: *', () => {
     const wildcard = seen.filter((r) => r.headers['access-control-allow-origin'] === '*');
-    assert.deepEqual(wildcard.map((r) => `${r.port === bridgePort ? 'bridge' : 'daemon'} ${r.method} ${r.path} ${r.status}`), []);
+    assert.deepEqual(
+      wildcard.map(
+        (r) => `${r.port === bridgePort ? 'bridge' : 'daemon'} ${r.method} ${r.path} ${r.status}`
+      ),
+      []
+    );
     assert.ok(seen.length > 20);
     assert.ok(existsSync(join(tmp, 'bridge-receipts')));
   });

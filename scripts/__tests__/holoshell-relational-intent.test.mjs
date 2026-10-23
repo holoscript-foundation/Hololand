@@ -27,7 +27,10 @@ function extractFunction(source, header) {
   let depth = 0;
   for (let i = start; i < source.length; i += 1) {
     if (source[i] === '{') depth += 1;
-    else if (source[i] === '}') { depth -= 1; if (depth === 0) return source.slice(start, i + 1); }
+    else if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
   }
   throw new Error('unbalanced braces while extracting the classifier');
 }
@@ -35,11 +38,16 @@ function extractFunction(source, header) {
 const source = readFileSync(serve, 'utf8').replace(/\r\n/g, '\n');
 const body = extractFunction(source, 'function looksLikeRelationalIntent(message) {');
 // Desktop-control intent is a separate classifier; stub it so this test scores only the relational rule.
-const looksLikeRelationalIntent = new Function('looksLikeDesktopControlIntent', `${body}; return looksLikeRelationalIntent;`)(() => false);
+const looksLikeRelationalIntent = new Function(
+  'looksLikeDesktopControlIntent',
+  `${body}; return looksLikeRelationalIntent;`
+)(() => false);
 
 const wrongOperational = OPERATIONAL.filter((m) => looksLikeRelationalIntent(m));
 const wrongRelational = RELATIONAL.filter((m) => !looksLikeRelationalIntent(m));
-console.log(`held-out: operational ${OPERATIONAL.length - wrongOperational.length}/${OPERATIONAL.length}, relational ${RELATIONAL.length - wrongRelational.length}/${RELATIONAL.length}`);
+console.log(
+  `held-out: operational ${OPERATIONAL.length - wrongOperational.length}/${OPERATIONAL.length}, relational ${RELATIONAL.length - wrongRelational.length}/${RELATIONAL.length}`
+);
 for (const m of wrongOperational) console.log(`  routed relational, should be operational: ${m}`);
 for (const m of wrongRelational) console.log(`  routed operational, should be relational: ${m}`);
 assert.equal(wrongOperational.length, 0, 'operational phrases routed relational');
@@ -54,10 +62,15 @@ const tuning = [
   ['did the miner grow its hashrate today', false],
   ['do you remember what we decided about pricing', true],
 ];
-for (const [m, expected] of tuning) assert.equal(looksLikeRelationalIntent(m), expected, `tuning phrase: ${m}`);
+for (const [m, expected] of tuning)
+  assert.equal(looksLikeRelationalIntent(m), expected, `tuning phrase: ${m}`);
 
 // The founder's own questions from the build that made her remember him.
-for (const m of ['What do you remember about me, Joseph?', 'who am i to you', 'how are you today']) {
+for (const m of [
+  'What do you remember about me, Joseph?',
+  'who am i to you',
+  'how are you today',
+]) {
   assert.equal(looksLikeRelationalIntent(m), true, `founder phrase must be relational: ${m}`);
 }
 // Operational imperatives stay operational even with a relational word inside.

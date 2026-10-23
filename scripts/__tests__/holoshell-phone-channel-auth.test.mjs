@@ -78,7 +78,10 @@ function freePort() {
   return new Promise((resolvePort, reject) => {
     const srv = net.createServer();
     srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolvePort(port)); });
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address();
+      srv.close(() => resolvePort(port));
+    });
   });
 }
 
@@ -88,10 +91,16 @@ function request(port, method, path, { headers = {}, body } = {}) {
     const req = http.request({ host: '127.0.0.1', port, method, path, headers }, (res) => {
       let text = '';
       res.setEncoding('utf8');
-      res.on('data', (c) => { text += c; });
+      res.on('data', (c) => {
+        text += c;
+      });
       res.on('end', () => {
         let json = null;
-        try { json = JSON.parse(text); } catch { /* not json */ }
+        try {
+          json = JSON.parse(text);
+        } catch {
+          /* not json */
+        }
         resolveReq({ status: res.statusCode, headers: res.headers, text, json });
       });
     });
@@ -123,31 +132,55 @@ async function bootServer({ adminKey, seed }) {
   delete env.HOLOSHELL_PHONE_ADMIN_KEY;
   if (adminKey) env.HOLOSHELL_PHONE_ADMIN_KEY = adminKey;
   const child = spawn(process.execPath, ['--import', pathToFileURL(stubPath).href, SERVE], {
-    cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: REPO_ROOT,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  child.stdout.on('data', (c) => { output += c; });
-  child.stderr.on('data', (c) => { output += c; });
+  child.stdout.on('data', (c) => {
+    output += c;
+  });
+  child.stderr.on('data', (c) => {
+    output += c;
+  });
   for (let i = 0; i < 120; i += 1) {
-    if (child.exitCode !== null) throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
+    if (child.exitCode !== null)
+      throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
     try {
       const r = await request(port, 'GET', '/api/health'); // open liveness route (the gate keys the rest)
       if (r.status === 200) break;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await delay(250);
     if (i === 119) throw new Error(`serve.mjs did not come up\n${output}`);
   }
   const ctx = {
-    port, dir, child,
-    calls: () => (existsSync(env.PHONE_TEST_STUB_LOG)
-      ? readFileSync(env.PHONE_TEST_STUB_LOG, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []),
-    status: async () => (await request(port, 'GET', '/api/phone/status', { headers: { 'x-phone-admin': adminKey || '' } })).json,
+    port,
+    dir,
+    child,
+    calls: () =>
+      existsSync(env.PHONE_TEST_STUB_LOG)
+        ? readFileSync(env.PHONE_TEST_STUB_LOG, 'utf8')
+            .split('\n')
+            .filter(Boolean)
+            .map((l) => JSON.parse(l))
+        : [],
+    status: async () =>
+      (
+        await request(port, 'GET', '/api/phone/status', {
+          headers: { 'x-phone-admin': adminKey || '' },
+        })
+      ).json,
     async deliver(texts) {
       const tmp = env.PHONE_TEST_STUB_QUEUE + '.tmp';
       writeFileSync(tmp, JSON.stringify(texts));
       renameSync(tmp, env.PHONE_TEST_STUB_QUEUE);
       for (let i = 0; i < 100 && existsSync(env.PHONE_TEST_STUB_QUEUE); i += 1) await delay(50);
-      assert.ok(!existsSync(env.PHONE_TEST_STUB_QUEUE), 'stub poller never picked up the queued Telegram updates');
+      assert.ok(
+        !existsSync(env.PHONE_TEST_STUB_QUEUE),
+        'stub poller never picked up the queued Telegram updates'
+      );
       await delay(300); // let phonePoll finish handling that batch
     },
     async stop() {
@@ -161,34 +194,59 @@ async function bootServer({ adminKey, seed }) {
 
 const json = (obj) => JSON.stringify(obj);
 const adminJson = { 'Content-Type': 'application/json', 'x-phone-admin': ADMIN_KEY };
-const assertNoWildcardCors = (r, label) => assert.notEqual(r.headers['access-control-allow-origin'], '*', `${label} sent Access-Control-Allow-Origin: *`);
+const assertNoWildcardCors = (r, label) =>
+  assert.notEqual(
+    r.headers['access-control-allow-origin'],
+    '*',
+    `${label} sent Access-Control-Allow-Origin: *`
+  );
 
 describe('HoloShell phone channel admin auth (key configured)', () => {
   let s;
   before(async () => {
     s = await bootServer({
       adminKey: ADMIN_KEY,
-      seed: { botToken: TOKEN_SEEDED, botUsername: 'stub_1000001_bot', founderChatId: SEEDED_CHAT, pairedAt: new Date().toISOString() },
+      seed: {
+        botToken: TOKEN_SEEDED,
+        botUsername: 'stub_1000001_bot',
+        founderChatId: SEEDED_CHAT,
+        pairedAt: new Date().toISOString(),
+      },
     });
   });
-  after(async () => { if (s) await s.stop(); });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('loopback notify with no admin header is 403 and sends nothing', async () => {
     const before = s.calls().filter((c) => c.method === 'sendMessage').length;
     const r = await request(s.port, 'POST', '/api/phone/notify', {
-      headers: { 'Content-Type': 'application/json', Origin: EVIL_ORIGIN }, body: json({ text: 'hello from a web page' }),
+      headers: { 'Content-Type': 'application/json', Origin: EVIL_ORIGIN },
+      body: json({ text: 'hello from a web page' }),
     });
     assert.equal(r.status, 403, r.text);
-    assert.equal(s.calls().filter((c) => c.method === 'sendMessage').length, before, 'notify without the key must not send');
+    assert.equal(
+      s.calls().filter((c) => c.method === 'sendMessage').length,
+      before,
+      'notify without the key must not send'
+    );
   });
 
   test('loopback text/plain connect from a foreign Origin with no admin header is 403 and changes nothing', async () => {
     const r = await request(s.port, 'POST', '/api/phone/connect', {
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN }, body: json({ token: TOKEN_GOOD }),
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN },
+      body: json({ token: TOKEN_GOOD }),
     });
     assert.equal(r.status, 403, r.text);
-    assert.equal(r.json && r.json.pairingCode, undefined, 'a refused connect must not return a pairing code');
-    assert.ok(!s.calls().some((c) => c.token === TOKEN_GOOD), 'a refused connect must not reach Telegram with the new token');
+    assert.equal(
+      r.json && r.json.pairingCode,
+      undefined,
+      'a refused connect must not return a pairing code'
+    );
+    assert.ok(
+      !s.calls().some((c) => c.token === TOKEN_GOOD),
+      'a refused connect must not reach Telegram with the new token'
+    );
     const st = await s.status();
     assert.equal(st.configured, true);
     assert.equal(st.paired, true, 'the seeded pairing must survive a refused connect');
@@ -196,32 +254,44 @@ describe('HoloShell phone channel admin auth (key configured)', () => {
 
   test('the admin key in ?k= alone (no header) is refused', async () => {
     const r = await request(s.port, 'POST', `/api/phone/connect?k=${ADMIN_KEY}`, {
-      headers: { 'Content-Type': 'application/json' }, body: json({ token: TOKEN_GOOD }),
+      headers: { 'Content-Type': 'application/json' },
+      body: json({ token: TOKEN_GOOD }),
     });
     assert.equal(r.status, 403, r.text);
   });
 
   test('text/plain connect is rejected with 415 even with a valid admin header', async () => {
     const r = await request(s.port, 'POST', '/api/phone/connect', {
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8', 'x-phone-admin': ADMIN_KEY, Origin: EVIL_ORIGIN }, body: json({ token: TOKEN_GOOD }),
+      headers: {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'x-phone-admin': ADMIN_KEY,
+        Origin: EVIL_ORIGIN,
+      },
+      body: json({ token: TOKEN_GOOD }),
     });
     assert.equal(r.status, 415, r.text);
-    assert.ok(!s.calls().some((c) => c.token === TOKEN_GOOD), 'a rejected connect must not reach Telegram with the new token');
+    assert.ok(
+      !s.calls().some((c) => c.token === TOKEN_GOOD),
+      'a rejected connect must not reach Telegram with the new token'
+    );
   });
 
   test('/api/phone/* responses never carry Access-Control-Allow-Origin: *', async () => {
-    const st = await request(s.port, 'GET', '/api/phone/status', { headers: { Origin: EVIL_ORIGIN } });
+    const st = await request(s.port, 'GET', '/api/phone/status', {
+      headers: { Origin: EVIL_ORIGIN },
+    });
     assertNoWildcardCors(st, 'GET /api/phone/status');
     const c = await request(s.port, 'POST', '/api/phone/connect', {
-      headers: { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN }, body: json({ token: 'x' }),
+      headers: { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN },
+      body: json({ token: 'x' }),
     });
     assertNoWildcardCors(c, 'POST /api/phone/connect');
     const n = await request(s.port, 'POST', '/api/phone/notify', {
-      headers: { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN }, body: json({ text: 'probe' }),
+      headers: { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN },
+      body: json({ text: 'probe' }),
     });
     assertNoWildcardCors(n, 'POST /api/phone/notify');
   });
-
 });
 
 describe('HoloShell phone channel: a bad token paste does not take the live bot offline', () => {
@@ -229,25 +299,43 @@ describe('HoloShell phone channel: a bad token paste does not take the live bot 
   before(async () => {
     s = await bootServer({
       adminKey: ADMIN_KEY,
-      seed: { botToken: TOKEN_SEEDED, botUsername: 'stub_1000001_bot', founderChatId: SEEDED_CHAT, pairedAt: new Date().toISOString() },
+      seed: {
+        botToken: TOKEN_SEEDED,
+        botUsername: 'stub_1000001_bot',
+        founderChatId: SEEDED_CHAT,
+        pairedAt: new Date().toISOString(),
+      },
     });
   });
-  after(async () => { if (s) await s.stop(); });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('a failed getMe keeps the previous token, username and chat in memory', async () => {
-    const r = await request(s.port, 'POST', '/api/phone/connect', { headers: adminJson, body: json({ token: TOKEN_BAD }) });
+    const r = await request(s.port, 'POST', '/api/phone/connect', {
+      headers: adminJson,
+      body: json({ token: TOKEN_BAD }),
+    });
     assert.equal(r.status, 502, r.text);
     const st = await s.status();
     assert.equal(st.configured, true, 'the live bot must stay configured after a bad token paste');
     assert.equal(st.paired, true, 'the founder chat must stay paired after a bad token paste');
-    const n = await request(s.port, 'POST', '/api/phone/notify', { headers: adminJson, body: json({ text: 'still here' }) });
+    const n = await request(s.port, 'POST', '/api/phone/notify', {
+      headers: adminJson,
+      body: json({ text: 'still here' }),
+    });
     assert.equal(n.status, 200, n.text);
-    const sent = s.calls().filter((c) => c.method === 'sendMessage' && c.body.text === 'still here');
+    const sent = s
+      .calls()
+      .filter((c) => c.method === 'sendMessage' && c.body.text === 'still here');
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].token, TOKEN_SEEDED, 'notify must still go out through the previous bot token');
+    assert.equal(
+      sent[0].token,
+      TOKEN_SEEDED,
+      'notify must still go out through the previous bot token'
+    );
     assert.equal(String(sent[0].body.chat_id), SEEDED_CHAT);
   });
-
 });
 
 describe('HoloShell phone channel: legitimate connect and pairing', () => {
@@ -255,13 +343,23 @@ describe('HoloShell phone channel: legitimate connect and pairing', () => {
   before(async () => {
     s = await bootServer({
       adminKey: ADMIN_KEY,
-      seed: { botToken: TOKEN_SEEDED, botUsername: 'stub_1000001_bot', founderChatId: SEEDED_CHAT, pairedAt: new Date().toISOString() },
+      seed: {
+        botToken: TOKEN_SEEDED,
+        botUsername: 'stub_1000001_bot',
+        founderChatId: SEEDED_CHAT,
+        pairedAt: new Date().toISOString(),
+      },
     });
   });
-  after(async () => { if (s) await s.stop(); });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('a valid admin header with application/json connects (200 with a pairing code)', async () => {
-    const r = await request(s.port, 'POST', '/api/phone/connect', { headers: adminJson, body: json({ token: TOKEN_GOOD }) });
+    const r = await request(s.port, 'POST', '/api/phone/connect', {
+      headers: adminJson,
+      body: json({ token: TOKEN_GOOD }),
+    });
     assert.equal(r.status, 200, r.text);
     assert.match(String(r.json.pairingCode), /^\d{4}$/);
     assert.equal(r.json.botUsername, 'stub_1000002_bot');
@@ -269,15 +367,25 @@ describe('HoloShell phone channel: legitimate connect and pairing', () => {
 
   test('issuing a new pairing code resets pairingAttempts', async () => {
     // Burn the current code with five wrong messages; the fifth voids it.
-    const first = await request(s.port, 'POST', '/api/phone/connect', { headers: adminJson, body: json({ token: TOKEN_GOOD }) });
+    const first = await request(s.port, 'POST', '/api/phone/connect', {
+      headers: adminJson,
+      body: json({ token: TOKEN_GOOD }),
+    });
     assert.equal(first.status, 200, first.text);
     await s.deliver(['0000', '0001', '0002', '0003', '0004'].map((text) => ({ chat: 777, text })));
     assert.equal((await s.status()).pairingOpen, false, 'five misses should void the open code');
     // A fresh code must start from zero misses: one stray message must not void it.
-    const second = await request(s.port, 'POST', '/api/phone/connect', { headers: adminJson, body: json({ token: TOKEN_GOOD }) });
+    const second = await request(s.port, 'POST', '/api/phone/connect', {
+      headers: adminJson,
+      body: json({ token: TOKEN_GOOD }),
+    });
     assert.equal(second.status, 200, second.text);
     await s.deliver([{ chat: 778, text: '0005' }]);
-    assert.equal((await s.status()).pairingOpen, true, 'one miss after a fresh code voided it: pairingAttempts was not reset');
+    assert.equal(
+      (await s.status()).pairingOpen,
+      true,
+      'one miss after a fresh code voided it: pairingAttempts was not reset'
+    );
     await s.deliver([{ chat: 779, text: String(second.json.pairingCode) }]);
     assert.equal((await s.status()).paired, true, 'the fresh code should pair');
   });
@@ -285,21 +393,30 @@ describe('HoloShell phone channel: legitimate connect and pairing', () => {
 
 describe('HoloShell phone channel admin auth (key NOT configured: fail closed)', () => {
   let s;
-  before(async () => { s = await bootServer({ adminKey: '' }); });
-  after(async () => { if (s) await s.stop(); });
+  before(async () => {
+    s = await bootServer({ adminKey: '' });
+  });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('connect and notify refuse every caller when HOLOSHELL_PHONE_ADMIN_KEY is unset', async () => {
     for (const hdr of [{}, { 'x-phone-admin': '' }, { 'x-phone-admin': ADMIN_KEY }]) {
       const c = await request(s.port, 'POST', '/api/phone/connect', {
-        headers: { 'Content-Type': 'application/json', ...hdr }, body: json({ token: TOKEN_GOOD }),
+        headers: { 'Content-Type': 'application/json', ...hdr },
+        body: json({ token: TOKEN_GOOD }),
       });
       assert.equal(c.status, 403, c.text);
       const n = await request(s.port, 'POST', '/api/phone/notify', {
-        headers: { 'Content-Type': 'application/json', ...hdr }, body: json({ text: 'x' }),
+        headers: { 'Content-Type': 'application/json', ...hdr },
+        body: json({ text: 'x' }),
       });
       assert.equal(n.status, 403, n.text);
     }
-    assert.ok(!s.calls().some((c) => c.method === 'getMe'), 'no connect may reach Telegram without a configured key');
+    assert.ok(
+      !s.calls().some((c) => c.method === 'getMe'),
+      'no connect may reach Telegram without a configured key'
+    );
   });
 
   test('the connect page keeps the key in sessionStorage and never copies ?k= into the header', async () => {

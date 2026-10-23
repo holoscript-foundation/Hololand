@@ -33,7 +33,9 @@ import { after, before, describe, test } from 'node:test';
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const SERVE = fileURLToPath(new URL('../../packages/holoshell/serve.mjs', import.meta.url));
 const COMPILE = fileURLToPath(new URL('../../packages/holoshell/compile.mjs', import.meta.url));
-const PAGE = fileURLToPath(new URL('../../packages/holoshell/dist/operate-room.html', import.meta.url));
+const PAGE = fileURLToPath(
+  new URL('../../packages/holoshell/dist/operate-room.html', import.meta.url)
+);
 const ADMIN_KEY = randomBytes(18).toString('hex');
 const EVIL_ORIGIN = 'http://evil.example';
 
@@ -45,7 +47,10 @@ const DANGEROUS_POSTS = [
   { path: '/api/operator-terminal/execute', body: {} },
   { path: '/api/operator-terminal/run-approved', body: {} },
   { path: '/api/consent/approve', body: {} },
-  { path: '/workflow/services/supervisor', body: { ensure: true, confirmHoloServicesEnsure: true } },
+  {
+    path: '/workflow/services/supervisor',
+    body: { ensure: true, confirmHoloServicesEnsure: true },
+  },
   { path: '/api/brittney/op', body: {} },
 ];
 
@@ -93,7 +98,10 @@ function freePort() {
   return new Promise((resolvePort, reject) => {
     const srv = net.createServer();
     srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolvePort(port)); });
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address();
+      srv.close(() => resolvePort(port));
+    });
   });
 }
 
@@ -103,13 +111,30 @@ const seen = []; // every response this file receives, for the global no-ACAO-* 
 function request(port, method, path, { headers = {}, body, headOnly = false } = {}) {
   return new Promise((resolveReq, reject) => {
     const req = http.request({ host: '127.0.0.1', port, method, path, headers }, (res) => {
-      const record = { method, path, status: res.statusCode, headers: res.headers, text: '', json: null };
+      const record = {
+        method,
+        path,
+        status: res.statusCode,
+        headers: res.headers,
+        text: '',
+        json: null,
+      };
       seen.push(record);
-      if (headOnly) { resolveReq(record); res.destroy(); return; }
+      if (headOnly) {
+        resolveReq(record);
+        res.destroy();
+        return;
+      }
       res.setEncoding('utf8');
-      res.on('data', (c) => { record.text += c; });
+      res.on('data', (c) => {
+        record.text += c;
+      });
       res.on('end', () => {
-        try { record.json = JSON.parse(record.text); } catch { /* not json */ }
+        try {
+          record.json = JSON.parse(record.text);
+        } catch {
+          /* not json */
+        }
         resolveReq(record);
       });
     });
@@ -141,25 +166,39 @@ async function bootServer() {
   };
   delete env.TELEGRAM_BOT_TOKEN;
   const child = spawn(process.execPath, ['--import', pathToFileURL(stubPath).href, SERVE], {
-    cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: REPO_ROOT,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  child.stdout.on('data', (c) => { output += c; });
-  child.stderr.on('data', (c) => { output += c; });
+  child.stdout.on('data', (c) => {
+    output += c;
+  });
+  child.stderr.on('data', (c) => {
+    output += c;
+  });
   for (let i = 0; i < 120; i += 1) {
-    if (child.exitCode !== null) throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
+    if (child.exitCode !== null)
+      throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
     try {
       // Any HTTP answer means the server is up (on an ungated tree /api/health does not exist).
       await request(port, 'GET', '/favicon.ico');
       break;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await delay(250);
     if (i === 119) throw new Error(`serve.mjs did not come up\n${output}`);
   }
   return {
     port,
-    calls: () => (existsSync(env.GATE_TEST_STUB_LOG)
-      ? readFileSync(env.GATE_TEST_STUB_LOG, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []),
+    calls: () =>
+      existsSync(env.GATE_TEST_STUB_LOG)
+        ? readFileSync(env.GATE_TEST_STUB_LOG, 'utf8')
+            .split('\n')
+            .filter(Boolean)
+            .map((l) => JSON.parse(l))
+        : [],
     async stop() {
       child.kill('SIGTERM');
       await delay(200);
@@ -174,16 +213,23 @@ describe('HoloShell whole-server gate', () => {
   let s;
   before(async () => {
     // Build the page the server serves (offline; the same step the deploy runs on the laptop).
-    const built = spawnSync(process.execPath, [COMPILE], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 120_000 });
+    const built = spawnSync(process.execPath, [COMPILE], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 120_000,
+    });
     assert.equal(built.status, 0, `compile.mjs failed\n${built.stdout}\n${built.stderr}`);
     s = await bootServer();
   });
-  after(async () => { if (s) await s.stop(); });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   for (const { path, body } of DANGEROUS_POSTS) {
     test(`cross-origin text/plain POST ${path} with no key is refused (403)`, async () => {
       const r = await request(s.port, 'POST', path, {
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN }, body,
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN },
+        body,
       });
       assert.equal(r.status, 403, r.text);
     });
@@ -192,7 +238,12 @@ describe('HoloShell whole-server gate', () => {
   for (const { path, body } of DANGEROUS_POSTS) {
     test(`text/plain POST ${path} with a valid key is 415`, async () => {
       const r = await request(s.port, 'POST', path, {
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8', 'x-phone-admin': ADMIN_KEY, Origin: EVIL_ORIGIN }, body,
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8',
+          'x-phone-admin': ADMIN_KEY,
+          Origin: EVIL_ORIGIN,
+        },
+        body,
       });
       assert.equal(r.status, 415, r.text);
     });
@@ -200,39 +251,65 @@ describe('HoloShell whole-server gate', () => {
 
   test('a refused request never reached a handler: no process call recorded for supervisor ensure', () => {
     const ensures = s.calls().filter((c) => c.cp && c.args.includes('--ensure'));
-    assert.equal(ensures.length, 0, `refused supervisor requests reached runServiceSupervisorSnapshot: ${JSON.stringify(ensures)}`);
+    assert.equal(
+      ensures.length,
+      0,
+      `refused supervisor requests reached runServiceSupervisorSnapshot: ${JSON.stringify(ensures)}`
+    );
   });
 
   test('a cross-origin GET read (/api/live-status) without the key is refused', async () => {
-    const r = await request(s.port, 'GET', '/api/live-status', { headers: { Origin: EVIL_ORIGIN } });
+    const r = await request(s.port, 'GET', '/api/live-status', {
+      headers: { Origin: EVIL_ORIGIN },
+    });
     assert.equal(r.status, 403, r.text.slice(0, 300));
   });
 
   test('the terminal event stream refuses a cross-origin open without key or token', async () => {
     const r = await request(s.port, 'GET', '/api/operator-terminal/events/stream', {
-      headers: { Origin: EVIL_ORIGIN, Accept: 'text/event-stream' }, headOnly: true,
+      headers: { Origin: EVIL_ORIGIN, Accept: 'text/event-stream' },
+      headOnly: true,
     });
     assert.equal(r.status, 403);
-    const bogus = await request(s.port, 'GET', `/api/operator-terminal/events/stream?t=${'0'.repeat(48)}`, {
-      headers: { Origin: EVIL_ORIGIN, Accept: 'text/event-stream' }, headOnly: true,
-    });
+    const bogus = await request(
+      s.port,
+      'GET',
+      `/api/operator-terminal/events/stream?t=${'0'.repeat(48)}`,
+      {
+        headers: { Origin: EVIL_ORIGIN, Accept: 'text/event-stream' },
+        headOnly: true,
+      }
+    );
     assert.equal(bogus.status, 403);
   });
 
   test('a keyed POST mints a stream token that opens the stream (EventSource path)', async () => {
-    const grant = await request(s.port, 'POST', '/api/operator-terminal/events/stream-token', { headers: keyJson, body: {} });
+    const grant = await request(s.port, 'POST', '/api/operator-terminal/events/stream-token', {
+      headers: keyJson,
+      body: {},
+    });
     assert.equal(grant.status, 200, grant.text);
     assert.match(String(grant.json.token), /^[0-9a-f]{48}$/);
-    const r = await request(s.port, 'GET', `/api/operator-terminal/events/stream?t=${grant.json.token}`, {
-      headers: { Accept: 'text/event-stream' }, headOnly: true,
-    });
+    const r = await request(
+      s.port,
+      'GET',
+      `/api/operator-terminal/events/stream?t=${grant.json.token}`,
+      {
+        headers: { Accept: 'text/event-stream' },
+        headOnly: true,
+      }
+    );
     assert.equal(r.status, 200);
     assert.match(String(r.headers['content-type']), /text\/event-stream/);
   });
 
   test('OPTIONS preflight from a foreign origin is answered without granting access', async () => {
     const r = await request(s.port, 'OPTIONS', '/api/brittney/op', {
-      headers: { Origin: EVIL_ORIGIN, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type,x-phone-admin' },
+      headers: {
+        Origin: EVIL_ORIGIN,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type,x-phone-admin',
+      },
     });
     assert.equal(r.headers['access-control-allow-origin'], undefined);
     assert.equal(r.headers['access-control-allow-headers'], undefined);
@@ -256,19 +333,40 @@ describe('HoloShell whole-server gate', () => {
     const calls = [];
     let prompts = 0;
     const sandbox = {
-      URL, Headers,
-      sessionStorage: { getItem: (k) => store[k] || null, setItem: (k, v) => { store[k] = v; }, removeItem: (k) => { delete store[k]; } },
+      URL,
+      Headers,
+      sessionStorage: {
+        getItem: (k) => store[k] || null,
+        setItem: (k, v) => {
+          store[k] = v;
+        },
+        removeItem: (k) => {
+          delete store[k];
+        },
+      },
       window: {
         location: { href: 'http://127.0.0.1:8747/operator', origin: 'http://127.0.0.1:8747' },
-        prompt: () => { prompts += 1; return 'typed-key'; },
-        fetch: (input, init) => { calls.push([String(input), init && init.headers ? new Headers(init.headers).get('x-phone-admin') : null]); return Promise.resolve({ status: 200, headers: new Headers() }); },
+        prompt: () => {
+          prompts += 1;
+          return 'typed-key';
+        },
+        fetch: (input, init) => {
+          calls.push([
+            String(input),
+            init && init.headers ? new Headers(init.headers).get('x-phone-admin') : null,
+          ]);
+          return Promise.resolve({ status: 200, headers: new Headers() });
+        },
       },
     };
     sandbox.window.window = sandbox.window;
     vm.createContext(sandbox);
     vm.runInContext(`${wrapper}\n${helpers}\nthis.f = window.fetch;`, sandbox);
     sandbox.f('/api/live-status');
-    sandbox.f('/workflow/services/supervisor', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    sandbox.f('/workflow/services/supervisor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
     sandbox.f('http://127.0.0.1:8751/api/desktop-control/bridge');
     sandbox.f('/api/health');
     assert.deepEqual(calls, [
@@ -278,28 +376,50 @@ describe('HoloShell whole-server gate', () => {
       ['/api/health', null],
     ]);
     assert.equal(prompts, 1, 'the key is asked once per tab');
-    assert.match(html, /\/api\/operator-terminal\/events\/stream-token/, 'the page must mint a stream token for EventSource');
+    assert.match(
+      html,
+      /\/api\/operator-terminal\/events\/stream-token/,
+      'the page must mint a stream token for EventSource'
+    );
   });
 
   // ── green on both trees ──
   for (const { path, body } of DANGEROUS_POSTS) {
     test(`a keyed JSON POST ${path} reaches its handler`, async () => {
       const r = await request(s.port, 'POST', path, { headers: keyJson, body });
-      assert.ok(r.json && typeof r.json === 'object', `${path}: expected a JSON handler answer, got ${r.status} ${r.text.slice(0, 200)}`);
-      assert.ok(!(r.status === 403 && /admin key required/.test(r.text)), `${path}: refused by the gate with a valid key`);
+      assert.ok(
+        r.json && typeof r.json === 'object',
+        `${path}: expected a JSON handler answer, got ${r.status} ${r.text.slice(0, 200)}`
+      );
+      assert.ok(
+        !(r.status === 403 && /admin key required/.test(r.text)),
+        `${path}: refused by the gate with a valid key`
+      );
       assert.notEqual(r.status, 415, `${path}: refused as non-JSON`);
-      assert.ok(!(r.status === 404 && r.json.error === 'not_found' && r.json.path === path), `${path}: fell through to the router's 404, no handler answered`);
+      assert.ok(
+        !(r.status === 404 && r.json.error === 'not_found' && r.json.path === path),
+        `${path}: fell through to the router's 404, no handler answered`
+      );
     });
   }
 
   test('the keyed supervisor ensure ran only the stubbed process call', () => {
     const ensures = s.calls().filter((c) => c.cp && c.args.includes('--ensure'));
-    assert.equal(ensures.length, 1, `expected exactly one stubbed --ensure call, got ${JSON.stringify(ensures)}`);
-    assert.ok(!s.calls().some((c) => c.blocked), `server tried to reach the network: ${JSON.stringify(s.calls().filter((c) => c.blocked))}`);
+    assert.equal(
+      ensures.length,
+      1,
+      `expected exactly one stubbed --ensure call, got ${JSON.stringify(ensures)}`
+    );
+    assert.ok(
+      !s.calls().some((c) => c.blocked),
+      `server tried to reach the network: ${JSON.stringify(s.calls().filter((c) => c.blocked))}`
+    );
   });
 
   test('a keyed GET read (/api/live-status) is served', async () => {
-    const r = await request(s.port, 'GET', '/api/live-status', { headers: { 'x-phone-admin': ADMIN_KEY } });
+    const r = await request(s.port, 'GET', '/api/live-status', {
+      headers: { 'x-phone-admin': ADMIN_KEY },
+    });
     assert.equal(r.status, 200, r.text.slice(0, 300));
   });
 
@@ -313,7 +433,9 @@ describe('HoloShell whole-server gate', () => {
   });
 
   test('no response anywhere in this file carried Access-Control-Allow-Origin: *', () => {
-    const wildcard = seen.filter((r) => r.headers['access-control-allow-origin'] === '*').map((r) => `${r.method} ${r.path} -> ${r.status}`);
+    const wildcard = seen
+      .filter((r) => r.headers['access-control-allow-origin'] === '*')
+      .map((r) => `${r.method} ${r.path} -> ${r.status}`);
     assert.deepEqual(wildcard, []);
     assert.ok(seen.length > 25, `expected to have checked many responses, saw ${seen.length}`);
   });

@@ -109,7 +109,10 @@ function freePort() {
   return new Promise((resolvePort, reject) => {
     const srv = net.createServer();
     srv.once('error', reject);
-    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolvePort(port)); });
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address();
+      srv.close(() => resolvePort(port));
+    });
   });
 }
 
@@ -119,10 +122,16 @@ function request(port, method, path, { headers = {}, body } = {}) {
     const req = http.request({ host: '127.0.0.1', port, method, path, headers }, (res) => {
       let text = '';
       res.setEncoding('utf8');
-      res.on('data', (c) => { text += c; });
+      res.on('data', (c) => {
+        text += c;
+      });
       res.on('end', () => {
         let json = null;
-        try { json = JSON.parse(text); } catch { /* not json */ }
+        try {
+          json = JSON.parse(text);
+        } catch {
+          /* not json */
+        }
         resolveReq({ status: res.statusCode, headers: res.headers, text, json });
       });
     });
@@ -138,7 +147,12 @@ async function bootServer({ adminKey, seedPhone = false }) {
   const stubPath = join(dir, 'backend-stub.mjs');
   writeFileSync(stubPath, BACKEND_STUB);
   const phoneFile = join(dir, 'phone-channel.json');
-  if (seedPhone) writeFileSync(phoneFile, JSON.stringify({ botToken: BOT_TOKEN, botUsername: 'stub_bot', founderChatId: FOUNDER_CHAT }), { mode: 0o600 });
+  if (seedPhone)
+    writeFileSync(
+      phoneFile,
+      JSON.stringify({ botToken: BOT_TOKEN, botUsername: 'stub_bot', founderChatId: FOUNDER_CHAT }),
+      { mode: 0o600 }
+    );
   const port = await freePort();
   const env = {
     ...process.env,
@@ -155,31 +169,52 @@ async function bootServer({ adminKey, seedPhone = false }) {
   delete env.HOLOSHELL_PHONE_ADMIN_KEY;
   if (adminKey) env.HOLOSHELL_PHONE_ADMIN_KEY = adminKey;
   const child = spawn(process.execPath, ['--import', pathToFileURL(stubPath).href, SERVE], {
-    cwd: REPO_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: REPO_ROOT,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  child.stdout.on('data', (c) => { output += c; });
-  child.stderr.on('data', (c) => { output += c; });
+  child.stdout.on('data', (c) => {
+    output += c;
+  });
+  child.stderr.on('data', (c) => {
+    output += c;
+  });
   for (let i = 0; i < 120; i += 1) {
-    if (child.exitCode !== null) throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
+    if (child.exitCode !== null)
+      throw new Error(`serve.mjs exited early (${child.exitCode})\n${output}`);
     try {
       const r = await request(port, 'GET', '/api/health'); // open liveness route (the gate keys the rest)
       if (r.status === 200) break;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await delay(250);
     if (i === 119) throw new Error(`serve.mjs did not come up\n${output}`);
   }
   return {
     port,
-    calls: () => (existsSync(env.CHAT_TEST_STUB_LOG)
-      ? readFileSync(env.CHAT_TEST_STUB_LOG, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []),
-    turns: function turns() { return this.calls().filter((c) => 'turn' in c).map((c) => c.turn); },
+    calls: () =>
+      existsSync(env.CHAT_TEST_STUB_LOG)
+        ? readFileSync(env.CHAT_TEST_STUB_LOG, 'utf8')
+            .split('\n')
+            .filter(Boolean)
+            .map((l) => JSON.parse(l))
+        : [],
+    turns: function turns() {
+      return this.calls()
+        .filter((c) => 'turn' in c)
+        .map((c) => c.turn);
+    },
     async deliver(texts) {
       const tmp = env.CHAT_TEST_STUB_QUEUE + '.tmp';
       writeFileSync(tmp, JSON.stringify(texts));
       renameSync(tmp, env.CHAT_TEST_STUB_QUEUE);
       for (let i = 0; i < 100 && existsSync(env.CHAT_TEST_STUB_QUEUE); i += 1) await delay(50);
-      assert.ok(!existsSync(env.CHAT_TEST_STUB_QUEUE), 'stub poller never picked up the queued Telegram updates');
+      assert.ok(
+        !existsSync(env.CHAT_TEST_STUB_QUEUE),
+        'stub poller never picked up the queued Telegram updates'
+      );
     },
     async stop() {
       child.kill('SIGTERM');
@@ -189,48 +224,92 @@ async function bootServer({ adminKey, seedPhone = false }) {
   };
 }
 
-const chat = (s, headers, payload) => request(s.port, 'POST', '/api/brittney/chat', {
-  headers, body: typeof payload === 'string' ? payload : JSON.stringify(payload),
-});
+const chat = (s, headers, payload) =>
+  request(s.port, 'POST', '/api/brittney/chat', {
+    headers,
+    body: typeof payload === 'string' ? payload : JSON.stringify(payload),
+  });
 const adminJson = { 'Content-Type': 'application/json', 'x-phone-admin': ADMIN_KEY };
-const assertNoWildcardCors = (r, label) => assert.notEqual(r.headers['access-control-allow-origin'], '*', `${label} sent Access-Control-Allow-Origin: *`);
+const assertNoWildcardCors = (r, label) =>
+  assert.notEqual(
+    r.headers['access-control-allow-origin'],
+    '*',
+    `${label} sent Access-Control-Allow-Origin: *`
+  );
 
 describe('/api/brittney/chat admin auth (key configured)', () => {
   let s;
-  before(async () => { s = await bootServer({ adminKey: ADMIN_KEY }); });
-  after(async () => { if (s) await s.stop(); });
+  before(async () => {
+    s = await bootServer({ adminKey: ADMIN_KEY });
+  });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('a cross-origin text/plain chat POST with no key is 403 and never reaches the model', async () => {
-    const r = await chat(s, { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN },
-      { message: 'cross-origin probe one', mode: 'live' });
+    const r = await chat(
+      s,
+      { 'Content-Type': 'text/plain;charset=UTF-8', Origin: EVIL_ORIGIN },
+      { message: 'cross-origin probe one', mode: 'live' }
+    );
     assert.equal(r.status, 403, r.text);
     assert.equal(r.json && r.json.reply, undefined, 'a refused chat must not return a reply');
-    assert.ok(!s.turns().includes('cross-origin probe one'), 'a refused chat must not run a Brittney turn');
+    assert.ok(
+      !s.turns().includes('cross-origin probe one'),
+      'a refused chat must not run a Brittney turn'
+    );
   });
 
   test('a loopback JSON chat POST with no key, or with the key only in ?k=, is 403', async () => {
-    const noKey = await chat(s, { 'Content-Type': 'application/json' }, { message: 'no key probe' });
+    const noKey = await chat(
+      s,
+      { 'Content-Type': 'application/json' },
+      { message: 'no key probe' }
+    );
     assert.equal(noKey.status, 403, noKey.text);
-    const wrongKey = await chat(s, { 'Content-Type': 'application/json', 'x-phone-admin': 'not-the-key' }, { message: 'wrong key probe' });
+    const wrongKey = await chat(
+      s,
+      { 'Content-Type': 'application/json', 'x-phone-admin': 'not-the-key' },
+      { message: 'wrong key probe' }
+    );
     assert.equal(wrongKey.status, 403, wrongKey.text);
     const queryKey = await request(s.port, 'POST', `/api/brittney/chat?k=${ADMIN_KEY}`, {
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'query key probe' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'query key probe' }),
     });
     assert.equal(queryKey.status, 403, queryKey.text);
-    assert.deepEqual(s.turns().filter((t) => /probe$/.test(t) && t !== 'cross-origin probe one'), []);
+    assert.deepEqual(
+      s.turns().filter((t) => /probe$/.test(t) && t !== 'cross-origin probe one'),
+      []
+    );
   });
 
   test('text/plain with a valid key is 415 and never reaches the model', async () => {
-    const r = await chat(s, { 'Content-Type': 'text/plain;charset=UTF-8', 'x-phone-admin': ADMIN_KEY, Origin: EVIL_ORIGIN },
-      { message: 'text plain with key' });
+    const r = await chat(
+      s,
+      {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'x-phone-admin': ADMIN_KEY,
+        Origin: EVIL_ORIGIN,
+      },
+      { message: 'text plain with key' }
+    );
     assert.equal(r.status, 415, r.text);
     assert.ok(!s.turns().includes('text plain with key'));
   });
 
   test('chat responses never carry Access-Control-Allow-Origin: *', async () => {
-    const refused = await chat(s, { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN }, { message: 'cors probe' });
+    const refused = await chat(
+      s,
+      { 'Content-Type': 'text/plain', Origin: EVIL_ORIGIN },
+      { message: 'cors probe' }
+    );
     assertNoWildcardCors(refused, 'refused chat');
-    const ok = await chat(s, { ...adminJson, Origin: EVIL_ORIGIN }, { message: 'cors probe with key' });
+    const ok = await chat(
+      s,
+      { ...adminJson, Origin: EVIL_ORIGIN },
+      { message: 'cors probe with key' }
+    );
     assertNoWildcardCors(ok, 'accepted chat');
   });
 
@@ -239,7 +318,11 @@ describe('/api/brittney/chat admin auth (key configured)', () => {
     assert.ok(r.status >= 500, `expected a 5xx, got ${r.status}: ${r.text}`);
     assert.ok(r.json && typeof r.json.error === 'string' && r.json.error.length > 0, r.text);
     assert.ok(!r.text.includes(REPO_ROOT.replace(/\/$/, '')), 'error body leaks the repo path');
-    assert.doesNotMatch(r.text, /(^|[\s"'(=])\/(?:[\w.@-]+\/)+[\w.@-]+/, 'error body contains an absolute POSIX path');
+    assert.doesNotMatch(
+      r.text,
+      /(^|[\s"'(=])\/(?:[\w.@-]+\/)+[\w.@-]+/,
+      'error body contains an absolute POSIX path'
+    );
     assert.doesNotMatch(r.text, /[A-Za-z]:\\\\/, 'error body contains a Windows path');
     assert.doesNotMatch(r.text, /\bat .+:\d+:\d+/, 'error body contains a stack frame');
     assert.doesNotMatch(r.text, /Command failed/, 'error body echoes the failing command');
@@ -255,19 +338,33 @@ describe('/api/brittney/chat admin auth (key configured)', () => {
     const r = await chat(s, adminJson, { message: 'describe the color blue' });
     assert.equal(r.status, 200, r.text);
     assert.equal(r.json.reply, 'STUB_REPLY: describe the color blue');
-    assert.ok(s.turns().includes('describe the color blue'), 'the turn should have reached the stubbed backend');
-    assert.ok(!s.calls().some((c) => c.blocked), `server tried to reach the network: ${JSON.stringify(s.calls().filter((c) => c.blocked))}`);
+    assert.ok(
+      s.turns().includes('describe the color blue'),
+      'the turn should have reached the stubbed backend'
+    );
+    assert.ok(
+      !s.calls().some((c) => c.blocked),
+      `server tried to reach the network: ${JSON.stringify(s.calls().filter((c) => c.blocked))}`
+    );
   });
 });
 
 describe('/api/brittney/chat admin auth (key NOT configured: fail closed)', () => {
   let s;
-  before(async () => { s = await bootServer({ adminKey: '' }); });
-  after(async () => { if (s) await s.stop(); });
+  before(async () => {
+    s = await bootServer({ adminKey: '' });
+  });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('chat refuses every caller when HOLOSHELL_PHONE_ADMIN_KEY is unset', async () => {
     for (const hdr of [{}, { 'x-phone-admin': '' }, { 'x-phone-admin': ADMIN_KEY }]) {
-      const r = await chat(s, { 'Content-Type': 'application/json', ...hdr }, { message: 'fail closed probe' });
+      const r = await chat(
+        s,
+        { 'Content-Type': 'application/json', ...hdr },
+        { message: 'fail closed probe' }
+      );
       assert.equal(r.status, 403, r.text);
     }
     assert.ok(!s.turns().includes('fail closed probe'));
@@ -276,8 +373,12 @@ describe('/api/brittney/chat admin auth (key NOT configured: fail closed)', () =
 
 describe('/api/brittney/chat callers keep working with the key', () => {
   let s;
-  before(async () => { s = await bootServer({ adminKey: ADMIN_KEY, seedPhone: true }); });
-  after(async () => { if (s) await s.stop(); });
+  before(async () => {
+    s = await bootServer({ adminKey: ADMIN_KEY, seedPhone: true });
+  });
+  after(async () => {
+    if (s) await s.stop();
+  });
 
   test('the phone channel (server-internal caller) still gets a Brittney reply', async () => {
     await s.deliver([{ chat: FOUNDER_CHAT, text: 'phone says hi' }]);
@@ -296,6 +397,10 @@ describe('/api/brittney/chat callers keep working with the key', () => {
     const line = src.split('\n').find((l) => l.includes("fetch('/api/brittney/chat'"));
     assert.ok(line, 'compile.mjs no longer has the page chat fetch');
     assert.match(line, /'x-phone-admin'/, 'the page chat fetch must send x-phone-admin');
-    assert.match(src, /sessionStorage\.getItem\('holoshell\.phoneAdminKey'\)/, 'the page must read the key from the shared sessionStorage slot');
+    assert.match(
+      src,
+      /sessionStorage\.getItem\('holoshell\.phoneAdminKey'\)/,
+      'the page must read the key from the shared sessionStorage slot'
+    );
   });
 });
